@@ -126,7 +126,11 @@
         /* Views */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
         .calendar-day-header { text-align: center; font-size: 0.85rem; color: var(--wds-gray-500); padding-bottom: 12px; }
-        .calendar-day { aspect-ratio: 1.2; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--wds-radius-m); transition: 0.2s; }
+        .calendar-day { aspect-ratio: 1.2; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--wds-radius-m); transition: 0.2s; padding: 4px; gap: 2px; }
+        .cal-day-num { font-size: 0.95rem; }
+        .cal-day-info { font-size: 0.65rem; line-height: 1.1; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+        .cal-day-info .approved { color: var(--wds-primary); font-weight: 600; }
+        .cal-day-info .pending { color: #f0a050; }
         .calendar-day:hover:not(.empty) { background: var(--wds-gray-100); }
         .calendar-day.today { color: var(--wds-primary); font-weight: 700; background: var(--wds-primary-light); }
         .calendar-day.selected { background: var(--wds-primary) !important; color: white !important; }
@@ -924,14 +928,25 @@
             for (let i = 0; i < startDay; i++) grid.appendChild(Object.assign(document.createElement('div'), {className: 'calendar-day empty'}));
             const today = new Date();
             for (let i = 1; i <= lastDate; i++) {
-                const day = document.createElement('div'); day.className = 'calendar-day'; day.textContent = i;
+                const day = document.createElement('div'); day.className = 'calendar-day';
+                const numEl = document.createElement('div'); numEl.className = 'cal-day-num'; numEl.textContent = i;
+                day.appendChild(numEl);
                 const loopDate = new Date(d.getFullYear(), d.getMonth(), i);
                 if (isSameDay(loopDate, today)) day.classList.add('today');
                 if (state.selectedDate && isSameDay(loopDate, state.selectedDate)) day.classList.add('selected');
-                
-                // 해당 날짜에 예약이 있는지 확인
-                const hasRes = state.reservations.some(r => isSameDay(new Date(r.res_date), loopDate));
-                if (hasRes) day.style.borderBottom = '3px solid var(--wds-primary-light)';
+
+                // 해당 날짜의 예약 요약
+                const dayRes = state.reservations.filter(r => isSameDay(new Date(r.res_date), loopDate));
+                if (dayRes.length > 0) {
+                    const approved = dayRes.filter(r => r.status === 'approved').length;
+                    const pending = dayRes.filter(r => r.status === 'pending').length;
+                    const info = document.createElement('div'); info.className = 'cal-day-info';
+                    const parts = [];
+                    if (approved > 0) parts.push(`<span class="approved">✓${approved}</span>`);
+                    if (pending > 0) parts.push(`<span class="pending">⏳${pending}</span>`);
+                    info.innerHTML = parts.join('');
+                    day.appendChild(info);
+                }
 
                 day.onclick = () => { state.viewDate = loopDate; state.currentView = 'day'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day')); render(); };
                 grid.appendChild(day);
@@ -957,10 +972,13 @@
                     const d = new Date(base); d.setDate(base.getDate() + i);
                     const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
                     
-                    const occupied = isOccupied(d, time);
-                    if (occupied) {
+                    const occupiedRes = getOccupiedReservation(d, time);
+                    if (occupiedRes) {
                         s.style.background = '#eee';
                         s.style.cursor = 'not-allowed';
+                        s.style.fontSize = '0.72rem';
+                        s.style.color = 'var(--wds-gray-700)';
+                        s.textContent = maskName(occupiedRes.user_name);
                     } else {
                         if (isSlotSelected(d, time)) s.classList.add('selected');
                         s.onclick = () => onSlotClick(d, time);
