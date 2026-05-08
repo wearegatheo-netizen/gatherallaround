@@ -194,9 +194,37 @@
         .my-res-date { font-weight: 700; margin-bottom: 4px; }
         .my-res-time { font-size: 0.9rem; color: var(--wds-gray-700); }
         .cancel-btn { padding: 8px 16px; border: 1px solid #ff4d4f; border-radius: var(--wds-radius-s); background: white; color: #ff4d4f; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+
+        /* 공지사항 */
+        #notice_container { width: 100%; max-width: 800px; margin-bottom: 20px; }
+        .notice-card { padding: 16px 20px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--wds-radius-m); margin-bottom: 10px; }
+        .notice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .notice-title { font-weight: 700; font-size: 1rem; }
+        .notice-date { font-size: 0.8rem; color: var(--wds-gray-500); flex-shrink: 0; margin-left: 12px; }
+        .notice-content { font-size: 0.9rem; color: var(--wds-gray-700); line-height: 1.6; white-space: pre-wrap; }
+        .notice-delete-btn { border: none; background: none; color: var(--wds-gray-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline; margin-left: 8px; }
+
+        /* 상태 배지 */
+        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; margin-left: 8px; }
+        .status-pending { background: #FEF3C7; color: #92400E; }
+        .status-approved { background: #D1FAE5; color: #065F46; }
+        .status-rejected { background: #FEE2E2; color: #991B1B; }
+
+        /* 관리자 섹션 */
+        .admin-section { margin-bottom: 32px; }
+        .admin-section-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--wds-gray-100); }
+        .notice-input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .notice-input-group input, .notice-input-group textarea { padding: 10px 14px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); font-family: inherit; font-size: 0.9rem; outline: none; }
+        .notice-input-group textarea { resize: vertical; min-height: 60px; }
+        .approve-btn { padding: 6px 14px; border: 1px solid #10B981; border-radius: var(--wds-radius-s); background: white; color: #10B981; cursor: pointer; font-weight: 600; font-size: 0.82rem; margin-right: 6px; }
+        .reject-btn { padding: 6px 14px; border: 1px solid #EF4444; border-radius: var(--wds-radius-s); background: white; color: #EF4444; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
+        .admin-post-btn { padding: 10px 20px; background: var(--wds-black); color: white; border: none; border-radius: var(--wds-radius-m); font-size: 0.9rem; font-weight: 700; cursor: pointer; align-self: flex-end; }
     </style>
 </head>
 <body>
+
+    <!-- 공지사항 (항상 표시) -->
+    <div id="notice_container" class="hidden"></div>
 
     <!-- Landing/Login -->
     <div id="landing-page">
@@ -381,6 +409,7 @@
 
             fetchReservations();
             fetchComments();
+            fetchNotices();
         }
 
         function onTabClick(e) {
@@ -464,7 +493,7 @@
             document.getElementById('todayBtn').addEventListener('click', () => { state.viewDate = new Date(); render(); });
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
-            // 세션 체크 로직 개선
+            fetchNotices();
             checkSession();
         }
 
@@ -536,7 +565,7 @@
         function renderMyPage(container) {
             const list = document.createElement('div');
             list.className = 'my-res-list';
-            
+
             const myRes = state.reservations
                 .filter(r => r.kakao_id === state.user.kakaoId)
                 .sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
@@ -549,13 +578,16 @@
                     item.className = 'my-res-item';
                     const endIdx = TIMES.indexOf(r.end_time);
                     const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
-                    
+                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
+                    const [statusClass, statusText] = statusMap[r.status] || statusMap['pending'];
+                    const canCancel = r.status !== 'rejected';
+
                     item.innerHTML = `
                         <div class="my-res-info">
-                            <div class="my-res-date">${r.res_date}</div>
+                            <div class="my-res-date">${r.res_date} <span class="status-badge ${statusClass}">${statusText}</span></div>
                             <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
                         </div>
-                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">예약 취소</button>
+                        ${canCancel ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">취소</button>` : ''}
                     `;
                     list.appendChild(item);
                 });
@@ -564,31 +596,71 @@
         }
 
         function renderAdminPage(container) {
-            const list = document.createElement('div');
-            list.className = 'my-res-list';
-            
-            const allRes = [...state.reservations].sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
+            // 공지사항 관리
+            const noticeSection = document.createElement('div');
+            noticeSection.className = 'admin-section';
+            noticeSection.innerHTML = `
+                <div class="admin-section-title">📢 공지사항 관리</div>
+                <div class="notice-input-group">
+                    <input type="text" id="noticeTitle" placeholder="공지 제목">
+                    <textarea id="noticeContent" placeholder="공지 내용"></textarea>
+                    <button type="button" class="admin-post-btn" onclick="postNotice()">공지 등록</button>
+                </div>
+                <div id="adminNoticeList"></div>
+            `;
+            container.appendChild(noticeSection);
+            renderAdminNotices();
 
-            if (allRes.length === 0) {
-                list.innerHTML = '<p style="text-align:center; padding: 40px; color: var(--wds-gray-500);">전체 예약 내역이 없습니다.</p>';
+            // 승인 대기
+            const pendingSection = document.createElement('div');
+            pendingSection.className = 'admin-section';
+            const pending = state.reservations.filter(r => r.status === 'pending').sort((a, b) => new Date(a.res_date) - new Date(b.res_date));
+            pendingSection.innerHTML = `<div class="admin-section-title">⏳ 승인 대기 (${pending.length}건)</div>`;
+            const pendingList = document.createElement('div'); pendingList.className = 'my-res-list';
+            if (pending.length === 0) {
+                pendingList.innerHTML = '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">대기 중인 예약이 없습니다.</p>';
             } else {
-                allRes.forEach(r => {
-                    const item = document.createElement('div');
-                    item.className = 'my-res-item admin-res-item';
-                    const endIdx = TIMES.indexOf(r.end_time);
-                    const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
-                    
+                pending.forEach(r => {
+                    const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
+                    const item = document.createElement('div'); item.className = 'my-res-item';
                     item.innerHTML = `
                         <div class="my-res-info">
-                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem; color:var(--wds-gray-500); font-weight:normal;">(${r.user_name})</span></div>
+                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
                             <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
                         </div>
-                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">예약 강제 취소</button>
-                    `;
-                    list.appendChild(item);
+                        <div>
+                            <button type="button" class="approve-btn" onclick="approveReservation('${r.id}')">승인</button>
+                            <button type="button" class="reject-btn" onclick="rejectReservation('${r.id}')">거절</button>
+                        </div>`;
+                    pendingList.appendChild(item);
                 });
             }
-            container.appendChild(list);
+            pendingSection.appendChild(pendingList);
+            container.appendChild(pendingSection);
+
+            // 승인된 예약
+            const approvedSection = document.createElement('div');
+            approvedSection.className = 'admin-section';
+            const approved = state.reservations.filter(r => r.status === 'approved').sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
+            approvedSection.innerHTML = `<div class="admin-section-title">✅ 승인된 예약 (${approved.length}건)</div>`;
+            const approvedList = document.createElement('div'); approvedList.className = 'my-res-list';
+            if (approved.length === 0) {
+                approvedList.innerHTML = '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">승인된 예약이 없습니다.</p>';
+            } else {
+                approved.forEach(r => {
+                    const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
+                    const item = document.createElement('div'); item.className = 'my-res-item';
+                    item.innerHTML = `
+                        <div class="my-res-info">
+                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
+                            <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
+                        </div>
+                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">강제 취소</button>`;
+                    approvedList.appendChild(item);
+                });
+            }
+            approvedSection.appendChild(approvedList);
+            container.appendChild(approvedSection);
         }
 
         async function cancelReservation(id, isAdmin = false) {
@@ -734,15 +806,14 @@
 
             const { data, error } = await supabaseClient
                 .from('reservations')
-                .insert([
-                    { 
-                        kakao_id: state.user.kakaoId,
-                        user_name: name,
-                        res_date: dateStr,
-                        start_time: state.startTime,
-                        end_time: state.endTime
-                    }
-                ]);
+                .insert([{
+                    kakao_id: state.user.kakaoId,
+                    user_name: name,
+                    res_date: dateStr,
+                    start_time: state.startTime,
+                    end_time: state.endTime,
+                    status: 'pending'
+                }]);
 
             if (error) {
                 alert("예약 실패: " + error.message);
@@ -750,11 +821,87 @@
                 const timeStr = `${state.startTime} ~ ${TIMES[endIdx + 1] || '23:00'}`;
                 const res = document.getElementById('result');
                 res.style.display = 'block';
-                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 완료!`;
+                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">관리자 승인 후 확정됩니다.</small>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
-                fetchReservations(); // 내역 갱신
+                fetchReservations();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
+        }
+
+        // --- 예약 승인/거절 ---
+        async function approveReservation(id) {
+            const { error } = await supabaseClient.from('reservations').update({ status: 'approved' }).eq('id', id);
+            if (error) alert('승인 실패: ' + error.message);
+            else { fetchReservations(); }
+        }
+
+        async function rejectReservation(id) {
+            if (!confirm('이 예약을 거절하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('reservations').update({ status: 'rejected' }).eq('id', id);
+            if (error) alert('거절 실패: ' + error.message);
+            else { fetchReservations(); }
+        }
+
+        // --- 공지사항 ---
+        let notices = [];
+
+        async function fetchNotices() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('notices').select('*').order('created_at', { ascending: false });
+            if (!error) { notices = data; renderNotices(); }
+        }
+
+        function renderNotices() {
+            const container = document.getElementById('notice_container');
+            if (!notices || notices.length === 0) { container.classList.add('hidden'); return; }
+            container.classList.remove('hidden');
+            container.innerHTML = notices.map(n => {
+                const date = new Date(n.created_at).toLocaleDateString('ko-KR');
+                const isAdmin = state.user && state.user.kakaoId === ADMIN_ID;
+                return `<div class="notice-card">
+                    <div class="notice-header">
+                        <span class="notice-title">📢 ${n.title.replace(/</g,'&lt;')}</span>
+                        <span style="display:flex;align-items:center">
+                            <span class="notice-date">${date}</span>
+                            ${isAdmin ? `<button class="notice-delete-btn" onclick="deleteNotice('${n.id}')">삭제</button>` : ''}
+                        </span>
+                    </div>
+                    <div class="notice-content">${n.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderAdminNotices() {
+            const list = document.getElementById('adminNoticeList');
+            if (!list) return;
+            if (!notices || notices.length === 0) { list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">등록된 공지가 없습니다.</p>'; return; }
+            list.innerHTML = notices.map(n => {
+                const date = new Date(n.created_at).toLocaleDateString('ko-KR');
+                return `<div class="my-res-item" style="margin-bottom:8px">
+                    <div><strong>${n.title.replace(/</g,'&lt;')}</strong> <span style="font-size:0.8rem;color:var(--wds-gray-500)">${date}</span></div>
+                    <button type="button" class="cancel-btn" onclick="deleteNotice('${n.id}')">삭제</button>
+                </div>`;
+            }).join('');
+        }
+
+        async function postNotice() {
+            const title = document.getElementById('noticeTitle').value.trim();
+            const content = document.getElementById('noticeContent').value.trim();
+            if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('notices').insert([{ title, content }]);
+            if (error) { alert('공지 등록 실패: ' + error.message); return; }
+            document.getElementById('noticeTitle').value = '';
+            document.getElementById('noticeContent').value = '';
+            await fetchNotices();
+            renderAdminNotices();
+        }
+
+        async function deleteNotice(id) {
+            if (!confirm('공지사항을 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('notices').delete().eq('id', id);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            await fetchNotices();
+            renderAdminNotices();
         }
 
         // --- Comments ---
