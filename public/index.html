@@ -680,9 +680,11 @@
             container.innerHTML = '';
             const d = state.viewDate;
             const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
-            const form = document.getElementById('reservationForm');
+            const submitBtn = document.querySelector('#reservationForm .submit-btn');
+            const nameGroup = document.querySelector('#reservationForm > .form-group:first-child');
             const result = document.getElementById('result');
-            if (form) form.style.display = isSpecial ? 'none' : '';
+            if (submitBtn) submitBtn.style.display = isSpecial ? 'none' : '';
+            if (nameGroup) nameGroup.style.display = isSpecial ? 'none' : '';
             if (result && isSpecial) result.style.display = 'none';
 
             if (state.currentView === 'my') {
@@ -1256,7 +1258,7 @@
                         <div style="flex:1">
                             <div class="comment-meta"><strong>${c.user_name}</strong>${date}</div>
                             <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ ${likesCount}</button>
+                            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
                         </div>
                         ${isMine ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
                     </div>`;
