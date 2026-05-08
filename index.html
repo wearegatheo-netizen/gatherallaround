@@ -257,6 +257,17 @@
         #pending-screen .pending-icon { font-size: 3rem; margin-bottom: 16px; }
         #pending-screen h2 { font-size: 1.5rem; margin-bottom: 12px; }
         #pending-screen p { color: var(--wds-gray-700); font-size: 0.95rem; line-height: 1.7; margin-bottom: 32px; }
+
+        /* 관리자 서브탭 */
+        .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; }
+        .admin-subtab { padding: 10px 18px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .admin-subtab.active { color: var(--wds-primary); border-bottom-color: var(--wds-primary); }
+        .admin-subtab:hover { color: var(--wds-gray-900); }
+
+        /* 댓글 좋아요 버튼 */
+        .like-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer; color: var(--wds-gray-500); transition: all 0.15s; margin-top: 6px; }
+        .like-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+        .like-btn.liked { border-color: #ff6b6b; color: #ff6b6b; background: #fff5f5; }
     </style>
 </head>
 <body>
@@ -524,6 +535,7 @@
             fetchReservations();
             fetchComments();
             fetchNotices();
+            document.getElementById('notice_container').classList.remove('hidden');
         }
 
         function onTabClick(e) {
@@ -547,12 +559,15 @@
             if (myTab) myTab.remove();
 
             state.user = null;
+            notices = [];
+            document.getElementById('notice_container').classList.add('hidden');
         }
 
         // --- Reservation Logic ---
         let state = {
             user: null,
             currentView: 'month',
+            adminTab: 'approval',
             viewDate: new Date(),
             selectedDate: null,
             startTime: null,
@@ -608,7 +623,6 @@
             document.getElementById('todayBtn').addEventListener('click', () => { state.viewDate = new Date(); render(); });
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
-            fetchNotices();
             initSession();
         }
 
@@ -665,6 +679,11 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
+            const form = document.getElementById('reservationForm');
+            const result = document.getElementById('result');
+            if (form) form.style.display = isSpecial ? 'none' : '';
+            if (result && isSpecial) result.style.display = 'none';
 
             if (state.currentView === 'my') {
                 title.textContent = '내 예약 내역';
@@ -724,56 +743,35 @@
         }
 
         async function renderAdminPage(container) {
-            // 회원 관리
-            const memberSection = document.createElement('div');
-            memberSection.className = 'admin-section';
-            memberSection.innerHTML = `<div class="admin-section-title">👥 회원 관리</div><div id="memberList"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
-            container.appendChild(memberSection);
+            // 서브탭 바
+            const subtabBar = document.createElement('div');
+            subtabBar.className = 'admin-subtabs';
+            [
+                { key: 'approval', label: '⏳ 예약승인' },
+                { key: 'members', label: '👥 멤버현황' },
+                { key: 'notice', label: '📢 공지' }
+            ].forEach(t => {
+                const btn = document.createElement('div');
+                btn.className = 'admin-subtab' + (state.adminTab === t.key ? ' active' : '');
+                btn.textContent = t.label;
+                btn.onclick = () => { state.adminTab = t.key; render(); };
+                subtabBar.appendChild(btn);
+            });
+            container.appendChild(subtabBar);
 
-            const members = await fetchMembers();
-            const memberList = document.getElementById('memberList');
-            if (!members || members.length === 0) {
-                memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
+            const content = document.createElement('div');
+            container.appendChild(content);
+
+            if (state.adminTab === 'approval') {
+                renderAdminApprovalSection(content);
+            } else if (state.adminTab === 'members') {
+                await renderAdminMembersSection(content);
             } else {
-                memberList.innerHTML = members.map(m => {
-                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
-                    const [sc, st] = statusMap[m.status] || statusMap['pending'];
-                    const date = new Date(m.created_at).toLocaleDateString('ko-KR');
-                    let actions = '';
-                    if (m.status === 'pending') {
-                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button><button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
-                    } else if (m.status === 'approved') {
-                        actions = `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
-                    } else {
-                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
-                    }
-                    const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
-                    return `<div class="my-res-item" style="margin-bottom:8px">
-                        <div class="my-res-info">
-                            <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
-                            <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
-                            ${instText}
-                        </div>
-                        <div>${actions}</div>
-                    </div>`;
-                }).join('');
+                renderAdminNoticeSection(content);
             }
+        }
 
-            // 공지사항 관리
-            const noticeSection = document.createElement('div');
-            noticeSection.className = 'admin-section';
-            noticeSection.innerHTML = `
-                <div class="admin-section-title">📢 공지사항 관리</div>
-                <div class="notice-input-group">
-                    <input type="text" id="noticeTitle" placeholder="공지 제목">
-                    <textarea id="noticeContent" placeholder="공지 내용"></textarea>
-                    <button type="button" class="admin-post-btn" onclick="postNotice()">공지 등록</button>
-                </div>
-                <div id="adminNoticeList"></div>
-            `;
-            container.appendChild(noticeSection);
-            renderAdminNotices();
-
+        function renderAdminApprovalSection(container) {
             // 승인 대기
             const pendingSection = document.createElement('div');
             pendingSection.className = 'admin-section';
@@ -824,6 +822,58 @@
             }
             approvedSection.appendChild(approvedList);
             container.appendChild(approvedSection);
+        }
+
+        async function renderAdminMembersSection(container) {
+            const memberSection = document.createElement('div');
+            memberSection.className = 'admin-section';
+            memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 현황</div><div id="memberList"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
+            container.appendChild(memberSection);
+
+            const members = await fetchMembers();
+            const memberList = document.getElementById('memberList');
+            if (!members || members.length === 0) {
+                memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
+            } else {
+                memberList.innerHTML = members.map(m => {
+                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
+                    const [sc, st] = statusMap[m.status] || statusMap['pending'];
+                    const date = new Date(m.created_at).toLocaleDateString('ko-KR');
+                    let actions = '';
+                    if (m.status === 'pending') {
+                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button><button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
+                    } else if (m.status === 'approved') {
+                        actions = `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
+                    } else {
+                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
+                    }
+                    const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
+                    return `<div class="my-res-item" style="margin-bottom:8px">
+                        <div class="my-res-info">
+                            <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
+                            <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
+                            ${instText}
+                        </div>
+                        <div>${actions}</div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        function renderAdminNoticeSection(container) {
+            const noticeSection = document.createElement('div');
+            noticeSection.className = 'admin-section';
+            noticeSection.innerHTML = `
+                <div class="admin-section-title">📢 공지사항 관리</div>
+                <div class="notice-input-group">
+                    <input type="text" id="noticeTitle" placeholder="공지 제목">
+                    <textarea id="noticeContent" placeholder="공지 내용"></textarea>
+                    <button type="button" class="admin-post-btn" onclick="postNotice()">공지 등록</button>
+                </div>
+                <div id="adminNoticeList"></div>
+            `;
+            container.appendChild(noticeSection);
+            renderAdminNotices();
         }
 
         async function cancelReservation(id, isAdmin = false) {
@@ -907,11 +957,11 @@
                 grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
                 const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
                 
-                const occupied = isOccupied(state.viewDate, time);
-                if (occupied) {
+                const occupiedRes = getOccupiedReservation(state.viewDate, time);
+                if (occupiedRes) {
                     s.style.background = '#eee';
-                    s.textContent = '이미 예약됨';
                     s.style.cursor = 'not-allowed';
+                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) { s.classList.add('selected'); s.textContent = '선택됨'; }
                     s.onclick = () => onSlotClick(state.viewDate, time);
@@ -921,14 +971,24 @@
             container.appendChild(grid);
         }
 
-        function isOccupied(date, time) {
-            return state.reservations.some(r => {
+        function maskName(name) {
+            if (!name) return '?';
+            if (name.length === 1) return name + '*';
+            return name[0] + '*'.repeat(name.length - 1);
+        }
+
+        function getOccupiedReservation(date, time) {
+            return state.reservations.find(r => {
                 if (!isSameDay(new Date(r.res_date), date)) return false;
                 const startIdx = TIMES.indexOf(r.start_time);
                 const endIdx = TIMES.indexOf(r.end_time);
                 const curIdx = TIMES.indexOf(time);
                 return curIdx >= startIdx && curIdx <= endIdx;
-            });
+            }) || null;
+        }
+
+        function isOccupied(date, time) {
+            return !!getOccupiedReservation(date, time);
         }
 
         function onSlotClick(date, time) {
@@ -1184,14 +1244,19 @@
                 list.innerHTML = '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</p>';
                 return;
             }
+            const likedKey = state.user ? 'liked_' + state.user.kakaoId : '';
+            const liked = likedKey ? JSON.parse(localStorage.getItem(likedKey) || '[]') : [];
             list.innerHTML = comments.map(c => {
                 const date = new Date(c.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 const isMine = state.user && state.user.kakaoId === c.kakao_id;
+                const isLiked = liked.includes(String(c.id));
+                const likesCount = c.likes || 0;
                 return `
                     <div class="comment-item">
                         <div style="flex:1">
                             <div class="comment-meta"><strong>${c.user_name}</strong>${date}</div>
                             <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ ${likesCount}</button>
                         </div>
                         ${isMine ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
                     </div>`;
@@ -1214,6 +1279,22 @@
                 input.value = '';
                 fetchComments();
             }
+        }
+
+        async function likeComment(id) {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const likedKey = 'liked_' + state.user.kakaoId;
+            const liked = JSON.parse(localStorage.getItem(likedKey) || '[]');
+            const sid = String(id);
+            const alreadyLiked = liked.includes(sid);
+            const newLiked = alreadyLiked ? liked.filter(x => x !== sid) : [...liked, sid];
+            localStorage.setItem(likedKey, JSON.stringify(newLiked));
+
+            const { data: comment } = await supabaseClient.from('comments').select('likes').eq('id', id).single();
+            const current = comment ? (comment.likes || 0) : 0;
+            const newCount = alreadyLiked ? Math.max(0, current - 1) : current + 1;
+            await supabaseClient.from('comments').update({ likes: newCount }).eq('id', id);
+            fetchComments();
         }
 
         async function deleteComment(id) {
