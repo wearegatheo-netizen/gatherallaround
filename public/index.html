@@ -303,6 +303,8 @@
         .reply-form { margin-top: 8px; }
         .reply-form textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box; }
         .reply-form button { padding: 6px 14px; background: var(--wds-primary); color: white; border: none; border-radius: var(--wds-radius-s); cursor: pointer; margin-top: 6px; font-size: 0.85rem; }
+        .reply-toggle { font-size: 0.82rem; color: var(--wds-primary); cursor: pointer; padding: 6px 0; margin-left: 32px; user-select: none; font-weight: 600; }
+        .reply-toggle:hover { text-decoration: underline; }
 
         /* 모바일 반응형 */
         @media (max-width: 768px) {
@@ -322,14 +324,16 @@
             .cal-day-num { font-size: 0.85rem; }
             .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
-            .weekly-grid:not(.day-grid) { grid-template-columns: 56px repeat(7, minmax(46px, 1fr)) !important; }
-            .day-grid { grid-template-columns: 90px 1fr !important; }
+            .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
+            .weekly-grid:not(.day-grid) { grid-template-columns: 50px repeat(7, 60px) !important; min-width: 470px; }
+            .day-grid { grid-template-columns: 88px 1fr !important; }
             .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
-            .weekly-time-cell { padding: 6px 4px; }
-            .weekly-time-cell > div:first-child { font-size: 0.78rem !important; }
+            .weekly-time-cell { padding: 6px 3px; }
+            .weekly-time-cell > div:first-child { font-size: 0.76rem !important; }
             .weekly-time-cell > div:last-child { font-size: 0.6rem !important; }
-            .weekly-slot { height: 42px; }
-            .day-grid .weekly-slot { padding-left: 14px !important; }
+            .weekly-slot { height: 50px; font-size: 0.7rem; }
+            .day-grid .weekly-slot { padding-left: 12px !important; height: 48px; }
+            .weekly-header-cell { padding: 10px 4px; font-size: 0.85rem; }
             .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
             .admin-subtab { padding: 8px 12px; font-size: 0.82rem; white-space: nowrap; }
             .admin-section { padding: 16px 12px; }
@@ -596,6 +600,14 @@
                 tabs.appendChild(adminTab);
                 adminTab.addEventListener('click', onTabClick);
             }
+            if (!document.querySelector('[data-view="members"]')) {
+                const memTab = document.createElement('div');
+                memTab.className = 'tab';
+                memTab.dataset.view = 'members';
+                memTab.textContent = '멤버';
+                tabs.appendChild(memTab);
+                memTab.addEventListener('click', onTabClick);
+            }
             if (!document.querySelector('[data-view="my"]')) {
                 const myTab = document.createElement('div');
                 myTab.className = 'tab';
@@ -636,6 +648,8 @@
             if (adminTab) adminTab.remove();
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
+            const memTab = document.querySelector('[data-view="members"]');
+            if (memTab) memTab.remove();
 
             state.user = null;
             notices = [];
@@ -772,7 +786,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'members';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const nameGroup = document.querySelector('#reservationForm > .form-group:first-child');
@@ -789,6 +803,10 @@
                 title.textContent = '전체 예약 현황 (관리자)';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
+            } else if (state.currentView === 'members') {
+                title.textContent = '전체 멤버';
+                if (nav) nav.style.display = 'none';
+                renderMembersTab(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -804,6 +822,37 @@
                     renderDay(container);
                 }
             }
+        }
+
+        async function renderMembersTab(container) {
+            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">불러오는 중...</p>';
+            const members = await fetchMembers();
+            const approved = (members || []).filter(m => m.status === 'approved');
+            const isS = isSuper();
+            container.innerHTML = '';
+            if (approved.length === 0) {
+                container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:40px">아직 멤버가 없습니다.</p>';
+                return;
+            }
+            const list = document.createElement('div');
+            list.className = 'my-res-list';
+            list.innerHTML = approved.map(m => {
+                const role = m.role || '일반';
+                const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+                const roleColor = roleColors[role] || '#999';
+                const sensitiveInfo = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''}</div>` : '';
+                const roleInfo = isS ? `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>` : '';
+                const instText = m.instruments ? `<div style="font-size:0.85rem;color:var(--wds-primary);margin-top:4px">🎵 ${m.instruments}</div>` : '';
+                return `<div class="my-res-item" style="margin-bottom:8px">
+                    <div class="my-res-info">
+                        <div class="my-res-date">${m.name}</div>
+                        ${instText}
+                        ${sensitiveInfo}
+                        ${roleInfo}
+                    </div>
+                </div>`;
+            }).join('');
+            container.appendChild(list);
         }
 
         function renderMyPage(container) {
@@ -1082,7 +1131,7 @@
             };
             dashEl.innerHTML = `
                 <div class="stat-grid">
-                    ${statCard('전체', total, '#3366FF', namesOf(() => true))}
+                    ${statCard('전체', total, '#3366FF')}
                     ${statCard('승인됨', approved, '#00b894', namesOf(m => m.status === 'approved'))}
                     ${statCard('대기', pending, '#f0a050', namesOf(m => m.status === 'pending'))}
                     ${statCard('거절', rejected, '#e74c3c', namesOf(m => m.status === 'rejected'))}
@@ -1122,18 +1171,20 @@
                         if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
                     }
 
-                    const roleSelect = isSuper() ? `
+                    const isS = isSuper();
+                    const roleSelect = isS ? `
                         <select onchange="updateMemberRole('${m.id}', this.value)" style="margin-top:4px;font-size:0.8rem;padding:2px 6px;border:1px solid var(--wds-gray-300);border-radius:4px;color:${roleColor}">
                             <option value="일반" ${role==='일반'?'selected':''}>일반</option>
                             <option value="세션장" ${role==='세션장'?'selected':''}>세션장</option>
                             <option value="총괄" ${role==='총괄'?'selected':''}>총괄</option>
-                        </select>` : `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>`;
+                        </select>` : '';
 
+                    const contactLine = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>` : `<div class="my-res-time">${date}</div>`;
                     const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
                     return `<div class="my-res-item" style="margin-bottom:8px">
                         <div class="my-res-info">
                             <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
-                            <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
+                            ${contactLine}
                             ${instText}
                             ${roleSelect}
                         </div>
@@ -1672,7 +1723,8 @@
                 let html = renderItem(p, false);
                 const replies = replyMap[p.id] || [];
                 if (replies.length > 0) {
-                    html += '<div class="comment-replies">' + replies.map(r => renderItem(r, true)).join('') + '</div>';
+                    html += `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div>`;
+                    html += `<div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true)).join('')}</div>`;
                 }
                 return html;
             }).join('');
@@ -1681,6 +1733,16 @@
         function toggleReplyForm(parentId) {
             const form = document.getElementById('reply-form-' + parentId);
             if (form) form.classList.toggle('hidden');
+        }
+
+        function toggleReplies(parentId) {
+            const repliesEl = document.getElementById('replies-' + parentId);
+            const toggleEl = document.getElementById('reply-toggle-text-' + parentId);
+            if (!repliesEl || !toggleEl) return;
+            const willHide = !repliesEl.classList.contains('hidden');
+            repliesEl.classList.toggle('hidden');
+            const count = repliesEl.querySelectorAll('.comment-reply').length;
+            toggleEl.textContent = willHide ? `▼ 답글 ${count}개 보기` : `▲ 답글 ${count}개 숨기기`;
         }
 
         async function postReply(parentId) {
