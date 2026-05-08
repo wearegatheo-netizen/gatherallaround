@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gather All Around | Premium Studio</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        :root {
+            --wds-primary: #3366FF;
+            --wds-primary-hover: #254EDB;
+            --wds-primary-light: #EBF0FF;
+            --wds-black: #111111;
+            --wds-gray-900: #333333;
+            --wds-gray-700: #666666;
+            --wds-gray-500: #999999;
+            --wds-gray-300: #E1E2E3;
+            --wds-gray-100: #F7F7F7;
+            --wds-white: #FFFFFF;
+            --wds-radius-s: 4px;
+            --wds-radius-m: 8px;
+            --wds-radius-l: 16px;
+            --wds-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+            --kakao-yellow: #FEE500;
+        }
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: #fcfcfc;
+            color: var(--wds-black);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Landing/Login Hero */
+        #landing-page {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            padding: 60px 40px;
+            background: var(--wds-white);
+            border-radius: var(--wds-radius-l);
+            box-shadow: var(--wds-shadow-lg);
+            border: 1px solid var(--wds-gray-300);
+            margin-top: 10vh;
+        }
+
+        #landing-page h1 { font-size: 2.2rem; margin-bottom: 12px; letter-spacing: -1px; }
+        #landing-page p { color: var(--wds-gray-700); margin-bottom: 40px; font-size: 1.1rem; }
+
+        .kakao-login-btn {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            transition: transform 0.2s;
+        }
+
+        .kakao-login-btn img { width: 100%; height: auto; display: block; }
+        .kakao-login-btn:hover { transform: translateY(-2px); }
+
+        /* Main Container */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--wds-white);
+            padding: 40px;
+            border-radius: var(--wds-radius-l);
+            border: 1px solid var(--wds-gray-300);
+            box-shadow: var(--wds-shadow-lg);
+            margin-bottom: 40px;
+        }
+
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.8px; }
+        .subtitle { color: var(--wds-gray-500); font-size: 1rem; }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--wds-gray-100);
+            border-radius: var(--wds-radius-m);
+            margin-bottom: 32px;
+            border: 1px solid var(--wds-gray-300);
+        }
+
+        .logout-btn { color: var(--wds-gray-500); cursor: pointer; border: none; background: none; text-decoration: underline; }
+
+        /* Reservation Form */
+        .form-group { margin-bottom: 32px; }
+        .label { display: block; font-weight: 700; margin-bottom: 12px; font-size: 1rem; }
+        input[type="text"] {
+            width: 100%;
+            height: 52px;
+            padding: 0 16px;
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-m);
+            font-size: 1.1rem;
+            outline: none;
+        }
+
+        /* Tabs & Navigation */
+        .tabs { display: flex; border-bottom: 2px solid var(--wds-gray-100); margin-bottom: 24px; gap: 24px; }
+        .tab { padding: 12px 4px; font-weight: 600; color: var(--wds-gray-500); cursor: pointer; position: relative; }
+        .tab.active { color: var(--wds-primary); }
+        .tab.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background-color: var(--wds-primary); }
+
+        .view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .view-title { font-size: 1.3rem; font-weight: 700; }
+        .nav-btns { display: flex; gap: 8px; }
+        .nav-btn { padding: 8px 16px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); background: white; cursor: pointer; font-weight: 600; }
+
+        /* Views */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .calendar-day-header { text-align: center; font-size: 0.85rem; color: var(--wds-gray-500); padding-bottom: 12px; }
+        .calendar-day { aspect-ratio: 1.2; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--wds-radius-m); transition: 0.2s; }
+        .calendar-day:hover:not(.empty) { background: var(--wds-gray-100); }
+        .calendar-day.today { color: var(--wds-primary); font-weight: 700; background: var(--wds-primary-light); }
+        .calendar-day.selected { background: var(--wds-primary) !important; color: white !important; }
+        .calendar-day.empty { cursor: default; }
+
+        .weekly-container { overflow-x: auto; }
+        .weekly-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
+        .weekly-cell { padding: 12px 8px; border-bottom: 1px solid var(--wds-gray-100); border-right: 1px solid var(--wds-gray-100); text-align: center; }
+        .weekly-header-cell { background: var(--wds-gray-100); font-weight: 600; padding: 16px 8px; }
+        .weekly-time-cell { background: var(--wds-gray-100); color: var(--wds-gray-500); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+        .weekly-slot { cursor: pointer; height: 48px; }
+        .weekly-slot:hover { background: var(--wds-primary-light); }
+        .weekly-slot.selected { background: var(--wds-primary) !important; }
+
+        .submit-btn {
+            width: 100%;
+            height: 60px;
+            background: var(--wds-primary);
+            color: white;
+            border: none;
+            border-radius: var(--wds-radius-m);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .submit-btn:hover { background: var(--wds-primary-hover); }
+
+        #disqus_container { width: 100%; max-width: 800px; padding: 32px; background: white; border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
+        
+        .result-card { display: none; margin-top: 24px; padding: 24px; background: #F0F5FF; border: 1px solid #D0E0FF; border-radius: var(--wds-radius-l); color: var(--wds-primary); }
+    </style>
+</head>
+<body>
+
+    <!-- Landing/Login -->
+    <div id="landing-page">
+        <h1>Gather All Around</h1>
+        <p>프리미엄 합주실 예약을 위해<br>카카오톡으로 로그인이 필요합니다.</p>
+        <button type="button" id="kakao-login-btn" class="kakao-login-btn">
+            <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="container hidden">
+        <header>
+            <h1>Gather All Around</h1>
+            <p class="subtitle">프리미엄 합주실 예약 시스템</p>
+        </header>
+
+        <div id="userInfoArea" class="user-info">
+            <span><strong id="userNameDisplay"></strong>님, 환영합니다!</span>
+            <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
+        </div>
+
+        <form id="reservationForm">
+            <div class="form-group">
+                <span class="label">예약자 성함</span>
+                <input type="text" id="userNameInput" readonly required>
+            </div>
+
+            <div class="form-group">
+                <span class="label">날짜 및 시간 선택</span>
+                <div class="tabs">
+                    <div class="tab" data-view="day">일간</div>
+                    <div class="tab" data-view="week">주간</div>
+                    <div class="tab active" data-view="month">월간</div>
+                </div>
+
+                <div class="view-header">
+                    <div id="viewTitle" class="view-title">2026.05</div>
+                    <div class="nav-btns">
+                        <button type="button" class="nav-btn" id="prevBtn">&lt;</button>
+                        <button type="button" class="nav-btn" id="todayBtn">오늘</button>
+                        <button type="button" class="nav-btn" id="nextBtn">&gt;</button>
+                    </div>
+                </div>
+
+                <div id="viewContainer"></div>
+                <input type="hidden" id="selectedDate" required>
+                <input type="hidden" id="selectedTime" required>
+            </div>
+
+            <button type="submit" class="submit-btn">예약 완료하기</button>
+        </form>
+
+        <div id="result" class="result-card"></div>
+    </div>
+
+    <!-- Disqus -->
+    <div id="disqus_container" class="hidden">
+        <div id="disqus_thread"></div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
+    <script>
+        // 전역 에러 핸들러 추가 (디버깅용)
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Global Error: ' + msg + ' at ' + url + ':' + lineNo);
+            return false;
+        };
+
+        // --- Configuration ---
+        const KAKAO_KEY = '9627dd6537f30f1c42b30de51ceea2cf';
+        const SUPABASE_URL = 'https://xdcygyvsybsirmaknmpq.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
+        const ADMIN_ID = '3838426038'; // 관리자 카카오 ID (wearegatheo)
+
+        let supabaseClient = null;
+
+        // --- Kakao Auth ---
+        function initKakao() {
+            try {
+                if (typeof Kakao !== 'undefined' && !Kakao.isInitialized()) {
+                    Kakao.init(KAKAO_KEY);
+                    console.log("Kakao SDK v1 Initialized:", Kakao.isInitialized());
+                }
+            } catch (e) {
+                console.error("Kakao Init Error:", e);
+            }
+        }
+
+        function handleLogin() {
+            console.log("카카오 로그인 시퀀스 시작 (v1 Popup)...");
+            if (typeof Kakao === 'undefined') {
+                alert("카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+                return;
+            }
+            if (!Kakao.isInitialized()) initKakao();
+
+            Kakao.Auth.login({
+                success: function(auth) {
+                    console.log("카카오 인증 성공:", auth);
+                    Kakao.API.request({
+                        url: '/v2/user/me',
+                        success: function(res) {
+                            console.log("사용자 정보 요청 성공:", res);
+                            const nickname = (res.kakao_account && res.kakao_account.profile) 
+                                ? res.kakao_account.profile.nickname 
+                                : (res.properties ? res.properties.nickname : '사용자');
+                            const kakaoId = res.id.toString();
+                            state.user = { nickname, kakaoId };
+                            loginUI(nickname);
+                        },
+                        fail: function(err) {
+                            alert("사용자 정보 요청 실패: " + JSON.stringify(err));
+                        }
+                    });
+                },
+                fail: function(err) {
+                    console.error("카카오 인증 실패:", err);
+                    alert("로그인 실패: " + (err.error_description || err.error || "알 수 없는 오류"));
+                }
+            });
+        }
+
+        function handleLogout() {
+            if (Kakao.Auth.getAccessToken()) {
+                Kakao.Auth.logout(() => {
+                    logoutUI();
+                    alert("로그아웃 되었습니다.");
+                });
+            } else {
+                logoutUI();
+            }
+        }
+
+        function loginUI(nickname) {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('disqus_container').classList.remove('hidden');
+            document.getElementById('userNameDisplay').textContent = nickname;
+            document.getElementById('userNameInput').value = nickname;
+            
+            // 어드민인 경우 어드민 탭 추가
+            if (state.user && state.user.kakaoId === ADMIN_ID) {
+                const tabs = document.querySelector('.tabs');
+                if (!document.querySelector('[data-view="admin"]')) {
+                    const adminTab = document.createElement('div');
+                    adminTab.className = 'tab';
+                    adminTab.dataset.view = 'admin';
+                    adminTab.textContent = '관리자';
+                    tabs.appendChild(adminTab);
+                    
+                    const myTab = document.createElement('div');
+                    myTab.className = 'tab';
+                    myTab.dataset.view = 'my';
+                    myTab.textContent = '내 예약';
+                    tabs.appendChild(myTab);
+
+                    // 이벤트 리스너 재등록
+                    adminTab.addEventListener('click', onTabClick);
+                    myTab.addEventListener('click', onTabClick);
+                }
+            } else if (state.user) {
+                const tabs = document.querySelector('.tabs');
+                if (!document.querySelector('[data-view="my"]')) {
+                    const myTab = document.createElement('div');
+                    myTab.className = 'tab';
+                    myTab.dataset.view = 'my';
+                    myTab.textContent = '내 예약';
+                    tabs.appendChild(myTab);
+                    myTab.addEventListener('click', onTabClick);
+                }
+            }
+
+            if (!window.disqus_loaded) {
+                var d = document, s = d.createElement('script');
+                s.src = 'https://gatherallaround.disqus.com/embed.js';
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+                window.disqus_loaded = true;
+            }
+            fetchReservations();
+        }
+
+        function onTabClick(e) {
+            state.currentView = e.target.dataset.view;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            e.target.classList.add('active');
+            render();
+        }
+
+        function logoutUI() {
+            document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('disqus_container').classList.add('hidden');
+            document.getElementById('userNameInput').value = '';
+            
+            // 추가한 탭 제거
+            const adminTab = document.querySelector('[data-view="admin"]');
+            if (adminTab) adminTab.remove();
+            const myTab = document.querySelector('[data-view="my"]');
+            if (myTab) myTab.remove();
+
+            state.user = null;
+        }
+
+        // --- Reservation Logic ---
+        let state = {
+            user: null,
+            currentView: 'month',
+            viewDate: new Date(),
+            selectedDate: null,
+            startTime: null,
+            endTime: null,
+            reservations: []
+        };
+
+        const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+
+        async function fetchReservations() {
+            if (!supabaseClient) {
+                console.warn("Supabase가 초기화되지 않아 예약을 불러올 수 없습니다.");
+                return;
+            }
+            const { data, error } = await supabaseClient
+                .from('reservations')
+                .select('*');
+            
+            if (error) console.error('Fetch error:', error);
+            else {
+                state.reservations = data;
+                render();
+            }
+        }
+
+        function initApp() {
+            console.log("App 초기화 시작...");
+            
+            // Supabase 안전한 초기화
+            try {
+                if (typeof window.supabase !== 'undefined') {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    console.log("Supabase 초기화 완료");
+                } else {
+                    console.error("Supabase SDK 로드 실패");
+                }
+            } catch (e) {
+                console.error("Supabase 초기화 중 에러:", e);
+            }
+
+            render();
+            
+            const loginBtn = document.getElementById('kakao-login-btn');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', handleLogin);
+                console.log("로그인 버튼 이벤트 리스너 등록 완료");
+            }
+
+            document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', onTabClick));
+
+            document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
+            document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
+            document.getElementById('todayBtn').addEventListener('click', () => { state.viewDate = new Date(); render(); });
+            document.getElementById('reservationForm').addEventListener('submit', onReserve);
+
+            // 세션 체크 로직 개선
+            checkSession();
+        }
+
+        function checkSession() {
+            if (typeof Kakao === 'undefined') {
+                setTimeout(checkSession, 100);
+                return;
+            }
+            if (!Kakao.isInitialized()) initKakao();
+
+            if (Kakao.Auth.getAccessToken()) {
+                Kakao.API.request({
+                    url: '/v2/user/me',
+                    success: (res) => {
+                        console.log("기존 세션 확인 성공");
+                        state.user = { 
+                            nickname: res.kakao_account.profile.nickname, 
+                            kakaoId: res.id.toString() 
+                        };
+                        loginUI(state.user.nickname);
+                    },
+                    fail: (err) => {
+                        console.warn("세션 만료 또는 인증 실패:", err);
+                        logoutUI();
+                    }
+                });
+            }
+        }
+
+        function navigate(dir) {
+            const d = state.viewDate;
+            if (state.currentView === 'month') state.viewDate = new Date(d.getFullYear(), d.getMonth() + dir, 1);
+            else if (state.currentView === 'week') state.viewDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (dir * 7));
+            else state.viewDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + dir);
+            render();
+        }
+
+        function render() {
+            const container = document.getElementById('viewContainer');
+            const title = document.getElementById('viewTitle');
+            const nav = document.querySelector('.nav-btns');
+            container.innerHTML = '';
+            const d = state.viewDate;
+
+            if (state.currentView === 'my') {
+                title.textContent = '내 예약 내역';
+                if (nav) nav.style.display = 'none';
+                renderMyPage(container);
+            } else if (state.currentView === 'admin') {
+                title.textContent = '전체 예약 현황 (관리자)';
+                if (nav) nav.style.display = 'none';
+                renderAdminPage(container);
+            } else {
+                if (nav) nav.style.display = 'flex';
+                if (state.currentView === 'month') {
+                    title.textContent = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    renderMonth(container);
+                } else if (state.currentView === 'week') {
+                    const end = new Date(d); end.setDate(d.getDate() + 6);
+                    title.textContent = `${d.getMonth() + 1}.${d.getDate()} - ${end.getMonth() + 1}.${end.getDate()}`;
+                    renderWeek(container);
+                } else {
+                    title.textContent = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+                    renderDay(container);
+                }
+            }
+        }
+
+        function renderMyPage(container) {
+            const list = document.createElement('div');
+            list.className = 'my-res-list';
+            
+            const myRes = state.reservations
+                .filter(r => r.kakao_id === state.user.kakaoId)
+                .sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
+
+            if (myRes.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding: 40px; color: var(--wds-gray-500);">예약 내역이 없습니다.</p>';
+            } else {
+                myRes.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'my-res-item';
+                    const endIdx = TIMES.indexOf(r.end_time);
+                    const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
+                    
+                    item.innerHTML = `
+                        <div class="my-res-info">
+                            <div class="my-res-date">${r.res_date}</div>
+                            <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
+                        </div>
+                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">예약 취소</button>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+            container.appendChild(list);
+        }
+
+        function renderAdminPage(container) {
+            const list = document.createElement('div');
+            list.className = 'my-res-list';
+            
+            const allRes = [...state.reservations].sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
+
+            if (allRes.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding: 40px; color: var(--wds-gray-500);">전체 예약 내역이 없습니다.</p>';
+            } else {
+                allRes.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'my-res-item admin-res-item';
+                    const endIdx = TIMES.indexOf(r.end_time);
+                    const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
+                    
+                    item.innerHTML = `
+                        <div class="my-res-info">
+                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem; color:var(--wds-gray-500); font-weight:normal;">(${r.user_name})</span></div>
+                            <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
+                        </div>
+                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">예약 강제 취소</button>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+            container.appendChild(list);
+        }
+
+        async function cancelReservation(id, isAdmin = false) {
+            const confirmMsg = isAdmin ? "관리자 권한으로 이 예약을 강제로 취소하시겠습니까?" : "정말로 예약을 취소하시겠습니까?";
+            if (!confirm(confirmMsg)) return;
+
+            const { error } = await supabaseClient
+                .from('reservations')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert("취소 실패: " + error.message);
+            } else {
+                alert(isAdmin ? "예약이 강제로 취소되었습니다." : "예약이 취소되었습니다.");
+                fetchReservations(); // 내역 갱신
+            }
+        }
+
+        function renderMonth(container) {
+            const grid = document.createElement('div'); grid.className = 'calendar-grid';
+            ['일', '월', '화', '수', '목', '금', '토'].forEach(h => {
+                const el = document.createElement('div'); el.className = 'calendar-day-header'; el.textContent = h; grid.appendChild(el);
+            });
+            const d = state.viewDate;
+            const startDay = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+            const lastDate = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            for (let i = 0; i < startDay; i++) grid.appendChild(Object.assign(document.createElement('div'), {className: 'calendar-day empty'}));
+            const today = new Date();
+            for (let i = 1; i <= lastDate; i++) {
+                const day = document.createElement('div'); day.className = 'calendar-day'; day.textContent = i;
+                const loopDate = new Date(d.getFullYear(), d.getMonth(), i);
+                if (isSameDay(loopDate, today)) day.classList.add('today');
+                if (state.selectedDate && isSameDay(loopDate, state.selectedDate)) day.classList.add('selected');
+                
+                // 해당 날짜에 예약이 있는지 확인
+                const hasRes = state.reservations.some(r => isSameDay(new Date(r.res_date), loopDate));
+                if (hasRes) day.style.borderBottom = '3px solid var(--wds-primary-light)';
+
+                day.onclick = () => { state.viewDate = loopDate; state.currentView = 'day'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day')); render(); };
+                grid.appendChild(day);
+            }
+            container.appendChild(grid);
+        }
+
+        function renderWeek(container) {
+            const wrap = document.createElement('div'); wrap.className = 'weekly-container';
+            const grid = document.createElement('div'); grid.className = 'weekly-grid';
+            grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-header-cell'}));
+            const base = new Date(state.viewDate);
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(base); d.setDate(base.getDate() + i);
+                const h = document.createElement('div'); h.className = 'weekly-cell weekly-header-cell';
+                h.innerHTML = `<div style="font-size:0.7rem; color:var(--wds-gray-500)">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
+                grid.appendChild(h);
+            }
+            TIMES.forEach(time => {
+                grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(base); d.setDate(base.getDate() + i);
+                    const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
+                    
+                    const occupied = isOccupied(d, time);
+                    if (occupied) {
+                        s.style.background = '#eee';
+                        s.style.cursor = 'not-allowed';
+                    } else {
+                        if (isSlotSelected(d, time)) s.classList.add('selected');
+                        s.onclick = () => onSlotClick(d, time);
+                    }
+                    grid.appendChild(s);
+                }
+            });
+            wrap.appendChild(grid); container.appendChild(wrap);
+        }
+
+        function renderDay(container) {
+            const grid = document.createElement('div'); grid.className = 'weekly-grid'; grid.style.gridTemplateColumns = '100px 1fr';
+            TIMES.forEach(time => {
+                grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
+                const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
+                
+                const occupied = isOccupied(state.viewDate, time);
+                if (occupied) {
+                    s.style.background = '#eee';
+                    s.textContent = '이미 예약됨';
+                    s.style.cursor = 'not-allowed';
+                } else {
+                    if (isSlotSelected(state.viewDate, time)) { s.classList.add('selected'); s.textContent = '선택됨'; }
+                    s.onclick = () => onSlotClick(state.viewDate, time);
+                }
+                grid.appendChild(s);
+            });
+            container.appendChild(grid);
+        }
+
+        function isOccupied(date, time) {
+            return state.reservations.some(r => {
+                if (!isSameDay(new Date(r.res_date), date)) return false;
+                const startIdx = TIMES.indexOf(r.start_time);
+                const endIdx = TIMES.indexOf(r.end_time);
+                const curIdx = TIMES.indexOf(time);
+                return curIdx >= startIdx && curIdx <= endIdx;
+            });
+        }
+
+        function onSlotClick(date, time) {
+            if (!state.selectedDate || !isSameDay(state.selectedDate, date)) {
+                state.selectedDate = new Date(date); state.startTime = time; state.endTime = null;
+            } else {
+                if (!state.startTime || (state.startTime && state.endTime)) { state.startTime = time; state.endTime = null; }
+                else {
+                    const startIdx = TIMES.indexOf(state.startTime), curIdx = TIMES.indexOf(time);
+                    if (curIdx < startIdx) { state.startTime = time; state.endTime = TIMES[startIdx]; }
+                    else if (curIdx === startIdx) { state.startTime = null; }
+                    else { state.endTime = time; }
+                }
+            }
+            render();
+        }
+
+        function isSlotSelected(date, time) {
+            if (!state.selectedDate || !isSameDay(state.selectedDate, date) || !state.startTime) return false;
+            const startIdx = TIMES.indexOf(state.startTime), curIdx = TIMES.indexOf(time);
+            if (!state.endTime) return curIdx === startIdx;
+            const endIdx = TIMES.indexOf(state.endTime);
+            return curIdx >= startIdx && curIdx <= endIdx;
+        }
+
+        function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+
+        async function onReserve(e) {
+            e.preventDefault();
+            if (!state.selectedDate || !state.startTime) { alert("날짜와 시간을 선택해주세요."); return; }
+            if (!state.endTime) { alert("최소 2시간 이상 예약이 가능합니다."); return; }
+            if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
+
+            const startIdx = TIMES.indexOf(state.startTime), endIdx = TIMES.indexOf(state.endTime);
+            const name = document.getElementById('userNameInput').value;
+            // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
+            const dateStr = state.selectedDate.toLocaleDateString('en-CA'); 
+
+            const { data, error } = await supabaseClient
+                .from('reservations')
+                .insert([
+                    { 
+                        kakao_id: state.user.kakaoId,
+                        user_name: name,
+                        res_date: dateStr,
+                        start_time: state.startTime,
+                        end_time: state.endTime
+                    }
+                ]);
+
+            if (error) {
+                alert("예약 실패: " + error.message);
+            } else {
+                const timeStr = `${state.startTime} ~ ${TIMES[endIdx + 1] || '23:00'}`;
+                const res = document.getElementById('result');
+                res.style.display = 'block';
+                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 완료!`;
+                state.selectedDate = null; state.startTime = null; state.endTime = null;
+                fetchReservations(); // 내역 갱신
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
