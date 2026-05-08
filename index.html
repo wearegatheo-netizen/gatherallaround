@@ -314,6 +314,7 @@
                                 ? res.kakao_account.profile.nickname 
                                 : (res.properties ? res.properties.nickname : '사용자');
                             const kakaoId = res.id.toString();
+                            alert('내 카카오 ID: ' + kakaoId); // 확인 후 삭제 예정
                             state.user = { nickname, kakaoId };
                             loginUI(nickname);
                         },
