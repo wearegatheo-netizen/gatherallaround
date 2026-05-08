@@ -320,8 +320,10 @@
         .team-slots { display: flex; flex-wrap: wrap; gap: 6px; }
         .team-slot { background: white; border: 1px solid var(--wds-gray-300); padding: 4px 10px; border-radius: 16px; font-size: 0.82rem; }
         .team-slot strong { color: var(--wds-primary); margin-right: 4px; }
-        .team-delete { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--wds-gray-500); cursor: pointer; font-size: 0.8rem; padding: 4px 8px; }
-        .team-delete:hover { color: #e74c3c; }
+        .team-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
+        .team-edit, .team-delete { background: none; border: 1px solid var(--wds-gray-300); border-radius: 6px; cursor: pointer; font-size: 0.78rem; padding: 4px 10px; color: var(--wds-gray-700); }
+        .team-edit:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .team-delete:hover { border-color: #e74c3c; color: #e74c3c; }
         #teamFormContainer { background: white; border: 1px solid var(--wds-primary); border-radius: var(--wds-radius-m); padding: 16px; margin-top: 12px; }
         #teamFormContainer h4 { margin: 0 0 14px; font-size: 1.05rem; color: var(--wds-primary); }
         #teamFormContainer input[type="text"], #teamFormContainer input[type="date"], #teamFormContainer select { padding: 8px 10px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); width: 100%; box-sizing: border-box; margin-bottom: 8px; font-size: 0.9rem; font-family: inherit; }
@@ -513,13 +515,10 @@
         </div>
 
         <form id="reservationForm">
-            <div class="form-group">
-                <span class="label">예약자 성함</span>
-                <input type="text" id="userNameInput" readonly required>
-            </div>
+            <input type="hidden" id="userNameInput">
 
             <div class="form-group">
-                <span class="label">예약 및 확인</span>
+                <span class="label">📅 예약 및 확인</span>
                 <div class="tabs">
                     <div class="tab active" data-view="month">월간</div>
                     <div class="tab" data-view="week">주간</div>
@@ -846,10 +845,8 @@
             const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
-            const nameGroup = document.querySelector('#reservationForm > .form-group:first-child');
             const result = document.getElementById('result');
             if (submitBtn) submitBtn.style.display = hideSubmit ? 'none' : '';
-            if (nameGroup) nameGroup.style.display = isSpecial ? 'none' : '';
             if (result && isSpecial) result.style.display = 'none';
 
             if (state.currentView === 'my') {
@@ -953,7 +950,10 @@
                     return `<span class="team-slot"><strong>${s.session}</strong>${m ? m.name : '?'}</span>`;
                 }).join('');
                 return `<div class="team-card">
-                    <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
+                    <div class="team-card-actions">
+                        <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
+                        <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
+                    </div>
                     <div class="team-name">${t.name}</div>
                     ${period ? `<div class="team-period">📅 ${period}</div>` : ''}
                     ${song ? `<div class="team-song">${song}</div>` : ''}
@@ -962,20 +962,34 @@
             }).join('');
         }
 
-        function showTeamForm() {
+        function editTeam(id) {
+            const team = state.teams.find(t => t.id === id);
+            if (!team) return;
+            showTeamForm(team);
+        }
+
+        function showTeamForm(team) {
             const c = document.getElementById('teamFormContainer');
             const sessions = ['보컬', '기타', '베이스', '키보드', '드럼'];
-            state.editingTeam = null;
-            state.editingSlots = sessions.map(s => ({ session: s, memberId: '' }));
+            if (team) {
+                state.editingTeam = team;
+                state.editingSlots = (team.members && team.members.length > 0)
+                    ? team.members.map(s => ({ session: s.session || '', memberId: s.memberId || '' }))
+                    : sessions.map(s => ({ session: s, memberId: '' }));
+            } else {
+                state.editingTeam = null;
+                state.editingSlots = sessions.map(s => ({ session: s, memberId: '' }));
+            }
+            const isEdit = !!team;
             c.classList.remove('hidden');
             c.innerHTML = `
-                <h4>새 팀 만들기</h4>
-                <input type="text" id="teamName" placeholder="팀 이름">
+                <h4>${isEdit ? '팀 수정' : '새 팀 만들기'}</h4>
+                <input type="text" id="teamName" placeholder="팀 이름" value="${isEdit ? (team.name || '').replace(/"/g, '&quot;') : ''}">
                 <div class="team-form-row">
                     <label style="font-size:0.85rem;font-weight:600;flex:0 0 80px">활동 기간</label>
-                    <input type="date" id="teamStartDate">
+                    <input type="date" id="teamStartDate" value="${isEdit && team.start_date ? team.start_date : ''}">
                     <span>~</span>
-                    <input type="date" id="teamEndDate">
+                    <input type="date" id="teamEndDate" value="${isEdit && team.end_date ? team.end_date : ''}">
                 </div>
                 <div class="music-search-box">
                     <label>합주 곡 (iTunes 검색)</label>
@@ -985,8 +999,8 @@
                     </div>
                     <div id="musicResults"></div>
                     <div class="team-form-row" style="margin-top:8px">
-                        <input type="text" id="teamSongTitle" placeholder="곡 제목">
-                        <input type="text" id="teamSongArtist" placeholder="아티스트">
+                        <input type="text" id="teamSongTitle" placeholder="곡 제목" value="${isEdit && team.song_title ? team.song_title.replace(/"/g, '&quot;') : ''}">
+                        <input type="text" id="teamSongArtist" placeholder="아티스트" value="${isEdit && team.song_artist ? team.song_artist.replace(/"/g, '&quot;') : ''}">
                     </div>
                 </div>
                 <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">팀 구성</label>
@@ -994,7 +1008,7 @@
                 <button type="button" class="add-slot-btn" onclick="addTeamSlot()">+ 세션 추가</button>
                 <div class="team-form-actions">
                     <button type="button" class="team-cancel-btn" onclick="hideTeamForm()">취소</button>
-                    <button type="button" class="team-save-btn" onclick="saveTeam()">저장</button>
+                    <button type="button" class="team-save-btn" onclick="saveTeam()">${isEdit ? '수정 저장' : '저장'}</button>
                 </div>
             `;
             renderTeamSlots();
@@ -1056,7 +1070,12 @@
                 song_title: songTitle, song_artist: songArtist,
                 members: slots
             };
-            const { error } = await supabaseClient.from('teams').insert([team]);
+            let error;
+            if (state.editingTeam) {
+                ({ error } = await supabaseClient.from('teams').update(team).eq('id', state.editingTeam.id));
+            } else {
+                ({ error } = await supabaseClient.from('teams').insert([team]));
+            }
             if (error) {
                 alert('팀 저장 실패: ' + error.message + '\n\nteams 테이블이 없다면 SQL 실행 필요:\nCREATE TABLE teams (...)');
                 return;
@@ -1746,7 +1765,8 @@
                 const blk = getBlock(state.selectedDate, TIMES[i]);
                 if (blk) { alert('차단된 시간이 포함되어 있습니다.' + (blk.reason ? `\n사유: ${blk.reason}` : '')); return; }
             }
-            const name = document.getElementById('userNameInput').value;
+            const name = (state.user && state.user.nickname) || document.getElementById('userNameInput').value || '';
+            if (!name) { alert('사용자 정보를 불러오지 못했습니다. 다시 로그인해주세요.'); return; }
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
             const dateStr = state.selectedDate.toLocaleDateString('en-CA'); 
 
@@ -1982,11 +2002,18 @@
             });
             Object.keys(replyMap).forEach(p => replyMap[p].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)));
 
-            const renderItem = (c, isReply) => {
+            const renderItem = (c, isReply, parentComment) => {
                 const date = new Date(c.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 const isMine = state.user && state.user.kakaoId === c.kakao_id;
                 const isLiked = liked.includes(String(c.id));
                 const likesCount = c.likes || 0;
+                let canDelete = false;
+                if (state.user) {
+                    if (isMine) canDelete = true;
+                    else if (!isReply && isSuper()) canDelete = true;
+                    else if (isReply && parentComment && state.user.kakaoId === parentComment.kakao_id) canDelete = true;
+                    else if (isReply && isSuper()) canDelete = true;
+                }
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}">
                         <div style="flex:1">
@@ -2001,7 +2028,7 @@
                                 <button type="button" onclick="postReply('${c.id}')">답글 등록</button>
                             </div>` : ''}
                         </div>
-                        ${isMine ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
+                        ${canDelete ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
                     </div>`;
             };
 
@@ -2010,7 +2037,7 @@
                 const replies = replyMap[p.id] || [];
                 if (replies.length > 0) {
                     html += `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div>`;
-                    html += `<div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true)).join('')}</div>`;
+                    html += `<div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>`;
                 }
                 return html;
             }).join('');
