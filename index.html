@@ -290,6 +290,8 @@
         .stat-card { background: var(--wds-gray-100); border-radius: var(--wds-radius-m); padding: 12px 14px; }
         .stat-label { font-size: 0.78rem; color: var(--wds-gray-700); margin-bottom: 4px; }
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--wds-black); }
+        .stat-names { font-size: 0.72rem; color: var(--wds-gray-700); margin-top: 6px; line-height: 1.4; max-height: 96px; overflow-y: auto; word-break: keep-all; }
+        .stat-names:empty { display: none; }
 
         /* 댓글 답글 */
         .comment-replies { margin-left: 32px; padding-left: 12px; border-left: 2px solid var(--wds-gray-300); margin-top: 4px; }
@@ -320,9 +322,14 @@
             .cal-day-num { font-size: 0.85rem; }
             .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
-            .weekly-grid { grid-template-columns: 60px repeat(7, minmax(48px, 1fr)) !important; }
+            .weekly-grid:not(.day-grid) { grid-template-columns: 56px repeat(7, minmax(46px, 1fr)) !important; }
+            .day-grid { grid-template-columns: 90px 1fr !important; }
             .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
+            .weekly-time-cell { padding: 6px 4px; }
+            .weekly-time-cell > div:first-child { font-size: 0.78rem !important; }
+            .weekly-time-cell > div:last-child { font-size: 0.6rem !important; }
             .weekly-slot { height: 42px; }
+            .day-grid .weekly-slot { padding-left: 14px !important; }
             .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
             .admin-subtab { padding: 8px 12px; font-size: 0.82rem; white-space: nowrap; }
             .admin-section { padding: 16px 12px; }
@@ -1060,32 +1067,36 @@
             const supers = members.filter(m => m.role === '총괄').length;
             const leaders = members.filter(m => m.role === '세션장').length;
             const normals = members.filter(m => !m.role || m.role === '일반').length;
-            const instCounts = {};
+            const instMembers = {};
             members.filter(m => m.status === 'approved' && m.instruments).forEach(m => {
                 m.instruments.split(',').forEach(inst => {
                     const i = inst.trim();
-                    if (i) instCounts[i] = (instCounts[i] || 0) + 1;
+                    if (i) (instMembers[i] = instMembers[i] || []).push(m.name);
                 });
             });
-            const instList = Object.entries(instCounts).sort((a,b) => b[1]-a[1]);
-            const statCard = (label, value, color) => `<div class="stat-card" style="border-left:4px solid ${color}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+            const instList = Object.entries(instMembers).sort((a,b) => b[1].length - a[1].length);
+            const namesOf = (filter) => members.filter(filter).map(m => m.name);
+            const statCard = (label, value, color, names) => {
+                const namesHtml = names && names.length > 0 ? `<div class="stat-names">${names.join(', ')}</div>` : '';
+                return `<div class="stat-card" style="border-left:4px solid ${color}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div>${namesHtml}</div>`;
+            };
             dashEl.innerHTML = `
                 <div class="stat-grid">
-                    ${statCard('전체', total, '#3366FF')}
-                    ${statCard('승인됨', approved, '#00b894')}
-                    ${statCard('대기', pending, '#f0a050')}
-                    ${statCard('거절', rejected, '#e74c3c')}
+                    ${statCard('전체', total, '#3366FF', namesOf(() => true))}
+                    ${statCard('승인됨', approved, '#00b894', namesOf(m => m.status === 'approved'))}
+                    ${statCard('대기', pending, '#f0a050', namesOf(m => m.status === 'pending'))}
+                    ${statCard('거절', rejected, '#e74c3c', namesOf(m => m.status === 'rejected'))}
                 </div>
                 <div style="margin-top:14px;font-size:0.85rem;color:var(--wds-gray-700);font-weight:600">권한 분포</div>
                 <div class="stat-grid" style="margin-top:6px">
-                    ${statCard('총괄', supers, '#3366FF')}
-                    ${statCard('세션장', leaders, '#00b894')}
-                    ${statCard('일반', normals, '#999')}
+                    ${statCard('총괄', supers, '#3366FF', namesOf(m => m.role === '총괄'))}
+                    ${statCard('세션장', leaders, '#00b894', namesOf(m => m.role === '세션장'))}
+                    ${statCard('일반', normals, '#999', namesOf(m => !m.role || m.role === '일반'))}
                 </div>
                 ${instList.length > 0 ? `
                 <div style="margin-top:14px;font-size:0.85rem;color:var(--wds-gray-700);font-weight:600">세션 분포 (승인된 멤버)</div>
                 <div class="stat-grid" style="margin-top:6px">
-                    ${instList.map(([k,v]) => statCard(k, v, '#3366FF')).join('')}
+                    ${instList.map(([k, names]) => statCard(k, names.length, '#3366FF', names)).join('')}
                 </div>` : ''}
             `;
 
@@ -1228,8 +1239,13 @@
                 h.innerHTML = `<div style="font-size:0.7rem; opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
                 grid.appendChild(h);
             }
-            TIMES.forEach(time => {
-                grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
+            TIMES.forEach((time, idx) => {
+                const endTime = TIMES[idx + 1] || '23:00';
+                const tc = document.createElement('div');
+                tc.className = 'weekly-cell weekly-time-cell';
+                tc.style.lineHeight = '1.15';
+                tc.innerHTML = `<div style="font-weight:600;font-size:0.82rem">${time}</div><div style="font-size:0.64rem;color:var(--wds-gray-500)">~${endTime}</div>`;
+                grid.appendChild(tc);
                 for (let i = 0; i < 7; i++) {
                     const d = new Date(base); d.setDate(base.getDate() + i);
                     const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
@@ -1267,7 +1283,7 @@
         }
 
         function renderDay(container) {
-            const grid = document.createElement('div'); grid.className = 'weekly-grid'; grid.style.gridTemplateColumns = '130px 1fr';
+            const grid = document.createElement('div'); grid.className = 'weekly-grid day-grid'; grid.style.gridTemplateColumns = '130px 1fr';
             TIMES.forEach((time, idx) => {
                 const endTime = TIMES[idx + 1] || '23:00';
                 const tc = document.createElement('div');
