@@ -505,36 +505,23 @@
             document.getElementById('userNameDisplay').textContent = nickname;
             document.getElementById('userNameInput').value = nickname;
             
-            // 어드민인 경우 어드민 탭 추가
-            if (state.user && state.user.kakaoId === ADMIN_ID) {
-                const tabs = document.querySelector('.tabs');
-                if (!document.querySelector('[data-view="admin"]')) {
-                    const adminTab = document.createElement('div');
-                    adminTab.className = 'tab';
-                    adminTab.dataset.view = 'admin';
-                    adminTab.textContent = '관리자';
-                    tabs.appendChild(adminTab);
-                    
-                    const myTab = document.createElement('div');
-                    myTab.className = 'tab';
-                    myTab.dataset.view = 'my';
-                    myTab.textContent = '내 예약';
-                    tabs.appendChild(myTab);
-
-                    // 이벤트 리스너 재등록
-                    adminTab.addEventListener('click', onTabClick);
-                    myTab.addEventListener('click', onTabClick);
-                }
-            } else if (state.user) {
-                const tabs = document.querySelector('.tabs');
-                if (!document.querySelector('[data-view="my"]')) {
-                    const myTab = document.createElement('div');
-                    myTab.className = 'tab';
-                    myTab.dataset.view = 'my';
-                    myTab.textContent = '내 예약';
-                    tabs.appendChild(myTab);
-                    myTab.addEventListener('click', onTabClick);
-                }
+            // 관리자/세션장인 경우 관리자 탭 추가
+            const tabs = document.querySelector('.tabs');
+            if (isAdminUser() && !document.querySelector('[data-view="admin"]')) {
+                const adminTab = document.createElement('div');
+                adminTab.className = 'tab';
+                adminTab.dataset.view = 'admin';
+                adminTab.textContent = '관리자';
+                tabs.appendChild(adminTab);
+                adminTab.addEventListener('click', onTabClick);
+            }
+            if (!document.querySelector('[data-view="my"]')) {
+                const myTab = document.createElement('div');
+                myTab.className = 'tab';
+                myTab.dataset.view = 'my';
+                myTab.textContent = '내 예약';
+                tabs.appendChild(myTab);
+                myTab.addEventListener('click', onTabClick);
             }
 
             fetchReservations();
@@ -583,6 +570,15 @@
         };
 
         const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+
+        // --- 권한 헬퍼 ---
+        function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '총괄'); }
+        function canApproveRes() { return state.user && (isSuper() || state.user.role === '세션장'); }
+        function canCancelRes() { return isSuper(); }
+        function canApproveMember() { return state.user && (isSuper() || state.user.role === '세션장'); }
+        function canBanMember() { return isSuper(); }
+        function canPostNotice() { return isSuper(); }
+        function isAdminUser() { return canApproveRes(); }
 
         async function fetchReservations() {
             if (!supabaseClient) {
@@ -755,11 +751,12 @@
             // 서브탭 바
             const subtabBar = document.createElement('div');
             subtabBar.className = 'admin-subtabs';
-            [
+            const subtabDefs = [
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
-                { key: 'notice', label: '📢 공지' }
-            ].forEach(t => {
+                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : [])
+            ];
+            subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
                 btn.className = 'admin-subtab' + (state.adminTab === t.key ? ' active' : '');
                 btn.textContent = t.label;
@@ -799,8 +796,8 @@
                             <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
                         </div>
                         <div>
-                            <button type="button" class="approve-btn" onclick="approveReservation('${r.id}')">승인</button>
-                            <button type="button" class="reject-btn" onclick="rejectReservation('${r.id}')">거절</button>
+                            ${canApproveRes() ? `<button type="button" class="approve-btn" onclick="approveReservation('${r.id}')">승인</button>` : ''}
+                            ${canCancelRes() ? `<button type="button" class="reject-btn" onclick="rejectReservation('${r.id}')">거절</button>` : ''}
                         </div>`;
                     pendingList.appendChild(item);
                 });
@@ -825,7 +822,7 @@
                             <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
                             <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
                         </div>
-                        <button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">강제 취소</button>`;
+                        ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">강제 취소</button>` : ''}`;
                     approvedList.appendChild(item);
                 });
             }
@@ -848,20 +845,34 @@
                     const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
                     const [sc, st] = statusMap[m.status] || statusMap['pending'];
                     const date = new Date(m.created_at).toLocaleDateString('ko-KR');
+                    const role = m.role || '일반';
+                    const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+                    const roleColor = roleColors[role] || '#999';
+
                     let actions = '';
                     if (m.status === 'pending') {
-                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button><button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
+                        if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button>`;
+                        if (canBanMember()) actions += `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
                     } else if (m.status === 'approved') {
-                        actions = `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
+                        if (canBanMember()) actions += `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
                     } else {
-                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
+                        if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
                     }
+
+                    const roleSelect = isSuper() ? `
+                        <select onchange="updateMemberRole('${m.id}', this.value)" style="margin-top:4px;font-size:0.8rem;padding:2px 6px;border:1px solid var(--wds-gray-300);border-radius:4px;color:${roleColor}">
+                            <option value="일반" ${role==='일반'?'selected':''}>일반</option>
+                            <option value="세션장" ${role==='세션장'?'selected':''}>세션장</option>
+                            <option value="총괄" ${role==='총괄'?'selected':''}>총괄</option>
+                        </select>` : `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>`;
+
                     const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
                     return `<div class="my-res-item" style="margin-bottom:8px">
                         <div class="my-res-info">
                             <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
                             <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
                             ${instText}
+                            ${roleSelect}
                         </div>
                         <div>${actions}</div>
                     </div>`;
@@ -1131,7 +1142,7 @@
             if (error || !data) { alert('프로필 정보를 불러올 수 없습니다.'); await supabaseClient.auth.signOut(); return; }
 
             if (data.status === 'approved') {
-                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email' };
+                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반' };
                 loginUI(data.name);
             } else if (data.status === 'rejected') {
                 alert('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
@@ -1159,6 +1170,11 @@
             const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
             if (error) alert('거절 실패: ' + error.message);
             else render();
+        }
+
+        async function updateMemberRole(id, role) {
+            const { error } = await supabaseClient.from('profiles').update({ role }).eq('id', id);
+            if (error) alert('권한 변경 실패: ' + error.message);
         }
 
         // --- 예약 승인/거절 ---
