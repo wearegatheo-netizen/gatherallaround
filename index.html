@@ -306,6 +306,50 @@
         .reply-toggle { font-size: 0.82rem; color: var(--wds-primary); cursor: pointer; padding: 6px 0; margin-left: 32px; user-select: none; font-weight: 600; }
         .reply-toggle:hover { text-decoration: underline; }
 
+        /* 멤버 패널 */
+        .member-panel-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .member-panel-header:hover #memberPanelArrow { color: var(--wds-primary); }
+
+        /* 팀 카드 */
+        .team-create-btn { padding: 10px 16px; background: var(--wds-primary); color: white; border: none; border-radius: var(--wds-radius-m); cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+        .team-create-btn:hover { background: var(--wds-primary-hover); }
+        .team-card { background: var(--wds-gray-100); border-radius: var(--wds-radius-m); padding: 16px; margin-bottom: 10px; position: relative; border: 1px solid var(--wds-gray-300); }
+        .team-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; padding-right: 60px; }
+        .team-period { font-size: 0.85rem; color: var(--wds-gray-700); margin-bottom: 4px; }
+        .team-song { font-size: 0.85rem; color: var(--wds-primary); margin-bottom: 10px; font-weight: 600; }
+        .team-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+        .team-slot { background: white; border: 1px solid var(--wds-gray-300); padding: 4px 10px; border-radius: 16px; font-size: 0.82rem; }
+        .team-slot strong { color: var(--wds-primary); margin-right: 4px; }
+        .team-delete { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--wds-gray-500); cursor: pointer; font-size: 0.8rem; padding: 4px 8px; }
+        .team-delete:hover { color: #e74c3c; }
+        #teamFormContainer { background: white; border: 1px solid var(--wds-primary); border-radius: var(--wds-radius-m); padding: 16px; margin-top: 12px; }
+        #teamFormContainer h4 { margin: 0 0 14px; font-size: 1.05rem; color: var(--wds-primary); }
+        #teamFormContainer input[type="text"], #teamFormContainer input[type="date"], #teamFormContainer select { padding: 8px 10px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); width: 100%; box-sizing: border-box; margin-bottom: 8px; font-size: 0.9rem; font-family: inherit; }
+        .team-form-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .team-form-row > * { margin-bottom: 0 !important; }
+        .team-form-row input { flex: 1; }
+        .team-slot-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .team-slot-row .slot-session-input { flex: 0 0 90px; margin-bottom: 0 !important; }
+        .team-slot-row select { flex: 1; margin-bottom: 0 !important; }
+        .slot-remove { padding: 4px 10px; background: none; border: 1px solid var(--wds-gray-300); border-radius: 4px; cursor: pointer; color: var(--wds-gray-500); flex-shrink: 0; }
+        .slot-remove:hover { border-color: #e74c3c; color: #e74c3c; }
+        .music-search-box { background: var(--wds-gray-100); padding: 10px; border-radius: var(--wds-radius-s); margin-bottom: 12px; }
+        .music-search-box label { font-size: 0.85rem; font-weight: 600; color: var(--wds-gray-700); display: block; margin-bottom: 6px; }
+        #musicResults { max-height: 240px; overflow-y: auto; margin-top: 6px; background: white; border-radius: 4px; }
+        #musicResults:empty { display: none; }
+        .music-result { display: flex; gap: 10px; padding: 8px; border-radius: 4px; cursor: pointer; align-items: center; border-bottom: 1px solid var(--wds-gray-100); }
+        .music-result:hover { background: var(--wds-primary-light); }
+        .music-result img { width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0; }
+        .music-result-info { min-width: 0; flex: 1; }
+        .music-result-title { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .music-result-artist { font-size: 0.78rem; color: var(--wds-gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .team-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .team-form-actions button { flex: 1; padding: 10px; border-radius: var(--wds-radius-s); border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+        .team-save-btn { background: var(--wds-primary); color: white; }
+        .team-cancel-btn { background: var(--wds-gray-100); color: var(--wds-gray-700); border: 1px solid var(--wds-gray-300) !important; }
+        .add-slot-btn { padding: 8px 14px; background: white; border: 1px dashed var(--wds-gray-500); border-radius: var(--wds-radius-s); cursor: pointer; color: var(--wds-gray-700); font-size: 0.85rem; width: 100%; margin-top: 4px; }
+        .add-slot-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+
         /* 모바일 반응형 */
         @media (max-width: 768px) {
             body { padding: 12px 6px; }
@@ -454,6 +498,20 @@
             <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
         </div>
 
+        <div class="form-group" id="memberPanel">
+            <div class="member-panel-header" onclick="toggleMemberPanel()">
+                <span class="label" style="margin:0">👥 멤버 & 팀</span>
+                <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
+            </div>
+            <div id="memberPanelContent" class="hidden" style="margin-top:16px">
+                <div class="admin-subtabs">
+                    <div class="admin-subtab active" onclick="setMemberTab('list')">멤버 목록</div>
+                    <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
+                </div>
+                <div id="memberPanelView"></div>
+            </div>
+        </div>
+
         <form id="reservationForm">
             <div class="form-group">
                 <span class="label">예약자 성함</span>
@@ -600,14 +658,6 @@
                 tabs.appendChild(adminTab);
                 adminTab.addEventListener('click', onTabClick);
             }
-            if (!document.querySelector('[data-view="members"]')) {
-                const memTab = document.createElement('div');
-                memTab.className = 'tab';
-                memTab.dataset.view = 'members';
-                memTab.textContent = '멤버';
-                tabs.appendChild(memTab);
-                memTab.addEventListener('click', onTabClick);
-            }
             if (!document.querySelector('[data-view="my"]')) {
                 const myTab = document.createElement('div');
                 myTab.className = 'tab';
@@ -648,12 +698,14 @@
             if (adminTab) adminTab.remove();
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
-            const memTab = document.querySelector('[data-view="members"]');
-            if (memTab) memTab.remove();
 
             state.user = null;
             notices = [];
             document.getElementById('notice_container').classList.add('hidden');
+            const mpc = document.getElementById('memberPanelContent');
+            const mpa = document.getElementById('memberPanelArrow');
+            if (mpc) mpc.classList.add('hidden');
+            if (mpa) mpa.textContent = '▼ 펼치기';
             stopInactivityWatcher();
         }
 
@@ -667,7 +719,12 @@
             startTime: null,
             endTime: null,
             reservations: [],
-            blocks: []
+            blocks: [],
+            teams: [],
+            memberPanelTab: 'list',
+            editingTeam: null,
+            editingSlots: [],
+            cachedMembers: []
         };
 
         const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -786,7 +843,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'members';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const nameGroup = document.querySelector('#reservationForm > .form-group:first-child');
@@ -803,10 +860,6 @@
                 title.textContent = '전체 예약 현황 (관리자)';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
-            } else if (state.currentView === 'members') {
-                title.textContent = '전체 멤버';
-                if (nav) nav.style.display = 'none';
-                renderMembersTab(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -822,6 +875,239 @@
                     renderDay(container);
                 }
             }
+        }
+
+        // --- 멤버 패널 ---
+        function toggleMemberPanel() {
+            const content = document.getElementById('memberPanelContent');
+            const arrow = document.getElementById('memberPanelArrow');
+            const isOpen = !content.classList.contains('hidden');
+            if (isOpen) {
+                content.classList.add('hidden');
+                arrow.textContent = '▼ 펼치기';
+            } else {
+                content.classList.remove('hidden');
+                arrow.textContent = '▲ 접기';
+                renderMemberPanel();
+            }
+        }
+
+        function setMemberTab(tab) {
+            state.memberPanelTab = tab;
+            const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
+            const order = ['list', 'teams'];
+            subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
+            renderMemberPanel();
+        }
+
+        async function renderMemberPanel() {
+            const view = document.getElementById('memberPanelView');
+            if (!view) return;
+            if (state.memberPanelTab === 'list') {
+                await renderMembersTab(view);
+            } else {
+                await renderTeamsTab(view);
+            }
+        }
+
+        // --- 팀 ---
+        async function fetchTeams() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('teams').select('*').order('created_at', { ascending: false });
+            if (!error) state.teams = data || [];
+        }
+
+        async function renderTeamsTab(container) {
+            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            await fetchTeams();
+            const members = await fetchMembers();
+            const approvedMembers = (members || []).filter(m => m.status === 'approved');
+            state.cachedMembers = approvedMembers;
+            const memberMap = {};
+            approvedMembers.forEach(m => memberMap[m.id] = m);
+
+            container.innerHTML = `
+                <button class="team-create-btn" onclick="showTeamForm()">+ 새 팀 만들기</button>
+                <div id="teamFormContainer" class="hidden"></div>
+                <div id="teamList" style="margin-top:16px"></div>
+            `;
+            renderTeamList(memberMap);
+        }
+
+        function renderTeamList(memberMap) {
+            const list = document.getElementById('teamList');
+            if (!list) return;
+            if (!state.teams || state.teams.length === 0) {
+                list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">아직 등록된 팀이 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = state.teams.map(t => {
+                const slots = t.members || [];
+                let period = '';
+                if (t.start_date && t.end_date) period = `${t.start_date} ~ ${t.end_date}`;
+                else if (t.start_date) period = `${t.start_date} 부터`;
+                else if (t.end_date) period = `${t.end_date} 까지`;
+                const song = t.song_title ? `🎵 ${t.song_title}${t.song_artist ? ' — ' + t.song_artist : ''}` : '';
+                const slotsHtml = slots.map(s => {
+                    const m = memberMap[s.memberId];
+                    return `<span class="team-slot"><strong>${s.session}</strong>${m ? m.name : '?'}</span>`;
+                }).join('');
+                return `<div class="team-card">
+                    <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
+                    <div class="team-name">${t.name}</div>
+                    ${period ? `<div class="team-period">📅 ${period}</div>` : ''}
+                    ${song ? `<div class="team-song">${song}</div>` : ''}
+                    <div class="team-slots">${slotsHtml}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function showTeamForm() {
+            const c = document.getElementById('teamFormContainer');
+            const sessions = ['보컬', '기타', '베이스', '키보드', '드럼'];
+            state.editingTeam = null;
+            state.editingSlots = sessions.map(s => ({ session: s, memberId: '' }));
+            c.classList.remove('hidden');
+            c.innerHTML = `
+                <h4>새 팀 만들기</h4>
+                <input type="text" id="teamName" placeholder="팀 이름">
+                <div class="team-form-row">
+                    <label style="font-size:0.85rem;font-weight:600;flex:0 0 80px">활동 기간</label>
+                    <input type="date" id="teamStartDate">
+                    <span>~</span>
+                    <input type="date" id="teamEndDate">
+                </div>
+                <div class="music-search-box">
+                    <label>합주 곡 (iTunes 검색)</label>
+                    <div class="team-form-row">
+                        <input type="text" id="teamMusicSearch" placeholder="곡 또는 아티스트 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();searchMusic();}">
+                        <button type="button" onclick="searchMusic()" style="padding:8px 14px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;flex-shrink:0">🔍</button>
+                    </div>
+                    <div id="musicResults"></div>
+                    <div class="team-form-row" style="margin-top:8px">
+                        <input type="text" id="teamSongTitle" placeholder="곡 제목">
+                        <input type="text" id="teamSongArtist" placeholder="아티스트">
+                    </div>
+                </div>
+                <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">팀 구성</label>
+                <div id="teamSlots"></div>
+                <button type="button" class="add-slot-btn" onclick="addTeamSlot()">+ 세션 추가</button>
+                <div class="team-form-actions">
+                    <button type="button" class="team-cancel-btn" onclick="hideTeamForm()">취소</button>
+                    <button type="button" class="team-save-btn" onclick="saveTeam()">저장</button>
+                </div>
+            `;
+            renderTeamSlots();
+        }
+
+        function hideTeamForm() {
+            const c = document.getElementById('teamFormContainer');
+            if (c) { c.classList.add('hidden'); c.innerHTML = ''; }
+            state.editingTeam = null;
+            state.editingSlots = [];
+        }
+
+        function renderTeamSlots() {
+            const c = document.getElementById('teamSlots');
+            if (!c) return;
+            const members = state.cachedMembers || [];
+            c.innerHTML = state.editingSlots.map((slot, idx) => `
+                <div class="team-slot-row">
+                    <input type="text" class="slot-session-input" value="${(slot.session || '').replace(/"/g,'&quot;')}" data-idx="${idx}" placeholder="세션" onchange="updateSlotSession(${idx}, this.value)">
+                    <select onchange="updateSlotMember(${idx}, this.value)">
+                        <option value="">-- 멤버 선택 --</option>
+                        ${members.map(m => `<option value="${m.id}" ${slot.memberId === m.id ? 'selected' : ''}>${m.name}${m.instruments ? ' (' + m.instruments + ')' : ''}</option>`).join('')}
+                    </select>
+                    <button type="button" class="slot-remove" onclick="removeTeamSlot(${idx})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function updateSlotSession(idx, value) {
+            if (state.editingSlots[idx]) state.editingSlots[idx].session = value;
+        }
+
+        function updateSlotMember(idx, value) {
+            if (state.editingSlots[idx]) state.editingSlots[idx].memberId = value;
+        }
+
+        function addTeamSlot() {
+            state.editingSlots.push({ session: '', memberId: '' });
+            renderTeamSlots();
+        }
+
+        function removeTeamSlot(idx) {
+            state.editingSlots.splice(idx, 1);
+            renderTeamSlots();
+        }
+
+        async function saveTeam() {
+            const name = document.getElementById('teamName').value.trim();
+            if (!name) { alert('팀 이름을 입력해주세요.'); return; }
+            const startDate = document.getElementById('teamStartDate').value || null;
+            const endDate = document.getElementById('teamEndDate').value || null;
+            const songTitle = document.getElementById('teamSongTitle').value.trim() || null;
+            const songArtist = document.getElementById('teamSongArtist').value.trim() || null;
+
+            const slots = state.editingSlots.filter(s => s.session && s.memberId);
+
+            const team = {
+                name, start_date: startDate, end_date: endDate,
+                song_title: songTitle, song_artist: songArtist,
+                members: slots
+            };
+            const { error } = await supabaseClient.from('teams').insert([team]);
+            if (error) {
+                alert('팀 저장 실패: ' + error.message + '\n\nteams 테이블이 없다면 SQL 실행 필요:\nCREATE TABLE teams (...)');
+                return;
+            }
+            hideTeamForm();
+            await fetchTeams();
+            renderMemberPanel();
+        }
+
+        async function deleteTeam(id) {
+            if (!confirm('이 팀을 삭제하시겠습니까?')) return;
+            const { data, error } = await supabaseClient.from('teams').delete().eq('id', id).select();
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            if (!data || data.length === 0) { alert('삭제 권한이 없습니다.'); return; }
+            await fetchTeams();
+            renderMemberPanel();
+        }
+
+        async function searchMusic() {
+            const query = document.getElementById('teamMusicSearch').value.trim();
+            if (!query) return;
+            const results = document.getElementById('musicResults');
+            results.innerHTML = '<p style="font-size:0.85rem;color:var(--wds-gray-500);padding:8px">검색 중...</p>';
+            try {
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=8&country=KR`);
+                const data = await res.json();
+                if (!data.results || data.results.length === 0) {
+                    results.innerHTML = '<p style="font-size:0.85rem;color:var(--wds-gray-500);padding:8px">검색 결과가 없습니다.</p>';
+                    return;
+                }
+                results.innerHTML = data.results.map(r => {
+                    const t = (r.trackName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
+                    const a = (r.artistName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
+                    return `<div class="music-result" onclick="selectMusic(this)" data-title="${t}" data-artist="${a}">
+                        ${r.artworkUrl100 ? `<img src="${r.artworkUrl100}" alt="">` : ''}
+                        <div class="music-result-info">
+                            <div class="music-result-title">${r.trackName || ''}</div>
+                            <div class="music-result-artist">${r.artistName || ''}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                results.innerHTML = '<p style="font-size:0.85rem;color:#e74c3c;padding:8px">검색 실패: ' + e.message + '</p>';
+            }
+        }
+
+        function selectMusic(el) {
+            document.getElementById('teamSongTitle').value = el.dataset.title;
+            document.getElementById('teamSongArtist').value = el.dataset.artist;
+            document.getElementById('musicResults').innerHTML = '';
+            document.getElementById('teamMusicSearch').value = '';
         }
 
         async function renderMembersTab(container) {
