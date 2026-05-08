@@ -237,6 +237,21 @@
         .privacy-label { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--wds-gray-900); cursor: pointer; padding: 4px 2px; }
         .privacy-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 
+        /* 카카오 구분선 */
+        .kakao-divider { display: flex; align-items: center; margin: 24px 0 16px; gap: 12px; }
+        .kakao-divider::before, .kakao-divider::after { content: ''; flex: 1; height: 1px; background: var(--wds-gray-300); }
+        .kakao-divider span { font-size: 0.85rem; color: var(--wds-gray-500); }
+
+        /* 악기 선택 */
+        .instrument-section { margin: 4px 0; }
+        .form-label-text { font-size: 0.88rem; font-weight: 700; color: var(--wds-gray-900); margin-bottom: 10px; text-align: left; }
+        .instrument-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .inst-btn { padding: 10px 14px; background: white; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); font-family: inherit; font-size: 0.9rem; cursor: pointer; transition: 0.15s; color: var(--wds-gray-900); }
+        .inst-btn:hover { border-color: var(--wds-primary); }
+        .inst-btn.selected { background: var(--wds-primary-light); border-color: var(--wds-primary); color: var(--wds-primary); font-weight: 700; }
+        .instrument-customs { display: flex; flex-direction: column; gap: 6px; }
+        .instrument-customs input { height: 40px; font-size: 0.9rem; }
+
         /* 승인 대기 화면 */
         #pending-screen { width: 100%; max-width: 480px; text-align: center; padding: 60px 40px; background: var(--wds-white); border-radius: var(--wds-radius-l); box-shadow: var(--wds-shadow-lg); border: 1px solid var(--wds-gray-300); margin-top: 10vh; }
         #pending-screen .pending-icon { font-size: 3rem; margin-bottom: 16px; }
@@ -254,20 +269,8 @@
         <h1>Gather All Around</h1>
         <p>프리미엄 합주실 예약 시스템</p>
 
-        <div class="auth-tabs">
-            <button type="button" class="auth-tab active" data-auth="kakao" onclick="switchAuthTab('kakao')">카카오</button>
-            <button type="button" class="auth-tab" data-auth="email" onclick="switchAuthTab('email')">이메일</button>
-        </div>
-
-        <!-- 카카오 로그인 -->
-        <div id="kakao-section">
-            <button type="button" id="kakao-login-btn" class="kakao-login-btn">
-                <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
-            </button>
-        </div>
-
-        <!-- 이메일 로그인/회원가입 -->
-        <div id="email-section" class="hidden">
+        <!-- 이메일 로그인/회원가입 (메인) -->
+        <div id="email-section">
             <!-- 로그인 폼 -->
             <div id="email-login-form" class="email-form">
                 <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
@@ -284,9 +287,26 @@
                 <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
                 <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 확인" autocomplete="new-password">
 
+                <!-- 악기 선택 -->
+                <div class="instrument-section">
+                    <div class="form-label-text">담당 악기 (복수 선택 가능)</div>
+                    <div class="instrument-buttons">
+                        <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
+                        <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
+                        <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
+                        <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
+                        <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
+                    </div>
+                    <div class="instrument-customs">
+                        <input type="text" id="customInst1" placeholder="추가 악기 1 (선택)" maxlength="20">
+                        <input type="text" id="customInst2" placeholder="추가 악기 2 (선택)" maxlength="20">
+                        <input type="text" id="customInst3" placeholder="추가 악기 3 (선택)" maxlength="20">
+                    </div>
+                </div>
+
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
-                    • 수집 항목: 이름, 전화번호, 이메일 주소<br>
+                    • 수집 항목: 이름, 전화번호, 이메일 주소, 담당 악기<br>
                     • 수집 목적: 합주실 예약 서비스 제공, 예약 확인 및 안내<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
                     • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.
@@ -299,6 +319,14 @@
                 <button type="button" class="email-primary-btn" onclick="handleEmailSignup()">회원가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showLoginForm()">로그인으로 돌아가기</button>
             </div>
+        </div>
+
+        <!-- 카카오 로그인 (회원가입 버튼 아래) -->
+        <div class="kakao-divider"><span>또는</span></div>
+        <div id="kakao-section">
+            <button type="button" id="kakao-login-btn" class="kakao-login-btn">
+                <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
+            </button>
         </div>
     </div>
 
@@ -721,10 +749,12 @@
                     } else {
                         actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
                     }
+                    const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
                     return `<div class="my-res-item" style="margin-bottom:8px">
                         <div class="my-res-info">
                             <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
                             <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
+                            ${instText}
                         </div>
                         <div>${actions}</div>
                     </div>`;
@@ -964,10 +994,8 @@
         }
 
         // --- 이메일 인증 ---
-        function switchAuthTab(tab) {
-            document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.auth === tab));
-            document.getElementById('kakao-section').classList.toggle('hidden', tab !== 'kakao');
-            document.getElementById('email-section').classList.toggle('hidden', tab !== 'email');
+        function toggleInstrument(btn) {
+            btn.classList.toggle('selected');
         }
 
         function showSignupForm() {
@@ -1000,12 +1028,20 @@
             if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
             if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
 
+            // 악기 수집
+            const selectedInsts = Array.from(document.querySelectorAll('.inst-btn.selected')).map(b => b.dataset.inst);
+            const customInsts = ['customInst1', 'customInst2', 'customInst3']
+                .map(id => document.getElementById(id).value.trim())
+                .filter(v => v);
+            const instruments = [...selectedInsts, ...customInsts].join(', ');
+            if (!instruments) { alert('담당 악기를 1개 이상 선택하거나 입력해주세요.'); return; }
+
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) { alert('회원가입 실패: ' + error.message); return; }
             if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
 
             const { error: pErr } = await supabaseClient.from('profiles').insert([{
-                id: data.user.id, name, phone, email, status: 'pending'
+                id: data.user.id, name, phone, email, instruments, status: 'pending'
             }]);
             if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
