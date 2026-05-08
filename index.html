@@ -155,9 +155,45 @@
         }
         .submit-btn:hover { background: var(--wds-primary-hover); }
 
-        #disqus_container { width: 100%; max-width: 800px; padding: 32px; background: white; border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
-        
+        #comments_container { width: 100%; max-width: 800px; padding: 32px; background: white; border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
+        #comments_container h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
+
+        .comment-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+        .comment-form textarea {
+            width: 100%; padding: 14px 16px; border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-m); font-family: inherit; font-size: 0.95rem;
+            resize: vertical; outline: none; min-height: 80px;
+        }
+        .comment-form textarea:focus { border-color: var(--wds-primary); }
+        .comment-submit-btn {
+            align-self: flex-end; padding: 10px 24px; background: var(--wds-primary);
+            color: white; border: none; border-radius: var(--wds-radius-m);
+            font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: 0.2s;
+        }
+        .comment-submit-btn:hover { background: var(--wds-primary-hover); }
+
+        .comment-item {
+            padding: 16px 0; border-bottom: 1px solid var(--wds-gray-100);
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+        }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-meta { font-size: 0.85rem; color: var(--wds-gray-500); margin-bottom: 6px; }
+        .comment-meta strong { color: var(--wds-black); font-weight: 700; margin-right: 8px; }
+        .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; }
+        .comment-delete-btn {
+            flex-shrink: 0; border: none; background: none; color: var(--wds-gray-500);
+            font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0;
+        }
+        .comment-empty { text-align: center; padding: 32px; color: var(--wds-gray-500); }
+
         .result-card { display: none; margin-top: 24px; padding: 24px; background: #F0F5FF; border: 1px solid #D0E0FF; border-radius: var(--wds-radius-l); color: var(--wds-primary); }
+
+        /* 내 예약 / 관리자 스타일 */
+        .my-res-list { display: flex; flex-direction: column; gap: 12px; }
+        .my-res-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); background: var(--wds-gray-100); }
+        .my-res-date { font-weight: 700; margin-bottom: 4px; }
+        .my-res-time { font-size: 0.9rem; color: var(--wds-gray-700); }
+        .cancel-btn { padding: 8px 16px; border: 1px solid #ff4d4f; border-radius: var(--wds-radius-s); background: white; color: #ff4d4f; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -217,9 +253,14 @@
         <div id="result" class="result-card"></div>
     </div>
 
-    <!-- Disqus -->
-    <div id="disqus_container" class="hidden">
-        <div id="disqus_thread"></div>
+    <!-- Comments -->
+    <div id="comments_container" class="hidden">
+        <h2>댓글</h2>
+        <div class="comment-form">
+            <textarea id="commentInput" placeholder="댓글을 입력하세요..."></textarea>
+            <button type="button" class="comment-submit-btn" onclick="postComment()">댓글 등록</button>
+        </div>
+        <div id="commentList"></div>
     </div>
 
     <!-- Scripts -->
@@ -302,7 +343,7 @@
         function loginUI(nickname) {
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
-            document.getElementById('disqus_container').classList.remove('hidden');
+            document.getElementById('comments_container').classList.remove('hidden');
             document.getElementById('userNameDisplay').textContent = nickname;
             document.getElementById('userNameInput').value = nickname;
             
@@ -338,14 +379,8 @@
                 }
             }
 
-            if (!window.disqus_loaded) {
-                var d = document, s = d.createElement('script');
-                s.src = 'https://gatherallaround.disqus.com/embed.js';
-                s.setAttribute('data-timestamp', +new Date());
-                (d.head || d.body).appendChild(s);
-                window.disqus_loaded = true;
-            }
             fetchReservations();
+            fetchComments();
         }
 
         function onTabClick(e) {
@@ -358,7 +393,7 @@
         function logoutUI() {
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('disqus_container').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
             document.getElementById('userNameInput').value = '';
             
             // 추가한 탭 제거
@@ -719,6 +754,67 @@
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
                 fetchReservations(); // 내역 갱신
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // --- Comments ---
+        async function fetchComments() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient
+                .from('comments')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (!error) renderComments(data);
+        }
+
+        function renderComments(comments) {
+            const list = document.getElementById('commentList');
+            if (!comments || comments.length === 0) {
+                list.innerHTML = '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</p>';
+                return;
+            }
+            list.innerHTML = comments.map(c => {
+                const date = new Date(c.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                const isMine = state.user && state.user.kakaoId === c.kakao_id;
+                return `
+                    <div class="comment-item">
+                        <div style="flex:1">
+                            <div class="comment-meta"><strong>${c.user_name}</strong>${date}</div>
+                            <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                        </div>
+                        ${isMine ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
+        async function postComment() {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const input = document.getElementById('commentInput');
+            const content = input.value.trim();
+            if (!content) { alert('댓글 내용을 입력해주세요.'); return; }
+
+            const { error } = await supabaseClient
+                .from('comments')
+                .insert([{ kakao_id: state.user.kakaoId, user_name: state.user.nickname, content }]);
+
+            if (error) {
+                alert('댓글 등록 실패: ' + error.message);
+            } else {
+                input.value = '';
+                fetchComments();
+            }
+        }
+
+        async function deleteComment(id) {
+            if (!confirm('댓글을 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient
+                .from('comments')
+                .delete()
+                .eq('id', id);
+            if (error) {
+                alert('삭제 실패: ' + error.message);
+            } else {
+                fetchComments();
             }
         }
 
