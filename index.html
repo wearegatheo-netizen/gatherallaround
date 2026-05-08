@@ -219,6 +219,29 @@
         .approve-btn { padding: 6px 14px; border: 1px solid #10B981; border-radius: var(--wds-radius-s); background: white; color: #10B981; cursor: pointer; font-weight: 600; font-size: 0.82rem; margin-right: 6px; }
         .reject-btn { padding: 6px 14px; border: 1px solid #EF4444; border-radius: var(--wds-radius-s); background: white; color: #EF4444; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
         .admin-post-btn { padding: 10px 20px; background: var(--wds-black); color: white; border: none; border-radius: var(--wds-radius-m); font-size: 0.9rem; font-weight: 700; cursor: pointer; align-self: flex-end; }
+
+        /* 이메일 인증 */
+        .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); overflow: hidden; }
+        .auth-tab { flex: 1; padding: 12px; background: var(--wds-gray-100); border: none; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 600; color: var(--wds-gray-500); transition: 0.2s; }
+        .auth-tab.active { background: var(--wds-primary); color: white; }
+        .email-form { display: flex; flex-direction: column; gap: 12px; }
+        .email-form input[type="email"], .email-form input[type="password"], .email-form input[type="text"], .email-form input[type="tel"] {
+            width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-m); font-family: inherit; font-size: 0.95rem; outline: none; box-sizing: border-box;
+        }
+        .email-form input:focus { border-color: var(--wds-primary); }
+        .email-primary-btn { width: 100%; height: 48px; background: var(--wds-primary); color: white; border: none; border-radius: var(--wds-radius-m); font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 4px; }
+        .email-secondary-btn { width: 100%; height: 40px; background: none; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); font-size: 0.88rem; color: var(--wds-gray-700); cursor: pointer; }
+        .privacy-box { padding: 12px; background: var(--wds-gray-100); border-radius: var(--wds-radius-m); font-size: 0.78rem; color: var(--wds-gray-700); line-height: 1.6; text-align: left; max-height: 130px; overflow-y: auto; }
+        .privacy-box strong { color: var(--wds-black); }
+        .privacy-label { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--wds-gray-900); cursor: pointer; padding: 4px 2px; }
+        .privacy-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+        /* 승인 대기 화면 */
+        #pending-screen { width: 100%; max-width: 480px; text-align: center; padding: 60px 40px; background: var(--wds-white); border-radius: var(--wds-radius-l); box-shadow: var(--wds-shadow-lg); border: 1px solid var(--wds-gray-300); margin-top: 10vh; }
+        #pending-screen .pending-icon { font-size: 3rem; margin-bottom: 16px; }
+        #pending-screen h2 { font-size: 1.5rem; margin-bottom: 12px; }
+        #pending-screen p { color: var(--wds-gray-700); font-size: 0.95rem; line-height: 1.7; margin-bottom: 32px; }
     </style>
 </head>
 <body>
@@ -229,10 +252,67 @@
     <!-- Landing/Login -->
     <div id="landing-page">
         <h1>Gather All Around</h1>
-        <p>프리미엄 합주실 예약을 위해<br>카카오톡으로 로그인이 필요합니다.</p>
-        <button type="button" id="kakao-login-btn" class="kakao-login-btn">
-            <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
-        </button>
+        <p>프리미엄 합주실 예약 시스템</p>
+
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-auth="kakao" onclick="switchAuthTab('kakao')">카카오</button>
+            <button type="button" class="auth-tab" data-auth="email" onclick="switchAuthTab('email')">이메일</button>
+        </div>
+
+        <!-- 카카오 로그인 -->
+        <div id="kakao-section">
+            <button type="button" id="kakao-login-btn" class="kakao-login-btn">
+                <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
+            </button>
+        </div>
+
+        <!-- 이메일 로그인/회원가입 -->
+        <div id="email-section" class="hidden">
+            <!-- 로그인 폼 -->
+            <div id="email-login-form" class="email-form">
+                <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
+                <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
+                <button type="button" class="email-secondary-btn" onclick="showSignupForm()">아직 회원이 아니신가요? 회원가입</button>
+            </div>
+
+            <!-- 회원가입 폼 -->
+            <div id="email-signup-form" class="email-form hidden">
+                <input type="text" id="signupName" placeholder="이름 (실명)" autocomplete="name">
+                <input type="tel" id="signupPhone" placeholder="전화번호 (01012345678)" autocomplete="tel">
+                <input type="email" id="signupEmail" placeholder="이메일" autocomplete="email">
+                <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
+                <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 확인" autocomplete="new-password">
+
+                <div class="privacy-box">
+                    <strong>개인정보 수집·이용 동의 (필수)</strong><br>
+                    • 수집 항목: 이름, 전화번호, 이메일 주소<br>
+                    • 수집 목적: 합주실 예약 서비스 제공, 예약 확인 및 안내<br>
+                    • 보유 기간: 회원 탈퇴 시까지<br>
+                    • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.
+                </div>
+                <label class="privacy-label">
+                    <input type="checkbox" id="privacyConsent">
+                    위 개인정보 수집·이용에 동의합니다.
+                </label>
+
+                <button type="button" class="email-primary-btn" onclick="handleEmailSignup()">회원가입 신청</button>
+                <button type="button" class="email-secondary-btn" onclick="showLoginForm()">로그인으로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 승인 대기 화면 -->
+    <div id="pending-screen" class="hidden">
+        <div class="pending-icon">⏳</div>
+        <h2>관리자 승인 대기 중</h2>
+        <p>
+            <strong id="pendingName"></strong>님,<br>
+            회원가입 신청이 완료되었습니다.<br><br>
+            관리자 승인 후 서비스 이용이 가능하며,<br>
+            승인은 영업일 기준 1일 이내에 처리됩니다.
+        </p>
+        <button type="button" class="email-secondary-btn" onclick="handleLogout()">로그아웃</button>
     </div>
 
     <!-- Main Content -->
@@ -357,8 +437,16 @@
             });
         }
 
-        function handleLogout() {
-            if (Kakao.Auth.getAccessToken()) {
+        async function handleLogout() {
+            // 이메일 사용자: Supabase 세션 종료
+            if (state.user && state.user.authType === 'email') {
+                await supabaseClient.auth.signOut();
+                logoutUI();
+                alert("로그아웃 되었습니다.");
+                return;
+            }
+            // 카카오 사용자
+            if (typeof Kakao !== 'undefined' && Kakao.Auth.getAccessToken()) {
                 Kakao.Auth.logout(() => {
                     logoutUI();
                     alert("로그아웃 되었습니다.");
@@ -421,6 +509,7 @@
 
         function logoutUI() {
             document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('pending-screen').classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
             document.getElementById('comments_container').classList.add('hidden');
             document.getElementById('userNameInput').value = '';
@@ -494,6 +583,19 @@
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
             fetchNotices();
+            initSession();
+        }
+
+        async function initSession() {
+            // 이메일 세션 우선 체크
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    await checkEmailUserApproval(session.user);
+                    return;
+                }
+            } catch (e) { console.warn('Supabase 세션 체크 실패:', e); }
+            // 카카오 세션 체크
             checkSession();
         }
 
@@ -595,7 +697,40 @@
             container.appendChild(list);
         }
 
-        function renderAdminPage(container) {
+        async function renderAdminPage(container) {
+            // 회원 관리
+            const memberSection = document.createElement('div');
+            memberSection.className = 'admin-section';
+            memberSection.innerHTML = `<div class="admin-section-title">👥 회원 관리</div><div id="memberList"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
+            container.appendChild(memberSection);
+
+            const members = await fetchMembers();
+            const memberList = document.getElementById('memberList');
+            if (!members || members.length === 0) {
+                memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
+            } else {
+                memberList.innerHTML = members.map(m => {
+                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
+                    const [sc, st] = statusMap[m.status] || statusMap['pending'];
+                    const date = new Date(m.created_at).toLocaleDateString('ko-KR');
+                    let actions = '';
+                    if (m.status === 'pending') {
+                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button><button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
+                    } else if (m.status === 'approved') {
+                        actions = `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
+                    } else {
+                        actions = `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
+                    }
+                    return `<div class="my-res-item" style="margin-bottom:8px">
+                        <div class="my-res-info">
+                            <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
+                            <div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>
+                        </div>
+                        <div>${actions}</div>
+                    </div>`;
+                }).join('');
+            }
+
             // 공지사항 관리
             const noticeSection = document.createElement('div');
             noticeSection.className = 'admin-section';
@@ -826,6 +961,101 @@
                 fetchReservations();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
+        }
+
+        // --- 이메일 인증 ---
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.auth === tab));
+            document.getElementById('kakao-section').classList.toggle('hidden', tab !== 'kakao');
+            document.getElementById('email-section').classList.toggle('hidden', tab !== 'email');
+        }
+
+        function showSignupForm() {
+            document.getElementById('email-login-form').classList.add('hidden');
+            document.getElementById('email-signup-form').classList.remove('hidden');
+        }
+
+        function showLoginForm() {
+            document.getElementById('email-signup-form').classList.add('hidden');
+            document.getElementById('email-login-form').classList.remove('hidden');
+        }
+
+        function showPendingScreen(name) {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('pending-screen').classList.remove('hidden');
+            document.getElementById('pendingName').textContent = name;
+        }
+
+        async function handleEmailSignup() {
+            const name = document.getElementById('signupName').value.trim();
+            const phone = document.getElementById('signupPhone').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const confirm = document.getElementById('signupPasswordConfirm').value;
+            const consent = document.getElementById('privacyConsent').checked;
+
+            if (!name || !phone || !email || !password) { alert('모든 항목을 입력해주세요.'); return; }
+            if (!/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { alert('올바른 전화번호를 입력해주세요.'); return; }
+            if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
+            if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
+
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) { alert('회원가입 실패: ' + error.message); return; }
+            if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
+
+            const { error: pErr } = await supabaseClient.from('profiles').insert([{
+                id: data.user.id, name, phone, email, status: 'pending'
+            }]);
+            if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
+
+            alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
+            showPendingScreen(name);
+        }
+
+        async function handleEmailLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!email || !password) { alert('이메일과 비밀번호를 입력해주세요.'); return; }
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) { alert('로그인 실패: ' + error.message); return; }
+            await checkEmailUserApproval(data.user);
+        }
+
+        async function checkEmailUserApproval(user) {
+            const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+            if (error || !data) { alert('프로필 정보를 불러올 수 없습니다.'); await supabaseClient.auth.signOut(); return; }
+
+            if (data.status === 'approved') {
+                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email' };
+                loginUI(data.name);
+            } else if (data.status === 'rejected') {
+                alert('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
+                await supabaseClient.auth.signOut();
+            } else {
+                showPendingScreen(data.name);
+            }
+        }
+
+        // --- 회원 관리 ---
+        async function fetchMembers() {
+            if (!supabaseClient) return [];
+            const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
+            return error ? [] : data;
+        }
+
+        async function approveMember(id) {
+            const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
+            if (error) alert('승인 실패: ' + error.message);
+            else render();
+        }
+
+        async function rejectMember(id) {
+            if (!confirm('이 회원의 가입을 거절하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
+            if (error) alert('거절 실패: ' + error.message);
+            else render();
         }
 
         // --- 예약 승인/거절 ---
