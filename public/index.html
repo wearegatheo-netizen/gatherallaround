@@ -268,9 +268,14 @@
         .like-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer; color: var(--wds-gray-500); transition: all 0.15s; margin-top: 6px; }
         .like-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
         .like-btn.liked { border-color: #ff6b6b; color: #ff6b6b; background: #fff5f5; }
+
+        /* 토스트 알림 */
+        #auto-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
     </style>
 </head>
 <body>
+
+    <div id="auto-toast"></div>
 
     <!-- 공지사항 (항상 표시) -->
     <div id="notice_container" class="hidden"></div>
@@ -536,6 +541,7 @@
             fetchComments();
             fetchNotices();
             document.getElementById('notice_container').classList.remove('hidden');
+            startInactivityWatcher();
         }
 
         function onTabClick(e) {
@@ -561,6 +567,7 @@
             state.user = null;
             notices = [];
             document.getElementById('notice_container').classList.add('hidden');
+            stopInactivityWatcher();
         }
 
         // --- Reservation Logic ---
@@ -1289,14 +1296,61 @@
             const liked = JSON.parse(localStorage.getItem(likedKey) || '[]');
             const sid = String(id);
             const alreadyLiked = liked.includes(sid);
-            const newLiked = alreadyLiked ? liked.filter(x => x !== sid) : [...liked, sid];
-            localStorage.setItem(likedKey, JSON.stringify(newLiked));
 
-            const { data: comment } = await supabaseClient.from('comments').select('likes').eq('id', id).single();
+            const { data: comment, error: selErr } = await supabaseClient.from('comments').select('likes').eq('id', id).single();
+            if (selErr) {
+                alert('좋아요 오류: ' + selErr.message + '\n\nSupabase SQL Editor에서 실행 필요:\nALTER TABLE comments ADD COLUMN IF NOT EXISTS likes integer DEFAULT 0;');
+                return;
+            }
             const current = comment ? (comment.likes || 0) : 0;
             const newCount = alreadyLiked ? Math.max(0, current - 1) : current + 1;
-            await supabaseClient.from('comments').update({ likes: newCount }).eq('id', id);
+            const { error: updErr } = await supabaseClient.from('comments').update({ likes: newCount }).eq('id', id);
+            if (updErr) {
+                alert('좋아요 업데이트 실패: ' + updErr.message);
+                return;
+            }
+
+            const newLiked = alreadyLiked ? liked.filter(x => x !== sid) : [...liked, sid];
+            localStorage.setItem(likedKey, JSON.stringify(newLiked));
             fetchComments();
+        }
+
+        // --- 자동 로그아웃 ---
+        let inactivityTimer = null;
+        let warnTimer = null;
+        const INACTIVITY_MS = 5 * 60 * 1000;
+
+        function showToast(msg, duration = 3500) {
+            const t = document.getElementById('auto-toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.style.opacity = '1';
+            setTimeout(() => { t.style.opacity = '0'; }, duration);
+        }
+
+        function resetInactivityTimer() {
+            if (!state.user) return;
+            clearTimeout(inactivityTimer);
+            clearTimeout(warnTimer);
+            warnTimer = setTimeout(() => showToast('⚠️ 1분 후 자동 로그아웃됩니다.', 10000), INACTIVITY_MS - 60000);
+            inactivityTimer = setTimeout(async () => {
+                showToast('자동 로그아웃되었습니다.');
+                await handleLogout();
+            }, INACTIVITY_MS);
+        }
+
+        function startInactivityWatcher() {
+            ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'].forEach(ev => {
+                document.addEventListener(ev, resetInactivityTimer, true);
+            });
+            resetInactivityTimer();
+        }
+
+        function stopInactivityWatcher() {
+            clearTimeout(inactivityTimer);
+            clearTimeout(warnTimer);
+            inactivityTimer = null;
+            warnTimer = null;
         }
 
         async function deleteComment(id) {
