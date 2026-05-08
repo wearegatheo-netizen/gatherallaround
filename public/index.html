@@ -267,7 +267,7 @@
     <!-- Landing/Login -->
     <div id="landing-page">
         <h1>Gather All Around</h1>
-        <p>프리미엄 합주실 예약 시스템</p>
+        <p>게더올어라운드 이용 시스템</p>
 
         <!-- 이메일 로그인/회원가입 (메인) -->
         <div id="email-section">
@@ -282,14 +282,14 @@
             <!-- 회원가입 폼 -->
             <div id="email-signup-form" class="email-form hidden">
                 <input type="text" id="signupName" placeholder="이름 (실명)" autocomplete="name">
-                <input type="tel" id="signupPhone" placeholder="전화번호 (01012345678)" autocomplete="tel">
+                <input type="tel" id="signupPhone" placeholder="전화번호 (010-0000-0000)" autocomplete="tel">
                 <input type="email" id="signupEmail" placeholder="이메일" autocomplete="email">
                 <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
                 <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 확인" autocomplete="new-password">
 
                 <!-- 악기 선택 -->
                 <div class="instrument-section">
-                    <div class="form-label-text">담당 악기 (복수 선택 가능)</div>
+                    <div class="form-label-text">메인 세션</div>
                     <div class="instrument-buttons">
                         <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
                         <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
@@ -298,15 +298,13 @@
                         <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
                     </div>
                     <div class="instrument-customs">
-                        <input type="text" id="customInst1" placeholder="추가 악기 1 (선택)" maxlength="20">
-                        <input type="text" id="customInst2" placeholder="추가 악기 2 (선택)" maxlength="20">
-                        <input type="text" id="customInst3" placeholder="추가 악기 3 (선택)" maxlength="20">
+                        <input type="text" id="customInst1" placeholder="추가 세션 (선택)" maxlength="20">
                     </div>
                 </div>
 
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
-                    • 수집 항목: 이름, 전화번호, 이메일 주소, 담당 악기<br>
+                    • 수집 항목: 이름, 전화번호, 이메일 주소, 메인 세션<br>
                     • 수집 목적: 합주실 예약 서비스 제공, 예약 확인 및 안내<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
                     • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.
@@ -347,7 +345,7 @@
     <div id="main-content" class="container hidden">
         <header>
             <h1>Gather All Around</h1>
-            <p class="subtitle">프리미엄 합주실 예약 시스템</p>
+            <p class="subtitle">게더올어라운드 이용 시스템</p>
         </header>
 
         <div id="userInfoArea" class="user-info">
@@ -1023,18 +1021,18 @@
             const consent = document.getElementById('privacyConsent').checked;
 
             if (!name || !phone || !email || !password) { alert('모든 항목을 입력해주세요.'); return; }
-            if (!/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { alert('올바른 전화번호를 입력해주세요.'); return; }
+            if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
             if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
             if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
             if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
 
             // 악기 수집
             const selectedInsts = Array.from(document.querySelectorAll('.inst-btn.selected')).map(b => b.dataset.inst);
-            const customInsts = ['customInst1', 'customInst2', 'customInst3']
+            const customInsts = ['customInst1']
                 .map(id => document.getElementById(id).value.trim())
                 .filter(v => v);
             const instruments = [...selectedInsts, ...customInsts].join(', ');
-            if (!instruments) { alert('담당 악기를 1개 이상 선택하거나 입력해주세요.'); return; }
+            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) { alert('회원가입 실패: ' + error.message); return; }
