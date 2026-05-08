@@ -284,6 +284,67 @@
 
         /* 토스트 알림 */
         #auto-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
+
+        /* 멤버 대시보드 */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+        .stat-card { background: var(--wds-gray-100); border-radius: var(--wds-radius-m); padding: 12px 14px; }
+        .stat-label { font-size: 0.78rem; color: var(--wds-gray-700); margin-bottom: 4px; }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--wds-black); }
+
+        /* 댓글 답글 */
+        .comment-replies { margin-left: 32px; padding-left: 12px; border-left: 2px solid var(--wds-gray-300); margin-top: 4px; }
+        .comment-reply { background: var(--wds-gray-100); }
+        .comment-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+        .comment-actions .like-btn { margin-top: 0; }
+        .reply-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer; color: var(--wds-gray-500); transition: all 0.15s; }
+        .reply-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .reply-form { margin-top: 8px; }
+        .reply-form textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box; }
+        .reply-form button { padding: 6px 14px; background: var(--wds-primary); color: white; border: none; border-radius: var(--wds-radius-s); cursor: pointer; margin-top: 6px; font-size: 0.85rem; }
+
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            body { padding: 12px 6px; }
+            .container { padding: 18px 14px; }
+            #landing-page { padding: 36px 20px; margin-top: 4vh; }
+            #landing-page h1 { font-size: 1.7rem; }
+            #landing-page p { font-size: 0.95rem; margin-bottom: 28px; }
+            header h1 { font-size: 1.5rem; }
+            .subtitle { font-size: 0.9rem; }
+            .form-group { padding: 16px 14px; }
+            .user-info { padding: 12px 14px; font-size: 0.9rem; flex-wrap: wrap; gap: 8px; }
+            .tabs { flex-wrap: wrap; gap: 4px; }
+            .tab { padding: 8px 12px; font-size: 0.85rem; flex: 1; min-width: 60px; text-align: center; }
+            .calendar-grid { gap: 4px; }
+            .calendar-day { min-height: 58px; padding: 3px 2px; }
+            .cal-day-num { font-size: 0.85rem; }
+            .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
+            .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
+            .weekly-grid { grid-template-columns: 60px repeat(7, minmax(48px, 1fr)) !important; }
+            .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
+            .weekly-slot { height: 42px; }
+            .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+            .admin-subtab { padding: 8px 12px; font-size: 0.82rem; white-space: nowrap; }
+            .admin-section { padding: 16px 12px; }
+            .admin-section-title { font-size: 0.95rem; }
+            .my-res-item { padding: 12px; flex-wrap: wrap; gap: 8px; }
+            .my-res-info { flex: 1 1 100%; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .stat-card { padding: 10px 12px; }
+            .stat-value { font-size: 1.2rem; }
+            .privacy-box { padding: 12px; font-size: 0.78rem; }
+            .notice-card { padding: 14px 14px; }
+            .notice-content { font-size: 0.9rem; }
+            .submit-btn { padding: 14px; font-size: 1rem; }
+            .comment-item { padding: 12px; }
+            .comment-replies { margin-left: 14px; padding-left: 8px; }
+            .instrument-buttons { gap: 6px; }
+            .inst-btn { font-size: 0.85rem; padding: 8px 10px; }
+            .email-form input, .email-form button { font-size: 0.95rem; }
+            .view-header { flex-wrap: wrap; gap: 8px; }
+            .view-title { font-size: 1.1rem; }
+            #auto-toast { bottom: 16px; padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -811,15 +872,24 @@
             const dayOptions = dayNames.map((d,i) => `<option value="${i}">${d}요일</option>`).join('');
             section.innerHTML = `
                 <div class="admin-section-title">🚫 시간 차단 관리</div>
-                <p style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:12px">요일·시간대 + 적용 기간을 지정해 예약을 차단합니다. 기간을 비워두면 영구 차단됩니다.</p>
+                <p style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:12px">반복 유형과 시간대를 지정해 예약을 차단합니다.</p>
                 <div class="notice-input-group">
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <select id="blockRepeat" onchange="onBlockRepeatChange()" style="padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">
+                        <option value="weekly">🔄 매주 반복</option>
+                        <option value="once">📌 1회만 (특정 날짜)</option>
+                    </select>
+                    <div id="weeklyOptions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                         <select id="blockDow" style="flex:1;min-width:100px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${dayOptions}</select>
+                    </div>
+                    <div id="onceOptions" style="display:none">
+                        <input type="date" id="blockSingleDate" style="width:100%;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                         <select id="blockStart" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
                         <span>~</span>
                         <select id="blockEnd" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
                     </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <div id="dateRangeRow" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                         <label style="font-size:0.85rem;color:var(--wds-gray-700);min-width:60px">적용 기간</label>
                         <input type="date" id="blockStartDate" style="flex:1;min-width:130px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)" placeholder="시작일">
                         <span>~</span>
@@ -845,32 +915,58 @@
             const sorted = [...state.blocks].sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
             list.innerHTML = sorted.map(b => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
-                let period = '영구';
-                if (b.start_date && b.end_date) period = `${b.start_date} ~ ${b.end_date}`;
-                else if (b.start_date) period = `${b.start_date} 부터`;
-                else if (b.end_date) period = `${b.end_date} 까지`;
+                const isOnce = b.start_date && b.start_date === b.end_date;
+                let titleText, period;
+                if (isOnce) {
+                    titleText = `📌 1회만 · ${b.start_date} (${dayNames[b.day_of_week]}) ${b.start_time} ~ ${endDisplay}`;
+                    period = '';
+                } else {
+                    titleText = `🔄 매주 ${dayNames[b.day_of_week]}요일 ${b.start_time} ~ ${endDisplay}`;
+                    if (b.start_date && b.end_date) period = `${b.start_date} ~ ${b.end_date}`;
+                    else if (b.start_date) period = `${b.start_date} 부터`;
+                    else if (b.end_date) period = `${b.end_date} 까지`;
+                    else period = '영구';
+                }
                 return `<div class="my-res-item" style="margin-bottom:8px">
                     <div class="my-res-info">
-                        <div class="my-res-date">매주 ${dayNames[b.day_of_week]}요일 ${b.start_time} ~ ${endDisplay}</div>
-                        <div class="my-res-time">📅 ${period}${b.reason ? ' · ' + b.reason : ''}</div>
+                        <div class="my-res-date">${titleText}</div>
+                        <div class="my-res-time">${period ? `📅 ${period}` : ''}${b.reason ? (period ? ' · ' : '') + b.reason : ''}</div>
                     </div>
                     <button type="button" class="cancel-btn" onclick="deleteTimeBlock('${b.id}')">삭제</button>
                 </div>`;
             }).join('');
         }
 
+        function onBlockRepeatChange() {
+            const type = document.getElementById('blockRepeat').value;
+            document.getElementById('weeklyOptions').style.display = type === 'once' ? 'none' : 'flex';
+            document.getElementById('dateRangeRow').style.display = type === 'once' ? 'none' : 'flex';
+            document.getElementById('onceOptions').style.display = type === 'once' ? '' : 'none';
+        }
+
         async function addTimeBlock() {
-            const dow = parseInt(document.getElementById('blockDow').value);
+            const type = document.getElementById('blockRepeat').value;
             const startTime = document.getElementById('blockStart').value;
             const endTime = document.getElementById('blockEnd').value;
             const reason = document.getElementById('blockReason').value.trim();
-            const startDate = document.getElementById('blockStartDate').value || null;
-            const endDate = document.getElementById('blockEndDate').value || null;
             if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) {
                 alert('시작 시간이 종료 시간보다 늦을 수 없습니다.'); return;
             }
-            if (startDate && endDate && startDate > endDate) {
-                alert('시작일이 종료일보다 늦을 수 없습니다.'); return;
+            let dow, startDate, endDate;
+            if (type === 'once') {
+                const singleDate = document.getElementById('blockSingleDate').value;
+                if (!singleDate) { alert('날짜를 선택해주세요.'); return; }
+                const [y, m, d] = singleDate.split('-').map(Number);
+                dow = new Date(y, m - 1, d).getDay();
+                startDate = singleDate;
+                endDate = singleDate;
+            } else {
+                dow = parseInt(document.getElementById('blockDow').value);
+                startDate = document.getElementById('blockStartDate').value || null;
+                endDate = document.getElementById('blockEndDate').value || null;
+                if (startDate && endDate && startDate > endDate) {
+                    alert('시작일이 종료일보다 늦을 수 없습니다.'); return;
+                }
             }
             const { error } = await supabaseClient.from('time_blocks').insert([{
                 day_of_week: dow, start_time: startTime, end_time: endTime,
@@ -943,12 +1039,56 @@
         }
 
         async function renderAdminMembersSection(container) {
+            const dashSection = document.createElement('div');
+            dashSection.className = 'admin-section';
+            dashSection.innerHTML = `<div class="admin-section-title">📊 멤버 대시보드</div><div id="memberDash"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
+            container.appendChild(dashSection);
+
             const memberSection = document.createElement('div');
             memberSection.className = 'admin-section';
-            memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 현황</div><div id="memberList"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
+            memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 목록</div><div id="memberList"></div>`;
             container.appendChild(memberSection);
 
             const members = await fetchMembers();
+
+            // 대시보드 통계
+            const dashEl = document.getElementById('memberDash');
+            const total = members.length;
+            const pending = members.filter(m => m.status === 'pending').length;
+            const approved = members.filter(m => m.status === 'approved').length;
+            const rejected = members.filter(m => m.status === 'rejected').length;
+            const supers = members.filter(m => m.role === '총괄').length;
+            const leaders = members.filter(m => m.role === '세션장').length;
+            const normals = members.filter(m => !m.role || m.role === '일반').length;
+            const instCounts = {};
+            members.filter(m => m.status === 'approved' && m.instruments).forEach(m => {
+                m.instruments.split(',').forEach(inst => {
+                    const i = inst.trim();
+                    if (i) instCounts[i] = (instCounts[i] || 0) + 1;
+                });
+            });
+            const instList = Object.entries(instCounts).sort((a,b) => b[1]-a[1]);
+            const statCard = (label, value, color) => `<div class="stat-card" style="border-left:4px solid ${color}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+            dashEl.innerHTML = `
+                <div class="stat-grid">
+                    ${statCard('전체', total, '#3366FF')}
+                    ${statCard('승인됨', approved, '#00b894')}
+                    ${statCard('대기', pending, '#f0a050')}
+                    ${statCard('거절', rejected, '#e74c3c')}
+                </div>
+                <div style="margin-top:14px;font-size:0.85rem;color:var(--wds-gray-700);font-weight:600">권한 분포</div>
+                <div class="stat-grid" style="margin-top:6px">
+                    ${statCard('총괄', supers, '#3366FF')}
+                    ${statCard('세션장', leaders, '#00b894')}
+                    ${statCard('일반', normals, '#999')}
+                </div>
+                ${instList.length > 0 ? `
+                <div style="margin-top:14px;font-size:0.85rem;color:var(--wds-gray-700);font-weight:600">세션 분포 (승인된 멤버)</div>
+                <div class="stat-grid" style="margin-top:6px">
+                    ${instList.map(([k,v]) => statCard(k, v, '#3366FF')).join('')}
+                </div>` : ''}
+            `;
+
             const memberList = document.getElementById('memberList');
             if (!members || members.length === 0) {
                 memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
@@ -1127,9 +1267,14 @@
         }
 
         function renderDay(container) {
-            const grid = document.createElement('div'); grid.className = 'weekly-grid'; grid.style.gridTemplateColumns = '100px 1fr';
-            TIMES.forEach(time => {
-                grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
+            const grid = document.createElement('div'); grid.className = 'weekly-grid'; grid.style.gridTemplateColumns = '130px 1fr';
+            TIMES.forEach((time, idx) => {
+                const endTime = TIMES[idx + 1] || '23:00';
+                const tc = document.createElement('div');
+                tc.className = 'weekly-cell weekly-time-cell';
+                tc.style.lineHeight = '1.3';
+                tc.innerHTML = `<div style="font-weight:600">${time}</div><div style="font-size:0.72rem;color:var(--wds-gray-500)">~ ${endTime}</div>`;
+                grid.appendChild(tc);
                 const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
                 
                 const block = getBlock(state.viewDate, time);
@@ -1144,12 +1289,30 @@
                     s.style.cursor = 'not-allowed';
                     s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
                 } else {
-                    if (isSlotSelected(state.viewDate, time)) { s.classList.add('selected'); s.textContent = '선택됨'; }
+                    if (isSlotSelected(state.viewDate, time)) {
+                        s.classList.add('selected');
+                        if (state.startTime === time && (!state.endTime || state.endTime === time)) s.textContent = '🟢 시작';
+                        else if (state.startTime === time) s.textContent = '🟢 시작';
+                        else if (state.endTime === time) s.textContent = '🔴 끝';
+                        else s.textContent = '선택됨';
+                    }
                     s.onclick = () => onSlotClick(state.viewDate, time);
                 }
                 grid.appendChild(s);
             });
             container.appendChild(grid);
+
+            // 선택 요약
+            if (state.startTime && state.selectedDate && isSameDay(state.selectedDate, state.viewDate)) {
+                const summary = document.createElement('div');
+                summary.style.cssText = 'margin-top:14px;padding:14px;background:var(--wds-primary-light);border-radius:var(--wds-radius-m);text-align:center;font-size:0.95rem;color:var(--wds-primary);font-weight:600';
+                const endIdx = state.endTime ? TIMES.indexOf(state.endTime) : TIMES.indexOf(state.startTime);
+                const endStr = TIMES[endIdx + 1] || '23:00';
+                summary.textContent = state.endTime
+                    ? `✅ 선택: ${state.startTime} ~ ${endStr}`
+                    : `🟢 시작: ${state.startTime} — 끝 시간을 클릭하세요`;
+                container.appendChild(summary);
+            }
         }
 
         function maskName(name) {
@@ -1458,21 +1621,66 @@
             }
             const likedKey = state.user ? 'liked_' + state.user.kakaoId : '';
             const liked = likedKey ? JSON.parse(localStorage.getItem(likedKey) || '[]') : [];
-            list.innerHTML = comments.map(c => {
+
+            const parents = comments.filter(c => !c.parent_id).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            const replyMap = {};
+            comments.filter(c => c.parent_id).forEach(c => {
+                (replyMap[c.parent_id] = replyMap[c.parent_id] || []).push(c);
+            });
+            Object.keys(replyMap).forEach(p => replyMap[p].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)));
+
+            const renderItem = (c, isReply) => {
                 const date = new Date(c.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 const isMine = state.user && state.user.kakaoId === c.kakao_id;
                 const isLiked = liked.includes(String(c.id));
                 const likesCount = c.likes || 0;
                 return `
-                    <div class="comment-item">
+                    <div class="comment-item${isReply ? ' comment-reply' : ''}">
                         <div style="flex:1">
                             <div class="comment-meta"><strong>${c.user_name}</strong>${date}</div>
                             <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                            <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
+                            <div class="comment-actions">
+                                <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
+                                ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">💬 답글</button>` : ''}
+                            </div>
+                            ${!isReply ? `<div id="reply-form-${c.id}" class="reply-form hidden">
+                                <textarea id="replyInput-${c.id}" placeholder="답글을 입력하세요..."></textarea>
+                                <button type="button" onclick="postReply('${c.id}')">답글 등록</button>
+                            </div>` : ''}
                         </div>
                         ${isMine ? `<button class="comment-delete-btn" onclick="deleteComment('${c.id}')">삭제</button>` : ''}
                     </div>`;
+            };
+
+            list.innerHTML = parents.map(p => {
+                let html = renderItem(p, false);
+                const replies = replyMap[p.id] || [];
+                if (replies.length > 0) {
+                    html += '<div class="comment-replies">' + replies.map(r => renderItem(r, true)).join('') + '</div>';
+                }
+                return html;
             }).join('');
+        }
+
+        function toggleReplyForm(parentId) {
+            const form = document.getElementById('reply-form-' + parentId);
+            if (form) form.classList.toggle('hidden');
+        }
+
+        async function postReply(parentId) {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const input = document.getElementById('replyInput-' + parentId);
+            const content = input.value.trim();
+            if (!content) { alert('답글 내용을 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('comments').insert([{
+                kakao_id: state.user.kakaoId, user_name: state.user.nickname, content, parent_id: parentId
+            }]);
+            if (error) {
+                alert('답글 등록 실패: ' + error.message + '\n\nparent_id 컬럼이 없다면:\nALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES comments(id) ON DELETE CASCADE;');
+                return;
+            }
+            input.value = '';
+            fetchComments();
         }
 
         async function postComment() {
