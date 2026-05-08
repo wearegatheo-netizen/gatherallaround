@@ -1010,14 +1010,20 @@
                 if (state.selectedDate && isSameDay(loopDate, state.selectedDate)) day.classList.add('selected');
 
                 // 해당 날짜의 예약 요약
-                const dayRes = state.reservations.filter(r => isSameDay(new Date(r.res_date), loopDate));
+                const dayRes = state.reservations
+                    .filter(r => isSameDay(new Date(r.res_date), loopDate))
+                    .sort((a, b) => TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
                 if (dayRes.length > 0) {
-                    const approved = dayRes.filter(r => r.status === 'approved').length;
-                    const pending = dayRes.filter(r => r.status === 'pending').length;
+                    const approved = dayRes.filter(r => r.status === 'approved');
+                    const pending = dayRes.filter(r => r.status === 'pending');
+                    const fmt = (arr) => {
+                        const hours = arr.map(r => r.start_time.split(':')[0]);
+                        return hours.length <= 3 ? hours.join(',') : hours.slice(0, 2).join(',') + `+${hours.length - 2}`;
+                    };
                     const info = document.createElement('div'); info.className = 'cal-day-info';
                     const parts = [];
-                    if (approved > 0) parts.push(`<span class="approved">✓${approved}</span>`);
-                    if (pending > 0) parts.push(`<span class="pending">⏳${pending}</span>`);
+                    if (approved.length > 0) parts.push(`<span class="approved">✓${fmt(approved)}</span>`);
+                    if (pending.length > 0) parts.push(`<span class="pending">⏳${fmt(pending)}</span>`);
                     info.innerHTML = parts.join('');
                     day.appendChild(info);
                 }
