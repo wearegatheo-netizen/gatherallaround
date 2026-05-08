@@ -531,6 +531,7 @@
             fetchReservations();
             fetchComments();
             fetchNotices();
+            fetchBlocks().then(() => render());
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
         }
@@ -570,7 +571,8 @@
             selectedDate: null,
             startTime: null,
             endTime: null,
-            reservations: []
+            reservations: [],
+            blocks: []
         };
 
         const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -758,7 +760,7 @@
             const subtabDefs = [
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
-                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : [])
+                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -776,9 +778,81 @@
                 renderAdminApprovalSection(content);
             } else if (state.adminTab === 'members') {
                 await renderAdminMembersSection(content);
+            } else if (state.adminTab === 'blocks') {
+                renderAdminBlocksSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
+        }
+
+        function renderAdminBlocksSection(container) {
+            const section = document.createElement('div');
+            section.className = 'admin-section';
+            const dayNames = ['일','월','화','수','목','금','토'];
+            const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
+            const dayOptions = dayNames.map((d,i) => `<option value="${i}">${d}요일</option>`).join('');
+            section.innerHTML = `
+                <div class="admin-section-title">🚫 시간 차단 관리</div>
+                <p style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:12px">선택한 요일·시간대를 매주 영구적으로 예약 불가능하게 만듭니다.</p>
+                <div class="notice-input-group">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                        <select id="blockDow" style="flex:1;min-width:100px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${dayOptions}</select>
+                        <select id="blockStart" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
+                        <span>~</span>
+                        <select id="blockEnd" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
+                    </div>
+                    <input type="text" id="blockReason" placeholder="차단 사유 (선택)">
+                    <button type="button" class="admin-post-btn" onclick="addTimeBlock()">차단 추가</button>
+                </div>
+                <div id="blockList"></div>
+            `;
+            container.appendChild(section);
+            renderBlockList();
+        }
+
+        function renderBlockList() {
+            const list = document.getElementById('blockList');
+            if (!list) return;
+            if (!state.blocks || state.blocks.length === 0) {
+                list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;padding:10px">등록된 차단이 없습니다.</p>';
+                return;
+            }
+            const dayNames = ['일','월','화','수','목','금','토'];
+            const sorted = [...state.blocks].sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
+            list.innerHTML = sorted.map(b => {
+                const endDisplay = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
+                return `<div class="my-res-item" style="margin-bottom:8px">
+                    <div class="my-res-info">
+                        <div class="my-res-date">매주 ${dayNames[b.day_of_week]}요일 ${b.start_time} ~ ${endDisplay}</div>
+                        ${b.reason ? `<div class="my-res-time">${b.reason}</div>` : ''}
+                    </div>
+                    <button type="button" class="cancel-btn" onclick="deleteTimeBlock('${b.id}')">삭제</button>
+                </div>`;
+            }).join('');
+        }
+
+        async function addTimeBlock() {
+            const dow = parseInt(document.getElementById('blockDow').value);
+            const startTime = document.getElementById('blockStart').value;
+            const endTime = document.getElementById('blockEnd').value;
+            const reason = document.getElementById('blockReason').value.trim();
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) {
+                alert('시작 시간이 종료 시간보다 늦을 수 없습니다.'); return;
+            }
+            const { error } = await supabaseClient.from('time_blocks').insert([{
+                day_of_week: dow, start_time: startTime, end_time: endTime, reason: reason || null
+            }]);
+            if (error) { alert('차단 추가 실패: ' + error.message); return; }
+            await fetchBlocks();
+            render();
+        }
+
+        async function deleteTimeBlock(id) {
+            if (!confirm('이 시간 차단을 해제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('time_blocks').delete().eq('id', id);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            await fetchBlocks();
+            render();
         }
 
         function renderAdminApprovalSection(container) {
@@ -972,8 +1046,16 @@
                     const d = new Date(base); d.setDate(base.getDate() + i);
                     const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
                     
+                    const block = getBlock(d, time);
                     const occupiedRes = getOccupiedReservation(d, time);
-                    if (occupiedRes) {
+                    if (block) {
+                        s.style.background = '#ffe5e5';
+                        s.style.cursor = 'not-allowed';
+                        s.style.fontSize = '0.7rem';
+                        s.style.color = '#c0392b';
+                        s.textContent = '🚫';
+                        s.title = block.reason || '예약 차단됨';
+                    } else if (occupiedRes) {
                         s.style.background = '#eee';
                         s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.72rem';
@@ -995,8 +1077,14 @@
                 grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-time-cell', textContent: time}));
                 const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
                 
+                const block = getBlock(state.viewDate, time);
                 const occupiedRes = getOccupiedReservation(state.viewDate, time);
-                if (occupiedRes) {
+                if (block) {
+                    s.style.background = '#ffe5e5';
+                    s.style.cursor = 'not-allowed';
+                    s.style.color = '#c0392b';
+                    s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
+                } else if (occupiedRes) {
                     s.style.background = '#eee';
                     s.style.cursor = 'not-allowed';
                     s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
@@ -1027,6 +1115,24 @@
 
         function isOccupied(date, time) {
             return !!getOccupiedReservation(date, time);
+        }
+
+        function getBlock(date, time) {
+            const dow = date.getDay();
+            const tIdx = TIMES.indexOf(time);
+            return state.blocks.find(b => {
+                if (b.day_of_week !== dow) return false;
+                const sIdx = TIMES.indexOf(b.start_time);
+                const eIdx = TIMES.indexOf(b.end_time);
+                return tIdx >= sIdx && tIdx <= eIdx;
+            }) || null;
+        }
+        function isBlocked(date, time) { return !!getBlock(date, time); }
+
+        async function fetchBlocks() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('time_blocks').select('*');
+            if (!error) state.blocks = data || [];
         }
 
         function onSlotClick(date, time) {
@@ -1061,6 +1167,10 @@
             if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
 
             const startIdx = TIMES.indexOf(state.startTime), endIdx = TIMES.indexOf(state.endTime);
+            for (let i = startIdx; i <= endIdx; i++) {
+                const blk = getBlock(state.selectedDate, TIMES[i]);
+                if (blk) { alert('차단된 시간이 포함되어 있습니다.' + (blk.reason ? `\n사유: ${blk.reason}` : '')); return; }
+            }
             const name = document.getElementById('userNameInput').value;
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
             const dateStr = state.selectedDate.toLocaleDateString('en-CA'); 
