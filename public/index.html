@@ -352,6 +352,28 @@
         .add-slot-btn { padding: 8px 14px; background: white; border: 1px dashed var(--wds-gray-500); border-radius: var(--wds-radius-s); cursor: pointer; color: var(--wds-gray-700); font-size: 0.85rem; width: 100%; margin-top: 4px; }
         .add-slot-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
 
+        /* 다중 곡 */
+        .song-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+        .song-chip { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: white; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
+        .song-chip img { width: 36px; height: 36px; border-radius: 4px; flex-shrink: 0; object-fit: cover; }
+        .song-chip-info { flex: 1; min-width: 0; }
+        .song-chip-title { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .song-chip-artist { font-size: 0.78rem; color: var(--wds-gray-500); }
+        .song-chip-remove { background: none; border: none; cursor: pointer; color: var(--wds-gray-400); font-size: 1.1rem; padding: 0 2px; flex-shrink: 0; line-height: 1; }
+        .song-chip-remove:hover { color: #e74c3c; }
+        .team-songs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .team-song-item { display: flex; align-items: center; gap: 5px; background: white; border: 1px solid var(--wds-primary); border-radius: 20px; padding: 3px 10px 3px 3px; }
+        .team-song-item img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+        .team-song-text { font-size: 0.82rem; color: var(--wds-primary); font-weight: 600; }
+
+        /* 마이페이지 패널 */
+        .mypage-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--wds-gray-100); font-size: 0.9rem; }
+        .mypage-info-row:last-child { border-bottom: none; }
+        .mypage-info-label { color: var(--wds-gray-500); font-size: 0.82rem; min-width: 70px; }
+        .mypage-info-value { font-weight: 600; text-align: right; word-break: break-all; }
+        .mypage-edit-btn { padding: 6px 14px; background: none; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); cursor: pointer; font-size: 0.85rem; color: var(--wds-gray-700); }
+        .mypage-edit-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+
         /* 모바일 반응형 */
         @media (max-width: 768px) {
             body { padding: 12px 6px; }
@@ -498,6 +520,14 @@
         <div id="userInfoArea" class="user-info">
             <span><strong id="userNameDisplay"></strong>님, 환영합니다!</span>
             <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
+        </div>
+
+        <div class="form-group" id="mypagePanel">
+            <div class="member-panel-header" onclick="toggleMypagePanel()">
+                <span class="label" style="margin:0">👤 마이페이지</span>
+                <span id="mypagePanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
+            </div>
+            <div id="mypagePanelContent" class="hidden" style="margin-top:16px"></div>
         </div>
 
         <div class="form-group" id="memberPanel">
@@ -691,7 +721,7 @@
             document.getElementById('main-content').classList.add('hidden');
             document.getElementById('comments_container').classList.add('hidden');
             document.getElementById('userNameInput').value = '';
-            
+
             // 추가한 탭 제거
             const adminTab = document.querySelector('[data-view="admin"]');
             if (adminTab) adminTab.remove();
@@ -705,7 +735,135 @@
             const mpa = document.getElementById('memberPanelArrow');
             if (mpc) mpc.classList.add('hidden');
             if (mpa) mpa.textContent = '▼ 펼치기';
+            const mypc = document.getElementById('mypagePanelContent');
+            const mypa = document.getElementById('mypagePanelArrow');
+            if (mypc) { mypc.classList.add('hidden'); mypc.innerHTML = ''; }
+            if (mypa) mypa.textContent = '▼ 펼치기';
             stopInactivityWatcher();
+        }
+
+        // --- 마이페이지 ---
+        function toggleMypagePanel() {
+            const content = document.getElementById('mypagePanelContent');
+            const arrow = document.getElementById('mypagePanelArrow');
+            const isOpen = !content.classList.contains('hidden');
+            if (isOpen) {
+                content.classList.add('hidden');
+                arrow.textContent = '▼ 펼치기';
+            } else {
+                content.classList.remove('hidden');
+                arrow.textContent = '▲ 접기';
+                renderMypagePanel();
+            }
+        }
+
+        async function renderMypagePanel() {
+            const content = document.getElementById('mypagePanelContent');
+            if (!content || !state.user) return;
+
+            const isEmailUser = state.user.authType === 'email';
+            content.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+
+            let profile = null;
+            if (isEmailUser) {
+                const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
+                if (!error && data) profile = data;
+            }
+
+            if (state.teams.length === 0) await fetchTeams();
+
+            const myRes = state.reservations.filter(r => r.kakao_id === state.user.kakaoId);
+            const approvedCount = myRes.filter(r => r.status === 'approved').length;
+            const pendingCount = myRes.filter(r => r.status === 'pending').length;
+            const myTeams = profile
+                ? state.teams.filter(t => (t.members || []).some(s => s.memberId === profile.id))
+                : [];
+
+            const profileHtml = profile ? `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700)">개인 정보</div>
+                    <button class="mypage-edit-btn" onclick="showMypageEditForm()">✏️ 수정</button>
+                </div>
+                <div id="mypageInfoView">
+                    <div class="mypage-info-row"><span class="mypage-info-label">이름</span><span class="mypage-info-value">${escapeHtml(profile.name)}</span></div>
+                    <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value">${escapeHtml(profile.email || '')}</span></div>
+                    <div class="mypage-info-row"><span class="mypage-info-label">전화번호</span><span class="mypage-info-value">${escapeHtml(profile.phone || '')}</span></div>
+                    <div class="mypage-info-row"><span class="mypage-info-label">세션</span><span class="mypage-info-value" style="color:var(--wds-primary)">${escapeHtml(profile.instruments || '')}</span></div>
+                </div>
+                <div id="mypageEditForm" class="hidden" style="margin-top:12px">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호</label>
+                        <input type="tel" id="mypagePhone" value="${escapeHtml(profile.phone || '')}" placeholder="010-0000-0000"
+                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션</label>
+                        <div class="instrument-buttons" id="mypageInstBtns">
+                            ${['보컬','기타','베이스','키보드','드럼'].map(inst => {
+                                const icons = {보컬:'🎤',기타:'🎸',베이스:'🎵',키보드:'🎹',드럼:'🥁'};
+                                const sel = (profile.instruments || '').split(',').map(s=>s.trim()).includes(inst);
+                                return `<button type="button" class="inst-btn${sel ? ' selected' : ''}" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
+                            }).join('')}
+                        </div>
+                        <input type="text" id="mypageCustomInst" placeholder="추가 세션 (선택)"
+                            value="${escapeHtml((profile.instruments || '').split(',').map(s=>s.trim()).filter(s=>s && !['보컬','기타','베이스','키보드','드럼'].includes(s)).join(', '))}"
+                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
+                        <div style="display:flex;gap:8px;margin-top:4px">
+                            <button type="button" onclick="hideMypageEditForm()"
+                                style="flex:1;padding:10px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
+                            <button type="button" onclick="saveMypageProfile('${profile.id}')"
+                                style="flex:1;padding:10px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.9rem;background:var(--wds-primary);color:white;font-family:inherit">저장</button>
+                        </div>
+                    </div>
+                </div>
+                <hr style="border:none;border-top:1px solid var(--wds-gray-100);margin:16px 0">
+            ` : `<div style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:16px">SNS 로그인 사용자는 프로필 수정이 지원되지 않습니다.</div>`;
+
+            const teamsHtml = myTeams.length > 0 ? `
+                <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 8px">소속 팀</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    ${myTeams.map(t => `<span style="background:var(--wds-primary-light);color:var(--wds-primary);padding:4px 12px;border-radius:16px;font-size:0.82rem;font-weight:600">${escapeHtml(t.name)}</span>`).join('')}
+                </div>` : '';
+
+            content.innerHTML = `
+                ${profileHtml}
+                <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:8px">활동 요약</div>
+                <div class="stat-grid">
+                    <div class="stat-card" style="border-left:4px solid var(--wds-primary)"><div class="stat-label">전체 예약</div><div class="stat-value">${myRes.length}</div></div>
+                    <div class="stat-card" style="border-left:4px solid #00b894"><div class="stat-label">승인됨</div><div class="stat-value">${approvedCount}</div></div>
+                    <div class="stat-card" style="border-left:4px solid #f0a050"><div class="stat-label">대기중</div><div class="stat-value">${pendingCount}</div></div>
+                </div>
+                ${teamsHtml}
+            `;
+        }
+
+        function showMypageEditForm() {
+            const iv = document.getElementById('mypageInfoView');
+            const ef = document.getElementById('mypageEditForm');
+            if (iv) iv.classList.add('hidden');
+            if (ef) ef.classList.remove('hidden');
+        }
+
+        function hideMypageEditForm() {
+            const iv = document.getElementById('mypageInfoView');
+            const ef = document.getElementById('mypageEditForm');
+            if (iv) iv.classList.remove('hidden');
+            if (ef) ef.classList.add('hidden');
+        }
+
+        async function saveMypageProfile(profileId) {
+            const phone = document.getElementById('mypagePhone').value.trim();
+            if (phone && !/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g,''))) {
+                alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
+            }
+            const selectedInsts = Array.from(document.querySelectorAll('#mypageInstBtns .inst-btn.selected')).map(b => b.dataset.inst);
+            const customInst = document.getElementById('mypageCustomInst').value.trim();
+            const customs = customInst ? customInst.split(',').map(s=>s.trim()).filter(s=>s) : [];
+            const instruments = [...selectedInsts, ...customs].join(', ');
+            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
+
+            const { error } = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            showToast('프로필이 저장되었습니다.');
+            renderMypagePanel();
         }
 
         // --- Reservation Logic ---
@@ -723,6 +881,7 @@
             memberPanelTab: 'list',
             editingTeam: null,
             editingSlots: [],
+            editingSongs: [],
             cachedMembers: []
         };
 
@@ -944,7 +1103,13 @@
                 if (t.start_date && t.end_date) period = `${t.start_date} ~ ${t.end_date}`;
                 else if (t.start_date) period = `${t.start_date} 부터`;
                 else if (t.end_date) period = `${t.end_date} 까지`;
-                const song = t.song_title ? `🎵 ${t.song_title}${t.song_artist ? ' — ' + t.song_artist : ''}` : '';
+                const songs = t.songs && t.songs.length > 0 ? t.songs
+                    : (t.song_title ? [{ title: t.song_title, artist: t.song_artist || '', artwork: '' }] : []);
+                const songsHtml = songs.map(s => `
+                    <div class="team-song-item">
+                        ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="">` : ''}
+                        <span class="team-song-text">🎵 ${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
+                    </div>`).join('');
                 const slotsHtml = slots.map(s => {
                     const m = memberMap[s.memberId];
                     return `<span class="team-slot"><strong>${s.session}</strong>${m ? m.name : '?'}</span>`;
@@ -954,9 +1119,9 @@
                         <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
                         <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
                     </div>
-                    <div class="team-name">${t.name}</div>
+                    <div class="team-name">${escapeHtml(t.name)}</div>
                     ${period ? `<div class="team-period">📅 ${period}</div>` : ''}
-                    ${song ? `<div class="team-song">${song}</div>` : ''}
+                    ${songs.length > 0 ? `<div class="team-songs">${songsHtml}</div>` : ''}
                     <div class="team-slots">${slotsHtml}</div>
                 </div>`;
             }).join('');
@@ -976,9 +1141,12 @@
                 state.editingSlots = (team.members && team.members.length > 0)
                     ? team.members.map(s => ({ session: s.session || '', memberId: s.memberId || '' }))
                     : sessions.map(s => ({ session: s, memberId: '' }));
+                state.editingSongs = team.songs ? [...team.songs]
+                    : (team.song_title ? [{ title: team.song_title, artist: team.song_artist || '', artwork: '' }] : []);
             } else {
                 state.editingTeam = null;
                 state.editingSlots = sessions.map(s => ({ session: s, memberId: '' }));
+                state.editingSongs = [];
             }
             const isEdit = !!team;
             c.classList.remove('hidden');
@@ -992,16 +1160,13 @@
                     <input type="date" id="teamEndDate" value="${isEdit && team.end_date ? team.end_date : ''}">
                 </div>
                 <div class="music-search-box">
-                    <label>합주 곡 (iTunes 검색)</label>
-                    <div class="team-form-row">
+                    <label>합주 곡 (여러 곡 추가 가능)</label>
+                    <div class="song-list" id="editingSongList"></div>
+                    <div class="team-form-row" style="margin-top:6px">
                         <input type="text" id="teamMusicSearch" placeholder="곡 또는 아티스트 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();searchMusic();}">
                         <button type="button" onclick="searchMusic()" style="padding:8px 14px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;flex-shrink:0">🔍</button>
                     </div>
                     <div id="musicResults"></div>
-                    <div class="team-form-row" style="margin-top:8px">
-                        <input type="text" id="teamSongTitle" placeholder="곡 제목" value="${isEdit && team.song_title ? team.song_title.replace(/"/g, '&quot;') : ''}">
-                        <input type="text" id="teamSongArtist" placeholder="아티스트" value="${isEdit && team.song_artist ? team.song_artist.replace(/"/g, '&quot;') : ''}">
-                    </div>
                 </div>
                 <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">팀 구성</label>
                 <div id="teamSlots"></div>
@@ -1012,6 +1177,7 @@
                 </div>
             `;
             renderTeamSlots();
+            renderSongList();
         }
 
         function hideTeamForm() {
@@ -1019,6 +1185,35 @@
             if (c) { c.classList.add('hidden'); c.innerHTML = ''; }
             state.editingTeam = null;
             state.editingSlots = [];
+            state.editingSongs = [];
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function renderSongList() {
+            const c = document.getElementById('editingSongList');
+            if (!c) return;
+            if (state.editingSongs.length === 0) {
+                c.innerHTML = '<p style="font-size:0.82rem;color:var(--wds-gray-500);padding:4px 0;margin:0">아직 추가된 곡이 없습니다.</p>';
+                return;
+            }
+            c.innerHTML = state.editingSongs.map((s, i) => `
+                <div class="song-chip">
+                    ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="">` : '<div style="width:36px;height:36px;background:var(--wds-gray-300);border-radius:4px;flex-shrink:0"></div>'}
+                    <div class="song-chip-info">
+                        <div class="song-chip-title">${escapeHtml(s.title)}</div>
+                        <div class="song-chip-artist">${escapeHtml(s.artist)}</div>
+                    </div>
+                    <button type="button" class="song-chip-remove" onclick="removeSong(${i})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeSong(idx) {
+            state.editingSongs.splice(idx, 1);
+            renderSongList();
         }
 
         function renderTeamSlots() {
@@ -1060,14 +1255,16 @@
             if (!name) { alert('팀 이름을 입력해주세요.'); return; }
             const startDate = document.getElementById('teamStartDate').value || null;
             const endDate = document.getElementById('teamEndDate').value || null;
-            const songTitle = document.getElementById('teamSongTitle').value.trim() || null;
-            const songArtist = document.getElementById('teamSongArtist').value.trim() || null;
 
             const slots = state.editingSlots.filter(s => s.session && s.memberId);
+            const songs = state.editingSongs.length > 0 ? state.editingSongs : null;
+            const firstSong = songs ? songs[0] : null;
 
             const team = {
                 name, start_date: startDate, end_date: endDate,
-                song_title: songTitle, song_artist: songArtist,
+                song_title: firstSong ? firstSong.title : null,
+                song_artist: firstSong ? firstSong.artist : null,
+                songs: songs,
                 members: slots
             };
             let error;
@@ -1077,7 +1274,7 @@
                 ({ error } = await supabaseClient.from('teams').insert([team]));
             }
             if (error) {
-                alert('팀 저장 실패: ' + error.message + '\n\nteams 테이블이 없다면 SQL 실행 필요:\nCREATE TABLE teams (...)');
+                alert('팀 저장 실패: ' + error.message + '\n\nteams 테이블에 songs 컬럼이 없다면 SQL 실행 필요:\nALTER TABLE teams ADD COLUMN IF NOT EXISTS songs jsonb;');
                 return;
             }
             hideTeamForm();
@@ -1109,8 +1306,9 @@
                 results.innerHTML = data.results.map(r => {
                     const t = (r.trackName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
                     const a = (r.artistName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
-                    return `<div class="music-result" onclick="selectMusic(this)" data-title="${t}" data-artist="${a}">
-                        ${r.artworkUrl100 ? `<img src="${r.artworkUrl100}" alt="">` : ''}
+                    const aw = (r.artworkUrl60 || r.artworkUrl100 || '').replace(/"/g,'&quot;');
+                    return `<div class="music-result" onclick="selectMusic(this)" data-title="${t}" data-artist="${a}" data-artwork="${aw}">
+                        ${aw ? `<img src="${aw}" alt="">` : ''}
                         <div class="music-result-info">
                             <div class="music-result-title">${r.trackName || ''}</div>
                             <div class="music-result-artist">${r.artistName || ''}</div>
@@ -1123,8 +1321,13 @@
         }
 
         function selectMusic(el) {
-            document.getElementById('teamSongTitle').value = el.dataset.title;
-            document.getElementById('teamSongArtist').value = el.dataset.artist;
+            const title = el.dataset.title;
+            const artist = el.dataset.artist;
+            const artwork = el.dataset.artwork || '';
+            if (!state.editingSongs.find(s => s.title === title && s.artist === artist)) {
+                state.editingSongs.push({ title, artist, artwork });
+                renderSongList();
+            }
             document.getElementById('musicResults').innerHTML = '';
             document.getElementById('teamMusicSearch').value = '';
         }
