@@ -58,17 +58,24 @@
         #landing-page p { color: var(--wds-gray-700); margin-bottom: 40px; font-size: 1.1rem; }
 
         .kakao-login-btn {
-            background: none;
-            border: none;
-            padding: 0;
-            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             width: 100%;
-            max-width: 300px;
-            transition: transform 0.2s;
+            height: 48px;
+            background: #FEE500;
+            border: none;
+            border-radius: var(--wds-radius-m);
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.85);
+            font-family: inherit;
+            transition: background 0.15s, transform 0.15s;
         }
-
-        .kakao-login-btn img { width: 100%; height: auto; display: block; }
-        .kakao-login-btn:hover { transform: translateY(-2px); }
+        .kakao-login-btn:hover { background: #F5DC00; transform: translateY(-1px); }
+        .kakao-login-btn svg { flex-shrink: 0; }
 
         /* Main Container */
         .container {
@@ -209,7 +216,9 @@
         .cancel-btn { padding: 8px 16px; border: 1px solid #ff4d4f; border-radius: var(--wds-radius-s); background: white; color: #ff4d4f; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
 
         /* 공지사항 */
-        #notice_container { width: 100%; max-width: 800px; margin-bottom: 20px; }
+        #notice_container { margin-bottom: 20px; }
+        .find-link-btn { background: none; border: none; color: var(--wds-gray-500); font-size: 0.82rem; cursor: pointer; padding: 0; font-family: inherit; }
+        .find-link-btn:hover { color: var(--wds-primary); text-decoration: underline; }
         .notice-card { padding: 16px 20px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--wds-radius-m); margin-bottom: 10px; }
         .notice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
         .notice-title { font-weight: 700; font-size: 1rem; }
@@ -455,8 +464,6 @@
     <div id="auto-toast"></div>
 
     <!-- 공지사항 (항상 표시) -->
-    <div id="notice_container" class="hidden"></div>
-
     <!-- Landing/Login -->
     <div id="landing-page">
         <h1>Gather All Around</h1>
@@ -469,7 +476,31 @@
                 <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
                 <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
                 <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
+                <div style="display:flex;justify-content:center;gap:16px;margin-top:2px">
+                    <button type="button" class="find-link-btn" onclick="showFindId()">아이디 찾기</button>
+                    <span style="color:var(--wds-gray-300);font-size:0.82rem">|</span>
+                    <button type="button" class="find-link-btn" onclick="showFindPw()">비밀번호 찾기</button>
+                </div>
                 <button type="button" class="email-secondary-btn" onclick="showSignupForm()">아직 회원이 아니신가요? 회원가입</button>
+            </div>
+
+            <!-- 아이디 찾기 폼 -->
+            <div id="find-id-form" class="email-form hidden">
+                <div style="font-size:0.9rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:4px">아이디(이메일) 찾기</div>
+                <input type="text" id="findIdName" placeholder="이름 (실명)" autocomplete="name">
+                <input type="tel" id="findIdPhone" placeholder="전화번호 (010-0000-0000)" autocomplete="tel">
+                <button type="button" class="email-primary-btn" onclick="handleFindId()">이메일 찾기</button>
+                <div id="findIdResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                <button type="button" class="email-secondary-btn" onclick="hideFindForms()">로그인으로 돌아가기</button>
+            </div>
+
+            <!-- 비밀번호 찾기 폼 -->
+            <div id="find-pw-form" class="email-form hidden">
+                <div style="font-size:0.9rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:4px">비밀번호 재설정</div>
+                <input type="email" id="findPwEmail" placeholder="가입한 이메일" autocomplete="email">
+                <button type="button" class="email-primary-btn" onclick="handleFindPw()">재설정 이메일 보내기</button>
+                <div id="findPwResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                <button type="button" class="email-secondary-btn" onclick="hideFindForms()">로그인으로 돌아가기</button>
             </div>
 
             <!-- 회원가입 폼 -->
@@ -516,7 +547,10 @@
         <div class="kakao-divider"><span>또는</span></div>
         <div id="kakao-section">
             <button type="button" id="kakao-login-btn" class="kakao-login-btn">
-                <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
+                <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="rgba(0,0,0,0.85)" d="M12 3C6.477 3 2 6.582 2 11.044c0 2.903 1.691 5.467 4.265 7.01L5.2 21.7a.25.25 0 0 0 .37.275l4.48-2.95A12.6 12.6 0 0 0 12 19.09c5.523 0 10-3.583 10-8.046C22 6.582 17.523 3 12 3z"/>
+                </svg>
+                카카오 계정으로 로그인
             </button>
         </div>
     </div>
@@ -545,6 +579,8 @@
             <span><strong id="userNameDisplay"></strong>님, 환영합니다!</span>
             <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
         </div>
+
+        <div id="notice_container" class="hidden"></div>
 
         <div class="form-group" id="mypagePanel">
             <div class="member-panel-header" onclick="toggleMypagePanel()">
@@ -2032,13 +2068,64 @@
         }
 
         function showSignupForm() {
+            hideFindForms();
             document.getElementById('email-login-form').classList.add('hidden');
             document.getElementById('email-signup-form').classList.remove('hidden');
         }
 
         function showLoginForm() {
+            hideFindForms();
             document.getElementById('email-signup-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
+        }
+
+        function showFindId() {
+            document.getElementById('email-login-form').classList.add('hidden');
+            document.getElementById('find-id-form').classList.remove('hidden');
+            document.getElementById('findIdName').value = '';
+            document.getElementById('findIdPhone').value = '';
+            document.getElementById('findIdResult').textContent = '';
+        }
+
+        function showFindPw() {
+            document.getElementById('email-login-form').classList.add('hidden');
+            document.getElementById('find-pw-form').classList.remove('hidden');
+            document.getElementById('findPwEmail').value = '';
+            document.getElementById('findPwResult').textContent = '';
+        }
+
+        function hideFindForms() {
+            document.getElementById('find-id-form').classList.add('hidden');
+            document.getElementById('find-pw-form').classList.add('hidden');
+        }
+
+        async function handleFindId() {
+            const name = document.getElementById('findIdName').value.trim();
+            const phone = document.getElementById('findIdPhone').value.trim();
+            const result = document.getElementById('findIdResult');
+            if (!name || !phone) { result.textContent = '이름과 전화번호를 입력해주세요.'; result.style.color = '#e74c3c'; return; }
+            result.textContent = '검색 중...'; result.style.color = 'var(--wds-gray-500)';
+            const { data, error } = await supabaseClient.from('profiles').select('email').eq('name', name).eq('phone', phone).single();
+            if (error || !data || !data.email) {
+                result.textContent = '일치하는 계정을 찾을 수 없습니다.'; result.style.color = '#e74c3c'; return;
+            }
+            const [local, domain] = data.email.split('@');
+            const masked = local.length <= 2 ? local[0] + '**' : local.slice(0, 2) + '*'.repeat(Math.min(local.length - 2, 4));
+            result.innerHTML = `등록된 이메일: <strong>${masked}@${escapeHtml(domain)}</strong>`;
+            result.style.color = 'var(--wds-primary)';
+        }
+
+        async function handleFindPw() {
+            const email = document.getElementById('findPwEmail').value.trim();
+            const result = document.getElementById('findPwResult');
+            if (!email) { result.textContent = '이메일을 입력해주세요.'; result.style.color = '#e74c3c'; return; }
+            result.textContent = '이메일 발송 중...'; result.style.color = 'var(--wds-gray-500)';
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + window.location.pathname
+            });
+            if (error) { result.textContent = '발송 실패: ' + error.message; result.style.color = '#e74c3c'; return; }
+            result.textContent = '재설정 이메일을 발송했습니다. 메일함을 확인해주세요.';
+            result.style.color = '#00b894';
         }
 
         function showPendingScreen(name) {
