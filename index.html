@@ -1749,12 +1749,10 @@
                         </select>` : '';
 
                     const contactLine = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>` : `<div class="my-res-time">${date}</div>`;
-                    const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
                     return `<div class="my-res-item" style="margin-bottom:8px">
                         <div class="my-res-info">
-                            <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
+                            <div class="my-res-date">${m.name}${m.instruments ? `<span style="font-size:0.82rem;color:var(--wds-primary);margin-left:8px">🎵 ${m.instruments}</span>` : ''} <span class="status-badge ${sc}">${st}</span></div>
                             ${contactLine}
-                            ${instText}
                             ${roleSelect}
                         </div>
                         <div>${actions}</div>
