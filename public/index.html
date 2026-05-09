@@ -1891,17 +1891,11 @@
                     if (isSameDay(d, today)) s.classList.add('week-today');
 
                     const block = getBlock(d, time);
-                    const occupiedRes = getOccupiedReservation(d, time);
                     if (block) {
-                        s.style.background = '#ffe5e5';
-                        s.style.cursor = 'not-allowed';
-                        s.style.fontSize = '0.65rem';
-                        s.style.color = '#c0392b';
-                        s.style.padding = '4px 2px';
-                        s.style.overflow = 'hidden';
-                        s.style.textOverflow = 'ellipsis';
-                        s.style.whiteSpace = 'nowrap';
-                        s.textContent = block.reason ? `🚫 ${block.reason}` : '🚫 차단';
+                        s.classList.add("blocked");
+                        s.innerHTML = `<span style="font-size:1.1rem">🚫</span><span style="font-weight:600">${escapeHtml(block.reason || "차단")}</span>`;
+                        s.style.cursor = "not-allowed";
+                    }
                         s.title = block.reason || '예약 차단됨';
                     } else if (occupiedRes) {
                         s.style.background = '#eee';
