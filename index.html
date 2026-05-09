@@ -761,14 +761,10 @@
             const content = document.getElementById('mypagePanelContent');
             if (!content || !state.user) return;
 
-            const isEmailUser = state.user.authType === 'email';
             content.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
 
-            let profile = null;
-            if (isEmailUser) {
-                const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
-                if (!error && data) profile = data;
-            }
+            // 모든 사용자(이메일/카카오)에 대해 프로필 조회
+            const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
 
             if (state.teams.length === 0) await fetchTeams();
 
@@ -781,7 +777,7 @@
 
             const profileHtml = profile ? `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                    <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700)">개인 정보</div>
+                    <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700)">개인 정보 <span class="status-badge ${profile.status === 'approved' ? 'status-approved' : (profile.status === 'rejected' ? 'status-rejected' : 'status-pending')}">${profile.status === 'approved' ? '승인됨' : (profile.status === 'rejected' ? '거절/차단' : '승인 대기')}</span></div>
                     <button class="mypage-edit-btn" onclick="showMypageEditForm()">✏️ 수정</button>
                 </div>
                 <div id="mypageInfoView">
@@ -815,7 +811,45 @@
                     </div>
                 </div>
                 <hr style="border:none;border-top:1px solid var(--wds-gray-100);margin:16px 0">
-            ` : `<div style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:16px">SNS 로그인 사용자는 프로필 수정이 지원되지 않습니다.</div>`;
+            ` : `
+                <div style="background:var(--wds-gray-100);padding:20px;border-radius:var(--wds-radius-m);text-align:center;margin-bottom:16px">
+                    <div style="font-size:0.9rem;font-weight:700;margin-bottom:8px">멤버 가입 정보가 없습니다.</div>
+                    <p style="font-size:0.82rem;color:var(--wds-gray-500);margin-bottom:16px">가입 정보를 등록하면 멤버 현황 목록에 노출되며<br>팀 구성 등에 참여할 수 있습니다.</p>
+                    <button class="submit-btn" style="height:44px;font-size:0.9rem" onclick="showMypageRegisterForm()">멤버 가입 정보 등록하기</button>
+                </div>
+                <div id="mypageRegisterForm" class="hidden" style="margin-top:12px;border:1px solid var(--wds-primary);padding:16px;border-radius:var(--wds-radius-m)">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명)</label>
+                            <input type="text" id="regName" value="${escapeHtml(state.user.nickname)}" placeholder="실명 입력"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호</label>
+                            <input type="tel" id="regPhone" placeholder="010-0000-0000"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션</label>
+                            <div class="instrument-buttons" id="regInstBtns">
+                                <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
+                                <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
+                                <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
+                                <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
+                                <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
+                            </div>
+                            <input type="text" id="regCustomInst" placeholder="추가 세션 (선택)"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:4px">
+                            <button type="button" onclick="hideMypageRegisterForm()"
+                                style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
+                            <button type="button" onclick="saveMypageProfile(null)"
+                                style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.9rem;background:var(--wds-primary);color:white;font-family:inherit">가입 신청</button>
+                        </div>
+                    </div>
+                </div>
+            `;
 
             const teamsHtml = myTeams.length > 0 ? `
                 <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 8px">소속 팀</div>
