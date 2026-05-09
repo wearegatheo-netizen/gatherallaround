@@ -899,12 +899,13 @@
             let result;
             if (isNew) {
                 // 신규 등록 (카카오 사용자)
+                // id는 UUID 형식이 아니면 오류가 나므로, kakao_id에 저장하고 id는 비워두거나(DB에서 자동생성) 
+                // 임의의 유효한 값을 처리해야 합니다. kakao_id 컬럼이 테이블에 있어야 합니다.
                 result = await supabaseClient.from('profiles').insert([{
-                    id: state.user.kakaoId,
+                    kakao_id: state.user.kakaoId,
                     name, phone, instruments,
                     status: 'pending',
-                    role: '일반',
-                    email: null
+                    role: '일반'
                 }]);
             } else {
                 // 기존 프로필 수정
@@ -2504,6 +2505,16 @@
                 return;
             }
             if (!data || data.length === 0) {
+                alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
+                return;
+            }
+            fetchComments();
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>f (!data || data.length === 0) {
                 alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
                 return;
             }
