@@ -835,34 +835,53 @@
             `;
         }
 
-        function showMypageEditForm() {
-            const iv = document.getElementById('mypageInfoView');
-            const ef = document.getElementById('mypageEditForm');
-            if (iv) iv.classList.add('hidden');
-            if (ef) ef.classList.remove('hidden');
+        function showMypageRegisterForm() {
+            const rf = document.getElementById('mypageRegisterForm');
+            if (rf) rf.classList.remove('hidden');
         }
 
-        function hideMypageEditForm() {
-            const iv = document.getElementById('mypageInfoView');
-            const ef = document.getElementById('mypageEditForm');
-            if (iv) iv.classList.remove('hidden');
-            if (ef) ef.classList.add('hidden');
+        function hideMypageRegisterForm() {
+            const rf = document.getElementById('mypageRegisterForm');
+            if (rf) rf.classList.add('hidden');
         }
 
         async function saveMypageProfile(profileId) {
-            const phone = document.getElementById('mypagePhone').value.trim();
+            const isNew = !profileId;
+            const name = isNew ? document.getElementById('regName').value.trim() : null;
+            const phone = isNew ? document.getElementById('regPhone').value.trim() : document.getElementById('mypagePhone').value.trim();
+            const instBtnsId = isNew ? 'regInstBtns' : 'mypageInstBtns';
+            const customInstId = isNew ? 'regCustomInst' : 'mypageCustomInst';
+
+            if (isNew && !name) { alert('이름을 입력해주세요.'); return; }
             if (phone && !/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g,''))) {
                 alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
             }
-            const selectedInsts = Array.from(document.querySelectorAll('#mypageInstBtns .inst-btn.selected')).map(b => b.dataset.inst);
-            const customInst = document.getElementById('mypageCustomInst').value.trim();
+            const selectedInsts = Array.from(document.querySelectorAll(`#${instBtnsId} .inst-btn.selected`)).map(b => b.dataset.inst);
+            const customInst = document.getElementById(customInstId).value.trim();
             const customs = customInst ? customInst.split(',').map(s=>s.trim()).filter(s=>s) : [];
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const { error } = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
-            if (error) { alert('저장 실패: ' + error.message); return; }
-            showToast('프로필이 저장되었습니다.');
+            let result;
+            if (isNew) {
+                // 신규 등록 (카카오 사용자)
+                result = await supabaseClient.from('profiles').insert([{
+                    id: state.user.kakaoId,
+                    name, phone, instruments,
+                    status: 'pending',
+                    role: '일반',
+                    email: null
+                }]);
+            } else {
+                // 기존 프로필 수정
+                result = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
+            }
+
+            if (result.error) {
+                alert('저장 실패: ' + result.error.message);
+                return;
+            }
+            showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
             renderMypagePanel();
         }
 
@@ -2299,6 +2318,87 @@
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const likedKey = 'liked_' + state.user.kakaoId;
             const liked = JSON.parse(localStorage.getItem(likedKey) || '[]');
+            const sid = String(id);
+            const alreadyLiked = liked.includes(sid);
+
+            const { data: comment, error: selErr } = await supabaseClient.from('comments').select('likes').eq('id', id).single();
+            if (selErr) {
+                alert('좋아요 오류: ' + selErr.message + '\n\nSupabase SQL Editor에서 실행 필요:\nALTER TABLE comments ADD COLUMN IF NOT EXISTS likes integer DEFAULT 0;');
+                return;
+            }
+            const current = comment ? (comment.likes || 0) : 0;
+            const newCount = alreadyLiked ? Math.max(0, current - 1) : current + 1;
+            const { error: updErr } = await supabaseClient.from('comments').update({ likes: newCount }).eq('id', id);
+            if (updErr) {
+                alert('좋아요 업데이트 실패: ' + updErr.message);
+                return;
+            }
+
+            const newLiked = alreadyLiked ? liked.filter(x => x !== sid) : [...liked, sid];
+            localStorage.setItem(likedKey, JSON.stringify(newLiked));
+            fetchComments();
+        }
+
+        // --- 자동 로그아웃 ---
+        let inactivityTimer = null;
+        let warnTimer = null;
+        const INACTIVITY_MS = 5 * 60 * 1000;
+
+        function showToast(msg, duration = 3500) {
+            const t = document.getElementById('auto-toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.style.opacity = '1';
+            setTimeout(() => { t.style.opacity = '0'; }, duration);
+        }
+
+        function resetInactivityTimer() {
+            if (!state.user) return;
+            clearTimeout(inactivityTimer);
+            clearTimeout(warnTimer);
+            warnTimer = setTimeout(() => showToast('⚠️ 1분 후 자동 로그아웃됩니다.', 10000), INACTIVITY_MS - 60000);
+            inactivityTimer = setTimeout(async () => {
+                showToast('자동 로그아웃되었습니다.');
+                await handleLogout();
+            }, INACTIVITY_MS);
+        }
+
+        function startInactivityWatcher() {
+            ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'].forEach(ev => {
+                document.addEventListener(ev, resetInactivityTimer, true);
+            });
+            resetInactivityTimer();
+        }
+
+        function stopInactivityWatcher() {
+            clearTimeout(inactivityTimer);
+            clearTimeout(warnTimer);
+            inactivityTimer = null;
+            warnTimer = null;
+        }
+
+        async function deleteComment(id) {
+            if (!confirm('댓글을 삭제하시겠습니까?')) return;
+            const { data, error } = await supabaseClient
+                .from('comments')
+                .delete()
+                .eq('id', id)
+                .select();
+            if (error) {
+                alert('삭제 실패: ' + error.message);
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
+                return;
+            }
+            fetchComments();
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>orage.getItem(likedKey) || '[]');
             const sid = String(id);
             const alreadyLiked = liked.includes(sid);
 
