@@ -1411,17 +1411,30 @@
                 const roleColor = roleColors[role] || '#999';
                 const sensitiveInfo = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''}</div>` : '';
                 const roleInfo = isS ? `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>` : '';
-                const instText = m.instruments ? `<div style="font-size:0.85rem;color:var(--wds-primary);margin-top:4px">🎵 ${m.instruments}</div>` : '';
+                const instSpan = m.instruments ? `<span style="font-size:0.85rem;color:var(--wds-primary);margin-left:8px">🎵 ${m.instruments}</span>` : '';
                 return `<div class="my-res-item" style="margin-bottom:8px">
                     <div class="my-res-info">
-                        <div class="my-res-date">${m.name}</div>
-                        ${instText}
+                        <div class="my-res-date">${m.name}${instSpan}</div>
                         ${sensitiveInfo}
                         ${roleInfo}
                     </div>
                 </div>`;
             }).join('');
             container.appendChild(list);
+        }
+
+        function showMypageEditForm() {
+            const iv = document.getElementById('mypageInfoView');
+            const ef = document.getElementById('mypageEditForm');
+            if (iv) iv.classList.add('hidden');
+            if (ef) ef.classList.remove('hidden');
+        }
+
+        function hideMypageEditForm() {
+            const iv = document.getElementById('mypageInfoView');
+            const ef = document.getElementById('mypageEditForm');
+            if (iv) iv.classList.remove('hidden');
+            if (ef) ef.classList.add('hidden');
         }
 
         function renderMyPage(container) {
