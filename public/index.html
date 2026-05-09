@@ -382,6 +382,7 @@
         .mypage-info-value { font-weight: 600; text-align: right; word-break: break-all; }
         .mypage-edit-btn { padding: 6px 14px; background: none; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); cursor: pointer; font-size: 0.85rem; color: var(--wds-gray-700); }
         .mypage-edit-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .section-summary { font-size: 0.82rem; color: var(--wds-gray-500); margin-top: 4px; line-height: 1.5; }
 
         /* 태블릿 / 좁은 데스크톱 (769~1023px) */
         @media (max-width: 1023px) and (min-width: 769px) {
@@ -587,6 +588,7 @@
                 <span class="label" style="margin:0">👤 마이페이지</span>
                 <span id="mypagePanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
             </div>
+            <div class="section-summary">나의 예약 내역, 소속 팀, 그리고 개인 정보를 관리할 수 있는 공간입니다.</div>
             <div id="mypagePanelContent" class="hidden" style="margin-top:16px"></div>
         </div>
 
@@ -595,6 +597,7 @@
                 <span class="label" style="margin:0">👥 멤버 & 팀</span>
                 <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
             </div>
+            <div class="section-summary">동료 멤버들을 확인하고, 함께할 팀을 구성하거나 참여 중인 팀을 관리하세요.</div>
             <div id="memberPanelContent" class="hidden" style="margin-top:16px">
                 <div class="admin-subtabs">
                     <div class="admin-subtab active" onclick="setMemberTab('list')">멤버 목록</div>
@@ -825,10 +828,9 @@
             content.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
 
             let profile = null;
-            if (isEmailUser) {
-                const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
-                if (!error && data) profile = data;
-            }
+            const lookupCol = isEmailUser ? 'id' : 'kakao_id';
+            const { data, error } = await supabaseClient.from('profiles').select('*').eq(lookupCol, state.user.kakaoId).single();
+            if (!error && data) profile = data;
 
             if (state.teams.length === 0) await fetchTeams();
 
@@ -879,7 +881,49 @@
                     </div>
                 </div>
                 <hr style="border:none;border-top:1px solid var(--wds-gray-100);margin:16px 0">
-            ` : `<div style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:16px">SNS 로그인 사용자는 프로필 수정이 지원되지 않습니다.</div>`;
+            ` : (isEmailUser ? `<div style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:16px">프로필을 찾을 수 없습니다.</div>` : `
+                <div style="background:var(--wds-gray-100);padding:20px;border-radius:var(--wds-radius-m);text-align:center;margin-bottom:16px">
+                    <div style="font-size:0.9rem;font-weight:700;margin-bottom:8px">멤버 가입 정보가 없습니다.</div>
+                    <p style="font-size:0.82rem;color:var(--wds-gray-500);margin-bottom:16px">가입 정보를 등록하면 멤버 현황에 노출되며<br>팀 구성에 참여할 수 있습니다.</p>
+                    <button class="submit-btn" style="height:44px;font-size:0.9rem" onclick="showMypageRegisterForm()">멤버 가입 정보 등록하기</button>
+                </div>
+                <div id="mypageRegisterForm" class="hidden" style="margin-top:12px;border:1px solid var(--wds-primary);padding:16px;border-radius:var(--wds-radius-m)">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명)</label>
+                            <input type="text" id="regName" value="${escapeHtml(state.user.nickname || '')}" placeholder="실명 입력"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이메일</label>
+                            <input type="email" id="regEmail" placeholder="example@email.com"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호</label>
+                            <input type="tel" id="regPhone" placeholder="010-0000-0000"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션</label>
+                            <div class="instrument-buttons" id="regInstBtns">
+                                ${['보컬','기타','베이스','키보드','드럼'].map(inst => {
+                                    const icons = {보컬:'🎤',기타:'🎸',베이스:'🎵',키보드:'🎹',드럼:'🥁'};
+                                    return `<button type="button" class="inst-btn" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
+                                }).join('')}
+                            </div>
+                            <input type="text" id="regCustomInst" placeholder="추가 세션 (선택)"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:8px">
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:4px">
+                            <button type="button" onclick="hideMypageRegisterForm()"
+                                style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
+                            <button type="button" onclick="saveMypageProfile(null)"
+                                style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.9rem;background:var(--wds-primary);color:white;font-family:inherit">가입 신청</button>
+                        </div>
+                    </div>
+                </div>
+            `);
 
             const teamsHtml = myTeams.length > 0 ? `
                 <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 8px">소속 팀</div>
@@ -913,20 +957,56 @@
             if (ef) ef.classList.add('hidden');
         }
 
+        function showMypageRegisterForm() {
+            const rf = document.getElementById('mypageRegisterForm');
+            if (rf) rf.classList.remove('hidden');
+        }
+
+        function hideMypageRegisterForm() {
+            const rf = document.getElementById('mypageRegisterForm');
+            if (rf) rf.classList.add('hidden');
+        }
+
+        function genUUID() {
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+
         async function saveMypageProfile(profileId) {
-            const phone = document.getElementById('mypagePhone').value.trim();
+            const isNew = !profileId;
+            const phoneEl = document.getElementById(isNew ? 'regPhone' : 'mypagePhone');
+            const phone = phoneEl ? phoneEl.value.trim() : '';
             if (phone && !/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g,''))) {
                 alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
             }
-            const selectedInsts = Array.from(document.querySelectorAll('#mypageInstBtns .inst-btn.selected')).map(b => b.dataset.inst);
-            const customInst = document.getElementById('mypageCustomInst').value.trim();
+            const instBtnsId = isNew ? 'regInstBtns' : 'mypageInstBtns';
+            const customInstId = isNew ? 'regCustomInst' : 'mypageCustomInst';
+            const selectedInsts = Array.from(document.querySelectorAll(`#${instBtnsId} .inst-btn.selected`)).map(b => b.dataset.inst);
+            const customInst = document.getElementById(customInstId).value.trim();
             const customs = customInst ? customInst.split(',').map(s=>s.trim()).filter(s=>s) : [];
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const { error } = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
-            if (error) { alert('저장 실패: ' + error.message); return; }
-            showToast('프로필이 저장되었습니다.');
+            let result;
+            if (isNew) {
+                const name = document.getElementById('regName').value.trim();
+                const email = document.getElementById('regEmail').value.trim();
+                if (!name) { alert('이름을 입력해주세요.'); return; }
+                result = await supabaseClient.from('profiles').insert([{
+                    id: genUUID(),
+                    kakao_id: state.user.kakaoId,
+                    name, email, phone, instruments,
+                    status: 'pending',
+                    role: '일반'
+                }]);
+            } else {
+                result = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
+            }
+            if (result.error) { alert('저장 실패: ' + result.error.message); return; }
+            showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
             renderMypagePanel();
         }
 
