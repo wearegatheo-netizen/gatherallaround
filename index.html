@@ -1924,7 +1924,7 @@
                 grid.appendChild(tc);
                 const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
                 
-                const block = getBlock(state.viewDate, time);
+                const block = getBlock(state.viewDate, time); if (block) { s.classList.add("blocked"); s.innerHTML = `<span style="font-size:1.1rem">🚫</span><span style="font-weight:600">${escapeHtml(block.reason || "차단")}</span>`; s.style.cursor = "not-allowed"; } else 
                 const occupiedRes = getOccupiedReservation(state.viewDate, time);
                 if (block) {
                     s.style.background = '#ffe5e5';
