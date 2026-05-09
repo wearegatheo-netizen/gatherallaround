@@ -764,7 +764,14 @@
             content.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
 
             // 모든 사용자(이메일/카카오)에 대해 프로필 조회
-            const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
+            let profile = null;
+            if (state.user.authType === 'email') {
+                const { data, error: pErr } = await supabaseClient.from('profiles').select('*').eq('id', state.user.kakaoId).single();
+                if (!pErr) profile = data;
+            } else {
+                const { data, error: pErr } = await supabaseClient.from('profiles').select('*').eq('kakao_id', state.user.kakaoId).single();
+                if (!pErr) profile = data;
+            }
 
             if (state.teams.length === 0) await fetchTeams();
 
