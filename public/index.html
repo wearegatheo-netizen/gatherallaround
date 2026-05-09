@@ -772,9 +772,13 @@
 
             if (state.teams.length === 0) await fetchTeams();
 
-            const myRes = state.reservations.filter(r => r.kakao_id === state.user.kakaoId);
-            const approvedCount = myRes.filter(r => r.status === 'approved').length;
-            const pendingCount = myRes.filter(r => r.status === 'pending').length;
+            let approvedCount = 0, pendingCount = 0;
+            const myRes = state.reservations.filter(r => {
+                if (r.kakao_id !== state.user.kakaoId) return false;
+                if (r.status === 'approved') approvedCount++;
+                else if (r.status === 'pending') pendingCount++;
+                return true;
+            });
             const myTeams = profile
                 ? state.teams.filter(t => (t.members || []).some(s => s.memberId === profile.id))
                 : [];
@@ -1152,7 +1156,7 @@
             c.classList.remove('hidden');
             c.innerHTML = `
                 <h4>${isEdit ? '팀 수정' : '새 팀 만들기'}</h4>
-                <input type="text" id="teamName" placeholder="팀 이름" value="${isEdit ? (team.name || '').replace(/"/g, '&quot;') : ''}">
+                <input type="text" id="teamName" placeholder="팀 이름" value="${isEdit ? escapeHtml(team.name) : ''}">
                 <div class="team-form-row">
                     <label style="font-size:0.85rem;font-weight:600;flex:0 0 80px">활동 기간</label>
                     <input type="date" id="teamStartDate" value="${isEdit && team.start_date ? team.start_date : ''}">
@@ -1274,7 +1278,8 @@
                 ({ error } = await supabaseClient.from('teams').insert([team]));
             }
             if (error) {
-                alert('팀 저장 실패: ' + error.message + '\n\nteams 테이블에 songs 컬럼이 없다면 SQL 실행 필요:\nALTER TABLE teams ADD COLUMN IF NOT EXISTS songs jsonb;');
+                console.warn('팀 저장 실패. songs 컬럼 확인: ALTER TABLE teams ADD COLUMN IF NOT EXISTS songs jsonb;');
+                alert('팀 저장 실패: ' + error.message);
                 return;
             }
             hideTeamForm();
@@ -1304,14 +1309,14 @@
                     return;
                 }
                 results.innerHTML = data.results.map(r => {
-                    const t = (r.trackName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
-                    const a = (r.artistName || '').replace(/"/g,'&quot;').replace(/'/g,"&#39;");
-                    const aw = (r.artworkUrl60 || r.artworkUrl100 || '').replace(/"/g,'&quot;');
+                    const t = escapeHtml(r.trackName || '');
+                    const a = escapeHtml(r.artistName || '');
+                    const aw = escapeHtml(r.artworkUrl60 || r.artworkUrl100 || '');
                     return `<div class="music-result" onclick="selectMusic(this)" data-title="${t}" data-artist="${a}" data-artwork="${aw}">
                         ${aw ? `<img src="${aw}" alt="">` : ''}
                         <div class="music-result-info">
-                            <div class="music-result-title">${r.trackName || ''}</div>
-                            <div class="music-result-artist">${r.artistName || ''}</div>
+                            <div class="music-result-title">${t}</div>
+                            <div class="music-result-artist">${a}</div>
                         </div>
                     </div>`;
                 }).join('');
