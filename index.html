@@ -2430,24 +2430,3 @@
     </script>
 </body>
 </html>
-��습니까?')) return;
-            const { data, error } = await supabaseClient
-                .from('comments')
-                .delete()
-                .eq('id', id)
-                .select();
-            if (error) {
-                alert('삭제 실패: ' + error.message);
-                return;
-            }
-            if (!data || data.length === 0) {
-                alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
-                return;
-            }
-            fetchComments();
-        }
-
-        document.addEventListener('DOMContentLoaded', initApp);
-    </script>
-</body>
-</html>
