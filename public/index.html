@@ -393,13 +393,13 @@
             .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
-            .weekly-grid:not(.day-grid) { grid-template-columns: 50px repeat(7, 60px) !important; min-width: 470px; }
+            .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 64px) !important; min-width: 494px; }
             .day-grid { grid-template-columns: 88px 1fr !important; }
             .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
             .weekly-time-cell { padding: 6px 3px; }
             .weekly-time-cell > div:first-child { font-size: 0.76rem !important; }
             .weekly-time-cell > div:last-child { font-size: 0.6rem !important; }
-            .weekly-slot { height: 50px; font-size: 0.7rem; }
+            .weekly-slot { height: 50px; font-size: 0.72rem; }
             .day-grid .weekly-slot { padding-left: 12px !important; height: 48px; }
             .weekly-header-cell { padding: 10px 4px; font-size: 0.85rem; }
             .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
@@ -423,6 +423,21 @@
             .view-header { flex-wrap: wrap; gap: 8px; }
             .view-title { font-size: 1.1rem; }
             #auto-toast { bottom: 16px; padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
+
+            /* 팀 구성 수정 폼 */
+            .team-form-row { flex-wrap: wrap; gap: 6px 8px; }
+            .team-form-row > label { flex: 1 1 100%; }
+            .team-form-row input[type="date"] { flex: 1 1 0; min-width: 0; }
+            .team-slot-row { gap: 6px; }
+            .team-slot-row .slot-session-input { flex: 0 0 70px !important; font-size: 0.85rem; }
+            .team-slot-row select { min-width: 0; font-size: 0.85rem; }
+            .music-search-box { padding: 8px; }
+            .music-result { padding: 6px; gap: 8px; }
+            .music-result img { width: 36px; height: 36px; }
+            .music-result-title { font-size: 0.85rem; }
+            .song-chip { padding: 5px 8px; gap: 6px; }
+            .song-chip img { width: 32px; height: 32px; }
+            .team-form-actions button { padding: 12px; font-size: 0.92rem; }
         }
     </style>
 </head>
