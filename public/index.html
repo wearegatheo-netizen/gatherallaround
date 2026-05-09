@@ -1838,49 +1838,49 @@
         }
 
         function renderWeek(container) {
-            const wrap = document.createElement('div'); wrap.className = 'weekly-container';
-            const grid = document.createElement('div'); grid.className = 'weekly-grid';
-            grid.appendChild(Object.assign(document.createElement('div'), {className: 'weekly-cell weekly-header-cell'}));
-            const base = new Date(state.viewDate);
-            base.setDate(base.getDate() - base.getDay()); // 일요일 시작
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            const wrap = document.createElement("div"); wrap.className = "weekly-container";
+            const grid = document.createElement("div"); grid.className = "weekly-grid";
+            grid.appendChild(Object.assign(document.createElement("div"), {className: "weekly-cell weekly-header-cell"}));
+            const base = new Date(state.viewDate); base.setDate(state.viewDate.getDate() - state.viewDate.getDay());
+            const days = ["일", "월", "화", "수", "목", "금", "토"];
             const today = new Date();
             for (let i = 0; i < 7; i++) {
                 const d = new Date(base); d.setDate(base.getDate() + i);
-                const h = document.createElement('div'); h.className = 'weekly-cell weekly-header-cell';
-                if (i === 0) h.classList.add('week-sun');
-                if (i === 6) h.classList.add('week-sat');
-                if (isSameDay(d, today)) h.classList.add('week-today');
-                h.innerHTML = `<div style="font-size:0.7rem; opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
+                const h = document.createElement("div"); h.className = "weekly-cell weekly-header-cell";
+                if (i === 0) h.classList.add("week-sun");
+                if (i === 6) h.classList.add("week-sat");
+                if (isSameDay(d, today)) h.classList.add("week-today");
+                h.innerHTML = `<div style=\"font-size:0.7rem;color:var(--wds-gray-500)\">${days[d.getDay()]}</div><div style=\"font-size:1.1rem;font-weight:800\">${d.getDate()}</div>`;
                 grid.appendChild(h);
             }
             TIMES.forEach((time, idx) => {
-                const endTime = TIMES[idx + 1] || '23:00';
-                const tc = document.createElement('div');
-                tc.className = 'weekly-cell weekly-time-cell';
-                tc.style.lineHeight = '1.15';
-                tc.innerHTML = `<div style="font-weight:600;font-size:0.82rem">${time}</div><div style="font-size:0.64rem;color:var(--wds-gray-500)">~${endTime}</div>`;
+                const endTime = TIMES[idx + 1] || "23:00";
+                const tc = document.createElement("div");
+                tc.className = "weekly-cell weekly-time-cell";
+                tc.style.lineHeight = "1.15";
+                tc.innerHTML = `<div style=\"font-weight:600;font-size:0.82rem\">${time}</div><div style=\"font-size:0.64rem;color:var(--wds-gray-500)\">~${endTime}</div>`;
                 grid.appendChild(tc);
                 for (let i = 0; i < 7; i++) {
                     const d = new Date(base); d.setDate(base.getDate() + i);
-                    const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
-                    if (i === 0) s.classList.add('week-sun');
-                    if (i === 6) s.classList.add('week-sat');
-                    if (isSameDay(d, today)) s.classList.add('week-today');
+                    const s = document.createElement("div"); s.className = "weekly-cell weekly-slot";
+                    if (i === 0) s.classList.add("week-sun");
+                    if (i === 6) s.classList.add("week-sat");
+                    if (isSameDay(d, today)) s.classList.add("week-today");
 
                     const block = getBlock(d, time);
+                    const occupiedRes = getOccupiedReservation(d, time);
                     if (block) {
                         s.classList.add("blocked");
-                        s.innerHTML = `<span style="font-size:1.1rem">🚫</span><span style="font-weight:600">${escapeHtml(block.reason || "차단")}</span>`;
+                        s.innerHTML = `<span style=\"font-size:1.1rem\">🚫</span><span style=\"font-weight:600\">${escapeHtml(block.reason || "차단")}</span>`;
                         s.style.cursor = "not-allowed";
                     } else if (occupiedRes) {
-                        s.style.background = '#eee';
-                        s.style.cursor = 'not-allowed';
-                        s.style.fontSize = '0.72rem';
-                        s.style.color = 'var(--wds-gray-700)';
+                        s.style.background = "#eee";
+                        s.style.cursor = "not-allowed";
+                        s.style.fontSize = "0.72rem";
+                        s.style.color = "var(--wds-gray-700)";
                         s.textContent = maskName(occupiedRes.user_name);
                     } else {
-                        if (isSlotSelected(d, time)) s.classList.add('selected');
+                        if (isSlotSelected(d, time)) s.classList.add("selected");
                         s.onclick = () => onSlotClick(d, time);
                     }
                     grid.appendChild(s);
@@ -1890,38 +1890,40 @@
         }
 
         function renderDay(container) {
-            const grid = document.createElement('div'); grid.className = 'weekly-grid day-grid'; grid.style.gridTemplateColumns = '130px 1fr';
+            const grid = document.createElement("div"); grid.className = "weekly-grid day-grid"; grid.style.gridTemplateColumns = "130px 1fr";
             TIMES.forEach((time, idx) => {
-                const endTime = TIMES[idx + 1] || '23:00';
-                const tc = document.createElement('div');
-                tc.className = 'weekly-cell weekly-time-cell';
-                tc.style.lineHeight = '1.3';
-                tc.innerHTML = `<div style="font-weight:600">${time}</div><div style="font-size:0.72rem;color:var(--wds-gray-500)">~ ${endTime}</div>`;
+                const endTime = TIMES[idx + 1] || "23:00";
+                const tc = document.createElement("div");
+                tc.className = "weekly-cell weekly-time-cell";
+                tc.style.lineHeight = "1.3";
+                tc.innerHTML = `<div style=\"font-weight:600\">${time}</div><div style=\"font-size:0.72rem;color:var(--wds-gray-500)\">~ ${endTime}</div>`;
                 grid.appendChild(tc);
-                const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot'; s.style.textAlign = 'left'; s.style.paddingLeft = '24px';
+                const s = document.createElement("div"); s.className = "weekly-cell weekly-slot"; s.style.textAlign = "left"; s.style.paddingLeft = "24px";
                 
-                const block = getBlock(state.viewDate, time); if (block) { s.classList.add("blocked"); s.innerHTML = `<span style="font-size:1.1rem">🚫</span><span style="font-weight:600">${escapeHtml(block.reason || "차단")}</span>`; s.style.cursor = "not-allowed"; } else 
+                const block = getBlock(state.viewDate, time);
                 const occupiedRes = getOccupiedReservation(state.viewDate, time);
                 if (block) {
-                    s.style.background = '#ffe5e5';
-                    s.style.cursor = 'not-allowed';
-                    s.style.color = '#c0392b';
-                    s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
+                    s.classList.add("blocked");
+                    s.innerHTML = `<span style=\"font-size:1.1rem\">🚫</span><span style=\"font-weight:600\">${escapeHtml(block.reason || "차단")}</span>`;
+                    s.style.cursor = "not-allowed";
                 } else if (occupiedRes) {
-                    s.style.background = '#eee';
-                    s.style.cursor = 'not-allowed';
-                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
+                    s.style.background = "#eee";
+                    s.style.cursor = "not-allowed";
+                    s.innerHTML = `이미 예약됨 <span style=\"color:var(--wds-gray-500);font-size:0.82rem\">(${maskName(occupiedRes.user_name)})</span>`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
-                        s.classList.add('selected');
-                        if (state.startTime === time && (!state.endTime || state.endTime === time)) s.textContent = '🟢 시작';
-                        else if (state.startTime === time) s.textContent = '🟢 시작';
-                        else if (state.endTime === time) s.textContent = '🔴 끝';
-                        else s.textContent = '선택됨';
+                        s.classList.add("selected");
+                        if (state.startTime === time && (!state.endTime || state.endTime === time)) s.textContent = "🟢 시작";
+                        else if (state.startTime === time) s.textContent = "🟢 시작";
+                        else if (state.endTime === time) s.textContent = "🔴 끝";
+                        else s.textContent = "선택됨";
                     }
                     s.onclick = () => onSlotClick(state.viewDate, time);
                 }
                 grid.appendChild(s);
+            });
+            container.appendChild(grid);
+        }
             });
             container.appendChild(grid);
 
