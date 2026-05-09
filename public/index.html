@@ -374,6 +374,15 @@
         .mypage-edit-btn { padding: 6px 14px; background: none; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); cursor: pointer; font-size: 0.85rem; color: var(--wds-gray-700); }
         .mypage-edit-btn:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
 
+        /* 태블릿 / 좁은 데스크톱 (769~1023px) */
+        @media (max-width: 1023px) and (min-width: 769px) {
+            body { padding: 24px 12px; }
+            .container { padding: 28px 24px; max-width: 760px; }
+            #comments_container { padding: 24px; max-width: 760px; }
+            .tabs { gap: 16px; }
+            .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        }
+
         /* 모바일 반응형 */
         @media (max-width: 768px) {
             body { padding: 12px 6px; }
