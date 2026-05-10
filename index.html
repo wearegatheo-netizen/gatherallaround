@@ -2686,13 +2686,71 @@
 
     <!-- ── Background Music Player ── -->
     <style>
+        #bgm-playlist-panel {
+            position: fixed;
+            bottom: 56px;
+            left: 0; right: 0;
+            max-height: 320px;
+            overflow-y: auto;
+            background: rgba(15, 15, 15, 0.97);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            z-index: 9998;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            transform: translateY(100%);
+            transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+        }
+        #bgm-playlist-panel.open { transform: translateY(0); }
+        #bgm-playlist-panel::-webkit-scrollbar { width: 4px; }
+        #bgm-playlist-panel::-webkit-scrollbar-track { background: transparent; }
+        #bgm-playlist-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+        .bgm-pl-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px 8px;
+            font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.4);
+            letter-spacing: 0.08em; text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky; top: 0;
+            background: rgba(15,15,15,0.97);
+        }
+        .bgm-pl-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.12s;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .bgm-pl-item:hover { background: rgba(255,255,255,0.06); }
+        .bgm-pl-item.active { background: rgba(51,102,255,0.15); }
+        .bgm-pl-num {
+            width: 20px; text-align: center; flex-shrink: 0;
+            font-size: 0.75rem; color: rgba(255,255,255,0.3);
+        }
+        .bgm-pl-item.active .bgm-pl-num { color: #3366FF; }
+        .bgm-pl-name {
+            flex: 1; font-size: 0.85rem; color: rgba(255,255,255,0.8);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .bgm-pl-item.active .bgm-pl-name { color: #fff; font-weight: 600; }
+        .bgm-playing-bars {
+            display: none; align-items: flex-end; gap: 2px; height: 14px; flex-shrink: 0;
+        }
+        .bgm-pl-item.active.playing .bgm-playing-bars { display: flex; }
+        .bgm-playing-bars span {
+            width: 3px; background: #3366FF; border-radius: 1px;
+            animation: bgmBar 0.8s ease-in-out infinite alternate;
+        }
+        .bgm-playing-bars span:nth-child(2) { animation-delay: 0.2s; }
+        .bgm-playing-bars span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bgmBar {
+            from { height: 4px; } to { height: 14px; }
+        }
         #bgm-player {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             height: 56px;
-            background: rgba(17, 17, 17, 0.92);
+            background: rgba(17, 17, 17, 0.96);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             display: flex;
@@ -2703,11 +2761,6 @@
             border-top: 1px solid rgba(255,255,255,0.08);
             font-family: 'Pretendard', -apple-system, sans-serif;
         }
-        #bgm-player .bgm-icon {
-            font-size: 18px;
-            opacity: 0.7;
-            flex-shrink: 0;
-        }
         #bgm-title {
             flex: 1;
             font-size: 0.8rem;
@@ -2716,7 +2769,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 0;
+            cursor: pointer;
         }
+        #bgm-title:hover { color: #fff; }
         #bgm-title span {
             font-size: 0.7rem;
             color: rgba(255,255,255,0.4);
@@ -2736,24 +2791,37 @@
             flex-shrink: 0;
         }
         .bgm-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .bgm-btn.active-btn { color: #3366FF; }
         .bgm-btn svg { display: block; }
         #bgm-volume {
-            width: 72px;
-            height: 3px;
-            cursor: pointer;
-            accent-color: #3366FF;
-            flex-shrink: 0;
+            width: 72px; height: 3px;
+            cursor: pointer; accent-color: #3366FF; flex-shrink: 0;
         }
         @media (max-width: 480px) {
             #bgm-volume { display: none; }
             #bgm-player { padding: 0 12px; gap: 8px; }
+            #bgm-playlist-panel { max-height: 260px; }
         }
         body { padding-bottom: 56px; }
     </style>
 
+    <!-- 플레이리스트 패널 -->
+    <div id="bgm-playlist-panel">
+        <div class="bgm-pl-header">
+            <span>🎵 플레이리스트</span>
+            <span id="bgm-pl-count" style="font-weight:400"></span>
+        </div>
+        <div id="bgm-pl-list"></div>
+    </div>
+
     <div id="bgm-player">
-        <div class="bgm-icon">♪</div>
-        <div id="bgm-title"><span>BGM</span>로딩 중...</div>
+        <!-- 플레이리스트 토글 -->
+        <button class="bgm-btn" id="bgm-list-btn" title="플레이리스트" onclick="bgmToggleList()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2 4h12v1.5H2zm0 3h12v1.5H2zm0 3h8v1.5H2z"/>
+            </svg>
+        </button>
+        <div id="bgm-title" onclick="bgmToggleList()" title="플레이리스트 열기"><span>BGM</span>로딩 중...</div>
         <!-- Prev -->
         <button class="bgm-btn" id="bgm-prev" title="이전 곡" onclick="bgmPrev()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -2786,13 +2854,35 @@
         (function () {
             let tracks = [];
             let idx = 0;
-            const audio = document.getElementById('bgm-audio');
-            const titleEl = document.getElementById('bgm-title');
-            const iconPlay = document.getElementById('bgm-icon-play');
-            const iconPause = document.getElementById('bgm-icon-pause');
+            let listOpen = false;
 
-            function sunoUrl(id) {
-                return `https://cdn1.suno.ai/${id}.mp3`;
+            const audio    = document.getElementById('bgm-audio');
+            const titleEl  = document.getElementById('bgm-title');
+            const iconPlay = document.getElementById('bgm-icon-play');
+            const iconPause= document.getElementById('bgm-icon-pause');
+            const panel    = document.getElementById('bgm-playlist-panel');
+            const plList   = document.getElementById('bgm-pl-list');
+            const plCount  = document.getElementById('bgm-pl-count');
+            const listBtn  = document.getElementById('bgm-list-btn');
+
+            function sunoUrl(id) { return `https://cdn1.suno.ai/${id}.mp3`; }
+
+            function renderList() {
+                plCount.textContent = tracks.length + '곡';
+                plList.innerHTML = tracks.map((t, i) => `
+                    <div class="bgm-pl-item${i === idx ? ' active' + (!audio.paused ? ' playing' : '') : ''}"
+                         data-i="${i}" onclick="bgmSelectTrack(${i})">
+                        <div class="bgm-pl-num">${i + 1}</div>
+                        <div class="bgm-pl-name">${t.title || 'Track ' + (i + 1)}</div>
+                        <div class="bgm-playing-bars">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>`).join('');
+            }
+
+            function scrollActiveIntoView() {
+                const activeEl = plList.querySelector('.bgm-pl-item.active');
+                if (activeEl) activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }
 
             function loadTrack(i, autoplay) {
@@ -2803,6 +2893,8 @@
                 audio.volume = parseFloat(document.getElementById('bgm-volume').value);
                 titleEl.innerHTML = `<span>BGM</span>${t.title || 'Track ' + (idx + 1)}`;
                 if (autoplay) audio.play().catch(() => {});
+                renderList();
+                if (listOpen) scrollActiveIntoView();
             }
 
             async function initBgm() {
@@ -2814,14 +2906,21 @@
                     return;
                 }
                 if (!tracks.length) { titleEl.innerHTML = '<span>BGM</span>곡 없음'; return; }
-                // 랜덤 시작
                 idx = Math.floor(Math.random() * tracks.length);
                 loadTrack(idx, false);
             }
 
             audio.addEventListener('ended', () => loadTrack(idx + 1, true));
-            audio.addEventListener('play', () => { iconPlay.style.display = 'none'; iconPause.style.display = ''; });
-            audio.addEventListener('pause', () => { iconPlay.style.display = ''; iconPause.style.display = 'none'; });
+            audio.addEventListener('play',  () => {
+                iconPlay.style.display = 'none';
+                iconPause.style.display = '';
+                renderList();
+            });
+            audio.addEventListener('pause', () => {
+                iconPlay.style.display = '';
+                iconPause.style.display = 'none';
+                renderList();
+            });
 
             window.bgmToggle = function () {
                 if (!tracks.length) return;
@@ -2831,6 +2930,22 @@
             window.bgmPrev = function () { loadTrack(idx - 1, !audio.paused); };
             window.bgmNext = function () { loadTrack(idx + 1, !audio.paused); };
             window.bgmSetVolume = function (v) { audio.volume = parseFloat(v); };
+            window.bgmSelectTrack = function (i) { loadTrack(i, true); };
+            window.bgmToggleList = function () {
+                listOpen = !listOpen;
+                panel.classList.toggle('open', listOpen);
+                listBtn.classList.toggle('active-btn', listOpen);
+                if (listOpen) { renderList(); setTimeout(scrollActiveIntoView, 50); }
+            };
+
+            // 패널 외부 클릭 시 닫기
+            document.addEventListener('click', e => {
+                if (listOpen && !panel.contains(e.target) && !document.getElementById('bgm-player').contains(e.target)) {
+                    listOpen = false;
+                    panel.classList.remove('open');
+                    listBtn.classList.remove('active-btn');
+                }
+            });
 
             initBgm();
         })();
