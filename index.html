@@ -156,7 +156,7 @@
         .weekly-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
         .weekly-cell { padding: 12px 8px; border-bottom: 1px solid var(--wds-gray-100); border-right: 1px solid var(--wds-gray-100); text-align: center; }
         .weekly-header-cell { background: var(--wds-gray-100); font-weight: 600; padding: 16px 8px; }
-        .weekly-time-cell { background: var(--wds-gray-100); color: var(--wds-gray-500); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+        .weekly-time-cell { background: var(--wds-gray-100); color: var(--wds-gray-500); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .weekly-slot { cursor: pointer; height: 48px; }
         .weekly-slot:hover { background: var(--wds-primary-light); }
         .weekly-slot.selected { background: var(--wds-primary) !important; }
@@ -2031,9 +2031,13 @@
                         s.style.color = '#c0392b';
                         s.style.padding = '4px 2px';
                         s.style.overflow = 'hidden';
-                        s.style.textOverflow = 'ellipsis';
-                        s.style.whiteSpace = 'nowrap';
-                        s.textContent = block.reason ? `🚫 ${block.reason}` : '🚫 차단';
+                        s.style.display = 'flex';
+                        s.style.flexDirection = 'column';
+                        s.style.alignItems = 'center';
+                        s.style.justifyContent = 'center';
+                        s.style.lineHeight = '1.2';
+                        const reason = block.reason || '차단';
+                        s.innerHTML = `<div style="font-size:0.85rem">🚫</div><div style="overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;max-width:100%">${escapeHtml(reason)}</div>`;
                         s.title = block.reason || '예약 차단됨';
                     } else if (occupiedRes) {
                         s.style.background = '#eee';
