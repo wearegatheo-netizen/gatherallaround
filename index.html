@@ -1542,6 +1542,15 @@
             document.getElementById('teamMusicSearch').value = '';
         }
 
+        const INST_EMOJI = { '보컬': '🎤', '기타': '🎸', '베이스': '🎸', '키보드': '🎹', '드럼': '🥁' };
+        function instBadges(instruments) {
+            if (!instruments) return '';
+            return instruments.split(',').map(s => s.trim()).filter(Boolean).map(inst => {
+                const emoji = INST_EMOJI[inst] || '🎵';
+                return `<span style="font-size:0.78rem;color:var(--wds-primary);background:var(--wds-primary-light);border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap">${emoji} ${inst}</span>`;
+            }).join('');
+        }
+
         async function renderMembersTab(container) {
             container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">불러오는 중...</p>';
             const members = await fetchMembers();
@@ -1558,13 +1567,12 @@
                 const role = m.role || '일반';
                 const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
                 const roleColor = roleColors[role] || '#999';
-                const sensitiveInfo = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''}</div>` : '';
+                const emailDisplay = m.email ? escapeHtml(m.email) : '<span style="color:var(--kakao-yellow);background:#3C1E1E;border-radius:3px;padding:1px 5px;font-size:0.78rem">카카오로 로그인</span>';
+                const sensitiveInfo = isS ? `<div class="my-res-time">${emailDisplay} · ${escapeHtml(m.phone || '')}</div>` : '';
                 const roleInfo = isS ? `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>` : '';
-                const instText = m.instruments ? `<div style="font-size:0.85rem;color:var(--wds-primary);margin-top:4px">🎵 ${m.instruments}</div>` : '';
                 return `<div class="my-res-item" style="margin-bottom:8px">
                     <div class="my-res-info">
-                        <div class="my-res-date">${m.name}</div>
-                        ${instText}
+                        <div class="my-res-date" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${escapeHtml(m.name)}${instBadges(m.instruments)}</div>
                         ${sensitiveInfo}
                         ${roleInfo}
                     </div>
