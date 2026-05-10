@@ -1057,6 +1057,8 @@
             renderMypagePanel();
         }
 
+        let recoveryMode = false;
+
         // --- Reservation Logic ---
         let state = {
             user: null,
@@ -1122,9 +1124,17 @@
 
             if (supabaseClient) {
                 supabaseClient.auth.onAuthStateChange((event) => {
-                    if (event === 'PASSWORD_RECOVERY') checkRecoveryFlow();
+                    if (event === 'PASSWORD_RECOVERY') {
+                        recoveryMode = true;
+                        document.getElementById('landing-page').classList.remove('hidden');
+                        document.getElementById('main-content').classList.add('hidden');
+                        document.getElementById('email-login-form').classList.add('hidden');
+                        document.getElementById('email-signup-form').classList.add('hidden');
+                        document.getElementById('find-id-form').classList.add('hidden');
+                        document.getElementById('find-pw-form').classList.add('hidden');
+                        document.getElementById('reset-pw-form').classList.remove('hidden');
+                    }
                 });
-                checkRecoveryFlow();
             }
 
             const loginBtn = document.getElementById('kakao-login-btn');
@@ -1151,6 +1161,7 @@
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session && session.user) {
+                    if (recoveryMode) return; // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
                     await checkEmailUserApproval(session.user);
                     return;
                 }
@@ -2273,24 +2284,12 @@
             result.textContent = '변경 중...'; result.style.color = 'var(--wds-gray-500)';
             const { error } = await supabaseClient.auth.updateUser({ password: np });
             if (error) { result.textContent = '변경 실패: ' + error.message; result.style.color = '#e74c3c'; return; }
+            recoveryMode = false;
             await supabaseClient.auth.signOut();
             history.replaceState(null, '', window.location.pathname);
             alert('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
             document.getElementById('reset-pw-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
-        }
-
-        function checkRecoveryFlow() {
-            const hash = window.location.hash || '';
-            if (hash.includes('type=recovery') && hash.includes('access_token=')) {
-                document.getElementById('email-login-form').classList.add('hidden');
-                document.getElementById('email-signup-form').classList.add('hidden');
-                document.getElementById('find-id-form').classList.add('hidden');
-                document.getElementById('find-pw-form').classList.add('hidden');
-                document.getElementById('reset-pw-form').classList.remove('hidden');
-                return true;
-            }
-            return false;
         }
 
         async function handleFindPw() {
