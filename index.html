@@ -347,6 +347,123 @@
         #memberPanelView .my-res-item { padding: 8px 12px; }
         #memberPanelView .my-res-date { font-size: 0.85rem; }
         #memberPanelView .my-res-time { font-size: 0.75rem; }
+        .member-group { margin-bottom: 14px; }
+        .member-group-header {
+            font-size: 0.78rem; font-weight: 700; color: var(--wds-gray-700);
+            padding: 4px 10px 6px; margin-bottom: 6px;
+            border-bottom: 1px solid var(--wds-gray-300);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .member-group-count {
+            background: var(--wds-primary-light); color: var(--wds-primary);
+            font-size: 0.68rem; font-weight: 700;
+            padding: 1px 6px; border-radius: 10px;
+        }
+        /* 관리자 멤버 목록 */
+        .admin-member-group { margin-bottom: 14px; }
+        .admin-member-group-header {
+            font-size: 0.78rem; font-weight: 700; color: var(--wds-gray-900);
+            padding: 4px 10px;
+            border-left: 3px solid #999;
+            margin-bottom: 6px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .admin-member-list { display: flex; flex-direction: column; gap: 4px; }
+        .admin-member-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 10px;
+            background: white;
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-s);
+        }
+        .admin-member-main {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+            flex: 1; min-width: 0;
+        }
+        .admin-member-name { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+        .admin-member-side { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .admin-member-side .approve-btn,
+        .admin-member-side .reject-btn { padding: 3px 8px; font-size: 0.72rem; border-radius: 4px; }
+        @media (max-width: 480px) {
+            .admin-member-row { flex-wrap: wrap; }
+            .admin-member-side { width: 100%; justify-content: flex-end; }
+        }
+        /* 시간 차단 관리 */
+        .block-form-card {
+            background: var(--wds-gray-100);
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-m);
+            padding: 14px 16px;
+            display: flex; flex-direction: column; gap: 8px;
+            margin-bottom: 18px;
+        }
+        .block-form-row { display: flex; align-items: center; gap: 10px; }
+        .block-form-label {
+            flex: 0 0 70px;
+            font-size: 0.78rem; font-weight: 700; color: var(--wds-gray-700);
+        }
+        .block-form-input {
+            flex: 1; min-width: 0;
+            padding: 7px 10px;
+            font-size: 0.85rem;
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-s);
+            background: white;
+            font-family: inherit;
+        }
+        .block-form-input:focus { outline: none; border-color: var(--wds-primary); }
+        .block-add-mini-btn {
+            padding: 7px 12px;
+            background: var(--wds-primary); color: white; border: none;
+            border-radius: var(--wds-radius-s);
+            font-size: 0.78rem; font-weight: 600; cursor: pointer;
+            white-space: nowrap;
+        }
+        .block-add-mini-btn:hover { background: var(--wds-primary-hover); }
+        .multi-date-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: var(--wds-primary-light); color: var(--wds-primary);
+            padding: 3px 4px 3px 10px;
+            border-radius: 14px;
+            font-size: 0.76rem; font-weight: 600;
+        }
+        .multi-date-chip button {
+            background: rgba(51,102,255,0.15); border: none;
+            color: var(--wds-primary); cursor: pointer;
+            width: 18px; height: 18px; border-radius: 50%;
+            font-size: 0.85rem; line-height: 1; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .multi-date-chip button:hover { background: var(--wds-primary); color: white; }
+        .block-list-header {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; font-weight: 700; color: var(--wds-gray-900);
+            margin-bottom: 10px; margin-top: 4px;
+        }
+        .block-list-section { margin-bottom: 14px; }
+        .block-list-section-title {
+            font-size: 0.78rem; font-weight: 700; color: var(--wds-gray-700);
+            padding: 4px 10px;
+            border-left: 3px solid #999;
+            margin-bottom: 6px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .block-list-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-s);
+            margin-bottom: 4px;
+        }
+        .block-list-info { flex: 1; min-width: 0; }
+        .block-list-label { font-size: 0.85rem; font-weight: 700; color: var(--wds-black); }
+        .block-list-sub { font-size: 0.72rem; color: var(--wds-gray-500); margin-top: 2px; }
+        .block-list-del { padding: 4px 10px; font-size: 0.72rem; flex-shrink: 0; }
+        @media (max-width: 480px) {
+            .block-form-label { flex: 0 0 60px; font-size: 0.74rem; }
+            .block-form-input { font-size: 0.82rem; padding: 6px 8px; }
+        }
         .team-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
         .team-edit, .team-delete { background: none; border: 1px solid var(--wds-gray-300); border-radius: 6px; cursor: pointer; font-size: 0.78rem; padding: 4px 10px; color: var(--wds-gray-700); }
         .team-edit:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
@@ -390,7 +507,7 @@
         .song-chip-remove:hover { color: #e74c3c; }
         .team-songs { display: flex; flex-wrap: wrap; gap: 4px; }
         .team-song-item { display: flex; align-items: center; gap: 4px; background: var(--wds-primary-light); border: 1px solid rgba(51,102,255,0.18); border-radius: 6px; padding: 2px 8px; }
-        .team-song-item img { display: none; }
+        .team-song-item img { display: block; width: 14px; height: 14px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
         .team-song-text { font-size: 0.75rem; color: var(--wds-primary); font-weight: 600; }
 
         /* 마이페이지 패널 */
@@ -1580,25 +1697,58 @@
                 container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:40px">아직 멤버가 없습니다.</p>';
                 return;
             }
-            const list = document.createElement('div');
-            list.className = 'my-res-list';
-            list.innerHTML = approved.map(m => {
+
+            // 악기별 그룹화: 주 악기(첫 번째) 기준
+            const ORDER = ['보컬', '기타', '베이스', '키보드', '드럼'];
+            const groups = {};
+            const noneKey = '기타';
+            approved.forEach(m => {
+                const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
+                const primary = insts[0] || '미지정';
+                (groups[primary] = groups[primary] || []).push(m);
+            });
+            const groupKeys = Object.keys(groups).sort((a, b) => {
+                const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
+                if (ai === -1 && bi === -1) return a.localeCompare(b, 'ko');
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
+                return ai - bi;
+            });
+
+            const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+            const roleEmoji = (r) => r === '총괄' ? '👑' : r === '세션장' ? '⭐' : '';
+            const renderItem = (m) => {
                 const role = m.role || '일반';
-                const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
                 const roleColor = roleColors[role] || '#999';
                 const emailDisplay = m.email ? escapeHtml(m.email) : '<span style="color:var(--kakao-yellow);background:#3C1E1E;border-radius:3px;padding:1px 5px;font-size:0.72rem">카카오</span>';
                 const adminMeta = isS
-                    ? `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">${emailDisplay}</span>`
-                    + `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:4px;white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
-                    + `<span style="font-size:0.72rem;color:${roleColor};margin-left:6px;white-space:nowrap;font-weight:600">● ${role}</span>`
+                    ? `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:8px;white-space:nowrap">${emailDisplay}</span>`
+                    + `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
                     : '';
+                const roleTag = role !== '일반'
+                    ? `<span style="font-size:0.7rem;color:${roleColor};margin-left:6px;white-space:nowrap;font-weight:700">${roleEmoji(role)} ${role}</span>`
+                    : '';
+                // 부 악기만 뱃지로
+                const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
+                const subInsts = insts.slice(1).join(',');
                 return `<div class="my-res-item" style="margin-bottom:4px">
                     <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
-                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${instBadges(m.instruments)}${adminMeta}
+                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${roleTag}${instBadges(subInsts)}${adminMeta}
                     </div>
                 </div>`;
+            };
+
+            const wrap = document.createElement('div');
+            wrap.innerHTML = groupKeys.map(key => {
+                const list = groups[key];
+                const emoji = INST_EMOJI[key] || '🎵';
+                return `
+                    <div class="member-group">
+                        <div class="member-group-header">${emoji} ${escapeHtml(key)} <span class="member-group-count">${list.length}</span></div>
+                        <div class="my-res-list">${list.map(renderItem).join('')}</div>
+                    </div>`;
             }).join('');
-            container.appendChild(list);
+            container.appendChild(wrap);
         }
 
         function renderMyPage(container) {
@@ -1666,39 +1816,79 @@
             }
         }
 
+        // 다중 날짜 선택용 임시 상태
+        let multiDates = [];
+
         function renderAdminBlocksSection(container) {
             const section = document.createElement('div');
             section.className = 'admin-section';
             const dayNames = ['일','월','화','수','목','금','토'];
             const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
             const dayOptions = dayNames.map((d,i) => `<option value="${i}">${d}요일</option>`).join('');
+            multiDates = [];
             section.innerHTML = `
                 <div class="admin-section-title">🚫 시간 차단 관리</div>
-                <p style="font-size:0.85rem;color:var(--wds-gray-500);margin-bottom:12px">반복 유형과 시간대를 지정해 예약을 차단합니다.</p>
-                <div class="notice-input-group">
-                    <select id="blockRepeat" onchange="onBlockRepeatChange()" style="padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">
-                        <option value="weekly">🔄 매주 반복</option>
-                        <option value="once">📌 1회만 (특정 날짜)</option>
-                    </select>
-                    <div id="weeklyOptions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                        <select id="blockDow" style="flex:1;min-width:100px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${dayOptions}</select>
+
+                <div class="block-form-card">
+                    <div class="block-form-row">
+                        <label class="block-form-label">반복 유형</label>
+                        <select id="blockRepeat" onchange="onBlockRepeatChange()" class="block-form-input">
+                            <option value="weekly">🔄 매주 반복</option>
+                            <option value="once">📌 1회 (특정 날짜)</option>
+                            <option value="multi">📅 여러 날짜 선택</option>
+                        </select>
                     </div>
-                    <div id="onceOptions" style="display:none">
-                        <input type="date" id="blockSingleDate" style="width:100%;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">
+
+                    <div id="weeklyOptions" class="block-form-row">
+                        <label class="block-form-label">요일</label>
+                        <select id="blockDow" class="block-form-input">${dayOptions}</select>
                     </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                        <select id="blockStart" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
-                        <span>~</span>
-                        <select id="blockEnd" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)">${timeOptions}</select>
+
+                    <div id="onceOptions" class="block-form-row" style="display:none">
+                        <label class="block-form-label">날짜</label>
+                        <input type="date" id="blockSingleDate" class="block-form-input">
                     </div>
-                    <div id="dateRangeRow" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                        <label style="font-size:0.85rem;color:var(--wds-gray-700);min-width:60px">적용 기간</label>
-                        <input type="date" id="blockStartDate" style="flex:1;min-width:130px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)" placeholder="시작일">
-                        <span>~</span>
-                        <input type="date" id="blockEndDate" style="flex:1;min-width:130px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s)" placeholder="종료일">
+
+                    <div id="multiOptions" class="block-form-row" style="display:none;align-items:flex-start">
+                        <label class="block-form-label" style="padding-top:8px">날짜 목록</label>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;gap:6px">
+                                <input type="date" id="blockMultiInput" class="block-form-input" style="flex:1">
+                                <button type="button" class="block-add-mini-btn" onclick="addMultiDate()">+ 추가</button>
+                            </div>
+                            <div id="multiDateList" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
+                        </div>
                     </div>
-                    <input type="text" id="blockReason" placeholder="차단 사유 (선택)">
-                    <button type="button" class="admin-post-btn" onclick="addTimeBlock()">차단 추가</button>
+
+                    <div class="block-form-row">
+                        <label class="block-form-label">시간</label>
+                        <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0">
+                            <select id="blockStart" class="block-form-input" style="flex:1;min-width:0">${timeOptions}</select>
+                            <span style="color:var(--wds-gray-500);font-size:0.85rem">~</span>
+                            <select id="blockEnd" class="block-form-input" style="flex:1;min-width:0">${timeOptions}</select>
+                        </div>
+                    </div>
+
+                    <div id="dateRangeRow" class="block-form-row" style="align-items:flex-start">
+                        <label class="block-form-label" style="padding-top:8px">적용 기간</label>
+                        <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0;flex-wrap:wrap">
+                            <input type="date" id="blockStartDate" class="block-form-input" style="flex:1;min-width:120px" placeholder="시작일">
+                            <span style="color:var(--wds-gray-500);font-size:0.85rem">~</span>
+                            <input type="date" id="blockEndDate" class="block-form-input" style="flex:1;min-width:120px" placeholder="종료일">
+                        </div>
+                    </div>
+
+                    <div class="block-form-row">
+                        <label class="block-form-label">사유</label>
+                        <input type="text" id="blockReason" placeholder="(선택) 예: 정기 점검" class="block-form-input">
+                    </div>
+
+                    <button type="button" class="admin-post-btn" onclick="addTimeBlock()" style="width:100%;margin-top:4px">+ 차단 추가</button>
+                </div>
+
+                <div class="block-list-header">
+                    <span>등록된 차단</span>
+                    <span id="blockListCount" class="member-group-count"></span>
                 </div>
                 <div id="blockList"></div>
             `;
@@ -1706,44 +1896,93 @@
             renderBlockList();
         }
 
-        function renderBlockList() {
-            const list = document.getElementById('blockList');
-            if (!list) return;
-            if (!state.blocks || state.blocks.length === 0) {
-                list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;padding:10px">등록된 차단이 없습니다.</p>';
+        window.addMultiDate = function () {
+            const inp = document.getElementById('blockMultiInput');
+            const v = inp.value;
+            if (!v) return;
+            if (!multiDates.includes(v)) multiDates.push(v);
+            multiDates.sort();
+            inp.value = '';
+            renderMultiDateList();
+        };
+        window.removeMultiDate = function (date) {
+            multiDates = multiDates.filter(d => d !== date);
+            renderMultiDateList();
+        };
+        function renderMultiDateList() {
+            const el = document.getElementById('multiDateList');
+            if (!el) return;
+            if (multiDates.length === 0) {
+                el.innerHTML = '<span style="font-size:0.78rem;color:var(--wds-gray-500)">날짜를 추가해주세요</span>';
                 return;
             }
+            el.innerHTML = multiDates.map(d => `
+                <span class="multi-date-chip">
+                    ${d}
+                    <button type="button" onclick="removeMultiDate('${d}')" title="제거">×</button>
+                </span>`).join('');
+        }
+
+        function renderBlockList() {
+            const list = document.getElementById('blockList');
+            const countEl = document.getElementById('blockListCount');
+            if (!list) return;
+            if (!state.blocks || state.blocks.length === 0) {
+                list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.85rem;padding:14px;text-align:center;background:var(--wds-gray-100);border-radius:var(--wds-radius-s)">등록된 차단이 없습니다.</p>';
+                if (countEl) countEl.textContent = '0';
+                return;
+            }
+            if (countEl) countEl.textContent = state.blocks.length;
+
             const dayNames = ['일','월','화','수','목','금','토'];
-            const sorted = [...state.blocks].sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
-            list.innerHTML = sorted.map(b => {
+            // 그룹: 매주 / 1회/다중 (날짜 지정)
+            const weekly = state.blocks.filter(b => !(b.start_date && b.start_date === b.end_date));
+            const once   = state.blocks.filter(b =>  (b.start_date && b.start_date === b.end_date));
+            weekly.sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
+            once.sort((a,b) => (a.start_date || '').localeCompare(b.start_date || '') || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
+
+            const renderOne = (b) => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
                 const isOnce = b.start_date && b.start_date === b.end_date;
-                let titleText, period;
+                let label, sub;
                 if (isOnce) {
-                    titleText = `📌 1회만 · ${b.start_date} (${dayNames[b.day_of_week]}) ${b.start_time} ~ ${endDisplay}`;
-                    period = '';
+                    label = `📌 ${b.start_date} (${dayNames[b.day_of_week]})`;
+                    sub = `${b.start_time} ~ ${endDisplay}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
                 } else {
-                    titleText = `🔄 매주 ${dayNames[b.day_of_week]}요일 ${b.start_time} ~ ${endDisplay}`;
+                    label = `🔄 매주 ${dayNames[b.day_of_week]}요일`;
+                    let period = '';
                     if (b.start_date && b.end_date) period = `${b.start_date} ~ ${b.end_date}`;
-                    else if (b.start_date) period = `${b.start_date} 부터`;
-                    else if (b.end_date) period = `${b.end_date} 까지`;
+                    else if (b.start_date) period = `${b.start_date} ~`;
+                    else if (b.end_date) period = `~ ${b.end_date}`;
                     else period = '영구';
+                    sub = `${b.start_time} ~ ${endDisplay} · ${period}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
                 }
-                return `<div class="my-res-item" style="margin-bottom:8px">
-                    <div class="my-res-info">
-                        <div class="my-res-date">${titleText}</div>
-                        <div class="my-res-time">${period ? `📅 ${period}` : ''}${b.reason ? (period ? ' · ' : '') + b.reason : ''}</div>
+                return `<div class="block-list-row">
+                    <div class="block-list-info">
+                        <div class="block-list-label">${label}</div>
+                        <div class="block-list-sub">${sub}</div>
                     </div>
-                    <button type="button" class="cancel-btn" onclick="deleteTimeBlock('${b.id}')">삭제</button>
+                    <button type="button" class="cancel-btn block-list-del" onclick="deleteTimeBlock('${b.id}')">삭제</button>
                 </div>`;
-            }).join('');
+            };
+
+            const sectionHtml = (title, color, arr) => arr.length === 0 ? '' : `
+                <div class="block-list-section">
+                    <div class="block-list-section-title" style="border-left-color:${color}">${title} <span class="member-group-count">${arr.length}</span></div>
+                    ${arr.map(renderOne).join('')}
+                </div>`;
+
+            list.innerHTML = sectionHtml('🔄 매주 반복', '#3366FF', weekly)
+                           + sectionHtml('📌 특정 날짜', '#f0a050', once);
         }
 
         function onBlockRepeatChange() {
             const type = document.getElementById('blockRepeat').value;
-            document.getElementById('weeklyOptions').style.display = type === 'once' ? 'none' : 'flex';
-            document.getElementById('dateRangeRow').style.display = type === 'once' ? 'none' : 'flex';
-            document.getElementById('onceOptions').style.display = type === 'once' ? '' : 'none';
+            document.getElementById('weeklyOptions').style.display   = type === 'weekly' ? 'flex' : 'none';
+            document.getElementById('dateRangeRow').style.display    = type === 'weekly' ? 'flex' : 'none';
+            document.getElementById('onceOptions').style.display     = type === 'once' ? 'flex' : 'none';
+            document.getElementById('multiOptions').style.display    = type === 'multi' ? 'flex' : 'none';
+            if (type === 'multi') renderMultiDateList();
         }
 
         async function addTimeBlock() {
@@ -1754,27 +1993,37 @@
             if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) {
                 alert('시작 시간이 종료 시간보다 늦을 수 없습니다.'); return;
             }
-            let dow, startDate, endDate;
+
+            let inserts = [];
             if (type === 'once') {
                 const singleDate = document.getElementById('blockSingleDate').value;
                 if (!singleDate) { alert('날짜를 선택해주세요.'); return; }
                 const [y, m, d] = singleDate.split('-').map(Number);
-                dow = new Date(y, m - 1, d).getDay();
-                startDate = singleDate;
-                endDate = singleDate;
+                const dow = new Date(y, m - 1, d).getDay();
+                inserts.push({ day_of_week: dow, start_time: startTime, end_time: endTime,
+                              reason: reason || null, start_date: singleDate, end_date: singleDate });
+            } else if (type === 'multi') {
+                if (multiDates.length === 0) { alert('날짜를 1개 이상 추가해주세요.'); return; }
+                multiDates.forEach(date => {
+                    const [y, m, d] = date.split('-').map(Number);
+                    const dow = new Date(y, m - 1, d).getDay();
+                    inserts.push({ day_of_week: dow, start_time: startTime, end_time: endTime,
+                                  reason: reason || null, start_date: date, end_date: date });
+                });
             } else {
-                dow = parseInt(document.getElementById('blockDow').value);
-                startDate = document.getElementById('blockStartDate').value || null;
-                endDate = document.getElementById('blockEndDate').value || null;
+                const dow = parseInt(document.getElementById('blockDow').value);
+                const startDate = document.getElementById('blockStartDate').value || null;
+                const endDate   = document.getElementById('blockEndDate').value || null;
                 if (startDate && endDate && startDate > endDate) {
                     alert('시작일이 종료일보다 늦을 수 없습니다.'); return;
                 }
+                inserts.push({ day_of_week: dow, start_time: startTime, end_time: endTime,
+                              reason: reason || null, start_date: startDate, end_date: endDate });
             }
-            const { error } = await supabaseClient.from('time_blocks').insert([{
-                day_of_week: dow, start_time: startTime, end_time: endTime,
-                reason: reason || null, start_date: startDate, end_date: endDate
-            }]);
+
+            const { error } = await supabaseClient.from('time_blocks').insert(inserts);
             if (error) { alert('차단 추가 실패: ' + error.message + '\n\nstart_date/end_date 컬럼이 없다면 다음 SQL 실행 필요:\nALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS start_date date;\nALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS end_date date;'); return; }
+            multiDates = [];
             await fetchBlocks();
             render();
         }
@@ -1898,46 +2147,64 @@
             const memberList = document.getElementById('memberList');
             if (!members || members.length === 0) {
                 memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
-            } else {
-                memberList.innerHTML = members.map(m => {
-                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
-                    const [sc, st] = statusMap[m.status] || statusMap['pending'];
-                    const date = new Date(m.created_at).toLocaleDateString('ko-KR');
-                    const role = m.role || '일반';
-                    const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
-                    const roleColor = roleColors[role] || '#999';
-
-                    let actions = '';
-                    if (m.status === 'pending') {
-                        if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button>`;
-                        if (canBanMember()) actions += `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">거절</button>`;
-                    } else if (m.status === 'approved') {
-                        if (canBanMember()) actions += `<button type="button" class="reject-btn" onclick="rejectMember('${m.id}')">차단</button>`;
-                    } else {
-                        if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
-                    }
-
-                    const isS = isSuper();
-                    const roleSelect = isS ? `
-                        <select onchange="updateMemberRole('${m.id}', this.value)" style="margin-top:4px;font-size:0.8rem;padding:2px 6px;border:1px solid var(--wds-gray-300);border-radius:4px;color:${roleColor}">
-                            <option value="일반" ${role==='일반'?'selected':''}>일반</option>
-                            <option value="세션장" ${role==='세션장'?'selected':''}>세션장</option>
-                            <option value="총괄" ${role==='총괄'?'selected':''}>총괄</option>
-                        </select>` : '';
-
-                    const contactLine = isS ? `<div class="my-res-time">${m.email || ''} · ${m.phone || ''} · ${date}</div>` : `<div class="my-res-time">${date}</div>`;
-                    const instText = m.instruments ? `<div style="font-size:0.82rem;color:var(--wds-primary);margin-top:2px">🎵 ${m.instruments}</div>` : '';
-                    return `<div class="my-res-item" style="margin-bottom:8px">
-                        <div class="my-res-info">
-                            <div class="my-res-date">${m.name} <span class="status-badge ${sc}">${st}</span></div>
-                            ${contactLine}
-                            ${instText}
-                            ${roleSelect}
-                        </div>
-                        <div>${actions}</div>
-                    </div>`;
-                }).join('');
+                return;
             }
+            const isS = isSuper();
+            const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+            const statusMap = { pending: ['status-pending', '대기'], approved: ['status-approved', '승인'], rejected: ['status-rejected', '거절'] };
+
+            const renderAdminItem = (m) => {
+                const [sc, st] = statusMap[m.status] || statusMap['pending'];
+                const date = new Date(m.created_at).toLocaleDateString('ko-KR');
+                const role = m.role || '일반';
+                const roleColor = roleColors[role] || '#999';
+                const insts = (m.instruments || '').split(',').map(s=>s.trim()).filter(Boolean);
+
+                let actions = '';
+                if (m.status === 'pending') {
+                    if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button>`;
+                    if (canBanMember())     actions += `<button type="button" class="reject-btn"  onclick="rejectMember('${m.id}')">거절</button>`;
+                } else if (m.status === 'approved') {
+                    if (canBanMember())     actions += `<button type="button" class="reject-btn"  onclick="rejectMember('${m.id}')">차단</button>`;
+                } else {
+                    if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">재승인</button>`;
+                }
+                const roleSelect = isS ? `
+                    <select onchange="updateMemberRole('${m.id}', this.value)" style="font-size:0.7rem;padding:2px 4px;border:1px solid var(--wds-gray-300);border-radius:4px;color:${roleColor};background:white">
+                        <option value="일반" ${role==='일반'?'selected':''}>일반</option>
+                        <option value="세션장" ${role==='세션장'?'selected':''}>세션장</option>
+                        <option value="총괄" ${role==='총괄'?'selected':''}>총괄</option>
+                    </select>` : '';
+                const contactInfo = isS
+                    ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span><span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
+                    : '';
+                return `<div class="admin-member-row">
+                    <div class="admin-member-main">
+                        <span class="status-badge ${sc}" style="font-size:0.68rem;padding:1px 6px">${st}</span>
+                        <span class="admin-member-name">${escapeHtml(m.name)}</span>
+                        ${insts.length > 0 ? instBadges(m.instruments) : ''}
+                        ${contactInfo}
+                        <span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap;margin-left:auto">${date}</span>
+                    </div>
+                    <div class="admin-member-side">${roleSelect}${actions}</div>
+                </div>`;
+            };
+
+            // 상태별 그룹 정렬: 대기 → 승인 → 거절
+            const pendingGrp  = members.filter(m => m.status === 'pending');
+            const approvedGrp = members.filter(m => m.status === 'approved');
+            const rejectedGrp = members.filter(m => m.status === 'rejected');
+
+            const groupHtml = (label, color, list) => list.length === 0 ? '' : `
+                <div class="admin-member-group">
+                    <div class="admin-member-group-header" style="border-left-color:${color}">${label} <span class="member-group-count">${list.length}</span></div>
+                    <div class="admin-member-list">${list.map(renderAdminItem).join('')}</div>
+                </div>`;
+
+            memberList.innerHTML =
+                groupHtml('⏳ 승인 대기', '#f0a050', pendingGrp) +
+                groupHtml('✅ 승인됨',   '#00b894', approvedGrp) +
+                groupHtml('🚫 거절됨',   '#e74c3c', rejectedGrp);
         }
 
         function renderAdminNoticeSection(container) {
