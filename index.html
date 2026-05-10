@@ -306,6 +306,10 @@
 
         /* 멤버 대시보드 */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+        .stat-grid.stat-grid-compact { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .stat-grid.stat-grid-compact .stat-card { padding: 8px 10px; }
+        .stat-grid.stat-grid-compact .stat-label { font-size: 0.7rem; margin-bottom: 2px; }
+        .stat-grid.stat-grid-compact .stat-value { font-size: 1.05rem; }
         .stat-card { background: var(--wds-gray-100); border-radius: var(--wds-radius-m); padding: 12px 14px; }
         .stat-label { font-size: 0.78rem; color: var(--wds-gray-700); margin-bottom: 4px; }
         .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--wds-black); }
@@ -759,7 +763,6 @@
                 <div class="tabs">
                     <div class="tab active" data-view="month">월간</div>
                     <div class="tab" data-view="week">주간</div>
-                    <div class="tab" data-view="day">일간</div>
                 </div>
 
                 <div class="view-header">
@@ -1022,6 +1025,19 @@
                             <button type="button" onclick="saveMypageProfile('${profile.id}')"
                                 style="flex:1;padding:10px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.9rem;background:var(--wds-primary);color:white;font-family:inherit">저장</button>
                         </div>
+                        ${isEmailUser ? `
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-300);margin:14px 0 6px">
+                        <div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:6px">비밀번호 변경</div>
+                        <input type="password" id="changePwCurrent" placeholder="현재 비밀번호" autocomplete="current-password"
+                            style="height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;outline:none">
+                        <input type="password" id="changePwNew" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password"
+                            style="height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;outline:none">
+                        <input type="password" id="changePwConfirm" placeholder="새 비밀번호 확인" autocomplete="new-password"
+                            style="height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;outline:none">
+                        <button type="button" onclick="handleChangePassword()"
+                            style="height:40px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.88rem;background:var(--wds-primary);color:white;font-family:inherit">비밀번호 변경</button>
+                        <div id="changePwResult" style="font-size:0.82rem;min-height:18px"></div>
+                        ` : ''}
                     </div>
                 </div>
                 <hr style="border:none;border-top:1px solid var(--wds-gray-100);margin:16px 0">
@@ -1078,27 +1094,12 @@
             content.innerHTML = `
                 ${profileHtml}
                 <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:8px">활동 요약</div>
-                <div class="stat-grid">
+                <div class="stat-grid stat-grid-compact">
                     <div class="stat-card" style="border-left:4px solid var(--wds-primary)"><div class="stat-label">전체 예약</div><div class="stat-value">${myRes.length}</div></div>
                     <div class="stat-card" style="border-left:4px solid #00b894"><div class="stat-label">승인됨</div><div class="stat-value">${approvedCount}</div></div>
                     <div class="stat-card" style="border-left:4px solid #f0a050"><div class="stat-label">대기중</div><div class="stat-value">${pendingCount}</div></div>
                 </div>
                 ${teamsHtml}
-                ${isEmailUser ? `
-                <hr style="border:none;border-top:1px solid var(--wds-gray-100);margin:16px 0">
-                <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:8px">비밀번호 변경</div>
-                <div style="display:flex;flex-direction:column;gap:8px;max-width:360px">
-                    <input type="password" id="changePwCurrent" placeholder="현재 비밀번호" autocomplete="current-password"
-                        style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
-                    <input type="password" id="changePwNew" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password"
-                        style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
-                    <input type="password" id="changePwConfirm" placeholder="새 비밀번호 확인" autocomplete="new-password"
-                        style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
-                    <button type="button" onclick="handleChangePassword()"
-                        style="height:42px;border-radius:var(--wds-radius-s);border:none;cursor:pointer;font-weight:600;font-size:0.9rem;background:var(--wds-primary);color:white;font-family:inherit">비밀번호 변경</button>
-                    <div id="changePwResult" style="font-size:0.85rem;min-height:20px"></div>
-                </div>
-                ` : ''}
             `;
         }
 
@@ -1210,10 +1211,11 @@
             editingTeam: null,
             editingSlots: [],
             editingSongs: [],
-            cachedMembers: []
+            cachedMembers: [],
+            bgmTracks: []
         };
 
-        const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+        const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
 
         // --- 권한 헬퍼 ---
         function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '총괄'); }
@@ -1465,7 +1467,7 @@
                         <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
                     </div>
                     <div class="team-name">${escapeHtml(t.name)}</div>
-                    ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">📅 ${period}</span></div>` : ''}
+                    ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">${period}</span></div>` : ''}
                     ${songs.length > 0 ? `<div class="team-row"><span class="team-label">곡</span><div class="team-songs">${songsHtml}</div></div>` : ''}
                     <div class="team-row"><span class="team-label">멤버</span><div class="team-slots">${slotsHtml}</div></div>
                 </div>`;
@@ -1512,6 +1514,14 @@
                         <button type="button" onclick="searchMusic()" style="padding:8px 14px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;flex-shrink:0">🔍</button>
                     </div>
                     <div id="musicResults"></div>
+                    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--wds-gray-300)">
+                        <div style="font-size:0.78rem;color:var(--wds-gray-700);margin-bottom:6px;font-weight:600">또는 직접 입력</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <input type="text" id="manualSongTitle" placeholder="곡 제목" style="flex:2;min-width:120px;padding:7px 10px;font-size:0.85rem;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-family:inherit">
+                            <input type="text" id="manualSongArtist" placeholder="아티스트 (선택)" style="flex:1;min-width:100px;padding:7px 10px;font-size:0.85rem;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-family:inherit">
+                            <button type="button" onclick="addManualSong()" style="padding:7px 12px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.82rem;font-weight:600;flex-shrink:0">+ 추가</button>
+                        </div>
+                    </div>
                 </div>
                 <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">팀 구성</label>
                 <div id="teamSlots"></div>
@@ -1666,6 +1676,18 @@
             }
         }
 
+        function addManualSong() {
+            const title = document.getElementById('manualSongTitle').value.trim();
+            const artist = document.getElementById('manualSongArtist').value.trim();
+            if (!title) { alert('곡 제목을 입력해주세요.'); return; }
+            if (!state.editingSongs.find(s => s.title === title && s.artist === artist)) {
+                state.editingSongs.push({ title, artist, artwork: '' });
+                renderSongList();
+            }
+            document.getElementById('manualSongTitle').value = '';
+            document.getElementById('manualSongArtist').value = '';
+        }
+
         function selectMusic(el) {
             const title = el.dataset.title;
             const artist = el.dataset.artist;
@@ -1725,9 +1747,7 @@
                     ? `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:8px;white-space:nowrap">${emailDisplay}</span>`
                     + `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
                     : '';
-                const roleTag = role !== '일반'
-                    ? `<span style="font-size:0.7rem;color:${roleColor};margin-left:6px;white-space:nowrap;font-weight:700">${roleEmoji(role)} ${role}</span>`
-                    : '';
+                const roleTag = '';
                 // 부 악기만 뱃지로
                 const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
                 const subInsts = insts.slice(1).join(',');
@@ -1791,7 +1811,7 @@
             const subtabDefs = [
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
-                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }] : [])
+                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -1811,10 +1831,125 @@
                 await renderAdminMembersSection(content);
             } else if (state.adminTab === 'blocks') {
                 renderAdminBlocksSection(content);
+            } else if (state.adminTab === 'bgm') {
+                renderAdminBgmSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
         }
+
+        async function renderAdminBgmSection(container) {
+            const section = document.createElement('div');
+            section.className = 'admin-section';
+            section.innerHTML = `
+                <div class="admin-section-title">🎵 BGM 플레이리스트 관리</div>
+                <div style="font-size:0.82rem;color:var(--wds-gray-500);margin-bottom:12px;line-height:1.5">
+                    Suno 곡 ID와 제목을 입력해 곡을 추가/제거할 수 있습니다.<br>
+                    저장 시 GitHub의 <code style="background:var(--wds-gray-100);padding:1px 4px;border-radius:3px">music.json</code>이 업데이트됩니다.
+                </div>
+                <div style="margin-bottom:12px">
+                    <label style="display:block;font-size:0.78rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:4px">GitHub Personal Access Token</label>
+                    <input type="password" id="bgmPat" placeholder="github_pat_..." autocomplete="off"
+                        style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;outline:none">
+                    <div style="font-size:0.7rem;color:var(--wds-gray-500);margin-top:4px">Contents: Read & Write 권한 필요. 브라우저에만 저장됩니다.</div>
+                </div>
+                <div id="bgmAdminList" style="margin-bottom:12px"></div>
+                <div style="background:var(--wds-gray-100);padding:10px;border-radius:var(--wds-radius-s);margin-bottom:10px">
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:6px">새 곡 추가</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <input type="text" id="bgmNewId" placeholder="Suno 곡 ID (UUID)"
+                            style="flex:2;min-width:160px;padding:7px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.82rem;font-family:inherit">
+                        <input type="text" id="bgmNewTitle" placeholder="곡 제목"
+                            style="flex:1;min-width:120px;padding:7px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.82rem;font-family:inherit">
+                        <button type="button" onclick="bgmAdminAdd()" style="padding:7px 14px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.82rem;font-weight:600;flex-shrink:0">+ 추가</button>
+                    </div>
+                </div>
+                <button type="button" onclick="bgmAdminSave()" class="admin-post-btn" style="width:100%">💾 GitHub에 저장</button>
+                <div id="bgmAdminStatus" style="margin-top:10px;font-size:0.85rem;min-height:20px"></div>
+            `;
+            container.appendChild(section);
+
+            // 저장된 PAT 복원
+            const savedPat = localStorage.getItem('bgm_admin_pat');
+            if (savedPat) document.getElementById('bgmPat').value = savedPat;
+            document.getElementById('bgmPat').addEventListener('change', e => {
+                localStorage.setItem('bgm_admin_pat', e.target.value.trim());
+            });
+
+            // music.json 로드
+            try {
+                const r = await fetch('music.json?v=' + Date.now());
+                state.bgmTracks = await r.json();
+            } catch (e) {
+                state.bgmTracks = [];
+            }
+            renderBgmAdminList();
+        }
+
+        function renderBgmAdminList() {
+            const list = document.getElementById('bgmAdminList');
+            if (!list) return;
+            const tracks = state.bgmTracks || [];
+            if (tracks.length === 0) {
+                list.innerHTML = '<p style="text-align:center;padding:14px;color:var(--wds-gray-500);font-size:0.85rem;background:var(--wds-gray-100);border-radius:var(--wds-radius-s)">등록된 곡이 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = `<div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:6px">현재 ${tracks.length}곡</div>` + tracks.map((t, i) => `
+                <div class="admin-member-row" style="margin-bottom:4px">
+                    <span style="font-size:0.78rem;color:var(--wds-gray-500);width:20px;flex-shrink:0">${i + 1}</span>
+                    <input type="text" value="${escapeHtml(t.title)}" onchange="bgmAdminEditTitle(${i}, this.value)" style="flex:1;padding:4px 8px;font-size:0.82rem;border:1px solid var(--wds-gray-300);border-radius:4px;font-family:inherit">
+                    <span style="font-size:0.68rem;color:var(--wds-gray-500);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${escapeHtml(t.id)}">${escapeHtml(t.id.slice(0, 8))}…</span>
+                    <button type="button" onclick="bgmAdminRemove(${i})" style="padding:3px 8px;font-size:0.7rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;flex-shrink:0">×</button>
+                </div>`).join('');
+        }
+
+        window.bgmAdminEditTitle = function(idx, value) {
+            if (state.bgmTracks && state.bgmTracks[idx]) state.bgmTracks[idx].title = value.trim();
+        };
+        window.bgmAdminRemove = function(idx) {
+            if (!confirm('이 곡을 제거하시겠습니까?')) return;
+            state.bgmTracks.splice(idx, 1);
+            renderBgmAdminList();
+        };
+        window.bgmAdminAdd = function() {
+            const id = document.getElementById('bgmNewId').value.trim();
+            const title = document.getElementById('bgmNewTitle').value.trim();
+            if (!id || !title) { alert('곡 ID와 제목을 모두 입력해주세요.'); return; }
+            if (!/^[0-9a-f-]{36}$/i.test(id)) { alert('Suno 곡 ID는 UUID 형식이어야 합니다.'); return; }
+            if ((state.bgmTracks || []).some(t => t.id === id)) { alert('이미 등록된 곡입니다.'); return; }
+            (state.bgmTracks = state.bgmTracks || []).push({ id, title });
+            document.getElementById('bgmNewId').value = '';
+            document.getElementById('bgmNewTitle').value = '';
+            renderBgmAdminList();
+        };
+        window.bgmAdminSave = async function() {
+            const pat = document.getElementById('bgmPat').value.trim();
+            const status = document.getElementById('bgmAdminStatus');
+            if (!pat) { status.innerHTML = '<span style="color:#e74c3c">❌ PAT을 입력해주세요.</span>'; return; }
+            const REPO = 'wearegatheo-netizen/gatherallaround';
+            const FILE = 'music.json';
+            const BRANCH = 'master';
+            status.innerHTML = '<span style="color:var(--wds-gray-500)">⏳ 저장 중...</span>';
+            try {
+                const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}?ref=${BRANCH}`,
+                    { headers: { Authorization: `token ${pat}`, Accept: 'application/vnd.github+json' } }).then(r => r.json());
+                if (!cur.sha) { status.innerHTML = `<span style="color:#e74c3c">❌ 조회 실패: ${cur.message || ''}</span>`; return; }
+                const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(state.bgmTracks, null, 2) + '\n')));
+                const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
+                    method: 'PUT',
+                    headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `BGM: 관리자 페이지에서 ${state.bgmTracks.length}곡 업데이트`,
+                        content: newContent, sha: cur.sha, branch: BRANCH
+                    })
+                });
+                const j = await res.json();
+                if (res.ok) status.innerHTML = `<span style="color:#00b894">✅ 저장 완료! (${state.bgmTracks.length}곡)</span>`;
+                else status.innerHTML = `<span style="color:#e74c3c">❌ 저장 실패: ${j.message || res.status}</span>`;
+            } catch (e) {
+                status.innerHTML = `<span style="color:#e74c3c">❌ 오류: ${e.message}</span>`;
+            }
+        };
 
         // 다중 날짜 선택용 임시 상태
         let multiDates = [];
@@ -1976,8 +2111,8 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:4px;flex-shrink:0">
-                        <button type="button" class="cancel-btn" onclick="toggleBlockEdit('${b.id}')" style="background:var(--wds-primary);color:#fff">수정</button>
-                        <button type="button" class="cancel-btn block-list-del" onclick="deleteTimeBlock('${b.id}')">삭제</button>
+                        <button type="button" onclick="toggleBlockEdit('${b.id}')" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">수정</button>
+                        <button type="button" onclick="deleteTimeBlock('${b.id}')" style="padding:4px 10px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">삭제</button>
                     </div>
                 </div>`;
             };
@@ -2340,7 +2475,7 @@
                 });
                 if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
 
-                day.onclick = () => { state.viewDate = loopDate; state.currentView = 'day'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day')); render(); };
+                day.onclick = () => { state.viewDate = loopDate; state.currentView = 'week'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'week')); render(); };
                 grid.appendChild(day);
             }
             container.appendChild(grid);
