@@ -193,8 +193,35 @@
             const branch = 'master';
             const path = 'music.json';
 
-            // 북마클릿 본문 - 실행 환경: Suno 페이지
-            const code = `(async()=>{try{
+            const code = `(async()=>{
+// ── 토스트 UI 주입 ──
+const TOAST_ID='__bgm_sync_toast__';
+document.getElementById(TOAST_ID)?.remove();
+const toast=document.createElement('div');
+toast.id=TOAST_ID;
+Object.assign(toast.style,{
+  position:'fixed',top:'24px',right:'24px',zIndex:'2147483647',
+  minWidth:'280px',maxWidth:'340px',
+  background:'#1a1a1a',color:'#fff',
+  borderRadius:'14px',padding:'16px 20px',
+  fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif',
+  fontSize:'14px',lineHeight:'1.5',
+  boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
+  border:'1px solid rgba(255,255,255,0.1)',
+  transition:'opacity 0.4s',opacity:'1',
+});
+const setToast=(icon,title,sub,color)=>{
+  toast.innerHTML='<div style="display:flex;align-items:flex-start;gap:12px">'
+    +'<span style="font-size:20px;line-height:1;flex-shrink:0">'+icon+'</span>'
+    +'<div><div style="font-weight:700;color:'+(color||'#fff')+'">'+title+'</div>'
+    +(sub?'<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:3px">'+sub+'</div>':'')
+    +'</div></div>';
+};
+const dismiss=(delay=4000)=>setTimeout(()=>{toast.style.opacity='0';setTimeout(()=>toast.remove(),450);},delay);
+setToast('⏳','동기화 중...','곡 목록 수집하는 중','#fff');
+document.body.appendChild(toast);
+
+try{
 const PAT=${JSON.stringify(pat)};
 const PL=${JSON.stringify(playlistId)};
 const REPO=${JSON.stringify(repo)};
@@ -203,47 +230,54 @@ const F=${JSON.stringify(path)};
 
 const out={ids:[],titles:{}};
 
-// 1) 우선 Suno 내부 API 시도
+// 1) Suno 내부 API 시도
 try{
   const r=await fetch('/api/playlist/'+PL+'/?page=1',{credentials:'include'});
-  if(r.ok){const j=await r.json();(j.playlist_clips||j.clips||[]).forEach(c=>{const id=(c.clip||c).id;const t=(c.clip||c).title;if(id&&!out.ids.includes(id)){out.ids.push(id);if(t)out.titles[id]=t;}});}
+  if(r.ok){const j=await r.json();(j.playlist_clips||j.clips||[]).forEach(c=>{const cl=c.clip||c;if(cl.id&&!out.ids.includes(cl.id)){out.ids.push(cl.id);if(cl.title)out.titles[cl.id]=cl.title;}});}
 }catch(e){}
 
-// 2) DOM에서 보강 (스크롤로 로드된 것들)
+// 2) DOM 보강
 document.querySelectorAll('a[href*="/song/"]').forEach(a=>{
-  const m=a.href.match(/\\/song\\/([0-9a-f-]{36})/i);if(!m)return;const id=m[1];
-  if(!out.ids.includes(id))out.ids.push(id);
-  // 인접한 제목 텍스트 시도
+  const m=a.href.match(/\\/song\\/([0-9a-f-]{36})/i);if(!m)return;
+  const id=m[1];if(!out.ids.includes(id))out.ids.push(id);
   if(!out.titles[id]){const t=a.textContent.trim()||a.closest('[class*="row"],[class*="item"],li,tr')?.querySelector('[class*="title"],[class*="name"]')?.textContent?.trim();if(t&&t.length<200)out.titles[id]=t;}
 });
 
-if(!out.ids.length){alert('❌ 곡을 찾지 못했습니다.\\nSuno 플레이리스트 페이지에서 실행해주세요.');return;}
+if(!out.ids.length){setToast('❌','곡을 찾지 못했습니다','Suno 플레이리스트 페이지에서 실행해주세요','#ff6b6b');dismiss(6000);return;}
 
-// 3) GitHub에서 현재 music.json 조회
+setToast('⏳','GitHub 동기화 중...','music.json 업데이트하는 중','#fff');
+
+// 3) music.json 조회
 const cur=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+F+'?ref='+BR,{headers:{Authorization:'token '+PAT,Accept:'application/vnd.github+json'}}).then(r=>r.json());
-if(!cur.sha){alert('❌ music.json 조회 실패: '+(cur.message||'알수없음'));return;}
+if(!cur.sha){setToast('❌','GitHub 조회 실패',cur.message||'알 수 없는 오류','#ff6b6b');dismiss(8000);return;}
 const existing=JSON.parse(atob(cur.content.replace(/\\s/g,'')));
 const exMap=new Map(existing.map(t=>[t.id,t]));
 
-// 4) 머지: 기존 유지, 새 곡 추가, 플레이리스트에 없는 곡은 제거
-const merged=out.ids.map(id=>{
-  const ex=exMap.get(id);
-  return{id,title:out.titles[id]||(ex&&ex.title)||'Track'};
-});
+// 4) 머지
+const merged=out.ids.map(id=>{const ex=exMap.get(id);return{id,title:out.titles[id]||(ex&&ex.title)||'Track'};});
+const added=merged.filter(t=>!exMap.has(t.id)).length;
+const removed=existing.filter(t=>!merged.find(m=>m.id===t.id)).length;
 
-// 변경사항 비교
-const same=merged.length===existing.length&&merged.every((t,i)=>existing[i]&&existing[i].id===t.id&&existing[i].title===t.title);
-if(same){alert('✅ 변경사항 없음 ('+merged.length+'곡)');return;}
+const same=merged.length===existing.length&&merged.every((t,i)=>existing[i]&&existing[i].id===t.id);
+if(same){setToast('✅','변경사항 없음',merged.length+'곡 · 최신 상태입니다','#69db7c');dismiss();return;}
 
 const newContent=btoa(unescape(encodeURIComponent(JSON.stringify(merged,null,2)+'\\n')));
 const res=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+F,{method:'PUT',headers:{Authorization:'token '+PAT,'Content-Type':'application/json'},body:JSON.stringify({message:'BGM: sync '+merged.length+' songs from Suno playlist',content:newContent,sha:cur.sha,branch:BR})});
 const j=await res.json();
-if(res.ok)alert('✅ 동기화 완료!\\n총 '+merged.length+'곡 (이전 '+existing.length+'곡)');
-else alert('❌ 업로드 실패: '+(j.message||res.status));
-}catch(e){alert('❌ 오류: '+e.message);}})();`;
+if(res.ok){
+  const parts=[];
+  if(added)parts.push('+'+added+'곡 추가');
+  if(removed)parts.push('-'+removed+'곡 제거');
+  setToast('✅','동기화 완료!','총 '+merged.length+'곡'+(parts.length?' · '+parts.join(', '):''),'#69db7c');
+  dismiss();
+}else{
+  setToast('❌','업로드 실패',j.message||'HTTP '+res.status,'#ff6b6b');
+  dismiss(8000);
+}
+}catch(e){setToast('❌','오류 발생',e.message,'#ff6b6b');dismiss(8000);}
+})();`;
 
-            // 압축 (단순 공백/줄바꿈 제거)
-            const minified = code.replace(/\n\s*/g, '');
+            const minified = code.replace(/\n/g, '');
             return 'javascript:' + encodeURIComponent(minified);
         }
 
