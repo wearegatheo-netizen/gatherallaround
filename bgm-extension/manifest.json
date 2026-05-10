@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "GAA BGM 동기화",
+  "version": "1.0",
+  "description": "Suno 플레이리스트를 Gather All Around BGM에 동기화합니다.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "BGM 동기화"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://suno.com/*",
+    "https://api.github.com/*"
+  ]
+}

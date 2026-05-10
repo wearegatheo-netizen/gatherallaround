@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 300px;
+      background: #111;
+      color: #fff;
+      padding: 20px;
+      font-size: 13px;
+    }
+    h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .sub { color: #888; font-size: 11px; margin-bottom: 16px; }
+    label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; margin-top: 12px; }
+    input {
+      width: 100%; padding: 8px 10px;
+      background: #222; border: 1px solid #333; border-radius: 6px;
+      color: #fff; font-size: 12px; font-family: inherit;
+    }
+    input:focus { outline: none; border-color: #3366FF; }
+    button {
+      width: 100%; margin-top: 16px; padding: 10px;
+      background: #3366FF; color: #fff; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: background 0.15s;
+    }
+    button:hover { background: #254EDB; }
+    button:disabled { background: #333; color: #666; cursor: not-allowed; }
+    #status {
+      margin-top: 12px; padding: 10px 12px;
+      border-radius: 8px; font-size: 12px; line-height: 1.5;
+      display: none;
+    }
+    #status.loading { background: #1a1a2e; border: 1px solid #333; color: #aaa; }
+    #status.success { background: #0d2818; border: 1px solid #1a5c35; color: #69db7c; }
+    #status.error   { background: #2d0d0d; border: 1px solid #5c1a1a; color: #ff8080; }
+    #status.info    { background: #1a1a2e; border: 1px solid #2a2a5c; color: #aab4ff; }
+    .warn { margin-top: 12px; font-size: 10px; color: #555; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <h1>🎵 GAA BGM 동기화</h1>
+  <p class="sub">Suno 플레이리스트 → music.json</p>
+
+  <label>GitHub Personal Access Token</label>
+  <input type="password" id="pat" placeholder="github_pat_..." autocomplete="off">
+
+  <label>Suno 플레이리스트 ID</label>
+  <input type="text" id="playlist-id" placeholder="c1ae3b08-42e5-489f-849f-e72af821f62c">
+
+  <button id="sync-btn" onclick="sync()">🔄 지금 동기화</button>
+
+  <div id="status"></div>
+
+  <p class="warn">⚠️ PAT은 이 기기의 확장 프로그램 저장소에만 저장됩니다.</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
