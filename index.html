@@ -1452,7 +1452,7 @@
                 const songsHtml = songs.map(s => `
                     <div class="team-song-item">
                         ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="">` : ''}
-                        <span class="team-song-text">🎵 ${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
+                        <span class="team-song-text">${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
                     </div>`).join('');
                 const slotsHtml = slots.map(s => {
                     const m = memberMap[s.memberId];
@@ -1941,6 +1941,7 @@
             weekly.sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
             once.sort((a,b) => (a.start_date || '').localeCompare(b.start_date || '') || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
 
+            const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
             const renderOne = (b) => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
                 const isOnce = b.start_date && b.start_date === b.end_date;
@@ -1957,12 +1958,27 @@
                     else period = '영구';
                     sub = `${b.start_time} ~ ${endDisplay} · ${period}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
                 }
-                return `<div class="block-list-row">
-                    <div class="block-list-info">
+                const selStart = TIMES.map(t => `<option value="${t}"${t===b.start_time?' selected':''}>${t}</option>`).join('');
+                const selEnd   = TIMES.map(t => `<option value="${t}"${t===b.end_time?' selected':''}>${t}</option>`).join('');
+                return `<div class="block-list-row" id="blk-row-${b.id}">
+                    <div class="block-list-info" style="flex:1">
                         <div class="block-list-label">${label}</div>
-                        <div class="block-list-sub">${sub}</div>
+                        <div class="block-list-sub blk-view-${b.id}">${sub}</div>
+                        <div class="blk-edit-${b.id}" style="display:none;margin-top:6px;display:none">
+                            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                                <select id="blk-st-${b.id}" style="font-size:0.78rem;padding:3px 4px;border-radius:4px;border:1px solid var(--wds-gray-300)">${selStart}</select>
+                                <span style="font-size:0.78rem">~</span>
+                                <select id="blk-et-${b.id}" style="font-size:0.78rem;padding:3px 4px;border-radius:4px;border:1px solid var(--wds-gray-300)">${selEnd}</select>
+                                <input type="text" id="blk-rs-${b.id}" value="${escapeHtml(b.reason||'')}" placeholder="사유" style="font-size:0.78rem;padding:3px 6px;border-radius:4px;border:1px solid var(--wds-gray-300);width:100px">
+                                <button type="button" onclick="saveBlockEdit('${b.id}')" style="font-size:0.76rem;padding:3px 8px;background:var(--wds-primary);color:#fff;border:none;border-radius:4px;cursor:pointer">저장</button>
+                                <button type="button" onclick="cancelBlockEdit('${b.id}')" style="font-size:0.76rem;padding:3px 8px;background:var(--wds-gray-200);color:var(--wds-gray-700);border:none;border-radius:4px;cursor:pointer">취소</button>
+                            </div>
+                        </div>
                     </div>
-                    <button type="button" class="cancel-btn block-list-del" onclick="deleteTimeBlock('${b.id}')">삭제</button>
+                    <div style="display:flex;gap:4px;flex-shrink:0">
+                        <button type="button" class="cancel-btn" onclick="toggleBlockEdit('${b.id}')" style="background:var(--wds-primary);color:#fff">수정</button>
+                        <button type="button" class="cancel-btn block-list-del" onclick="deleteTimeBlock('${b.id}')">삭제</button>
+                    </div>
                 </div>`;
             };
 
@@ -1975,6 +1991,33 @@
             list.innerHTML = sectionHtml('🔄 매주 반복', '#3366FF', weekly)
                            + sectionHtml('📌 특정 날짜', '#f0a050', once);
         }
+
+        window.toggleBlockEdit = function(id) {
+            const editDiv = document.querySelector(`.blk-edit-${id}`);
+            const viewDiv = document.querySelector(`.blk-view-${id}`);
+            if (!editDiv || !viewDiv) return;
+            const isHidden = editDiv.style.display === 'none' || editDiv.style.display === '';
+            editDiv.style.display = isHidden ? 'block' : 'none';
+            viewDiv.style.display = isHidden ? 'none' : 'block';
+        };
+        window.cancelBlockEdit = function(id) {
+            const editDiv = document.querySelector(`.blk-edit-${id}`);
+            const viewDiv = document.querySelector(`.blk-view-${id}`);
+            if (editDiv) editDiv.style.display = 'none';
+            if (viewDiv) viewDiv.style.display = 'block';
+        };
+        window.saveBlockEdit = async function(id) {
+            const b = state.blocks.find(x => x.id === id);
+            if (!b) return;
+            const st = document.getElementById(`blk-st-${id}`)?.value;
+            const et = document.getElementById(`blk-et-${id}`)?.value;
+            const rs = document.getElementById(`blk-rs-${id}`)?.value.trim();
+            if (TIMES.indexOf(st) > TIMES.indexOf(et)) { alert('시작 시간이 종료 시간보다 늦을 수 없습니다.'); return; }
+            const { error } = await supabaseClient.from('time_blocks').update({ start_time: st, end_time: et, reason: rs || null }).eq('id', id);
+            if (error) { alert('수정 실패: ' + error.message); return; }
+            b.start_time = st; b.end_time = et; b.reason = rs || null;
+            renderBlockList();
+        };
 
         function onBlockRepeatChange() {
             const type = document.getElementById('blockRepeat').value;
@@ -2064,24 +2107,28 @@
             pendingSection.appendChild(pendingList);
             container.appendChild(pendingSection);
 
-            // 승인된 예약
+            // 승인된 예약 (지나간 날짜 제외)
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const approved = state.reservations
+                .filter(r => r.status === 'approved' && r.res_date >= todayStr)
+                .sort((a, b) => a.res_date.localeCompare(b.res_date) || a.start_time.localeCompare(b.start_time));
             const approvedSection = document.createElement('div');
             approvedSection.className = 'admin-section';
-            const approved = state.reservations.filter(r => r.status === 'approved').sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
             approvedSection.innerHTML = `<div class="admin-section-title">✅ 승인된 예약 (${approved.length}건)</div>`;
-            const approvedList = document.createElement('div'); approvedList.className = 'my-res-list';
+            const approvedList = document.createElement('div');
             if (approved.length === 0) {
-                approvedList.innerHTML = '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">승인된 예약이 없습니다.</p>';
+                approvedList.innerHTML = '<p style="text-align:center;padding:16px;color:var(--wds-gray-500);font-size:0.85rem;">승인된 예약이 없습니다.</p>';
             } else {
                 approved.forEach(r => {
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
-                    const item = document.createElement('div'); item.className = 'my-res-item';
+                    const item = document.createElement('div');
+                    item.className = 'admin-member-row';
+                    item.style.cssText = 'justify-content:space-between;margin-bottom:4px';
                     item.innerHTML = `
-                        <div class="my-res-info">
-                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
-                            <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
-                        </div>
-                        ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">강제 취소</button>` : ''}`;
+                        <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
+                        <span style="font-size:0.78rem;color:var(--wds-gray-600);white-space:nowrap">${r.start_time}~${endTimeDisplay}</span>
+                        <span style="font-size:0.82rem;flex:1;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
+                        ${canCancelRes() ? `<button type="button" class="cancel-btn" style="flex-shrink:0" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}`;
                     approvedList.appendChild(item);
                 });
             }
@@ -2332,7 +2379,12 @@
 
                     const block = getBlock(d, time);
                     const occupiedRes = getOccupiedReservation(d, time);
-                    if (block) {
+                    const past = isPastSlot(d, time);
+                    if (past && !block && !occupiedRes) {
+                        s.style.background = '#f5f5f5';
+                        s.style.cursor = 'not-allowed';
+                        s.style.opacity = '0.45';
+                    } else if (block) {
                         s.style.background = '#ffe5e5';
                         s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.65rem';
@@ -2376,7 +2428,14 @@
                 
                 const block = getBlock(state.viewDate, time);
                 const occupiedRes = getOccupiedReservation(state.viewDate, time);
-                if (block) {
+                const past = isPastSlot(state.viewDate, time);
+                if (past && !block && !occupiedRes) {
+                    s.style.background = '#f5f5f5';
+                    s.style.cursor = 'not-allowed';
+                    s.style.opacity = '0.45';
+                    s.style.color = 'var(--wds-gray-500)';
+                    s.textContent = '지난 시간';
+                } else if (block) {
                     s.style.background = '#ffe5e5';
                     s.style.cursor = 'not-allowed';
                     s.style.color = '#c0392b';
@@ -2454,7 +2513,16 @@
             if (!error) state.blocks = data || [];
         }
 
+        function isPastSlot(date, time) {
+            const now = new Date();
+            const slotDate = new Date(date);
+            const [h] = time.split(':').map(Number);
+            const slotDateTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate(), h, 0, 0);
+            return slotDateTime <= now;
+        }
+
         function onSlotClick(date, time) {
+            if (isPastSlot(date, time)) return;
             if (!state.selectedDate || !isSameDay(state.selectedDate, date)) {
                 state.selectedDate = new Date(date); state.startTime = time; state.endTime = null;
             } else {
@@ -2483,6 +2551,7 @@
             e.preventDefault();
             if (!state.selectedDate || !state.startTime) { alert("날짜와 시간을 선택해주세요."); return; }
             if (!state.endTime) { alert("최소 2시간 이상 예약이 가능합니다."); return; }
+            if (isPastSlot(state.selectedDate, state.startTime)) { alert("지나간 날짜/시간에는 예약할 수 없습니다."); return; }
             if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
 
             const startIdx = TIMES.indexOf(state.startTime), endIdx = TIMES.indexOf(state.endTime);
