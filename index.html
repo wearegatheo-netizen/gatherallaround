@@ -107,7 +107,17 @@
         .logout-btn { color: var(--wds-gray-500); cursor: pointer; border: none; background: none; text-decoration: underline; }
 
         /* Reservation Form */
-        .form-group { margin-bottom: 32px; }
+        .form-group { margin-bottom: 20px; }
+        .section-box {
+            background: var(--wds-white);
+            border: 1px solid var(--wds-gray-300);
+            border-radius: var(--wds-radius-l);
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .section-box .label { margin-bottom: 6px; }
+        .section-box .section-summary { margin-bottom: 0; }
         .label { display: block; font-weight: 700; margin-bottom: 12px; font-size: 1rem; }
         input[type="text"] {
             width: 100%;
@@ -592,7 +602,7 @@
 
         <div id="notice_container" class="hidden"></div>
 
-        <div class="form-group" id="mypagePanel">
+        <div class="form-group section-box" id="mypagePanel">
             <div class="member-panel-header" onclick="toggleMypagePanel()">
                 <span class="label" style="margin:0">👤 마이페이지</span>
                 <span id="mypagePanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
@@ -601,7 +611,7 @@
             <div id="mypagePanelContent" class="hidden" style="margin-top:16px"></div>
         </div>
 
-        <div class="form-group" id="memberPanel">
+        <div class="form-group section-box" id="memberPanel">
             <div class="member-panel-header" onclick="toggleMemberPanel()">
                 <span class="label" style="margin:0">👥 멤버 & 팀</span>
                 <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
@@ -619,7 +629,7 @@
         <form id="reservationForm">
             <input type="hidden" id="userNameInput">
 
-            <div class="form-group">
+            <div class="form-group section-box">
                 <span class="label">📅 예약 및 확인</span>
                 <div class="tabs">
                     <div class="tab active" data-view="month">월간</div>
@@ -2798,8 +2808,8 @@
             cursor: pointer; accent-color: #3366FF; flex-shrink: 0;
         }
         @media (max-width: 480px) {
-            #bgm-volume { display: none; }
-            #bgm-player { padding: 0 12px; gap: 8px; }
+            #bgm-volume { width: 52px; }
+            #bgm-player { padding: 0 12px; gap: 6px; }
             #bgm-playlist-panel { max-height: 260px; }
         }
         body { padding-bottom: 56px; }
