@@ -17,6 +17,8 @@ chrome.storage.local.get(['pat', 'playlistId'], d => {
 patEl.addEventListener('change', () => chrome.storage.local.set({ pat: patEl.value.trim() }));
 plEl.addEventListener('change',  () => chrome.storage.local.set({ playlistId: plEl.value.trim() }));
 
+btn.addEventListener('click', sync);
+
 function setStatus(type, html) {
   status.style.display = 'block';
   status.className = type;
