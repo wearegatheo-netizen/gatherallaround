@@ -2449,7 +2449,7 @@
                     .sort((a, b) => TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
                 // 해당 날짜에 적용되는 차단 블록 수집
                 const dow = loopDate.getDay();
-                const dateStr = loopDate.toISOString().slice(0, 10);
+                const dateStr = loopDate.toLocaleDateString('en-CA');
                 const dayBlocks = (state.blocks || []).filter(b => {
                     if (b.day_of_week !== dow) return false;
                     if (b.start_date && dateStr < b.start_date) return false;
