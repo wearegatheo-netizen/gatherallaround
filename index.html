@@ -332,13 +332,16 @@
         /* 팀 카드 */
         .team-create-btn { padding: 8px 14px; background: var(--wds-primary); color: white; border: none; border-radius: var(--wds-radius-m); cursor: pointer; font-size: 0.85rem; font-weight: 600; }
         .team-create-btn:hover { background: var(--wds-primary-hover); }
-        .team-card { background: var(--wds-gray-100); border-radius: var(--wds-radius-m); padding: 12px 14px; margin-bottom: 8px; position: relative; border: 1px solid var(--wds-gray-300); }
-        .team-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; padding-right: 60px; }
-        .team-period { font-size: 0.78rem; color: var(--wds-gray-700); margin-bottom: 4px; }
+        .team-card { background: white; border-radius: var(--wds-radius-m); padding: 14px 16px; margin-bottom: 8px; position: relative; border: 1px solid var(--wds-gray-300); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .team-name { font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; padding-right: 72px; color: var(--wds-black); }
+        .team-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+        .team-row:last-child { margin-bottom: 0; }
+        .team-label { font-size: 0.68rem; font-weight: 700; color: var(--wds-gray-500); letter-spacing: 0.04em; flex-shrink: 0; padding-top: 3px; min-width: 22px; }
+        .team-period { font-size: 0.78rem; color: var(--wds-gray-700); }
         .team-song { font-size: 0.78rem; color: var(--wds-primary); margin-bottom: 8px; font-weight: 600; }
         .team-slots { display: flex; flex-wrap: wrap; gap: 4px; }
-        .team-slot { background: white; border: 1px solid var(--wds-gray-300); padding: 3px 8px; border-radius: 16px; font-size: 0.75rem; }
-        .team-slot strong { color: var(--wds-primary); margin-right: 3px; }
+        .team-slot { background: var(--wds-gray-100); border: 1px solid var(--wds-gray-300); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; display: flex; align-items: center; gap: 3px; }
+        .team-slot strong { color: var(--wds-primary); font-size: 0.7rem; font-weight: 700; }
         /* 멤버 목록 탭 — 마이페이지 항목과 분리해서 크기 축소 */
         #memberPanelView .my-res-list { gap: 6px; }
         #memberPanelView .my-res-item { padding: 8px 12px; }
@@ -385,10 +388,10 @@
         .song-chip-artist { font-size: 0.78rem; color: var(--wds-gray-500); }
         .song-chip-remove { background: none; border: none; cursor: pointer; color: var(--wds-gray-400); font-size: 1.1rem; padding: 0 2px; flex-shrink: 0; line-height: 1; }
         .song-chip-remove:hover { color: #e74c3c; }
-        .team-songs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-        .team-song-item { display: flex; align-items: center; gap: 5px; background: white; border: 1px solid var(--wds-primary); border-radius: 20px; padding: 3px 10px 3px 3px; }
-        .team-song-item img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
-        .team-song-text { font-size: 0.82rem; color: var(--wds-primary); font-weight: 600; }
+        .team-songs { display: flex; flex-wrap: wrap; gap: 4px; }
+        .team-song-item { display: flex; align-items: center; gap: 4px; background: var(--wds-primary-light); border: 1px solid rgba(51,102,255,0.18); border-radius: 6px; padding: 2px 8px; }
+        .team-song-item img { display: none; }
+        .team-song-text { font-size: 0.75rem; color: var(--wds-primary); font-weight: 600; }
 
         /* 마이페이지 패널 */
         .mypage-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--wds-gray-100); font-size: 0.9rem; }
@@ -1336,18 +1339,18 @@
                     </div>`).join('');
                 const slotsHtml = slots.map(s => {
                     const m = memberMap[s.memberId];
-                    return `<span class="team-slot"><strong>${s.session}</strong>${m ? m.name : '?'}</span>`;
+                    const name = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?';
+                    return `<span class="team-slot"><strong>${escapeHtml(s.session)}</strong>${escapeHtml(name)}</span>`;
                 }).join('');
-                const labelStyle = 'font-size:0.7rem;font-weight:700;color:var(--wds-gray-500);margin-right:4px;flex-shrink:0';
                 return `<div class="team-card">
                     <div class="team-card-actions">
                         <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
                         <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
                     </div>
                     <div class="team-name">${escapeHtml(t.name)}</div>
-                    ${period ? `<div class="team-period" style="display:flex;align-items:center"><span style="${labelStyle}">기간</span>📅 ${period}</div>` : ''}
-                    ${songs.length > 0 ? `<div style="display:flex;align-items:flex-start;margin-bottom:6px"><span style="${labelStyle};margin-top:3px">곡</span><div class="team-songs" style="margin-bottom:0">${songsHtml}</div></div>` : ''}
-                    <div style="display:flex;align-items:flex-start"><span style="${labelStyle};margin-top:4px">멤버</span><div class="team-slots">${slotsHtml}</div></div>
+                    ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">📅 ${period}</span></div>` : ''}
+                    ${songs.length > 0 ? `<div class="team-row"><span class="team-label">곡</span><div class="team-songs">${songsHtml}</div></div>` : ''}
+                    <div class="team-row"><span class="team-label">멤버</span><div class="team-slots">${slotsHtml}</div></div>
                 </div>`;
             }).join('');
         }
@@ -2019,8 +2022,7 @@
                 dayBlocks.forEach(b => {
                     const sh = parseInt(b.start_time.split(':')[0]);
                     const eh = parseInt(b.end_time.split(':')[0]);
-                    const reason = b.reason ? ` ${b.reason.slice(0, 4)}` : '';
-                    info.innerHTML += `<span style="color:#e74c3c">🚫${sh}-${eh}시${reason}</span>`;
+                    info.innerHTML += `<span style="color:#e74c3c">🚫${sh}-${eh}시</span>`;
                 });
                 if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
 
