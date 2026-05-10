@@ -2906,8 +2906,12 @@
                     return;
                 }
                 if (!tracks.length) { titleEl.innerHTML = '<span>BGM</span>곡 없음'; return; }
-                idx = Math.floor(Math.random() * tracks.length);
-                loadTrack(idx, false);
+                // Fisher-Yates 셔플
+                for (let i = tracks.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+                }
+                loadTrack(0, false);
             }
 
             audio.addEventListener('ended', () => loadTrack(idx + 1, true));
