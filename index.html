@@ -2675,5 +2675,157 @@
 
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
+
+    <!-- ── Background Music Player ── -->
+    <style>
+        #bgm-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: rgba(17, 17, 17, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 20px;
+            z-index: 9999;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-family: 'Pretendard', -apple-system, sans-serif;
+        }
+        #bgm-player .bgm-icon {
+            font-size: 18px;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+        #bgm-title {
+            flex: 1;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.75);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        #bgm-title span {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            margin-right: 6px;
+        }
+        .bgm-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: rgba(255,255,255,0.8);
+            padding: 6px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+        .bgm-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .bgm-btn svg { display: block; }
+        #bgm-volume {
+            width: 72px;
+            height: 3px;
+            cursor: pointer;
+            accent-color: #3366FF;
+            flex-shrink: 0;
+        }
+        @media (max-width: 480px) {
+            #bgm-volume { display: none; }
+            #bgm-player { padding: 0 12px; gap: 8px; }
+        }
+        body { padding-bottom: 56px; }
+    </style>
+
+    <div id="bgm-player">
+        <div class="bgm-icon">♪</div>
+        <div id="bgm-title"><span>BGM</span>로딩 중...</div>
+        <!-- Prev -->
+        <button class="bgm-btn" id="bgm-prev" title="이전 곡" onclick="bgmPrev()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3 3h1.5v4.293l7.146-4.147A.5.5 0 0 1 12.5 3.5v9a.5.5 0 0 1-.854.354L4.5 8.707V13H3V3z"/>
+            </svg>
+        </button>
+        <!-- Play/Pause -->
+        <button class="bgm-btn" id="bgm-playpause" title="재생/일시정지" onclick="bgmToggle()">
+            <svg id="bgm-icon-play" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+            </svg>
+            <svg id="bgm-icon-pause" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                <path d="M5 6.25a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0v-3.5zm3.5 0a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0v-3.5z"/>
+            </svg>
+        </button>
+        <!-- Next -->
+        <button class="bgm-btn" id="bgm-next" title="다음 곡" onclick="bgmNext()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13 3h-1.5v4.293L4.354 3.146A.5.5 0 0 0 3.5 3.5v9a.5.5 0 0 0 .854.354L11.5 8.707V13H13V3z"/>
+            </svg>
+        </button>
+        <!-- Volume -->
+        <input type="range" id="bgm-volume" min="0" max="1" step="0.05" value="0.4" oninput="bgmSetVolume(this.value)" title="볼륨">
+        <audio id="bgm-audio" preload="none"></audio>
+    </div>
+
+    <script>
+        (function () {
+            let tracks = [];
+            let idx = 0;
+            const audio = document.getElementById('bgm-audio');
+            const titleEl = document.getElementById('bgm-title');
+            const iconPlay = document.getElementById('bgm-icon-play');
+            const iconPause = document.getElementById('bgm-icon-pause');
+
+            function sunoUrl(id) {
+                return `https://cdn1.suno.ai/${id}.mp3`;
+            }
+
+            function loadTrack(i, autoplay) {
+                if (!tracks.length) return;
+                idx = ((i % tracks.length) + tracks.length) % tracks.length;
+                const t = tracks[idx];
+                audio.src = sunoUrl(t.id);
+                audio.volume = parseFloat(document.getElementById('bgm-volume').value);
+                titleEl.innerHTML = `<span>BGM</span>${t.title || 'Track ' + (idx + 1)}`;
+                if (autoplay) audio.play().catch(() => {});
+            }
+
+            async function initBgm() {
+                try {
+                    const res = await fetch('music.json?v=' + Date.now());
+                    tracks = await res.json();
+                } catch (e) {
+                    titleEl.innerHTML = '<span>BGM</span>곡 없음';
+                    return;
+                }
+                if (!tracks.length) { titleEl.innerHTML = '<span>BGM</span>곡 없음'; return; }
+                // 랜덤 시작
+                idx = Math.floor(Math.random() * tracks.length);
+                loadTrack(idx, false);
+            }
+
+            audio.addEventListener('ended', () => loadTrack(idx + 1, true));
+            audio.addEventListener('play', () => { iconPlay.style.display = 'none'; iconPause.style.display = ''; });
+            audio.addEventListener('pause', () => { iconPlay.style.display = ''; iconPause.style.display = 'none'; });
+
+            window.bgmToggle = function () {
+                if (!tracks.length) return;
+                if (audio.paused) audio.play().catch(() => {});
+                else audio.pause();
+            };
+            window.bgmPrev = function () { loadTrack(idx - 1, !audio.paused); };
+            window.bgmNext = function () { loadTrack(idx + 1, !audio.paused); };
+            window.bgmSetVolume = function (v) { audio.volume = parseFloat(v); };
+
+            initBgm();
+        })();
+    </script>
 </body>
 </html>
