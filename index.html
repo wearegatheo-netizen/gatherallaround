@@ -166,7 +166,9 @@
         .weekly-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
         .weekly-cell { padding: 12px 8px; border-bottom: 1px solid var(--wds-gray-100); border-right: 1px solid var(--wds-gray-100); text-align: center; }
         .weekly-header-cell { background: var(--wds-gray-100); font-weight: 600; padding: 16px 8px; }
-        .weekly-time-cell { background: var(--wds-gray-100); color: var(--wds-gray-500); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .weekly-time-cell { background: var(--wds-gray-100); color: var(--wds-gray-500); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; position: sticky; left: 0; z-index: 2; }
+        .weekly-grid > .weekly-cell:first-child { position: sticky; left: 0; z-index: 3; background: var(--wds-gray-100); }
+        .weekly-time-cell::after, .weekly-grid > .weekly-cell:first-child::after { content: ''; position: absolute; top: 0; right: -4px; bottom: 0; width: 4px; background: linear-gradient(to right, rgba(0,0,0,0.07), transparent); pointer-events: none; }
         .weekly-slot { cursor: pointer; height: 48px; }
         .weekly-slot:hover { background: var(--wds-primary-light); }
         .weekly-slot.selected { background: var(--wds-primary) !important; }
