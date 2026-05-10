@@ -1338,15 +1338,16 @@
                     const m = memberMap[s.memberId];
                     return `<span class="team-slot"><strong>${s.session}</strong>${m ? m.name : '?'}</span>`;
                 }).join('');
+                const labelStyle = 'font-size:0.7rem;font-weight:700;color:var(--wds-gray-500);margin-right:4px;flex-shrink:0';
                 return `<div class="team-card">
                     <div class="team-card-actions">
                         <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
                         <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
                     </div>
                     <div class="team-name">${escapeHtml(t.name)}</div>
-                    ${period ? `<div class="team-period">📅 ${period}</div>` : ''}
-                    ${songs.length > 0 ? `<div class="team-songs">${songsHtml}</div>` : ''}
-                    <div class="team-slots">${slotsHtml}</div>
+                    ${period ? `<div class="team-period" style="display:flex;align-items:center"><span style="${labelStyle}">기간</span>📅 ${period}</div>` : ''}
+                    ${songs.length > 0 ? `<div style="display:flex;align-items:flex-start;margin-bottom:6px"><span style="${labelStyle};margin-top:3px">곡</span><div class="team-songs" style="margin-bottom:0">${songsHtml}</div></div>` : ''}
+                    <div style="display:flex;align-items:flex-start"><span style="${labelStyle};margin-top:4px">멤버</span><div class="team-slots">${slotsHtml}</div></div>
                 </div>`;
             }).join('');
         }
@@ -1582,14 +1583,15 @@
                 const role = m.role || '일반';
                 const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
                 const roleColor = roleColors[role] || '#999';
-                const emailDisplay = m.email ? escapeHtml(m.email) : '<span style="color:var(--kakao-yellow);background:#3C1E1E;border-radius:3px;padding:1px 5px;font-size:0.78rem">카카오로 로그인</span>';
-                const sensitiveInfo = isS ? `<div class="my-res-time">${emailDisplay} · ${escapeHtml(m.phone || '')}</div>` : '';
-                const roleInfo = isS ? `<div style="font-size:0.8rem;color:${roleColor};margin-top:4px">● ${role}</div>` : '';
-                return `<div class="my-res-item" style="margin-bottom:8px">
-                    <div class="my-res-info">
-                        <div class="my-res-date" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${escapeHtml(m.name)}${instBadges(m.instruments)}</div>
-                        ${sensitiveInfo}
-                        ${roleInfo}
+                const emailDisplay = m.email ? escapeHtml(m.email) : '<span style="color:var(--kakao-yellow);background:#3C1E1E;border-radius:3px;padding:1px 5px;font-size:0.72rem">카카오</span>';
+                const adminMeta = isS
+                    ? `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">${emailDisplay}</span>`
+                    + `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:4px;white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
+                    + `<span style="font-size:0.72rem;color:${roleColor};margin-left:6px;white-space:nowrap;font-weight:600">● ${role}</span>`
+                    : '';
+                return `<div class="my-res-item" style="margin-bottom:4px">
+                    <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
+                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${instBadges(m.instruments)}${adminMeta}
                     </div>
                 </div>`;
             }).join('');
@@ -1991,22 +1993,36 @@
                     .filter(r => isSameDay(new Date(r.res_date), loopDate))
                     .filter(r => r.status === 'approved' || r.status === 'pending')
                     .sort((a, b) => TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
-                if (dayRes.length > 0) {
-                    const info = document.createElement('div'); info.className = 'cal-day-info';
-                    const display = dayRes.slice(0, 3);
-                    display.forEach(r => {
-                        const startH = parseInt(r.start_time.split(':')[0]);
-                        const endStr = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
-                        const endH = parseInt(endStr.split(':')[0]);
-                        const cls = r.status === 'approved' ? 'approved' : 'pending';
-                        const icon = r.status === 'approved' ? '✓' : '⏳';
-                        info.innerHTML += `<span class="${cls}">${icon}${startH}-${endH}시</span>`;
-                    });
-                    if (dayRes.length > 3) {
-                        info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}건</span>`;
-                    }
-                    day.appendChild(info);
+                // 해당 날짜에 적용되는 차단 블록 수집
+                const dow = loopDate.getDay();
+                const dateStr = loopDate.toISOString().slice(0, 10);
+                const dayBlocks = (state.blocks || []).filter(b => {
+                    if (b.day_of_week !== dow) return false;
+                    if (b.start_date && dateStr < b.start_date) return false;
+                    if (b.end_date && dateStr > b.end_date) return false;
+                    return true;
+                });
+
+                const info = document.createElement('div'); info.className = 'cal-day-info';
+                const display = dayRes.slice(0, 3);
+                display.forEach(r => {
+                    const startH = parseInt(r.start_time.split(':')[0]);
+                    const endStr = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
+                    const endH = parseInt(endStr.split(':')[0]);
+                    const cls = r.status === 'approved' ? 'approved' : 'pending';
+                    const icon = r.status === 'approved' ? '✓' : '⏳';
+                    info.innerHTML += `<span class="${cls}">${icon}${startH}-${endH}시</span>`;
+                });
+                if (dayRes.length > 3) {
+                    info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}건</span>`;
                 }
+                dayBlocks.forEach(b => {
+                    const sh = parseInt(b.start_time.split(':')[0]);
+                    const eh = parseInt(b.end_time.split(':')[0]);
+                    const reason = b.reason ? ` ${b.reason.slice(0, 4)}` : '';
+                    info.innerHTML += `<span style="color:#e74c3c">🚫${sh}-${eh}시${reason}</span>`;
+                });
+                if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
 
                 day.onclick = () => { state.viewDate = loopDate; state.currentView = 'day'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day')); render(); };
                 grid.appendChild(day);
