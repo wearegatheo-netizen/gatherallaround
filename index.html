@@ -561,7 +561,7 @@
             .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
-            .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 64px) !important; min-width: 494px; }
+            .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 1fr) !important; min-width: 494px; }
             .day-grid { grid-template-columns: 88px 1fr !important; }
             .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
             .weekly-time-cell { padding: 6px 3px; }
@@ -1022,7 +1022,9 @@
                         <div class="instrument-buttons" id="mypageInstBtns">
                             ${['보컬','기타','베이스','키보드','드럼'].map(inst => {
                                 const icons = {보컬:'🎤',기타:'🎸',베이스:'🎵',키보드:'🎹',드럼:'🥁'};
-                                const sel = (profile.instruments || '').split(',').map(s=>s.trim()).includes(inst);
+                                const mainInsts = ['보컬','기타','베이스','키보드','드럼'];
+                                const firstMain = (profile.instruments || '').split(',').map(s=>s.trim()).find(s => mainInsts.includes(s)) || '';
+                                const sel = firstMain === inst;
                                 return `<button type="button" class="inst-btn${sel ? ' selected' : ''}" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
                             }).join('')}
                         </div>
@@ -1713,10 +1715,9 @@
         const INST_EMOJI = { '보컬': '🎤', '기타': '🎸', '베이스': '🎸', '키보드': '🎹', '드럼': '🥁' };
         function instBadges(instruments) {
             if (!instruments) return '';
-            return instruments.split(',').map(s => s.trim()).filter(Boolean).map(inst => {
-                const emoji = INST_EMOJI[inst] || '🎵';
-                return `<span style="font-size:0.78rem;color:var(--wds-primary);background:var(--wds-primary-light);border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap">${emoji} ${inst}</span>`;
-            }).join('');
+            const insts = instruments.split(',').map(s => s.trim()).filter(Boolean);
+            if (insts.length === 0) return '';
+            return `<span style="font-size:0.78rem;color:var(--wds-gray-500);margin-left:4px;white-space:nowrap">(+${insts.join(', ')})</span>`;
         }
 
         async function renderMembersTab(container) {
@@ -2679,7 +2680,9 @@
                     else { state.endTime = time; }
                 }
             }
+            const scrollY = window.scrollY;
             render();
+            window.scrollTo({ top: scrollY });
         }
 
         function isSlotSelected(date, time) {
@@ -2707,7 +2710,9 @@
             const name = (state.user && state.user.nickname) || document.getElementById('userNameInput').value || '';
             if (!name) { alert('사용자 정보를 불러오지 못했습니다. 다시 로그인해주세요.'); return; }
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
-            const dateStr = state.selectedDate.toLocaleDateString('en-CA'); 
+            const dateStr = state.selectedDate.toLocaleDateString('en-CA');
+            // 2시간 이하는 자동 승인, 초과하면 관리자 승인 필요
+            const reservationStatus = (endIdx - startIdx) > 1 ? 'pending' : 'approved';
 
             const { data, error } = await supabaseClient
                 .from('reservations')
@@ -2717,7 +2722,7 @@
                     res_date: dateStr,
                     start_time: state.startTime,
                     end_time: state.endTime,
-                    status: 'pending'
+                    status: reservationStatus
                 }]);
 
             if (error) {
@@ -2726,7 +2731,10 @@
                 const timeStr = `${state.startTime} ~ ${TIMES[endIdx + 1] || '23:00'}`;
                 const res = document.getElementById('result');
                 res.style.display = 'block';
-                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">관리자 승인 후 확정됩니다.</small>`;
+                const statusMsg = reservationStatus === 'approved'
+                    ? '예약이 확정되었습니다.'
+                    : '관리자 승인 후 확정됩니다.';
+                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">${statusMsg}</small>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
                 fetchReservations();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2735,7 +2743,9 @@
 
         // --- 이메일 인증 ---
         function toggleInstrument(btn) {
-            btn.classList.toggle('selected');
+            const wasSelected = btn.classList.contains('selected');
+            btn.closest('.instrument-buttons').querySelectorAll('.inst-btn').forEach(b => b.classList.remove('selected'));
+            if (!wasSelected) btn.classList.add('selected');
         }
 
         function showSignupForm() {
@@ -3009,9 +3019,11 @@
             const title = titleEl ? titleEl.value.trim() : '';
             const content = contentEl ? contentEl.value.trim() : '';
             if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
-            const { error } = await supabaseClient.from('notices').update({ title, content }).eq('id', id);
+            const { data: updated, error } = await supabaseClient.from('notices').update({ title, content }).eq('id', id).select();
             if (error) { alert('수정 실패: ' + error.message); return; }
-            await fetchNotices();
+            if (!updated || updated.length === 0) { alert('수정 권한이 없거나 공지를 찾을 수 없습니다.\nSupabase notices 테이블의 UPDATE 정책을 확인해주세요.'); return; }
+            const idx = notices.findIndex(n => String(n.id) === String(id));
+            if (idx !== -1) notices[idx] = { ...notices[idx], title, content };
             renderAdminNotices();
             renderNotices();
         }
