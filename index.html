@@ -2679,7 +2679,9 @@
                     else { state.endTime = time; }
                 }
             }
+            const scrollY = window.scrollY;
             render();
+            window.scrollTo({ top: scrollY });
         }
 
         function isSlotSelected(date, time) {
