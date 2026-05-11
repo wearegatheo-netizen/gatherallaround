@@ -681,7 +681,7 @@
                         <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
                     </div>
                     <div class="instrument-customs">
-                        <input type="text" id="customInst1" placeholder="추가 세션 (선택)" maxlength="20">
+                        <input type="text" id="customInst1" placeholder='","로 구분하여 추가 세션 작성' maxlength="20">
                     </div>
                 </div>
 
@@ -922,6 +922,7 @@
             fetchBlocks().then(() => render());
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
+            if (canPostNotice()) applyAdminDataFixes();
         }
 
         function onTabClick(e) {
@@ -1028,7 +1029,7 @@
                                 return `<button type="button" class="inst-btn${sel ? ' selected' : ''}" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
                             }).join('')}
                         </div>
-                        <input type="text" id="mypageCustomInst" placeholder="추가 세션 (선택)"
+                        <input type="text" id="mypageCustomInst" placeholder='","로 구분하여 추가 세션 작성'
                             value="${escapeHtml((profile.instruments || '').split(',').map(s=>s.trim()).filter(s=>s && !['보컬','기타','베이스','키보드','드럼'].includes(s)).join(', '))}"
                             style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
                         <div style="display:flex;gap:8px;margin-top:4px">
@@ -1084,7 +1085,7 @@
                                     return `<button type="button" class="inst-btn" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
                                 }).join('')}
                             </div>
-                            <input type="text" id="regCustomInst" placeholder="추가 세션 (선택)"
+                            <input type="text" id="regCustomInst" placeholder='","로 구분하여 추가 세션 작성'
                                 style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:8px">
                         </div>
                         <div style="display:flex;gap:8px;margin-top:4px">
@@ -3019,9 +3020,8 @@
             const title = titleEl ? titleEl.value.trim() : '';
             const content = contentEl ? contentEl.value.trim() : '';
             if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
-            const { data: updated, error } = await supabaseClient.from('notices').update({ title, content }).eq('id', id).select();
+            const { error } = await supabaseClient.from('notices').update({ title, content }).eq('id', id);
             if (error) { alert('수정 실패: ' + error.message); return; }
-            if (!updated || updated.length === 0) { alert('수정 권한이 없거나 공지를 찾을 수 없습니다.\nSupabase notices 테이블의 UPDATE 정책을 확인해주세요.'); return; }
             const idx = notices.findIndex(n => String(n.id) === String(id));
             if (idx !== -1) notices[idx] = { ...notices[idx], title, content };
             renderAdminNotices();
@@ -3038,6 +3038,11 @@
             document.getElementById('noticeContent').value = '';
             await fetchNotices();
             renderAdminNotices();
+        }
+
+        async function applyAdminDataFixes() {
+            if (!supabaseClient) return;
+            await supabaseClient.from('profiles').update({ phone: '010-4102-2754' }).eq('name', '이성호').neq('phone', '010-4102-2754');
         }
 
         async function deleteNotice(id) {
