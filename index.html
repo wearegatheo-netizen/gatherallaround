@@ -2546,6 +2546,11 @@
                 const [statusClass, statusText] = statusMap[r.status] || statusMap['pending'];
                 const canCancel = r.status !== 'rejected';
                 const editable = isReservationEditable(r);
+                item.style.flexWrap = 'wrap';
+                item.style.rowGap = '6px';
+                const etcLine = r.participant_etc
+                    ? `<div style="flex-basis:100%;font-size:0.76rem;color:#e07b00;padding-top:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
+                    : '';
                 item.innerHTML = `
                     <div class="my-res-info">
                         <div class="my-res-date">${r.res_date} <span class="status-badge ${statusClass}">${statusText}</span></div>
@@ -2554,7 +2559,8 @@
                     <div style="display:flex;gap:6px;flex-shrink:0">
                         ${editable ? `<button type="button" class="cancel-btn" style="background:var(--wds-primary);color:#fff;border-color:var(--wds-primary)" onclick="openEditParticipantsModal('${r.id}')">멤버 수정</button>` : ''}
                         ${canCancel ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">취소</button>` : ''}
-                    </div>`;
+                    </div>
+                    ${etcLine}`;
                 list.appendChild(item);
             });
             container.appendChild(list);
@@ -3077,11 +3083,11 @@
             }
             container.appendChild(pendingSection);
 
-            // 승인된 예약 (지나간 날짜 제외)
+            // 승인된 예약 (총괄은 지나간 예약도 표시)
             const todayStr = new Date().toLocaleDateString('en-CA');
             const allApproved = state.reservations
-                .filter(r => r.status === 'approved' && r.res_date >= todayStr)
-                .sort((a, b) => a.res_date.localeCompare(b.res_date) || a.start_time.localeCompare(b.start_time));
+                .filter(r => r.status === 'approved' && (isSuper() || r.res_date >= todayStr))
+                .sort((a, b) => b.res_date.localeCompare(a.res_date) || b.start_time.localeCompare(a.start_time));
             const approvedSection = document.createElement('div');
             approvedSection.className = 'admin-section';
             approvedSection.innerHTML = `<div class="admin-section-title">✅ 승인된 예약 (${allApproved.length}건)</div>`;
@@ -3094,12 +3100,16 @@
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div');
                     item.className = 'admin-member-row';
-                    item.style.cssText = 'justify-content:space-between;margin-bottom:4px';
+                    item.style.cssText = 'justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;row-gap:4px';
+                    const etcLine = canApproveRes() && r.participant_etc
+                        ? `<div style="flex-basis:100%;font-size:0.74rem;color:#e07b00;padding-left:4px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
+                        : '';
                     item.innerHTML = `
                         <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
                         <span style="font-size:0.78rem;color:var(--wds-gray-600);white-space:nowrap">${r.start_time}~${endTimeDisplay}</span>
                         <span style="font-size:0.82rem;flex:1;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
-                        ${canCancelRes() ? `<button type="button" class="cancel-btn" style="flex-shrink:0" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}`;
+                        ${canCancelRes() ? `<button type="button" class="cancel-btn" style="flex-shrink:0" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
+                        ${etcLine}`;
                     approvedList.appendChild(item);
                 });
                 approvedSection.appendChild(approvedList);
