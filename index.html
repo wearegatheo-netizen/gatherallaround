@@ -1708,7 +1708,7 @@
             return escapeHtml(isSelf ? name : name.replace('(관리자)', '').trim());
         }
 
-
+        function renderSongList() {
             const c = document.getElementById('editingSongList');
             if (!c) return;
             if (state.editingSongs.length === 0) {
