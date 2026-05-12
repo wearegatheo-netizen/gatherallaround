@@ -1248,7 +1248,8 @@
             participantIds: [],
             polls: [],
             pollVotes: [],
-            editingPoll: { options: ['', ''] }
+            editingPoll: { options: ['', ''] },
+            statsFilter: 'all'
         };
 
         const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -1559,15 +1560,29 @@
             `;
         }
 
+        function setStatsFilter(f) {
+            state.statsFilter = f;
+            renderMemberPanel();
+        }
+
         async function renderParticipationStatsTab(container) {
             container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
             const members = await fetchMembers();
             const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
             state.cachedMembers = approved;
-            const totalRes = (state.reservations || []).filter(r => r.status === 'approved' || r.status === 'pending').length;
+
+            const now = new Date();
+            const monthStr = now.toLocaleDateString('en-CA').slice(0, 7);
+            const yearStr = now.getFullYear().toString();
+            const filterLabels = { all: '전체', month: '이번 달', year: '올해' };
+
+            let baseRes = (state.reservations || []).filter(r => r.status === 'approved' || r.status === 'pending');
+            if (state.statsFilter === 'month') baseRes = baseRes.filter(r => r.res_date && r.res_date.startsWith(monthStr));
+            else if (state.statsFilter === 'year') baseRes = baseRes.filter(r => r.res_date && r.res_date.startsWith(yearStr));
+
+            const totalRes = baseRes.length;
             const rowsRaw = approved.map(m => {
-                const count = (state.reservations || []).filter(r =>
-                    (r.status === 'approved' || r.status === 'pending') &&
+                const count = baseRes.filter(r =>
                     Array.isArray(r.participant_ids) &&
                     r.participant_ids.includes(m.id)
                 ).length;
@@ -1631,9 +1646,12 @@
                 : '';
 
             container.innerHTML = `
+                <div style="display:flex;gap:6px;margin-bottom:12px">
+                    ${['all','month','year'].map(f => `<button type="button" onclick="setStatsFilter('${f}')" style="flex:1;padding:6px 0;font-size:0.8rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${state.statsFilter===f?'var(--wds-primary)':'white'};color:${state.statsFilter===f?'#fff':'var(--wds-primary)'}">${filterLabels[f]}</button>`).join('')}
+                </div>
                 <div style="display:flex;justify-content:space-around;align-items:center;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff">
                     <div style="text-align:center">
-                        <div style="font-size:0.7rem;opacity:0.85">전체 예약</div>
+                        <div style="font-size:0.7rem;opacity:0.85">예약 (${filterLabels[state.statsFilter]})</div>
                         <div style="font-size:1.3rem;font-weight:800">${totalRes}건</div>
                     </div>
                     <div style="text-align:center">
@@ -2801,7 +2819,8 @@
                 }
                 dayBlocks.forEach(b => {
                     const sh = parseInt(b.start_time.split(':')[0]);
-                    const eh = parseInt(b.end_time.split(':')[0]);
+                    const endStr = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
+                    const eh = parseInt(endStr.split(':')[0]);
                     info.innerHTML += `<span style="color:#e74c3c">🚫${sh}-${eh}시</span>`;
                 });
                 if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
