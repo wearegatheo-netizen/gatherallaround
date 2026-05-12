@@ -760,6 +760,7 @@
                 <div class="admin-subtabs">
                     <div class="admin-subtab active" onclick="setMemberTab('list')">멤버 목록</div>
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
+                    <div class="admin-subtab" onclick="setMemberTab('stats')">참여율</div>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -787,6 +788,11 @@
                 <div id="viewContainer"></div>
                 <input type="hidden" id="selectedDate" required>
                 <input type="hidden" id="selectedTime" required>
+            </div>
+
+            <div class="form-group section-box" id="participantSection" style="display:none">
+                <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500)">(선택)</span></span>
+                <div id="participantList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
             </div>
 
             <button type="submit" class="submit-btn">예약 하기</button>
@@ -920,6 +926,7 @@
             fetchComments();
             fetchNotices();
             fetchBlocks().then(() => render());
+            fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
             if (canPostNotice()) applyAdminDataFixes();
@@ -1225,7 +1232,8 @@
             editingSlots: [],
             editingSongs: [],
             cachedMembers: [],
-            bgmTracks: []
+            bgmTracks: [],
+            participantIds: []
         };
 
         const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -1390,6 +1398,36 @@
                     renderDay(container);
                 }
             }
+            renderParticipantSelector();
+        }
+
+        function renderParticipantSelector() {
+            const section = document.getElementById('participantSection');
+            const list = document.getElementById('participantList');
+            if (!section || !list) return;
+            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month';
+            const show = isReservable && state.startTime;
+            section.style.display = show ? '' : 'none';
+            if (!show) return;
+            const members = state.cachedMembers || [];
+            if (members.length === 0) {
+                list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.85rem;margin:0">아직 등록된 멤버가 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = members.map(m => {
+                const sel = state.participantIds.includes(m.id);
+                const bg = sel ? 'var(--wds-primary)' : 'white';
+                const color = sel ? '#fff' : 'var(--wds-gray-700)';
+                const border = sel ? 'var(--wds-primary)' : 'var(--wds-gray-300)';
+                return `<button type="button" onclick="toggleParticipant('${m.id}')" style="padding:6px 12px;font-size:0.85rem;background:${bg};color:${color};border:1px solid ${border};border-radius:20px;cursor:pointer;font-weight:600">${escapeHtml(m.name)}</button>`;
+            }).join('');
+        }
+
+        function toggleParticipant(memberId) {
+            const idx = state.participantIds.indexOf(memberId);
+            if (idx === -1) state.participantIds.push(memberId);
+            else state.participantIds.splice(idx, 1);
+            renderParticipantSelector();
         }
 
         // --- 멤버 패널 ---
@@ -1410,7 +1448,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
-            const order = ['list', 'teams'];
+            const order = ['list', 'teams', 'stats'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -1420,9 +1458,48 @@
             if (!view) return;
             if (state.memberPanelTab === 'list') {
                 await renderMembersTab(view);
+            } else if (state.memberPanelTab === 'stats') {
+                await renderParticipationStatsTab(view);
             } else {
                 await renderTeamsTab(view);
             }
+        }
+
+        async function renderParticipationStatsTab(container) {
+            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            const members = await fetchMembers();
+            const approved = (members || []).filter(m => m.status === 'approved');
+            state.cachedMembers = approved;
+            const totalRes = (state.reservations || []).filter(r => r.status === 'approved' || r.status === 'pending').length;
+            const rows = approved.map(m => {
+                const count = (state.reservations || []).filter(r =>
+                    (r.status === 'approved' || r.status === 'pending') &&
+                    Array.isArray(r.participant_ids) &&
+                    r.participant_ids.includes(m.id)
+                ).length;
+                return { m, count };
+            }).sort((a, b) => b.count - a.count);
+            const maxCount = rows.length ? Math.max(...rows.map(r => r.count), 1) : 1;
+            container.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--wds-gray-100);border-radius:var(--wds-radius-m)">
+                    <span style="font-size:0.85rem;color:var(--wds-gray-600)">전체 예약 수</span>
+                    <span style="font-size:1.1rem;font-weight:700;color:var(--wds-primary)">${totalRes}건</span>
+                </div>
+                ${rows.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">멤버가 없습니다.</p>' :
+                rows.map(({ m, count }) => {
+                    const pct = totalRes > 0 ? Math.round((count / totalRes) * 100) : 0;
+                    const barPct = Math.round((count / maxCount) * 100);
+                    return `<div style="margin-bottom:10px">
+                        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+                            <span style="font-size:0.9rem;font-weight:600">${escapeHtml(m.name)}</span>
+                            <span style="font-size:0.78rem;color:var(--wds-gray-500)">참여 ${count}회 <span style="color:var(--wds-primary);font-weight:600">(${pct}%)</span></span>
+                        </div>
+                        <div style="background:var(--wds-gray-100);height:6px;border-radius:3px;overflow:hidden">
+                            <div style="width:${barPct}%;height:100%;background:var(--wds-primary);border-radius:3px"></div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            `;
         }
 
         // --- 팀 ---
@@ -1763,9 +1840,15 @@
                 // 부 악기만 뱃지로
                 const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
                 const subInsts = insts.slice(1).join(',');
+                const resCount = (state.reservations || []).filter(r =>
+                    (r.status === 'approved' || r.status === 'pending') &&
+                    Array.isArray(r.participant_ids) &&
+                    r.participant_ids.includes(m.id)
+                ).length;
+                const countTag = `<span style="font-size:0.75rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">참여 ${resCount}회</span>`;
                 return `<div class="my-res-item" style="margin-bottom:4px">
                     <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
-                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${roleTag}${instBadges(subInsts)}${adminMeta}
+                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${countTag}${roleTag}${instBadges(subInsts)}${adminMeta}
                     </div>
                 </div>`;
             };
@@ -2670,6 +2753,7 @@
 
         function onSlotClick(date, time) {
             if (isPastSlot(date, time)) return;
+            const wasUnselected = !state.startTime;
             if (!state.selectedDate || !isSameDay(state.selectedDate, date)) {
                 state.selectedDate = new Date(date); state.startTime = time; state.endTime = null;
             } else {
@@ -2680,6 +2764,10 @@
                     else if (curIdx === startIdx) { state.startTime = null; }
                     else { state.endTime = time; }
                 }
+            }
+            if (wasUnselected && state.startTime && state.user) {
+                const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
+                if (me && !state.participantIds.includes(me.id)) state.participantIds = [me.id];
             }
             const scrollY = window.scrollY;
             render();
@@ -2724,7 +2812,8 @@
                     res_date: dateStr,
                     start_time: state.startTime,
                     end_time: effectiveEndTime,
-                    status: reservationStatus
+                    status: reservationStatus,
+                    participant_ids: state.participantIds || []
                 }]);
 
             if (error) {
@@ -2737,7 +2826,7 @@
                     ? '예약이 확정되었습니다.'
                     : '관리자 승인 후 확정됩니다.';
                 res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">${statusMsg}</small>`;
-                state.selectedDate = null; state.startTime = null; state.endTime = null;
+                state.selectedDate = null; state.startTime = null; state.endTime = null; state.participantIds = [];
                 fetchReservations();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
