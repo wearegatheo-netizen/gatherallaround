@@ -2699,11 +2699,12 @@
         async function onReserve(e) {
             e.preventDefault();
             if (!state.selectedDate || !state.startTime) { alert("날짜와 시간을 선택해주세요."); return; }
-            if (!state.endTime) { alert("최소 2시간 이상 예약이 가능합니다."); return; }
             if (isPastSlot(state.selectedDate, state.startTime)) { alert("지나간 날짜/시간에는 예약할 수 없습니다."); return; }
             if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
 
-            const startIdx = TIMES.indexOf(state.startTime), endIdx = TIMES.indexOf(state.endTime);
+            const startIdx = TIMES.indexOf(state.startTime);
+            const endIdx = state.endTime ? TIMES.indexOf(state.endTime) : startIdx;
+            const effectiveEndTime = state.endTime || state.startTime;
             for (let i = startIdx; i <= endIdx; i++) {
                 const blk = getBlock(state.selectedDate, TIMES[i]);
                 if (blk) { alert('차단된 시간이 포함되어 있습니다.' + (blk.reason ? `\n사유: ${blk.reason}` : '')); return; }
@@ -2722,7 +2723,7 @@
                     user_name: name,
                     res_date: dateStr,
                     start_time: state.startTime,
-                    end_time: state.endTime,
+                    end_time: effectiveEndTime,
                     status: reservationStatus
                 }]);
 
