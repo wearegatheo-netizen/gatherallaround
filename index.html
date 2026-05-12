@@ -301,6 +301,7 @@
         #pending-screen p { color: var(--wds-gray-700); font-size: 0.95rem; line-height: 1.7; margin-bottom: 32px; }
 
         /* 관리자 서브탭 */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
         .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; }
         .admin-subtab { padding: 10px 18px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
         .admin-subtab.active { color: var(--wds-primary); border-bottom-color: var(--wds-primary); }
@@ -761,6 +762,7 @@
                     <div class="admin-subtab active" onclick="setMemberTab('list')">멤버 목록</div>
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
                     <div class="admin-subtab" onclick="setMemberTab('stats')">참여율</div>
+                    <div class="admin-subtab" onclick="setMemberTab('votes')">투표</div>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -927,6 +929,9 @@
             fetchNotices();
             fetchBlocks().then(() => render());
             fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            fetchPolls();
+            fetchPollVotes();
+            subscribeToPolls();
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
             if (canPostNotice()) applyAdminDataFixes();
@@ -1233,7 +1238,10 @@
             editingSongs: [],
             cachedMembers: [],
             bgmTracks: [],
-            participantIds: []
+            participantIds: [],
+            polls: [],
+            pollVotes: [],
+            editingPoll: { options: ['', ''] }
         };
 
         const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -1448,7 +1456,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
-            const order = ['list', 'teams', 'stats'];
+            const order = ['list', 'teams', 'stats', 'votes'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -1460,9 +1468,88 @@
                 await renderMembersTab(view);
             } else if (state.memberPanelTab === 'stats') {
                 await renderParticipationStatsTab(view);
+            } else if (state.memberPanelTab === 'votes') {
+                await renderVotesTab(view);
             } else {
                 await renderTeamsTab(view);
             }
+        }
+
+        async function renderVotesTab(container) {
+            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            await fetchPolls();
+            await fetchPollVotes();
+            const myId = getCurrentUserProfileId();
+            const open = state.polls.filter(p => p.status === 'open');
+            const closed = state.polls.filter(p => p.status === 'closed');
+            const renderPollCard = (p, isClosed) => {
+                const votes = state.pollVotes.filter(v => v.poll_id === p.id);
+                const totalVoters = votes.length;
+                const myVote = myId ? votes.find(v => v.voter_id === myId) : null;
+                const counts = p.options.map((_, i) => votes.filter(v => Array.isArray(v.option_indices) && v.option_indices.includes(i)).length);
+                const totalSel = counts.reduce((a, b) => a + b, 0);
+                const winnerCount = Math.max(...counts, 0);
+                const headerBg = isClosed ? 'var(--wds-gray-100)' : 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)';
+                const headerColor = isClosed ? 'var(--wds-gray-700)' : '#fff';
+                const statusBadge = isClosed
+                    ? '<span style="background:var(--wds-gray-300);color:var(--wds-gray-700);font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600">종료</span>'
+                    : '<span style="background:#ff4d4f;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600;animation:pulse 2s infinite">🔴 LIVE</span>';
+                const inputType = p.multi_select ? 'checkbox' : 'radio';
+                const canVote = !isClosed && myId;
+                return `
+                    <div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-m);overflow:hidden;margin-bottom:14px;background:white">
+                        <div style="background:${headerBg};color:${headerColor};padding:12px 14px">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+                                <div style="display:flex;align-items:center;gap:8px">${statusBadge}<span style="font-size:0.75rem;opacity:0.9">${escapeHtml(p.creator_name || '관리자')}</span></div>
+                                <button type="button" onclick="sharePollKakao('${p.id}')" style="padding:3px 10px;font-size:0.72rem;background:#FEE500;color:#3C1E1E;border:none;border-radius:10px;cursor:pointer;font-weight:700;flex-shrink:0">카카오 공유</button>
+                            </div>
+                            <div style="font-size:1rem;font-weight:700">${escapeHtml(p.title)}</div>
+                            <div style="font-size:0.75rem;opacity:0.85;margin-top:4px">${totalVoters}명 참여 · ${p.multi_select ? '다중 선택' : '단일 선택'}${p.anonymous ? ' · 익명' : ''}</div>
+                        </div>
+                        <div style="padding:12px 14px">
+                            ${p.options.map((opt, i) => {
+                                const c = counts[i];
+                                const pct = totalSel > 0 ? Math.round((c / totalSel) * 100) : 0;
+                                const isWinner = isClosed && c === winnerCount && c > 0;
+                                const isMine = myVote && Array.isArray(myVote.option_indices) && myVote.option_indices.includes(i);
+                                const optBg = isWinner ? 'linear-gradient(90deg,#FFD700,#FFA500)' : (isMine ? 'var(--wds-primary)' : 'var(--wds-gray-400)');
+                                return `
+                                    <label style="display:block;margin-bottom:8px;cursor:${canVote ? 'pointer' : 'default'}">
+                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                                            ${canVote ? `<input type="${inputType}" name="vote-${p.id}" value="${i}" ${isMine ? 'checked' : ''} style="margin:0">` : ''}
+                                            <span style="font-size:0.9rem;font-weight:${isMine || isWinner ? '700' : '500'};flex:1">${isWinner ? '👑 ' : ''}${escapeHtml(opt)}${isMine ? ' <span style="color:var(--wds-primary);font-size:0.75rem">(내 선택)</span>' : ''}</span>
+                                            <span style="font-size:0.78rem;color:var(--wds-gray-600);font-weight:600">${c}표 · ${pct}%</span>
+                                        </div>
+                                        <div style="background:var(--wds-gray-100);height:6px;border-radius:3px;overflow:hidden">
+                                            <div style="width:${pct}%;height:100%;background:${optBg};border-radius:3px;transition:width 0.4s"></div>
+                                        </div>
+                                    </label>
+                                `;
+                            }).join('')}
+                            ${!p.anonymous && totalVoters > 0 ? `
+                                <details style="margin-top:8px"><summary style="cursor:pointer;font-size:0.78rem;color:var(--wds-gray-500)">투표자 보기</summary>
+                                <div style="font-size:0.78rem;color:var(--wds-gray-600);margin-top:6px;line-height:1.6">
+                                ${p.options.map((opt, i) => {
+                                    const names = votes.filter(v => Array.isArray(v.option_indices) && v.option_indices.includes(i)).map(v => escapeHtml(v.voter_name || '?')).join(', ');
+                                    return names ? `<div><strong>${escapeHtml(opt)}</strong>: ${names}</div>` : '';
+                                }).join('')}
+                                </div></details>
+                            ` : ''}
+                            ${canVote ? `
+                                <div style="display:flex;gap:6px;margin-top:10px">
+                                    <button type="button" onclick="submitVote('${p.id}')" style="flex:1;padding:8px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.85rem">${myVote ? '투표 수정' : '투표하기'}</button>
+                                    ${myVote ? `<button type="button" onclick="cancelMyVote('${p.id}')" style="padding:8px 14px;background:white;color:var(--wds-gray-700);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.85rem">취소</button>` : ''}
+                                </div>
+                            ` : (!isClosed && !myId ? '<p style="font-size:0.8rem;color:var(--wds-gray-500);margin-top:8px;text-align:center">가입 승인된 멤버만 투표할 수 있습니다.</p>' : '')}
+                        </div>
+                    </div>
+                `;
+            };
+            container.innerHTML = `
+                ${open.length === 0 && closed.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">진행 중인 투표가 없습니다.</p>' : ''}
+                ${open.length > 0 ? `<div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:4px 0 10px 4px">🔴 진행 중 (${open.length})</div>${open.map(p => renderPollCard(p, false)).join('')}` : ''}
+                ${closed.length > 0 ? `<div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:14px 0 10px 4px">📜 투표 이력 (${closed.length})</div>${closed.map(p => renderPollCard(p, true)).join('')}` : ''}
+            `;
         }
 
         async function renderParticipationStatsTab(container) {
@@ -1977,6 +2064,7 @@
             const subtabDefs = [
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
+                ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : [])
             ];
             subtabDefs.forEach(t => {
@@ -1999,9 +2087,79 @@
                 renderAdminBlocksSection(content);
             } else if (state.adminTab === 'bgm') {
                 renderAdminBgmSection(content);
+            } else if (state.adminTab === 'polls') {
+                content.id = 'adminPollContent';
+                await fetchPolls(); await fetchPollVotes();
+                renderAdminPollsSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
+        }
+
+        function renderAdminPollsSection(container) {
+            if (!container) return;
+            container.id = 'adminPollContent';
+            const opts = state.editingPoll.options;
+            const openPolls = state.polls.filter(p => p.status === 'open');
+            const closedPolls = state.polls.filter(p => p.status === 'closed');
+            const voteCount = (pollId) => state.pollVotes.filter(v => v.poll_id === pollId).length;
+            container.innerHTML = `
+                <div class="admin-section">
+                    <div class="admin-section-title">🗳️ 새 투표 만들기</div>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <input id="pollTitle" type="text" placeholder="투표 제목 (예: 다음 합주 곡 선정)" value="${escapeHtml(state.editingPoll.title || '')}" style="padding:10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.95rem">
+                        <div style="display:flex;flex-direction:column;gap:6px" id="pollOptionsWrap">
+                            ${opts.map((o, i) => `
+                                <div style="display:flex;gap:6px">
+                                    <input type="text" value="${o.replace(/"/g,'&quot;')}" onchange="updatePollOption(${i}, this.value)" placeholder="옵션 ${i + 1}" style="flex:1;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem">
+                                    <button type="button" onclick="removePollOption(${i})" style="padding:6px 10px;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.85rem">−</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button type="button" onclick="addPollOption()" style="align-self:flex-start;padding:6px 12px;background:white;color:var(--wds-primary);border:1px dashed var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.85rem;font-weight:600">+ 옵션 추가</button>
+                        <div style="display:flex;gap:14px;font-size:0.88rem;color:var(--wds-gray-700)">
+                            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="pollMulti"> 다중 선택 허용</label>
+                            <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="pollAnon"> 익명 투표</label>
+                        </div>
+                        <button type="button" class="admin-post-btn" onclick="createPoll()">투표 만들기</button>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <div class="admin-section-title">🔴 진행 중 (${openPolls.length})</div>
+                    ${openPolls.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.9rem">진행 중인 투표가 없습니다.</p>' :
+                    openPolls.map(p => `
+                        <div class="my-res-item" style="margin-bottom:8px;flex-direction:column;align-items:stretch">
+                            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+                                <strong style="flex:1">${escapeHtml(p.title)}</strong>
+                                <span style="font-size:0.78rem;color:var(--wds-gray-500)">${voteCount(p.id)}표 · ${p.multi_select ? '다중' : '단일'}${p.anonymous ? ' · 익명' : ''}</span>
+                            </div>
+                            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                                <button type="button" onclick="sharePollKakao('${p.id}')" style="padding:4px 10px;font-size:0.78rem;background:#FEE500;color:#3C1E1E;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">카카오 공유</button>
+                                <button type="button" onclick="closePoll('${p.id}')" style="padding:4px 10px;font-size:0.78rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">투표 종료</button>
+                                <button type="button" onclick="deletePoll('${p.id}')" style="padding:4px 10px;font-size:0.78rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">삭제</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="admin-section">
+                    <div class="admin-section-title">✅ 종료된 투표 (${closedPolls.length})</div>
+                    ${closedPolls.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.9rem">종료된 투표가 없습니다.</p>' :
+                    closedPolls.map(p => `
+                        <div class="my-res-item" style="margin-bottom:8px;flex-direction:column;align-items:stretch">
+                            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+                                <strong style="flex:1;color:var(--wds-gray-600)">${escapeHtml(p.title)}</strong>
+                                <span style="font-size:0.78rem;color:var(--wds-gray-500)">${voteCount(p.id)}표</span>
+                            </div>
+                            <div style="display:flex;gap:6px;margin-top:8px">
+                                <button type="button" onclick="reopenPoll('${p.id}')" style="padding:4px 10px;font-size:0.78rem;background:white;color:var(--wds-primary);border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">재오픈</button>
+                                <button type="button" onclick="deletePoll('${p.id}')" style="padding:4px 10px;font-size:0.78rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">삭제</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
         async function renderAdminBgmSection(container) {
@@ -2900,7 +3058,6 @@
                 res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">${statusMsg}</small>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null; state.participantIds = [];
                 fetchReservations();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
 
@@ -3075,6 +3232,150 @@
             if (!supabaseClient) return [];
             const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
             return error ? [] : data;
+        }
+
+        // --- 투표 ---
+        async function fetchPolls() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('polls').select('*').order('created_at', { ascending: false });
+            if (!error) state.polls = data || [];
+        }
+
+        async function fetchPollVotes() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('poll_votes').select('*');
+            if (!error) state.pollVotes = data || [];
+        }
+
+        function getCurrentUserProfileId() {
+            if (!state.user) return null;
+            const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
+            return me ? me.id : null;
+        }
+
+        function getMyVote(pollId) {
+            const myId = getCurrentUserProfileId();
+            if (!myId) return null;
+            return state.pollVotes.find(v => v.poll_id === pollId && v.voter_id === myId) || null;
+        }
+
+        function addPollOption() {
+            const titleEl = document.getElementById('pollTitle');
+            if (titleEl) state.editingPoll.title = titleEl.value;
+            state.editingPoll.options.push('');
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        function removePollOption(idx) {
+            if (state.editingPoll.options.length <= 2) { alert('최소 2개 옵션이 필요합니다.'); return; }
+            const titleEl = document.getElementById('pollTitle');
+            if (titleEl) state.editingPoll.title = titleEl.value;
+            state.editingPoll.options.splice(idx, 1);
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        function updatePollOption(idx, value) {
+            state.editingPoll.options[idx] = value;
+        }
+
+        async function createPoll() {
+            const title = document.getElementById('pollTitle').value.trim();
+            const options = state.editingPoll.options.map(o => o.trim()).filter(Boolean);
+            const multiSelect = document.getElementById('pollMulti').checked;
+            const anonymous = document.getElementById('pollAnon').checked;
+            if (!title) { alert('투표 제목을 입력해주세요.'); return; }
+            if (options.length < 2) { alert('옵션을 2개 이상 입력해주세요.'); return; }
+            const creatorName = (state.user && state.user.nickname) || '관리자';
+            const { error } = await supabaseClient.from('polls').insert([{
+                title, options, multi_select: multiSelect, anonymous, status: 'open',
+                created_by: state.user.kakaoId, creator_name: creatorName
+            }]);
+            if (error) { alert('투표 생성 실패: ' + error.message); return; }
+            state.editingPoll = { options: ['', ''], title: '' };
+            await fetchPolls();
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        async function closePoll(pollId) {
+            if (!confirm('이 투표를 종료하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('polls').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', pollId);
+            if (error) { alert('종료 실패: ' + error.message); return; }
+            await fetchPolls();
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        async function reopenPoll(pollId) {
+            const { error } = await supabaseClient.from('polls').update({ status: 'open', closed_at: null }).eq('id', pollId);
+            if (error) { alert('재오픈 실패: ' + error.message); return; }
+            await fetchPolls();
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        async function deletePoll(pollId) {
+            if (!confirm('이 투표를 완전히 삭제하시겠습니까? (모든 투표 결과가 사라집니다)')) return;
+            const { error } = await supabaseClient.from('polls').delete().eq('id', pollId);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            await fetchPolls(); await fetchPollVotes();
+            renderAdminPollsSection(document.getElementById('adminPollContent'));
+        }
+
+        async function submitVote(pollId) {
+            const myId = getCurrentUserProfileId();
+            if (!myId) { alert('가입 승인된 멤버만 투표할 수 있습니다.'); return; }
+            const checked = Array.from(document.querySelectorAll(`input[name="vote-${pollId}"]:checked`)).map(el => parseInt(el.value));
+            if (checked.length === 0) { alert('옵션을 선택해주세요.'); return; }
+            const poll = state.polls.find(p => p.id === pollId);
+            if (!poll) return;
+            if (!poll.multi_select && checked.length > 1) { alert('1개만 선택 가능합니다.'); return; }
+            const myName = (state.cachedMembers.find(m => m.id === myId) || {}).name || '익명';
+            const existing = getMyVote(pollId);
+            let error;
+            if (existing) {
+                ({ error } = await supabaseClient.from('poll_votes').update({ option_indices: checked, voter_name: myName }).eq('id', existing.id));
+            } else {
+                ({ error } = await supabaseClient.from('poll_votes').insert([{ poll_id: pollId, voter_id: myId, voter_name: myName, option_indices: checked }]));
+            }
+            if (error) { alert('투표 실패: ' + error.message); return; }
+            await fetchPollVotes();
+            if (state.memberPanelTab === 'votes') renderMemberPanel();
+        }
+
+        async function cancelMyVote(pollId) {
+            if (!confirm('투표를 취소하시겠습니까?')) return;
+            const existing = getMyVote(pollId);
+            if (!existing) return;
+            const { error } = await supabaseClient.from('poll_votes').delete().eq('id', existing.id);
+            if (error) { alert('취소 실패: ' + error.message); return; }
+            await fetchPollVotes();
+            if (state.memberPanelTab === 'votes') renderMemberPanel();
+        }
+
+        function sharePollKakao(pollId) {
+            const poll = state.polls.find(p => p.id === pollId);
+            if (!poll) return;
+            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
+            const siteUrl = window.location.origin + window.location.pathname;
+            Kakao.Link.sendDefault({
+                objectType: 'text',
+                text: `[Gather All Around 투표]\n\n📊 ${poll.title}\n\n멤버 여러분의 투표에 참여해주세요!`,
+                link: { webUrl: siteUrl, mobileWebUrl: siteUrl }
+            });
+        }
+
+        function subscribeToPolls() {
+            if (!supabaseClient) return;
+            supabaseClient.channel('polls-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
+                    await fetchPolls();
+                    if (state.adminTab === 'polls' && state.currentView === 'admin') renderAdminPollsSection(document.getElementById('adminPollContent'));
+                    if (state.memberPanelTab === 'votes') renderMemberPanel();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, async () => {
+                    await fetchPollVotes();
+                    if (state.adminTab === 'polls' && state.currentView === 'admin') renderAdminPollsSection(document.getElementById('adminPollContent'));
+                    if (state.memberPanelTab === 'votes') renderMemberPanel();
+                })
+                .subscribe();
         }
 
         async function approveMember(id) {
