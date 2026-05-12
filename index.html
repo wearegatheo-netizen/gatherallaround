@@ -4072,6 +4072,7 @@
                             ? `<button type="button" onclick="unsubscribePush()" style="padding:8px 18px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.88rem;font-family:inherit">알림 끄기</button>`
                             : `<button type="button" onclick="subscribePush()" style="padding:8px 18px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit">알림 켜기</button>`
                         }
+                        ${isOn ? `<button type="button" onclick="testPush()" style="padding:8px 18px;border-radius:var(--wds-radius-s);border:1px solid #3366FF;background:white;color:#3366FF;cursor:pointer;font-weight:600;font-size:0.88rem;font-family:inherit">테스트 알림</button>` : ''}
                     </div>
                     <div style="margin-top:16px;padding:12px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);font-size:0.78rem;color:var(--wds-gray-500)">
                         💡 <strong style="color:var(--wds-gray-700)">최초 설정 가이드</strong><br>
@@ -4082,6 +4083,34 @@
                     </div>
                     `}
                 </div>`;
+        }
+
+        async function testPush() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '전송 중...';
+            try {
+                const subs = await getAdminPushSubscriptions();
+                if (!subs.length) { alert('저장된 구독 정보가 없습니다.\n\nSupabase profiles 테이블에서 push_subscription 컬럼이 있는지, 값이 저장됐는지 확인해주세요.'); return; }
+                const results = await Promise.allSettled(subs.map(sub =>
+                    fetch('/push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: '🔔 테스트 알림', body: '푸시 알림이 정상 작동합니다!', subscription: sub })
+                    }).then(r => r.json())
+                ));
+                const msgs = results.map((r, i) =>
+                    r.status === 'fulfilled'
+                        ? `구독${i+1}: ${r.value.ok ? '✅ 성공' : `❌ 실패 (status ${r.value.status})`}`
+                        : `구독${i+1}: ❌ 오류 (${r.reason?.message || r.reason})`
+                ).join('\n');
+                alert(`테스트 결과 (${subs.length}개 구독):\n\n${msgs}`);
+            } catch (e) {
+                alert('오류: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '테스트 알림';
+            }
         }
 
         async function generateVapidKeys() {
