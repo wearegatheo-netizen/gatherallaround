@@ -1,6 +1,6 @@
 {
-  "name": "Gather all around",
-  "short_name": "GAA",
+  "name": "Gather all around | 게더 올 어라운드 이용시스템",
+  "short_name": "게더 올 어라운드",
   "description": "Premium Studio Reservation",
   "start_url": "/",
   "display": "standalone",
