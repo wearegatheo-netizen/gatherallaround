@@ -21,6 +21,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Pretendard Font -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
     <style>
         :root {
             --wds-primary: #3366FF;
@@ -384,6 +386,32 @@
         .admin-subtab { padding: 10px 18px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
         .admin-subtab.active { color: var(--wds-primary); border-bottom-color: var(--wds-primary); }
         .admin-subtab:hover { color: var(--wds-gray-900); }
+
+        /* 운영안내 문서 */
+        .docs-categories { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--wds-gray-300); }
+        .docs-cat-tab { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--wds-gray-300); background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--wds-gray-700); font-family: inherit; transition: all 0.15s; }
+        .docs-cat-tab:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .docs-cat-tab.active { background: var(--wds-primary); color: white; border-color: var(--wds-primary); }
+        .docs-list { display: flex; flex-direction: column; gap: 14px; }
+        .docs-card { padding: 18px 20px; background: white; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
+        .docs-card-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-gray-900); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--wds-gray-100); }
+        .docs-card-content { font-size: 0.92rem; line-height: 1.65; color: var(--wds-gray-900); word-break: break-word; }
+        .docs-card-content h1, .docs-card-content h2, .docs-card-content h3 { margin: 12px 0 6px; font-weight: 700; }
+        .docs-card-content h1 { font-size: 1.2rem; }
+        .docs-card-content h2 { font-size: 1.1rem; }
+        .docs-card-content h3 { font-size: 1rem; }
+        .docs-card-content p { margin: 6px 0; }
+        .docs-card-content ul, .docs-card-content ol { padding-left: 22px; margin: 6px 0; }
+        .docs-card-content li { margin: 3px 0; }
+        .docs-card-content code { background: var(--wds-gray-100); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; font-family: ui-monospace, monospace; }
+        .docs-card-content pre { background: var(--wds-gray-100); padding: 10px; border-radius: var(--wds-radius-s); overflow-x: auto; }
+        .docs-card-content pre code { background: transparent; padding: 0; }
+        .docs-card-content a { color: var(--wds-primary); text-decoration: underline; }
+        .docs-card-content blockquote { border-left: 3px solid var(--wds-primary); padding-left: 12px; margin: 8px 0; color: var(--wds-gray-700); }
+        .docs-card-content hr { border: none; border-top: 1px solid var(--wds-gray-300); margin: 16px 0; }
+        body.dark .docs-card { background: var(--wds-gray-100); border-color: #444; }
+        body.dark .docs-cat-tab { background: var(--wds-gray-100); border-color: #444; color: #ddd; }
+        body.dark .docs-cat-tab.active { background: var(--wds-primary); color: white; }
 
         /* 댓글 좋아요 버튼 */
         .like-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer; color: var(--wds-gray-500); transition: all 0.15s; margin-top: 6px; }
@@ -1090,10 +1118,19 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
+            if (!document.querySelector('[data-view="docs"]')) {
+                const docsTab = document.createElement('div');
+                docsTab.className = 'tab';
+                docsTab.dataset.view = 'docs';
+                docsTab.textContent = '📖 운영안내';
+                tabs.appendChild(docsTab);
+                docsTab.addEventListener('click', onTabClick);
+            }
 
             fetchReservations();
             fetchComments();
             fetchNotices();
+            fetchDocs();
             fetchBlocks().then(() => render());
             fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
             fetchPolls();
@@ -1456,6 +1493,8 @@
             user: null,
             currentView: 'month',
             adminTab: 'approval',
+            docs: [],
+            docsCategory: null,
             viewDate: new Date(),
             selectedDate: null,
             startTime: null,
@@ -1649,7 +1688,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'docs';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const result = document.getElementById('result');
@@ -1664,6 +1703,10 @@
                 title.textContent = '전체 예약 현황 (관리자)';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
+            } else if (state.currentView === 'docs') {
+                title.textContent = '📖 운영안내';
+                if (nav) nav.style.display = 'none';
+                renderDocsPage(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -1687,7 +1730,7 @@
             const sel = document.getElementById('participantSelect');
             const chips = document.getElementById('participantChips');
             if (!section || !sel || !chips) return;
-            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month';
+            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'docs' && state.currentView !== 'month';
             const show = isReservable && state.startTime;
             section.style.display = show ? '' : 'none';
             if (!show) return;
@@ -2536,7 +2579,7 @@
                 { key: 'members', label: '👥 멤버현황' },
                 ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
-                ...(canApproveRes() ? [{ key: 'push', label: '🔔 알림설정' }] : [])
+                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -2564,6 +2607,8 @@
                 renderAdminPollsSection(content);
             } else if (state.adminTab === 'push') {
                 await renderAdminPushSection(content);
+            } else if (state.adminTab === 'docs') {
+                renderAdminDocsSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
@@ -4132,6 +4177,156 @@
             const pubB64 = toB64url(pub);
             const privB64 = toB64url(priv);
             alert(`VAPID 키 생성 완료!\n\nCLOUDFLARE 환경변수에 설정하세요:\n\nVAPID_PUBLIC_KEY:\n${pubB64}\n\nVAPID_PRIVATE_KEY:\n${privB64}\n\nVAPID_SUBJECT:\nmailto:admin@example.com\n\n(이 창을 닫기 전에 복사하세요)`);
+        }
+
+        // ── 운영안내 문서 ─────────────────────────────────────────────────
+        async function fetchDocs() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('documents').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: true });
+            if (!error) state.docs = data || [];
+        }
+
+        function renderMarkdown(md) {
+            if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                return (md || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            }
+            return DOMPurify.sanitize(marked.parse(md || '', { breaks: true, gfm: true }));
+        }
+
+        function renderDocsPage(container) {
+            const docs = state.docs || [];
+            if (!docs.length) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500);font-size:0.9rem">등록된 운영 안내가 없습니다.</div>';
+                return;
+            }
+            const categories = [];
+            docs.forEach(d => { if (d.category && !categories.includes(d.category)) categories.push(d.category); });
+            const selectedCat = state.docsCategory && categories.includes(state.docsCategory) ? state.docsCategory : categories[0];
+
+            const catTabs = categories.map(c => {
+                const safeCat = c.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                return `<button type="button" class="docs-cat-tab${c === selectedCat ? ' active' : ''}" onclick="state.docsCategory='${safeCat}';render()">${escapeHtml(c)}</button>`;
+            }).join('');
+
+            const filtered = docs.filter(d => d.category === selectedCat);
+            const cards = filtered.map(d => `
+                <div class="docs-card">
+                    <div class="docs-card-title">${escapeHtml(d.title)}</div>
+                    <div class="docs-card-content">${renderMarkdown(d.content)}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="docs-categories">${catTabs}</div>
+                <div class="docs-list">${cards}</div>
+            `;
+        }
+
+        function renderAdminDocsSection(container) {
+            const docs = state.docs || [];
+            const grouped = {};
+            const catOrder = [];
+            docs.forEach(d => {
+                const c = d.category || '(미분류)';
+                if (!(c in grouped)) { grouped[c] = []; catOrder.push(c); }
+                grouped[c].push(d);
+            });
+
+            const datalistOptions = catOrder.map(c => `<option value="${escapeHtml(c)}">`).join('');
+
+            const groupedHtml = catOrder.map(cat => `
+                <div style="margin-bottom:16px">
+                    <div style="font-weight:700;margin-bottom:8px;color:var(--wds-gray-700);font-size:0.92rem">📂 ${escapeHtml(cat)}</div>
+                    ${grouped[cat].map(d => {
+                        const safeC = (d.category||'').replace(/"/g,'&quot;');
+                        const safeT = (d.title||'').replace(/"/g,'&quot;');
+                        const safeBody = (d.content||'').replace(/</g,'&lt;');
+                        const preview = (d.content||'').replace(/\n/g,' ').slice(0, 120);
+                        return `<div class="my-res-item" style="margin-bottom:6px" id="doc-row-${d.id}">
+                            <div class="doc-view-${d.id}">
+                                <div style="margin-bottom:4px"><strong>${escapeHtml(d.title)}</strong></div>
+                                <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-bottom:6px">${escapeHtml(preview)}${d.content && d.content.length > 120 ? '...' : ''}</div>
+                                <div style="display:flex;gap:6px">
+                                    <button type="button" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">수정</button>
+                                    <button type="button" style="padding:4px 10px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="deleteDoc('${d.id}')">삭제</button>
+                                </div>
+                            </div>
+                            <div class="doc-edit-${d.id}" style="display:none">
+                                <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" list="docCategoriesList" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
+                                <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                                <textarea id="doc-edit-content-${d.id}" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
+                                <div style="display:flex;gap:6px">
+                                    <button type="button" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="updateDoc('${d.id}')">저장</button>
+                                    <button type="button" style="padding:4px 10px;font-size:0.72rem;background:white;color:var(--wds-gray-600);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">취소</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="admin-section">
+                    <div style="font-size:1rem;font-weight:700;margin-bottom:12px">📖 운영안내 문서 관리</div>
+                    <datalist id="docCategoriesList">${datalistOptions}</datalist>
+
+                    <div style="margin-bottom:16px;padding:12px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s)">
+                        <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">새 문서 추가</div>
+                        <input id="newDocCategory" type="text" placeholder="카테고리 (예: 운영규칙, FAQ, 멤버가이드)" list="docCategoriesList" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <input id="newDocTitle" type="text" placeholder="제목" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <textarea id="newDocContent" placeholder="내용 (마크다운 지원: **굵게**, *기울임*, - 리스트, [링크](url), ## 소제목, 줄바꿈은 그대로 적용)" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+                        <button type="button" onclick="addDoc()" style="padding:6px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">추가</button>
+                    </div>
+
+                    ${groupedHtml || '<p style="color:var(--wds-gray-500);font-size:0.9rem">등록된 문서가 없습니다.</p>'}
+
+                    <div style="margin-top:16px;padding:10px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);font-size:0.75rem;color:var(--wds-gray-500)">
+                        💡 최초 1회: Supabase SQL 에디터에서 실행<br>
+                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS documents (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, category text NOT NULL, title text NOT NULL, content text NOT NULL, sort_order int DEFAULT 0, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());</code>
+                    </div>
+                </div>`;
+        }
+
+        async function addDoc() {
+            const category = document.getElementById('newDocCategory').value.trim();
+            const title = document.getElementById('newDocTitle').value.trim();
+            const content = document.getElementById('newDocContent').value.trim();
+            if (!category || !title || !content) { alert('카테고리/제목/내용을 모두 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('documents').insert([{ category, title, content }]);
+            if (error) { alert('추가 실패: ' + error.message); return; }
+            document.getElementById('newDocCategory').value = '';
+            document.getElementById('newDocTitle').value = '';
+            document.getElementById('newDocContent').value = '';
+            await fetchDocs();
+            render();
+        }
+
+        function toggleDocEdit(id) {
+            const v = document.querySelector(`.doc-view-${id}`);
+            const e = document.querySelector(`.doc-edit-${id}`);
+            if (!v || !e) return;
+            const editing = e.style.display !== 'none';
+            v.style.display = editing ? '' : 'none';
+            e.style.display = editing ? 'none' : '';
+        }
+
+        async function updateDoc(id) {
+            const c = document.getElementById(`doc-edit-cat-${id}`).value.trim();
+            const t = document.getElementById(`doc-edit-title-${id}`).value.trim();
+            const co = document.getElementById(`doc-edit-content-${id}`).value.trim();
+            if (!c || !t || !co) { alert('카테고리/제목/내용 모두 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, updated_at: new Date().toISOString() }).eq('id', id);
+            if (error) { alert('수정 실패: ' + error.message); return; }
+            await fetchDocs();
+            render();
+        }
+
+        async function deleteDoc(id) {
+            if (!confirm('이 문서를 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('documents').delete().eq('id', id);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            await fetchDocs();
+            render();
         }
         // ────────────────────────────────────────────────────────────────────
 
