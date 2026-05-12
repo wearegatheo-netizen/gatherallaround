@@ -4092,18 +4092,20 @@
             try {
                 const subs = await getAdminPushSubscriptions();
                 if (!subs.length) { alert('저장된 구독 정보가 없습니다.\n\nSupabase profiles 테이블에서 push_subscription 컬럼이 있는지, 값이 저장됐는지 확인해주세요.'); return; }
-                const results = await Promise.allSettled(subs.map(sub =>
-                    fetch('/push', {
+                const results = await Promise.allSettled(subs.map(async sub => {
+                    const r = await fetch('/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title: '🔔 테스트 알림', body: '푸시 알림이 정상 작동합니다!', subscription: sub })
-                    }).then(r => r.json())
-                ));
-                const msgs = results.map((r, i) =>
-                    r.status === 'fulfilled'
-                        ? `구독${i+1}: ${r.value.ok ? '✅ 성공' : `❌ 실패 (status ${r.value.status})`}`
-                        : `구독${i+1}: ❌ 오류 (${r.reason?.message || r.reason})`
-                ).join('\n');
+                    });
+                    const text = await r.text();
+                    return { httpStatus: r.status, contentType: r.headers.get('content-type') || '', body: text };
+                }));
+                const msgs = results.map((r, i) => {
+                    if (r.status !== 'fulfilled') return `구독${i+1}: ❌ ${r.reason?.message || r.reason}`;
+                    const { httpStatus, contentType, body } = r.value;
+                    return `구독${i+1}: HTTP ${httpStatus} · ${contentType}\n${body.slice(0, 300)}`;
+                }).join('\n\n');
                 alert(`테스트 결과 (${subs.length}개 구독):\n\n${msgs}`);
             } catch (e) {
                 alert('오류: ' + e.message);
