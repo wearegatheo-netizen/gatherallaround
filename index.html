@@ -382,8 +382,9 @@
 
         /* 관리자 서브탭 */
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-        .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; }
-        .admin-subtab { padding: 10px 18px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .admin-subtabs::-webkit-scrollbar { display: none; }
+        .admin-subtab { padding: 10px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
         .admin-subtab.active { color: var(--wds-primary); border-bottom-color: var(--wds-primary); }
         .admin-subtab:hover { color: var(--wds-gray-900); }
 
@@ -677,8 +678,8 @@
             .weekly-slot { height: 50px; font-size: 0.72rem; }
             .day-grid .weekly-slot { padding-left: 12px !important; height: 48px; }
             .weekly-header-cell { padding: 10px 4px; font-size: 0.85rem; }
-            .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-            .admin-subtab { padding: 8px 12px; font-size: 0.82rem; white-space: nowrap; }
+            .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; }
+            .admin-subtab { padding: 8px 10px; font-size: 0.78rem; white-space: nowrap; }
             .admin-section { padding: 16px 12px; }
             .admin-section-title { font-size: 0.95rem; }
             .my-res-item { padding: 12px; flex-wrap: wrap; gap: 8px; }
@@ -937,6 +938,7 @@
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
                     <div class="admin-subtab" onclick="setMemberTab('stats')">참여율</div>
                     <div class="admin-subtab" onclick="setMemberTab('votes')">투표</div>
+                    <div class="admin-subtab" onclick="setMemberTab('docs')">운영안내</div>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -1118,15 +1120,6 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
-            if (!document.querySelector('[data-view="docs"]')) {
-                const docsTab = document.createElement('div');
-                docsTab.className = 'tab';
-                docsTab.dataset.view = 'docs';
-                docsTab.textContent = '📖 운영안내';
-                tabs.appendChild(docsTab);
-                docsTab.addEventListener('click', onTabClick);
-            }
-
             fetchReservations();
             fetchComments();
             fetchNotices();
@@ -1688,7 +1681,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'docs';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const result = document.getElementById('result');
@@ -1703,10 +1696,6 @@
                 title.textContent = '전체 예약 현황 (관리자)';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
-            } else if (state.currentView === 'docs') {
-                title.textContent = '📖 운영안내';
-                if (nav) nav.style.display = 'none';
-                renderDocsPage(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -1730,7 +1719,7 @@
             const sel = document.getElementById('participantSelect');
             const chips = document.getElementById('participantChips');
             if (!section || !sel || !chips) return;
-            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'docs' && state.currentView !== 'month';
+            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month';
             const show = isReservable && state.startTime;
             section.style.display = show ? '' : 'none';
             if (!show) return;
@@ -1945,7 +1934,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
-            const order = ['list', 'teams', 'stats', 'votes'];
+            const order = ['list', 'teams', 'stats', 'votes', 'docs'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -1959,6 +1948,8 @@
                 await renderParticipationStatsTab(view);
             } else if (state.memberPanelTab === 'votes') {
                 await renderVotesTab(view);
+            } else if (state.memberPanelTab === 'docs') {
+                renderDocsPage(view);
             } else {
                 await renderTeamsTab(view);
             }
