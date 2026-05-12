@@ -934,11 +934,11 @@
             <div class="section-summary">동료 멤버들을 확인하고, 함께할 팀을 구성하거나 참여 중인 팀을 관리하세요.</div>
             <div id="memberPanelContent" class="hidden" style="margin-top:16px">
                 <div class="admin-subtabs">
-                    <div class="admin-subtab active" onclick="setMemberTab('list')">멤버 목록</div>
+                    <div class="admin-subtab active" onclick="setMemberTab('docs')">운영안내</div>
+                    <div class="admin-subtab" onclick="setMemberTab('list')">멤버 목록</div>
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
                     <div class="admin-subtab" onclick="setMemberTab('stats')">참여율</div>
                     <div class="admin-subtab" onclick="setMemberTab('votes')">투표</div>
-                    <div class="admin-subtab" onclick="setMemberTab('docs')">운영안내</div>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -1495,7 +1495,7 @@
             reservations: [],
             blocks: [],
             teams: [],
-            memberPanelTab: 'list',
+            memberPanelTab: 'docs',
             editingTeam: null,
             editingSlots: [],
             editingSongs: [],
@@ -1934,7 +1934,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
-            const order = ['list', 'teams', 'stats', 'votes', 'docs'];
+            const order = ['docs', 'list', 'teams', 'stats', 'votes'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -3390,9 +3390,15 @@
                         s.title = block.reason || '예약 차단됨';
                     } else if (occupiedRes) {
                         s.classList.add('slot-occupied');
-                        s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.72rem';
                         s.style.color = 'var(--wds-gray-700)';
+                        if (isSuper()) {
+                            s.style.cursor = 'pointer';
+                            s.title = `${occupiedRes.user_name} — 클릭하여 예약 취소`;
+                            s.onclick = () => { if (confirm(`${occupiedRes.user_name}의 예약(${d} ${time})을 취소하시겠습니까?`)) cancelReservation(occupiedRes.id, true); };
+                        } else {
+                            s.style.cursor = 'not-allowed';
+                        }
                         s.textContent = maskName(occupiedRes.user_name);
                     } else {
                         if (isSlotSelected(d, time)) s.classList.add('selected');
@@ -3430,9 +3436,14 @@
                     s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
                 } else if (occupiedRes) {
                     s.classList.add('slot-occupied');
-                    s.style.cursor = 'not-allowed';
                     const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
-                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${etcNote}`;
+                    const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('${occupiedRes.user_name}의 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
+                    if (isSuper()) {
+                        s.style.cursor = 'default';
+                    } else {
+                        s.style.cursor = 'not-allowed';
+                    }
+                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${etcNote}`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
                         s.classList.add('selected');
