@@ -836,6 +836,11 @@
             <div id="editParticipantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
             <div style="margin-top:10px">
                 <input type="text" id="editParticipantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                    <label style="font-size:0.8rem;color:var(--wds-gray-600);white-space:nowrap">비등록 참여 인원:</label>
+                    <input type="number" id="editParticipantCountInput" min="0" max="99" value="0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;text-align:center">
+                    <span style="font-size:0.8rem;color:var(--wds-gray-500)">명</span>
+                </div>
                 <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자 (참여 횟수 미반영)</p>
             </div>
             <div style="display:flex;gap:8px;margin-top:18px">
@@ -943,6 +948,11 @@
                 <div id="participantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
                 <div style="margin-top:10px">
                     <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                        <label style="font-size:0.8rem;color:var(--wds-gray-600);white-space:nowrap">비등록 참여 인원:</label>
+                        <input type="number" id="participantCountInput" min="0" max="99" value="0" oninput="state.participantCount=parseInt(this.value)||0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;text-align:center">
+                        <span style="font-size:0.8rem;color:var(--wds-gray-500)">명</span>
+                    </div>
                     <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자는 여기에 적어주세요. (참여 횟수에는 반영되지 않습니다)</p>
                 </div>
             </div>
@@ -1137,6 +1147,7 @@
             hideKakaoSignupModal();
             showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
             setTimeout(() => notifyAdminSignupKakao(name, instruments), 400);
+            setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 600);
             fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
         }
 
@@ -1426,6 +1437,7 @@
             if (isNew) {
                 const regName = document.getElementById('regName') ? document.getElementById('regName').value.trim() : (state.user && state.user.nickname) || '';
                 setTimeout(() => notifyAdminSignupKakao(regName, instruments), 400);
+                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${regName} · ${instruments || '세션 미입력'}`), 600);
             }
             renderMypagePanel();
         }
@@ -1453,6 +1465,7 @@
             bgmTracks: [],
             participantIds: [],
             participantEtc: '',
+            participantCount: 0,
             lastReservation: null,
             polls: [],
             pollVotes: [],
@@ -1525,7 +1538,8 @@
 
         function initApp() {
             console.log("App 초기화 시작...");
-            
+            initServiceWorker();
+
             // Supabase 안전한 초기화
             try {
                 if (typeof window.supabase !== 'undefined') {
@@ -1762,7 +1776,11 @@
             document.body.style.overflow = 'hidden';
             renderEditParticipantSelector();
             const etcEl = document.getElementById('editParticipantEtcInput');
-            if (etcEl) etcEl.value = r.participant_etc || '';
+            const countEl = document.getElementById('editParticipantCountInput');
+            const etcRaw = r.participant_etc || '';
+            const etcMatch = etcRaw.match(/^(.*?)\s*\((\d+)명\)$/);
+            if (etcEl) etcEl.value = etcMatch ? etcMatch[1].trim() : etcRaw;
+            if (countEl) countEl.value = etcMatch ? etcMatch[2] : '0';
         }
 
         function closeEditParticipantsModal() {
@@ -1848,7 +1866,10 @@
             const ids = state.editingResParticipantIds || [];
             if (ids.length === 0) { alert('참여 멤버를 1명 이상 추가해주세요.'); return; }
             const etcEl = document.getElementById('editParticipantEtcInput');
-            const etcVal = etcEl ? (etcEl.value || '').trim() : '';
+            const countEl = document.getElementById('editParticipantCountInput');
+            const etcText = etcEl ? (etcEl.value || '').trim() : '';
+            const etcCount = countEl ? (parseInt(countEl.value) || 0) : 0;
+            const etcVal = etcCount > 0 ? (etcText ? `${etcText} (${etcCount}명)` : `(${etcCount}명)`) : etcText;
             const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids, participant_etc: etcVal || null }).eq('id', state.editingResId);
             if (error) { alert('수정 실패: ' + error.message); return; }
             closeEditParticipantsModal();
@@ -2507,7 +2528,8 @@
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
                 ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
-                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : [])
+                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
+                ...(canApproveRes() ? [{ key: 'push', label: '🔔 알림설정' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -2533,6 +2555,8 @@
                 content.id = 'adminPollContent';
                 await fetchPolls(); await fetchPollVotes();
                 renderAdminPollsSection(content);
+            } else if (state.adminTab === 'push') {
+                await renderAdminPushSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
@@ -3482,8 +3506,10 @@
             const name = (state.user && state.user.nickname) || document.getElementById('userNameInput').value || '';
             if (!name) { alert('사용자 정보를 불러오지 못했습니다. 다시 로그인해주세요.'); return; }
             const etcTrimmed = (state.participantEtc || '').trim();
+            const etcCount = state.participantCount || 0;
+            const etcFinal = etcCount > 0 ? (etcTrimmed ? `${etcTrimmed} (${etcCount}명)` : `(${etcCount}명)`) : etcTrimmed;
             const hasMembers = state.participantIds && state.participantIds.length > 0;
-            if (!hasMembers && !etcTrimmed) { alert('참여 멤버를 1명 이상 추가하거나 기타란에 이름을 적어주세요.'); return; }
+            if (!hasMembers && !etcFinal) { alert('참여 멤버를 1명 이상 추가하거나 기타란에 이름을 적어주세요.'); return; }
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
             const dateStr = state.selectedDate.toLocaleDateString('en-CA');
             // 2시간 이하는 자동 승인, 초과하면 관리자 승인 필요
@@ -3499,7 +3525,7 @@
                     end_time: effectiveEndTime,
                     status: reservationStatus,
                     participant_ids: state.participantIds || [],
-                    participant_etc: (state.participantEtc || '').trim() || null
+                    participant_etc: etcFinal || null
                 }]);
 
             if (error) {
@@ -3509,7 +3535,7 @@
                 state.lastReservation = {
                     dateStr, timeStr, name,
                     participantIds: [...state.participantIds],
-                    etc: state.participantEtc
+                    etc: etcFinal
                 };
                 const res = document.getElementById('result');
                 res.style.display = 'block';
@@ -3523,11 +3549,14 @@
                         <button type="button" onclick="shareLastReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:#FEE500;color:#3C1E1E;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">카카오톡 공유</button>
                     </div>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
-                state.participantIds = []; state.participantEtc = '';
+                state.participantIds = []; state.participantEtc = ''; state.participantCount = 0;
                 const etcEl = document.getElementById('participantEtcInput');
                 if (etcEl) etcEl.value = '';
+                const cntEl = document.getElementById('participantCountInput');
+                if (cntEl) cntEl.value = '0';
                 fetchReservations();
                 if (reservationStatus === 'pending') setTimeout(() => notifyAdminReservationKakao(), 500);
+                setTimeout(() => sendAdminPush('🎸 새 예약 신청', `${name} · ${dateStr} ${timeStr}`), 600);
             }
         }
 
@@ -3670,6 +3699,7 @@
 
             alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
             notifyAdminSignupKakao(name, instruments);
+            sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
             showPendingScreen(name);
         }
 
@@ -3937,6 +3967,133 @@
             lines.push('관리자 페이지에서 확인 후 승인해 주세요!');
             _kakaoLink(lines.join('\n'));
         }
+
+        // ── Web Push Notifications ──────────────────────────────────────────
+        let _swReg = null;
+
+        async function initServiceWorker() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+            try {
+                _swReg = await navigator.serviceWorker.register('/sw.js');
+            } catch (e) { console.warn('SW registration failed', e); }
+        }
+
+        async function getAdminPushSubscriptions() {
+            if (!supabaseClient) return [];
+            const { data } = await supabaseClient
+                .from('profiles')
+                .select('push_subscription')
+                .in('role', ['총괄', '세션장'])
+                .not('push_subscription', 'is', null);
+            return (data || []).map(r => r.push_subscription).filter(Boolean);
+        }
+
+        async function sendAdminPush(title, body) {
+            try {
+                const subs = await getAdminPushSubscriptions();
+                if (!subs.length) return;
+                await Promise.allSettled(subs.map(sub =>
+                    fetch('/push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, body, subscription: sub })
+                    })
+                ));
+            } catch (e) { console.warn('sendAdminPush error', e); }
+        }
+
+        async function subscribePush() {
+            if (!_swReg) { alert('서비스 워커가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'); return; }
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') { alert('알림 권한을 허용해주세요.'); return; }
+            try {
+                const res = await fetch('/push?key');
+                const { key } = await res.json();
+                if (!key) { alert('VAPID 키가 설정되지 않았습니다. Cloudflare 환경 변수를 확인해주세요.'); return; }
+                const sub = await _swReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(key)
+                });
+                const q = state.user.authType === 'email'
+                    ? supabaseClient.from('profiles').update({ push_subscription: sub.toJSON() }).eq('id', state.user.kakaoId)
+                    : supabaseClient.from('profiles').update({ push_subscription: sub.toJSON() }).eq('kakao_id', state.user.kakaoId);
+                await q;
+                showToast('✅ 푸시 알림이 활성화되었습니다.');
+                render();
+            } catch (e) { alert('구독 실패: ' + e.message); }
+        }
+
+        async function unsubscribePush() {
+            try {
+                if (_swReg) {
+                    const sub = await _swReg.pushManager.getSubscription();
+                    if (sub) await sub.unsubscribe();
+                }
+                const q2 = state.user.authType === 'email'
+                    ? supabaseClient.from('profiles').update({ push_subscription: null }).eq('id', state.user.kakaoId)
+                    : supabaseClient.from('profiles').update({ push_subscription: null }).eq('kakao_id', state.user.kakaoId);
+                await q2;
+                showToast('푸시 알림이 비활성화되었습니다.');
+                render();
+            } catch (e) { alert('구독 해제 실패: ' + e.message); }
+        }
+
+        async function getPushSubscriptionStatus() {
+            if (!_swReg || !('PushManager' in window)) return 'unsupported';
+            const sub = await _swReg.pushManager.getSubscription().catch(() => null);
+            return sub ? 'subscribed' : 'unsubscribed';
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = atob(base64);
+            return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+        }
+
+        async function renderAdminPushSection(container) {
+            const supported = ('serviceWorker' in navigator) && ('PushManager' in window);
+            const status = supported ? await getPushSubscriptionStatus() : 'unsupported';
+            const isOn = status === 'subscribed';
+            container.innerHTML = `
+                <div class="admin-section">
+                    <div style="font-size:1rem;font-weight:700;margin-bottom:12px">🔔 브라우저 푸시 알림</div>
+                    ${!supported ? `<p style="color:var(--wds-gray-500);font-size:0.88rem">이 브라우저는 푸시 알림을 지원하지 않습니다.</p>` : `
+                    <p style="font-size:0.85rem;color:var(--wds-gray-600);margin-bottom:14px">
+                        활성화하면 새 예약 신청, 가입 신청 시 이 기기로 푸시 알림을 받을 수 있습니다.<br>
+                        <span style="color:var(--wds-gray-400);font-size:0.78rem">※ 브라우저/탭이 닫혀있어도 알림이 옵니다 (Service Worker 기반)</span>
+                    </p>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <span style="font-size:0.9rem;font-weight:600">현재 상태: ${isOn
+                            ? '<span style="color:#16a34a">🟢 활성화됨</span>'
+                            : '<span style="color:var(--wds-gray-400)">⚪ 비활성화</span>'}
+                        </span>
+                        ${isOn
+                            ? `<button type="button" onclick="unsubscribePush()" style="padding:8px 18px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.88rem;font-family:inherit">알림 끄기</button>`
+                            : `<button type="button" onclick="subscribePush()" style="padding:8px 18px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit">알림 켜기</button>`
+                        }
+                    </div>
+                    <div style="margin-top:16px;padding:12px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);font-size:0.78rem;color:var(--wds-gray-500)">
+                        💡 <strong style="color:var(--wds-gray-700)">최초 설정 가이드</strong><br>
+                        1. 아래 버튼으로 VAPID 키 생성<br>
+                        2. Cloudflare Pages → Settings → 환경변수에 <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code>, <code>VAPID_SUBJECT</code> 설정<br>
+                        3. Supabase SQL 에디터에서 실행: <code>ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_subscription jsonb;</code><br>
+                        <button type="button" onclick="generateVapidKeys()" style="margin-top:8px;padding:5px 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);background:white;cursor:pointer;font-size:0.78rem;font-family:inherit">VAPID 키 생성</button>
+                    </div>
+                    `}
+                </div>`;
+        }
+
+        async function generateVapidKeys() {
+            const keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+            const pub = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+            const priv = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+            const toB64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            const pubB64 = toB64url(pub);
+            const privB64 = toB64url(priv);
+            alert(`VAPID 키 생성 완료!\n\nCLOUDFLARE 환경변수에 설정하세요:\n\nVAPID_PUBLIC_KEY:\n${pubB64}\n\nVAPID_PRIVATE_KEY:\n${privB64}\n\nVAPID_SUBJECT:\nmailto:admin@example.com\n\n(이 창을 닫기 전에 복사하세요)`);
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         function subscribeToPolls() {
             if (!supabaseClient) return;
