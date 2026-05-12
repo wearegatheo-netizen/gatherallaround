@@ -3862,14 +3862,14 @@
             const modeTag = [poll.multi_select ? '복수 선택 가능' : '단일 선택', poll.anonymous ? '익명' : '기명'].join(' · ');
             const text = [
                 '🗳️ [게더올어라운드 투표]',
-                '━━━━━━━━━━━━━━━━━━',
+                '',
                 `📊 ${poll.title}`,
                 '',
                 `📋 선택지 (${(poll.options || []).length}개)`,
                 optionLines,
                 '',
                 `👥 현재 ${voteCount}명 참여 중 · ${modeTag}`,
-                '━━━━━━━━━━━━━━━━━━',
+                '',
                 '지금 바로 투표에 참여해보세요! 👇'
             ].join('\n');
             Kakao.Link.sendDefault({ objectType: 'text', text, link: { webUrl: siteUrl, mobileWebUrl: siteUrl } });
@@ -3890,13 +3890,13 @@
             const membersLine = memberNames.length > 0 ? memberNames.join(', ') : '미정';
             const lines = [
                 '🎸 [게더올어라운드 합주 예약]',
-                '━━━━━━━━━━━━━━━━━━',
+                '',
                 `📅 일시    ${r.dateStr} ${r.timeStr}`,
                 `👤 예약자  ${r.name}`,
                 `👥 멤버    ${membersLine}`,
             ];
             if (r.etc) lines.push(`📝 기타    ${r.etc}`);
-            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push('');
             lines.push('같이 합주해요! 🎵');
             _kakaoLink(lines.join('\n'));
         }
@@ -3911,13 +3911,13 @@
             const now = new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             const lines = [
                 '🔔 [GAA 예약 신청 알림]',
-                '━━━━━━━━━━━━━━━━━━',
+                '',
                 `📅 일시    ${r.dateStr} ${r.timeStr}`,
                 `👤 신청자  ${r.name}`,
                 `👥 멤버    ${membersLine}`,
             ];
             if (r.etc) lines.push(`📝 기타    ${r.etc}`);
-            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push('');
             lines.push(`⏰ 신청 시각: ${now}`);
             lines.push('관리자 페이지에서 확인 후 승인해 주세요!');
             _kakaoLink(lines.join('\n'));
@@ -3928,11 +3928,11 @@
             const now = new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             const lines = [
                 '🙋 [GAA 가입 신청 알림]',
-                '━━━━━━━━━━━━━━━━━━',
+                '',
                 `👤 신청자  ${name}`,
             ];
             if (instLine) lines.push(instLine);
-            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push('');
             lines.push(`⏰ 신청 시각: ${now}`);
             lines.push('관리자 페이지에서 확인 후 승인해 주세요!');
             _kakaoLink(lines.join('\n'));
