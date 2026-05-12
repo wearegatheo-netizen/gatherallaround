@@ -51,6 +51,67 @@ git checkout claude/complete-index-modification-siszr
 
 ## 6. 토큰 절약 팁
 
-- **파일 전체 Read 금지** (3500줄). `grep -n` 으로 라인 찾고 해당 부분만 Read.
+- **파일 전체 Read 금지** (4800줄+). `grep -n` 으로 라인 찾고 해당 부분만 Read.
 - 큰 변경은 한 번의 Edit으로. 여러 작은 Edit 분리 X.
 - 푸시 실패하면 원인부터 진단 (proxy vs PAT). 무작정 재시도 X.
+
+---
+
+## 7. master 배포 절차 수정 (2026-05-12 확인)
+
+로컬 브랜치가 origin/master보다 뒤처진 경우 `git merge` 방식은 non-fast-forward 에러 남.
+**표준 절차: cherry-pick으로 새 커밋만 master에 얹기**
+
+```bash
+PAT="github_pat_..."
+git fetch "https://x-access-token:${PAT}@github.com/wearegatheo-netizen/gatherallaround.git" master:refs/remotes/origin/master
+git checkout -b temp-deploy origin/master
+git cherry-pick <commit-hash>
+git push "https://x-access-token:${PAT}@github.com/wearegatheo-netizen/gatherallaround.git" temp-deploy:master
+git push "https://x-access-token:${PAT}@github.com/wearegatheo-netizen/gatherallaround.git" <feature-branch>:<feature-branch>  # 브랜치도 동기화
+git checkout <feature-branch>
+git branch -D temp-deploy
+git fetch "https://x-access-token:${PAT}@github.com/wearegatheo-netizen/gatherallaround.git" <feature-branch>:refs/remotes/origin/<feature-branch>
+```
+
+## 8. Web Push 알림 구현 교훈 (2026-05-12)
+
+### 설정 순서가 중요
+1. Supabase SQL: `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_subscription jsonb;`
+2. Cloudflare 환경변수 설정 (VAPID 3개)
+3. 재배포
+4. **그 다음에** 관리자가 "알림 켜기" 클릭 — 순서 틀리면 VAPID 불일치 403 에러
+
+### HKDF 버그 (핵심)
+- `hkdfExtractExpand`에서 manual extract 후 WebCrypto HKDF를 다시 호출하면 **이중 추출** 발생
+- WebCrypto HKDF는 항상 extract+expand 한 번에 수행함
+- 수정: `crypto.subtle.importKey('raw', ikm, 'HKDF', ...)` + `deriveBits({name:'HKDF', salt, info, hash})` 한 번만 호출
+
+### 403 "VAPID credentials do not match" 원인
+- 구독 생성 시 사용한 VAPID public key ≠ 현재 서버의 VAPID key
+- 해결: 알림 끄기 → 다시 알림 켜기 (새 구독 생성)
+
+### 502 HTML 응답 원인
+- Cloudflare Pages Function에서 예외가 try/catch 밖으로 빠져나가면 502 HTML 반환
+- 해결: onRequest 최상단에 try/catch 전체 감싸기, 에러도 status 200 JSON으로 반환
+
+### Supabase RLS 문제
+- 일반 유저는 다른 유저의 `push_subscription` 컬럼 못 읽음
+- 해결: `CREATE POLICY "allow_read_admin_push_subscription" ON profiles FOR SELECT USING (role IN ('총괄', '세션장'));`
+
+### 알림이 안 보이는 경우
+- `status 201` = 푸시 서비스 수락 (전달 완료 아님)
+- SW `showNotification ok` 로그 = OS에 전달됨
+- 배너가 안 뜨면 → OS 알림 설정, Do Not Disturb, 브라우저 알림 권한 확인
+- iOS: Safari 탭에선 불가, **홈 화면 PWA로 추가 후 아이콘으로 열어야** 알림 수신 가능
+
+### Realtime 채널 중복 구독
+- `subscribeToPolls()` 여러 번 호출 시 "cannot add postgres_changes callbacks after subscribe()" 에러
+- 해결: 전역 변수로 채널 참조 보관, 재구독 전 `supabaseClient.removeChannel()` 호출
+
+### 디버그 순서 (알림 안 올 때)
+1. GET `/push?key` → JSON 응답 확인 (함수 배포 여부)
+2. 테스트 알림 → HTTP status, content-type, 응답 본문 확인
+3. SW DevTools "Push" 버튼 → 배너 뜨는지 확인 (SW 동작 여부)
+4. SW inspect 콘솔 → `[sw] push event received`, `showNotification ok` 로그 확인
+5. OS 알림 설정 확인
