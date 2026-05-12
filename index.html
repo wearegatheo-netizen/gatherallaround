@@ -41,6 +41,63 @@
 
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
+        body.dark {
+            --wds-primary: #5C82FF;
+            --wds-primary-hover: #7A99FF;
+            --wds-primary-light: #1F2747;
+            --wds-black: #ECECEC;
+            --wds-gray-900: #D6D6D6;
+            --wds-gray-700: #A8A8A8;
+            --wds-gray-500: #7E7E7E;
+            --wds-gray-300: #3A3A3A;
+            --wds-gray-100: #232323;
+            --wds-white: #1A1A1A;
+            --wds-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        body.dark { background-color: #121212 !important; }
+        body.dark [style*="background:white"],
+        body.dark [style*="background: white"],
+        body.dark [style*="background:#fff"],
+        body.dark [style*="background: #fff"],
+        body.dark [style*="background:#FFF"],
+        body.dark [style*="background-color:white"],
+        body.dark [style*="background-color: white"] { background-color: #1A1A1A !important; }
+        body.dark input, body.dark select, body.dark textarea { background-color: #232323 !important; color: var(--wds-black) !important; border-color: var(--wds-gray-300) !important; }
+        body.dark .my-res-item { background: var(--wds-gray-100); }
+        body.dark .inst-btn { background: var(--wds-gray-100); color: var(--wds-black); }
+        body.dark .inst-btn.selected { background: var(--wds-primary); color: #fff; }
+        body.dark .status-pending { background: #3a2f0d !important; color: #FCD34D !important; }
+        body.dark .status-approved { background: #0f3624 !important; color: #6EE7B7 !important; }
+        body.dark .status-rejected { background: #3a1414 !important; color: #FCA5A5 !important; }
+        body.dark .weekly-slot.week-today { background: rgba(92,130,255,0.12); }
+        body.dark .weekly-slot.week-sun { background: rgba(231,76,60,0.08); }
+        body.dark .weekly-slot.week-sat { background: rgba(52,152,219,0.08); }
+        body.dark #notice_container > *, body.dark .notice-box { background: var(--wds-gray-100); color: var(--wds-black); }
+        .slot-past { background: #f5f5f5; }
+        .slot-blocked { background: #ffe5e5; }
+        .slot-occupied { background: #eeeeee; }
+        body.dark .slot-past { background: #252525 !important; }
+        body.dark .slot-blocked { background: #3a1414 !important; color: #ff8080 !important; }
+        body.dark .slot-occupied { background: #2a2a2a !important; }
+        body.dark .nav-btn { background: var(--wds-gray-100) !important; color: var(--wds-black); }
+        body.dark #comments_container { background: var(--wds-white) !important; }
+        body.dark .cancel-btn { background: #2a1010 !important; }
+        body.dark .approve-btn { background: #0a2016 !important; }
+        body.dark .reject-btn { background: #2a1010 !important; }
+        body.dark .team-card { background: var(--wds-gray-100) !important; }
+        body.dark .admin-member-row { background: var(--wds-gray-100) !important; }
+        body.dark .block-list-row { background: var(--wds-gray-100) !important; }
+        body.dark #teamFormContainer { background: var(--wds-gray-100) !important; }
+        body.dark #musicResults { background: var(--wds-gray-100) !important; }
+        body.dark .add-slot-btn { background: var(--wds-gray-100) !important; color: var(--wds-gray-700); }
+        body.dark .song-chip { background: var(--wds-gray-100) !important; }
+        body.dark .result-card { background: #1a2040 !important; border-color: #2a3868 !important; }
+        body.dark .notice-card { background: #2a2510 !important; border-color: #4a3d1a !important; }
+        body.dark .like-btn.liked { background: #2a1515 !important; }
+        body.dark [style*="background:linear-gradient(135deg,#667eea"] { background: linear-gradient(135deg, #3a4a8a, #4a3070) !important; }
+        .theme-toggle-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; height: 32px; cursor: pointer; font-size: 0.78rem; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--wds-gray-700); margin-right: 6px; transition: 0.2s; white-space: nowrap; font-weight: 600; font-family: inherit; }
+        .theme-toggle-btn:hover { color: var(--wds-primary); border-color: var(--wds-primary); }
+
         body {
             font-family: 'Pretendard', -apple-system, sans-serif;
             background-color: #fcfcfc;
@@ -66,6 +123,7 @@
             box-shadow: var(--wds-shadow-lg);
             border: 1px solid var(--wds-gray-300);
             margin-top: 10vh;
+            position: relative;
         }
 
         #landing-page h1 { font-size: 2.2rem; margin-bottom: 12px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
@@ -273,6 +331,7 @@
         .approve-btn { padding: 6px 14px; border: 1px solid #10B981; border-radius: var(--wds-radius-s); background: white; color: #10B981; cursor: pointer; font-weight: 600; font-size: 0.82rem; margin-right: 6px; }
         .reject-btn { padding: 6px 14px; border: 1px solid #EF4444; border-radius: var(--wds-radius-s); background: white; color: #EF4444; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
         .admin-post-btn { padding: 10px 20px; background: var(--wds-black); color: white; border: none; border-radius: var(--wds-radius-m); font-size: 0.9rem; font-weight: 700; cursor: pointer; align-self: flex-end; }
+        body.dark .admin-post-btn { background: var(--wds-gray-700) !important; color: var(--wds-white) !important; }
 
         /* 이메일 인증 */
         .auth-tabs { display: flex; gap: 0; margin-bottom: 28px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); overflow: hidden; }
@@ -629,6 +688,7 @@
     <!-- 공지사항 (항상 표시) -->
     <!-- Landing/Login -->
     <div id="landing-page">
+        <button type="button" id="themeToggleBtnLanding" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙 다크</button>
         <h1>Gather all around</h1>
         <p>게더올어라운드 이용 시스템</p>
 
@@ -774,6 +834,10 @@
                 <button type="button" onclick="addEditParticipant()" style="padding:0 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">+ 추가</button>
             </div>
             <div id="editParticipantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
+            <div style="margin-top:10px">
+                <input type="text" id="editParticipantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자 (참여 횟수 미반영)</p>
+            </div>
             <div style="display:flex;gap:8px;margin-top:18px">
                 <button type="button" onclick="closeEditParticipantsModal()" style="flex:1;padding:11px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
                 <button type="button" onclick="saveEditParticipants()" style="flex:2;padding:11px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">저장</button>
@@ -803,7 +867,10 @@
 
         <div id="userInfoArea" class="user-info">
             <span><strong id="userNameDisplay"></strong>님, 환영합니다!</span>
-            <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
+            <div style="display:flex;align-items:center;gap:4px">
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙 다크</button>
+                <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
+            </div>
         </div>
 
         <div id="livePollBanner" class="hidden"></div>
@@ -1650,6 +1717,8 @@
             document.getElementById('editParticipantsModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             renderEditParticipantSelector();
+            const etcEl = document.getElementById('editParticipantEtcInput');
+            if (etcEl) etcEl.value = r.participant_etc || '';
         }
 
         function closeEditParticipantsModal() {
@@ -1734,7 +1803,9 @@
             if (!state.editingResId) return;
             const ids = state.editingResParticipantIds || [];
             if (ids.length === 0) { alert('참여 멤버를 1명 이상 추가해주세요.'); return; }
-            const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids }).eq('id', state.editingResId);
+            const etcEl = document.getElementById('editParticipantEtcInput');
+            const etcVal = etcEl ? (etcEl.value || '').trim() : '';
+            const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids, participant_etc: etcVal || null }).eq('id', state.editingResId);
             if (error) { alert('수정 실패: ' + error.message); return; }
             closeEditParticipantsModal();
             showToast('참여 멤버가 수정되었습니다.');
@@ -3111,7 +3182,9 @@
                     const endH = parseInt(endStr.split(':')[0]);
                     const cls = r.status === 'approved' ? 'approved' : 'pending';
                     const icon = r.status === 'approved' ? '✓' : '⏳';
-                    info.innerHTML += `<span class="${cls}">${icon}${startH}-${endH}시</span>`;
+                    const etcTitle = canApproveRes() && r.participant_etc ? ` title="기타: ${r.participant_etc.replace(/"/g,'&quot;')}"` : '';
+                    const etcMark = canApproveRes() && r.participant_etc ? '<span style="color:#e07b00">*</span>' : '';
+                    info.innerHTML += `<span class="${cls}"${etcTitle}>${icon}${startH}-${endH}시${etcMark}</span>`;
                 });
                 if (dayRes.length > 3) {
                     info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}건</span>`;
@@ -3165,11 +3238,11 @@
                     const occupiedRes = getOccupiedReservation(d, time);
                     const past = isPastSlot(d, time);
                     if (past && !block && !occupiedRes) {
-                        s.style.background = '#f5f5f5';
+                        s.classList.add('slot-past');
                         s.style.cursor = 'not-allowed';
                         s.style.opacity = '0.45';
                     } else if (block) {
-                        s.style.background = '#ffe5e5';
+                        s.classList.add('slot-blocked');
                         s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.65rem';
                         s.style.color = '#c0392b';
@@ -3184,7 +3257,7 @@
                         s.innerHTML = `<div style="font-size:0.85rem">🚫</div><div style="overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;max-width:100%">${escapeHtml(reason)}</div>`;
                         s.title = block.reason || '예약 차단됨';
                     } else if (occupiedRes) {
-                        s.style.background = '#eee';
+                        s.classList.add('slot-occupied');
                         s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.72rem';
                         s.style.color = 'var(--wds-gray-700)';
@@ -3214,20 +3287,21 @@
                 const occupiedRes = getOccupiedReservation(state.viewDate, time);
                 const past = isPastSlot(state.viewDate, time);
                 if (past && !block && !occupiedRes) {
-                    s.style.background = '#f5f5f5';
+                    s.classList.add('slot-past');
                     s.style.cursor = 'not-allowed';
                     s.style.opacity = '0.45';
                     s.style.color = 'var(--wds-gray-500)';
                     s.textContent = '지난 시간';
                 } else if (block) {
-                    s.style.background = '#ffe5e5';
+                    s.classList.add('slot-blocked');
                     s.style.cursor = 'not-allowed';
                     s.style.color = '#c0392b';
                     s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
                 } else if (occupiedRes) {
-                    s.style.background = '#eee';
+                    s.classList.add('slot-occupied');
                     s.style.cursor = 'not-allowed';
-                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
+                    const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
+                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${etcNote}`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
                         s.classList.add('selected');
@@ -3370,7 +3444,8 @@
                     start_time: state.startTime,
                     end_time: effectiveEndTime,
                     status: reservationStatus,
-                    participant_ids: state.participantIds || []
+                    participant_ids: state.participantIds || [],
+                    participant_etc: (state.participantEtc || '').trim() || null
                 }]);
 
             if (error) {
@@ -4117,7 +4192,33 @@
             fetchComments();
         }
 
-        document.addEventListener('DOMContentLoaded', initApp);
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            document.body.classList.toggle('dark', isDark);
+            const label = isDark ? '☀️ 라이트' : '🌙 다크';
+            const a = document.getElementById('themeToggleBtn');
+            const b = document.getElementById('themeToggleBtnLanding');
+            if (a) a.textContent = label;
+            if (b) b.textContent = label;
+        }
+
+        function toggleTheme() {
+            const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+            try { localStorage.setItem('gaa_theme', next); } catch (e) {}
+            applyTheme(next);
+        }
+
+        function initTheme() {
+            let saved = null;
+            try { saved = localStorage.getItem('gaa_theme'); } catch (e) {}
+            if (!saved) {
+                saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            applyTheme(saved);
+        }
+
+        initTheme();
+        document.addEventListener('DOMContentLoaded', () => { initTheme(); initApp(); });
     </script>
 
     <!-- ── Background Music Player ── -->
