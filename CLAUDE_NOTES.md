@@ -41,7 +41,15 @@ git checkout claude/complete-index-modification-siszr
 - 관리자 서브탭: approval / members / notice / blocks / bgm
 - 일간 탭은 제거됨 — 주간 뷰만 사용
 
-## 5. 토큰 절약 팁
+## 5. Edit 실수 패턴 (중요)
+
+- **`old_string`에 함수 선언 포함 시 반드시 `new_string`에도 포함할 것.**
+  - 예: `old_string`이 `"...\n\n        function renderSongList() {"`로 끝나면, `new_string`에도 `function renderSongList() {`를 반드시 유지해야 함.
+  - 이번에 `escapeHtml` 아래 새 함수를 삽입하면서 `function renderSongList() {` 선언부를 삭제 → 함수 본문이 스크립트 최상단에 노출 → `return` 문 SyntaxError → **JS 전체 실행 불가, 로그인 포함 모든 기능 먹통**.
+- **Edit 후 함수 경계가 깨지지 않았는지 확인**: 삽입 지점 전후 `grep -n "^        function "` 으로 함수 목록 검증.
+- **단일 파일에 3500줄+** — Edit `old_string`이 유일한지 항상 확인. `replace_all: false` 기본값이므로 중복 문자열이 있으면 첫 번째만 바뀜.
+
+## 6. 토큰 절약 팁
 
 - **파일 전체 Read 금지** (3500줄). `grep -n` 으로 라인 찾고 해당 부분만 Read.
 - 큰 변경은 한 번의 Edit으로. 여러 작은 Edit 분리 X.
