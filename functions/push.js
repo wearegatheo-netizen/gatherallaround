@@ -3,19 +3,28 @@
 // Env vars required: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
 export async function onRequest(context) {
-    const { request, env } = context;
-
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
     };
+    try {
+        return await handle(context, corsHeaders);
+    } catch (e) {
+        return new Response(JSON.stringify({ error: 'unhandled', message: String(e && e.message || e), stack: String(e && e.stack || '') }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+async function handle(context, corsHeaders) {
+    const { request, env } = context;
 
     if (request.method === 'OPTIONS') {
         return new Response(null, { headers: corsHeaders });
     }
 
-    // GET ?key → return VAPID public key for client-side subscription
     if (request.method === 'GET') {
         return new Response(JSON.stringify({ key: env.VAPID_PUBLIC_KEY || '' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -32,7 +41,7 @@ export async function onRequest(context) {
 
     const { title, body, subscription } = payload;
     if (!subscription || !subscription.endpoint || !subscription.keys) {
-        return new Response(JSON.stringify({ error: 'Missing subscription' }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'Missing subscription' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const VAPID_PUBLIC_KEY = env.VAPID_PUBLIC_KEY;
@@ -40,19 +49,35 @@ export async function onRequest(context) {
     const VAPID_SUBJECT = env.VAPID_SUBJECT || 'mailto:admin@example.com';
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-        return new Response(JSON.stringify({ error: 'VAPID keys not configured' }), { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'VAPID keys not configured' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    let stage = 'start';
     try {
-        const result = await sendWebPush(subscription, { title, body }, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT);
+        stage = 'jwt';
+        const jwt = await createVapidJwt(new URL(subscription.endpoint).origin, VAPID_SUBJECT, VAPID_PRIVATE_KEY);
+        stage = 'encrypt';
+        const encBody = await encryptPayload(subscription, { title, body });
+        stage = 'fetch';
+        const result = await fetch(subscription.endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `vapid t=${jwt},k=${VAPID_PUBLIC_KEY}`,
+                'Content-Type': 'application/octet-stream',
+                'Content-Encoding': 'aes128gcm',
+                'TTL': '86400',
+            },
+            body: encBody,
+        });
+        const respText = await result.text().catch(() => '');
         const ok = result.status === 201 || result.status === 200 || result.status === 202;
-        return new Response(JSON.stringify({ ok, status: result.status }), {
-            status: ok ? 200 : 502,
+        return new Response(JSON.stringify({ ok, status: result.status, pushBody: respText.slice(0, 200) }), {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-            status: 500,
+        return new Response(JSON.stringify({ error: 'caught', stage, message: String(e && e.message || e), stack: String(e && e.stack || '').slice(0, 500) }), {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
