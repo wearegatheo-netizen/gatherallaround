@@ -1129,7 +1129,7 @@
             if (error) { alert('가입 신청 실패: ' + error.message); return; }
             hideKakaoSignupModal();
             showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
-            setTimeout(() => notifyAdminSignupKakao(name), 400);
+            setTimeout(() => notifyAdminSignupKakao(name, instruments), 400);
             fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
         }
 
@@ -1418,7 +1418,7 @@
             showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
             if (isNew) {
                 const regName = document.getElementById('regName') ? document.getElementById('regName').value.trim() : (state.user && state.user.nickname) || '';
-                setTimeout(() => notifyAdminSignupKakao(regName), 400);
+                setTimeout(() => notifyAdminSignupKakao(regName, instruments), 400);
             }
             renderMypagePanel();
         }
@@ -3662,7 +3662,7 @@
             if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
             alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
-            notifyAdminSignupKakao(name);
+            notifyAdminSignupKakao(name, instruments);
             showPendingScreen(name);
         }
 
@@ -3850,11 +3850,22 @@
             if (!poll) return;
             if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
             const siteUrl = window.location.origin + window.location.pathname;
-            Kakao.Link.sendDefault({
-                objectType: 'text',
-                text: `[Gather All Around 투표]\n\n📊 ${poll.title}\n\n멤버 여러분의 투표에 참여해주세요!`,
-                link: { webUrl: siteUrl, mobileWebUrl: siteUrl }
-            });
+            const optionLines = (poll.options || []).map((o, i) => `  ${i + 1}. ${o}`).join('\n');
+            const voteCount = state.pollVotes.filter(v => v.poll_id === pollId).length;
+            const modeTag = [poll.multi_select ? '복수 선택 가능' : '단일 선택', poll.anonymous ? '익명' : '기명'].join(' · ');
+            const text = [
+                '🗳️ [게더올어라운드 투표]',
+                '━━━━━━━━━━━━━━━━━━',
+                `📊 ${poll.title}`,
+                '',
+                `📋 선택지 (${(poll.options || []).length}개)`,
+                optionLines,
+                '',
+                `👥 현재 ${voteCount}명 참여 중 · ${modeTag}`,
+                '━━━━━━━━━━━━━━━━━━',
+                '지금 바로 투표에 참여해보세요! 👇'
+            ].join('\n');
+            Kakao.Link.sendDefault({ objectType: 'text', text, link: { webUrl: siteUrl, mobileWebUrl: siteUrl } });
         }
 
         function _kakaoLink(text) {
@@ -3868,9 +3879,19 @@
             if (!r) return;
             const memberNames = (r.participantIds || [])
                 .map(id => (state.cachedMembers.find(m => m.id === id) || {}).name || '')
-                .filter(Boolean).join(', ') || '미정';
-            const etcLine = r.etc ? `\n기타: ${r.etc}` : '';
-            _kakaoLink(`[Gather All Around 예약]\n📅 ${r.dateStr} ${r.timeStr}\n👥 참여: ${memberNames}${etcLine}`);
+                .filter(Boolean);
+            const membersLine = memberNames.length > 0 ? memberNames.join(', ') : '미정';
+            const lines = [
+                '🎸 [게더올어라운드 합주 예약]',
+                '━━━━━━━━━━━━━━━━━━',
+                `📅 일시    ${r.dateStr} ${r.timeStr}`,
+                `👤 예약자  ${r.name}`,
+                `👥 멤버    ${membersLine}`,
+            ];
+            if (r.etc) lines.push(`📝 기타    ${r.etc}`);
+            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push('같이 합주해요! 🎵');
+            _kakaoLink(lines.join('\n'));
         }
 
         function notifyAdminReservationKakao() {
@@ -3878,13 +3899,36 @@
             if (!r) return;
             const memberNames = (r.participantIds || [])
                 .map(id => (state.cachedMembers.find(m => m.id === id) || {}).name || '')
-                .filter(Boolean).join(', ') || '미정';
-            const etcLine = r.etc ? `\n기타: ${r.etc}` : '';
-            _kakaoLink(`[GAA 예약 알림]\n${r.name}님이 예약을 신청했습니다.\n📅 ${r.dateStr} ${r.timeStr}\n👥 참여: ${memberNames}${etcLine}\n\n확인 후 승인 부탁드립니다!`);
+                .filter(Boolean);
+            const membersLine = memberNames.length > 0 ? memberNames.join(', ') : '미정';
+            const now = new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const lines = [
+                '🔔 [GAA 예약 신청 알림]',
+                '━━━━━━━━━━━━━━━━━━',
+                `📅 일시    ${r.dateStr} ${r.timeStr}`,
+                `👤 신청자  ${r.name}`,
+                `👥 멤버    ${membersLine}`,
+            ];
+            if (r.etc) lines.push(`📝 기타    ${r.etc}`);
+            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push(`⏰ 신청 시각: ${now}`);
+            lines.push('관리자 페이지에서 확인 후 승인해 주세요!');
+            _kakaoLink(lines.join('\n'));
         }
 
-        function notifyAdminSignupKakao(name) {
-            _kakaoLink(`[GAA 가입 신청 알림]\n${name}님이 멤버 가입을 신청했습니다.\n\n관리자 페이지에서 승인해주세요!`);
+        function notifyAdminSignupKakao(name, instruments) {
+            const instLine = instruments ? `🎵 세션    ${instruments}` : '';
+            const now = new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const lines = [
+                '🙋 [GAA 가입 신청 알림]',
+                '━━━━━━━━━━━━━━━━━━',
+                `👤 신청자  ${name}`,
+            ];
+            if (instLine) lines.push(instLine);
+            lines.push('━━━━━━━━━━━━━━━━━━');
+            lines.push(`⏰ 신청 시각: ${now}`);
+            lines.push('관리자 페이지에서 확인 후 승인해 주세요!');
+            _kakaoLink(lines.join('\n'));
         }
 
         function subscribeToPolls() {
