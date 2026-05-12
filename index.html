@@ -2798,6 +2798,7 @@
             section.className = 'admin-section';
             const dayNames = ['일','월','화','수','목','금','토'];
             const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
+            const endTimeOptions = TIMES.map((t, i) => `<option value="${t}">${TIMES[i + 1] || '23:00'}</option>`).join('');
             const dayOptions = dayNames.map((d,i) => `<option value="${i}">${d}요일</option>`).join('');
             multiDates = [];
             section.innerHTML = `
@@ -2839,7 +2840,7 @@
                         <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:0">
                             <select id="blockStart" class="block-form-input" style="flex:1;min-width:0">${timeOptions}</select>
                             <span style="color:var(--wds-gray-500);font-size:0.85rem">~</span>
-                            <select id="blockEnd" class="block-form-input" style="flex:1;min-width:0">${timeOptions}</select>
+                            <select id="blockEnd" class="block-form-input" style="flex:1;min-width:0">${endTimeOptions}</select>
                         </div>
                     </div>
 
@@ -2933,7 +2934,7 @@
                     sub = `${b.start_time} ~ ${endDisplay} · ${period}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
                 }
                 const selStart = TIMES.map(t => `<option value="${t}"${t===b.start_time?' selected':''}>${t}</option>`).join('');
-                const selEnd   = TIMES.map(t => `<option value="${t}"${t===b.end_time?' selected':''}>${t}</option>`).join('');
+                const selEnd   = TIMES.map((t, i) => `<option value="${t}"${t===b.end_time?' selected':''}>${TIMES[i + 1] || '23:00'}</option>`).join('');
                 return `<div class="block-list-row" id="blk-row-${b.id}">
                     <div class="block-list-info" style="flex:1">
                         <div class="block-list-label">${label}</div>
