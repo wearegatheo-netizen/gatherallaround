@@ -3590,8 +3590,19 @@
             if (!hasMembers && !etcFinal) { alert('참여 멤버를 1명 이상 추가하거나 기타란에 이름을 적어주세요.'); return; }
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
             const dateStr = state.selectedDate.toLocaleDateString('en-CA');
-            // 2시간 이하는 자동 승인, 초과하면 관리자 승인 필요
-            const reservationStatus = (endIdx - startIdx) > 1 ? 'pending' : 'approved';
+
+            // 일반 멤버: 오늘로부터 2개월 이내만 예약 가능
+            if (!canApproveRes()) {
+                const maxDate = new Date();
+                maxDate.setMonth(maxDate.getMonth() + 2);
+                if (state.selectedDate > maxDate) {
+                    alert(`일반 멤버는 오늘로부터 2개월 이내(${maxDate.toLocaleDateString('en-CA')}까지)만 선예약할 수 있습니다.`);
+                    return;
+                }
+            }
+
+            // 관리자(총괄·세션장)는 자동 승인, 일반 멤버는 2시간 이하 자동 승인
+            const reservationStatus = canApproveRes() ? 'approved' : ((endIdx - startIdx) > 1 ? 'pending' : 'approved');
 
             const { data, error } = await supabaseClient
                 .from('reservations')
@@ -3617,7 +3628,7 @@
                 };
                 const res = document.getElementById('result');
                 res.style.display = 'block';
-                const statusMsg = reservationStatus === 'approved'
+                const statusMsg = (reservationStatus === 'approved' || canApproveRes())
                     ? '예약이 확정되었습니다.'
                     : '관리자 승인 후 확정됩니다.';
                 res.innerHTML = `
