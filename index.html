@@ -774,6 +774,10 @@
                 <button type="button" onclick="addEditParticipant()" style="padding:0 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">+ 추가</button>
             </div>
             <div id="editParticipantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
+            <div style="margin-top:10px">
+                <input type="text" id="editParticipantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자 (참여 횟수 미반영)</p>
+            </div>
             <div style="display:flex;gap:8px;margin-top:18px">
                 <button type="button" onclick="closeEditParticipantsModal()" style="flex:1;padding:11px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
                 <button type="button" onclick="saveEditParticipants()" style="flex:2;padding:11px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">저장</button>
@@ -1650,6 +1654,8 @@
             document.getElementById('editParticipantsModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             renderEditParticipantSelector();
+            const etcEl = document.getElementById('editParticipantEtcInput');
+            if (etcEl) etcEl.value = r.participant_etc || '';
         }
 
         function closeEditParticipantsModal() {
@@ -1734,7 +1740,9 @@
             if (!state.editingResId) return;
             const ids = state.editingResParticipantIds || [];
             if (ids.length === 0) { alert('참여 멤버를 1명 이상 추가해주세요.'); return; }
-            const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids }).eq('id', state.editingResId);
+            const etcEl = document.getElementById('editParticipantEtcInput');
+            const etcVal = etcEl ? (etcEl.value || '').trim() : '';
+            const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids, participant_etc: etcVal || null }).eq('id', state.editingResId);
             if (error) { alert('수정 실패: ' + error.message); return; }
             closeEditParticipantsModal();
             showToast('참여 멤버가 수정되었습니다.');
@@ -3111,7 +3119,9 @@
                     const endH = parseInt(endStr.split(':')[0]);
                     const cls = r.status === 'approved' ? 'approved' : 'pending';
                     const icon = r.status === 'approved' ? '✓' : '⏳';
-                    info.innerHTML += `<span class="${cls}">${icon}${startH}-${endH}시</span>`;
+                    const etcTitle = canApproveRes() && r.participant_etc ? ` title="기타: ${r.participant_etc.replace(/"/g,'&quot;')}"` : '';
+                    const etcMark = canApproveRes() && r.participant_etc ? '<span style="color:#e07b00">*</span>' : '';
+                    info.innerHTML += `<span class="${cls}"${etcTitle}>${icon}${startH}-${endH}시${etcMark}</span>`;
                 });
                 if (dayRes.length > 3) {
                     info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}건</span>`;
@@ -3227,7 +3237,8 @@
                 } else if (occupiedRes) {
                     s.style.background = '#eee';
                     s.style.cursor = 'not-allowed';
-                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>`;
+                    const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
+                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${etcNote}`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
                         s.classList.add('selected');
@@ -3370,7 +3381,8 @@
                     start_time: state.startTime,
                     end_time: effectiveEndTime,
                     status: reservationStatus,
-                    participant_ids: state.participantIds || []
+                    participant_ids: state.participantIds || [],
+                    participant_etc: (state.participantEtc || '').trim() || null
                 }]);
 
             if (error) {
