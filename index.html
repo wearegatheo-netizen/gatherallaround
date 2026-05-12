@@ -1442,6 +1442,7 @@
             editingSlots: [],
             editingSongs: [],
             cachedMembers: [],
+            allMembers: [],
             bgmTracks: [],
             participantIds: [],
             participantEtc: '',
@@ -1449,8 +1450,44 @@
             polls: [],
             pollVotes: [],
             editingPoll: { options: ['', ''] },
-            statsFilter: 'all'
+            statsFilter: 'all',
+            paging: {}
         };
+
+        const PAGE_SIZE = 10;
+
+        function getPaged(items, key) {
+            let page = state.paging[key] || 0;
+            const total = items.length;
+            const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+            page = Math.min(page, totalPages - 1);
+            state.paging[key] = page;
+            return { items: items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), page, totalPages, total };
+        }
+
+        function pagerHTML(key, page, totalPages, total) {
+            if (total <= PAGE_SIZE) return '';
+            const start = page * PAGE_SIZE + 1;
+            const end = Math.min((page + 1) * PAGE_SIZE, total);
+            const btnS = (disabled) => `padding:5px 14px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);background:var(--wds-gray-100);cursor:${disabled?'default':'pointer'};font-size:0.82rem;color:${disabled?'var(--wds-gray-400)':'var(--wds-black)'};font-weight:600;font-family:inherit`;
+            return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 0;margin-top:4px">
+                <button type="button" ${page<=0?'disabled':''} onclick="changePage('${key}',${page-1})" style="${btnS(page<=0)}">‹ 이전</button>
+                <span style="min-width:100px;text-align:center;font-size:0.82rem;color:var(--wds-gray-600)">${start}–${end} / 전체 ${total}개</span>
+                <button type="button" ${page>=totalPages-1?'disabled':''} onclick="changePage('${key}',${page+1})" style="${btnS(page>=totalPages-1)}">다음 ›</button>
+            </div>`;
+        }
+
+        function changePage(key, page) {
+            state.paging[key] = page;
+            if (key.startsWith('adminMember')) {
+                const el = document.getElementById('memberList');
+                if (el) renderAdminMemberListEl(el);
+            } else if (key.startsWith('member_')) {
+                renderMemberPanel();
+            } else {
+                render();
+            }
+        }
 
         const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
 
@@ -2403,53 +2440,56 @@
             };
 
             const wrap = document.createElement('div');
-            wrap.innerHTML = groupKeys.map(key => {
-                const list = groups[key];
-                const emoji = INST_EMOJI[key] || '🎵';
+            wrap.innerHTML = groupKeys.map(gKey => {
+                const list = groups[gKey];
+                const emoji = INST_EMOJI[gKey] || '🎵';
+                const pageKey = 'member_' + gKey;
+                const { items, page, totalPages, total } = getPaged(list, pageKey);
                 return `
                     <div class="member-group">
-                        <div class="member-group-header">${emoji} ${escapeHtml(key)} <span class="member-group-count">${list.length}</span></div>
-                        <div class="my-res-list">${list.map(renderItem).join('')}</div>
+                        <div class="member-group-header">${emoji} ${escapeHtml(gKey)} <span class="member-group-count">${list.length}</span></div>
+                        <div class="my-res-list">${items.map(renderItem).join('')}</div>
+                        ${pagerHTML(pageKey, page, totalPages, total)}
                     </div>`;
             }).join('');
             container.appendChild(wrap);
         }
 
         function renderMyPage(container) {
-            const list = document.createElement('div');
-            list.className = 'my-res-list';
-
-            const myRes = state.reservations
+            const allRes = state.reservations
                 .filter(r => r.kakao_id === state.user.kakaoId)
                 .sort((a, b) => new Date(b.res_date) - new Date(a.res_date));
 
-            if (myRes.length === 0) {
-                list.innerHTML = '<p style="text-align:center; padding: 40px; color: var(--wds-gray-500);">예약 내역이 없습니다.</p>';
-            } else {
-                myRes.forEach(r => {
-                    const item = document.createElement('div');
-                    item.className = 'my-res-item';
-                    const endIdx = TIMES.indexOf(r.end_time);
-                    const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
-                    const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
-                    const [statusClass, statusText] = statusMap[r.status] || statusMap['pending'];
-                    const canCancel = r.status !== 'rejected';
-                    const editable = isReservationEditable(r);
-
-                    item.innerHTML = `
-                        <div class="my-res-info">
-                            <div class="my-res-date">${r.res_date} <span class="status-badge ${statusClass}">${statusText}</span></div>
-                            <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
-                        </div>
-                        <div style="display:flex;gap:6px;flex-shrink:0">
-                            ${editable ? `<button type="button" class="cancel-btn" style="background:var(--wds-primary);color:#fff;border-color:var(--wds-primary)" onclick="openEditParticipantsModal('${r.id}')">멤버 수정</button>` : ''}
-                            ${canCancel ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">취소</button>` : ''}
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
+            if (allRes.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding: 40px; color: var(--wds-gray-500);">예약 내역이 없습니다.</p>';
+                return;
             }
+
+            const { items: myRes, page, totalPages, total } = getPaged(allRes, 'myRes');
+            const list = document.createElement('div');
+            list.className = 'my-res-list';
+            myRes.forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'my-res-item';
+                const endIdx = TIMES.indexOf(r.end_time);
+                const endTimeDisplay = TIMES[endIdx + 1] || '23:00';
+                const statusMap = { pending: ['status-pending', '승인 대기'], approved: ['status-approved', '승인됨'], rejected: ['status-rejected', '거절됨'] };
+                const [statusClass, statusText] = statusMap[r.status] || statusMap['pending'];
+                const canCancel = r.status !== 'rejected';
+                const editable = isReservationEditable(r);
+                item.innerHTML = `
+                    <div class="my-res-info">
+                        <div class="my-res-date">${r.res_date} <span class="status-badge ${statusClass}">${statusText}</span></div>
+                        <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0">
+                        ${editable ? `<button type="button" class="cancel-btn" style="background:var(--wds-primary);color:#fff;border-color:var(--wds-primary)" onclick="openEditParticipantsModal('${r.id}')">멤버 수정</button>` : ''}
+                        ${canCancel ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">취소</button>` : ''}
+                    </div>`;
+                list.appendChild(item);
+            });
             container.appendChild(list);
+            container.insertAdjacentHTML('beforeend', pagerHTML('myRes', page, totalPages, total));
         }
 
         async function renderAdminPage(container) {
@@ -2935,14 +2975,15 @@
 
         function renderAdminApprovalSection(container) {
             // 승인 대기
+            const allPending = state.reservations.filter(r => r.status === 'pending').sort((a, b) => new Date(a.res_date) - new Date(b.res_date));
             const pendingSection = document.createElement('div');
             pendingSection.className = 'admin-section';
-            const pending = state.reservations.filter(r => r.status === 'pending').sort((a, b) => new Date(a.res_date) - new Date(b.res_date));
-            pendingSection.innerHTML = `<div class="admin-section-title">⏳ 승인 대기 (${pending.length}건)</div>`;
-            const pendingList = document.createElement('div'); pendingList.className = 'my-res-list';
-            if (pending.length === 0) {
-                pendingList.innerHTML = '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">대기 중인 예약이 없습니다.</p>';
+            pendingSection.innerHTML = `<div class="admin-section-title">⏳ 승인 대기 (${allPending.length}건)</div>`;
+            if (allPending.length === 0) {
+                pendingSection.innerHTML += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">대기 중인 예약이 없습니다.</p>';
             } else {
+                const { items: pending, page: pp, totalPages: ptp, total: pt } = getPaged(allPending, 'adminPending');
+                const pendingList = document.createElement('div'); pendingList.className = 'my-res-list';
                 pending.forEach(r => {
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div'); item.className = 'my-res-item';
@@ -2957,22 +2998,24 @@
                         </div>`;
                     pendingList.appendChild(item);
                 });
+                pendingSection.appendChild(pendingList);
+                pendingSection.insertAdjacentHTML('beforeend', pagerHTML('adminPending', pp, ptp, pt));
             }
-            pendingSection.appendChild(pendingList);
             container.appendChild(pendingSection);
 
             // 승인된 예약 (지나간 날짜 제외)
             const todayStr = new Date().toLocaleDateString('en-CA');
-            const approved = state.reservations
+            const allApproved = state.reservations
                 .filter(r => r.status === 'approved' && r.res_date >= todayStr)
                 .sort((a, b) => a.res_date.localeCompare(b.res_date) || a.start_time.localeCompare(b.start_time));
             const approvedSection = document.createElement('div');
             approvedSection.className = 'admin-section';
-            approvedSection.innerHTML = `<div class="admin-section-title">✅ 승인된 예약 (${approved.length}건)</div>`;
-            const approvedList = document.createElement('div');
-            if (approved.length === 0) {
-                approvedList.innerHTML = '<p style="text-align:center;padding:16px;color:var(--wds-gray-500);font-size:0.85rem;">승인된 예약이 없습니다.</p>';
+            approvedSection.innerHTML = `<div class="admin-section-title">✅ 승인된 예약 (${allApproved.length}건)</div>`;
+            if (allApproved.length === 0) {
+                approvedSection.innerHTML += '<p style="text-align:center;padding:16px;color:var(--wds-gray-500);font-size:0.85rem;">승인된 예약이 없습니다.</p>';
             } else {
+                const { items: approved, page: ap, totalPages: atp, total: at } = getPaged(allApproved, 'adminApproved');
+                const approvedList = document.createElement('div');
                 approved.forEach(r => {
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div');
@@ -2985,8 +3028,9 @@
                         ${canCancelRes() ? `<button type="button" class="cancel-btn" style="flex-shrink:0" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}`;
                     approvedList.appendChild(item);
                 });
+                approvedSection.appendChild(approvedList);
+                approvedSection.insertAdjacentHTML('beforeend', pagerHTML('adminApproved', ap, atp, at));
             }
-            approvedSection.appendChild(approvedList);
             container.appendChild(approvedSection);
         }
 
@@ -3045,11 +3089,18 @@
                 </div>` : ''}
             `;
 
+            state.allMembers = members;
             const memberList = document.getElementById('memberList');
             if (!members || members.length === 0) {
                 memberList.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem">회원이 없습니다.</p>';
                 return;
             }
+            renderAdminMemberListEl(memberList);
+        }
+
+        function renderAdminMemberListEl(memberList) {
+            const members = state.allMembers;
+            if (!members || members.length === 0) return;
             const isS = isSuper();
             const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
             const statusMap = { pending: ['status-pending', '대기'], approved: ['status-approved', '승인'], rejected: ['status-rejected', '거절'] };
@@ -3060,7 +3111,6 @@
                 const role = m.role || '일반';
                 const roleColor = roleColors[role] || '#999';
                 const insts = (m.instruments || '').split(',').map(s=>s.trim()).filter(Boolean);
-
                 let actions = '';
                 if (m.status === 'pending') {
                     if (canApproveMember()) actions += `<button type="button" class="approve-btn" onclick="approveMember('${m.id}')">승인</button>`;
@@ -3091,21 +3141,20 @@
                 </div>`;
             };
 
-            // 상태별 그룹 정렬: 대기 → 승인 → 거절
-            const pendingGrp  = members.filter(m => m.status === 'pending');
-            const approvedGrp = members.filter(m => m.status === 'approved');
-            const rejectedGrp = members.filter(m => m.status === 'rejected');
-
-            const groupHtml = (label, color, list) => list.length === 0 ? '' : `
-                <div class="admin-member-group">
-                    <div class="admin-member-group-header" style="border-left-color:${color}">${label} <span class="member-group-count">${list.length}</span></div>
-                    <div class="admin-member-list">${list.map(renderAdminItem).join('')}</div>
+            const buildGroup = (label, color, pageKey, allItems) => {
+                if (allItems.length === 0) return '';
+                const { items, page, totalPages, total } = getPaged(allItems, pageKey);
+                return `<div class="admin-member-group">
+                    <div class="admin-member-group-header" style="border-left-color:${color}">${label} <span class="member-group-count">${allItems.length}</span></div>
+                    <div class="admin-member-list">${items.map(renderAdminItem).join('')}</div>
+                    ${pagerHTML(pageKey, page, totalPages, total)}
                 </div>`;
+            };
 
             memberList.innerHTML =
-                groupHtml('⏳ 승인 대기', '#f0a050', pendingGrp) +
-                groupHtml('✅ 승인됨',   '#00b894', approvedGrp) +
-                groupHtml('🚫 거절됨',   '#e74c3c', rejectedGrp);
+                buildGroup('⏳ 승인 대기', '#f0a050', 'adminMemberPending',  members.filter(m => m.status === 'pending')) +
+                buildGroup('✅ 승인됨',   '#00b894', 'adminMemberApproved', members.filter(m => m.status === 'approved')) +
+                buildGroup('🚫 거절됨',   '#e74c3c', 'adminMemberRejected', members.filter(m => m.status === 'rejected'));
         }
 
         function renderAdminNoticeSection(container) {
@@ -3245,7 +3294,6 @@
                         s.classList.add('slot-blocked');
                         s.style.cursor = 'not-allowed';
                         s.style.fontSize = '0.65rem';
-                        s.style.color = '#c0392b';
                         s.style.padding = '4px 2px';
                         s.style.overflow = 'hidden';
                         s.style.display = 'flex';
@@ -3295,7 +3343,6 @@
                 } else if (block) {
                     s.classList.add('slot-blocked');
                     s.style.cursor = 'not-allowed';
-                    s.style.color = '#c0392b';
                     s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
                 } else if (occupiedRes) {
                     s.classList.add('slot-occupied');
@@ -3859,15 +3906,21 @@
 
         async function approveMember(id) {
             const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
-            if (error) alert('승인 실패: ' + error.message);
-            else render();
+            if (error) { alert('승인 실패: ' + error.message); return; }
+            state.paging.adminMemberPending = 0;
+            const fresh = await fetchMembers(); state.allMembers = fresh;
+            const el = document.getElementById('memberList');
+            if (el) renderAdminMemberListEl(el); else render();
         }
 
         async function rejectMember(id) {
             if (!confirm('이 회원의 가입을 거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
-            if (error) alert('거절 실패: ' + error.message);
-            else render();
+            if (error) { alert('거절 실패: ' + error.message); return; }
+            state.paging.adminMemberApproved = 0;
+            const fresh = await fetchMembers(); state.allMembers = fresh;
+            const el = document.getElementById('memberList');
+            if (el) renderAdminMemberListEl(el); else render();
         }
 
         async function updateMemberRole(id, role) {
