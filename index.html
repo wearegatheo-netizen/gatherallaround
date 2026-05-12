@@ -237,6 +237,12 @@
 
         /* 공지사항 */
         #notice_container { margin-bottom: 20px; }
+        #livePollBanner { margin-bottom: 12px; }
+        .live-poll-banner-inner { display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:10px 14px; border-radius:var(--wds-radius-m); cursor:pointer; font-size:0.88rem; font-weight:600; transition:opacity 0.2s; }
+        .live-poll-banner-inner:hover { opacity:0.88; }
+        .live-poll-banner-icon { font-size:1.1rem; flex-shrink:0; animation:pulse 2s infinite; }
+        .live-poll-banner-text { flex:1; line-height:1.4; }
+        .live-poll-banner-arrow { font-size:0.8rem; opacity:0.85; flex-shrink:0; }
         .find-link-btn { background: none; border: none; color: var(--wds-gray-500); font-size: 0.82rem; cursor: pointer; padding: 0; font-family: inherit; }
         .find-link-btn:hover { color: var(--wds-primary); text-decoration: underline; }
         .notice-card { padding: 16px 20px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--wds-radius-m); margin-bottom: 10px; }
@@ -740,6 +746,7 @@
             <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
         </div>
 
+        <div id="livePollBanner" class="hidden"></div>
         <div id="notice_container" class="hidden"></div>
 
         <div class="form-group section-box" id="mypagePanel">
@@ -753,7 +760,7 @@
 
         <div class="form-group section-box" id="memberPanel">
             <div class="member-panel-header" onclick="toggleMemberPanel()">
-                <span class="label" style="margin:0">👥 멤버 & 팀</span>
+                <span class="label" style="margin:0">👥 멤버 & 팀 <span id="livePollBadge" style="display:none;margin-left:6px;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;vertical-align:middle;animation:pulse 2s infinite">🔴 투표중</span></span>
                 <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
             </div>
             <div class="section-summary">동료 멤버들을 확인하고, 함께할 팀을 구성하거나 참여 중인 팀을 관리하세요.</div>
@@ -3238,7 +3245,38 @@
         async function fetchPolls() {
             if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('polls').select('*').order('created_at', { ascending: false });
-            if (!error) state.polls = data || [];
+            if (!error) { state.polls = data || []; updatePollBadges(); }
+        }
+
+        function updatePollBadges() {
+            const open = state.polls.filter(p => p.status === 'open');
+            const badge = document.getElementById('livePollBadge');
+            const banner = document.getElementById('livePollBanner');
+            if (badge) badge.style.display = open.length > 0 ? 'inline' : 'none';
+            if (banner) {
+                if (open.length > 0) {
+                    const titles = open.map(p => `"${p.title}"`).join(', ');
+                    banner.innerHTML = `<div class="live-poll-banner-inner" onclick="goToVotesTab()"><span class="live-poll-banner-icon">🗳️</span><span class="live-poll-banner-text">투표 진행 중 (${open.length}건): ${titles}</span><span class="live-poll-banner-arrow">투표하기 →</span></div>`;
+                    banner.classList.remove('hidden');
+                } else {
+                    banner.classList.add('hidden');
+                }
+            }
+        }
+
+        function goToVotesTab() {
+            const content = document.getElementById('memberPanelContent');
+            const arrow = document.getElementById('memberPanelArrow');
+            if (content && content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                if (arrow) arrow.textContent = '▲ 접기';
+                renderMemberPanel();
+            }
+            setMemberTab('votes');
+            setTimeout(() => {
+                const panel = document.getElementById('memberPanel');
+                if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
         }
 
         async function fetchPollVotes() {
@@ -3367,6 +3405,7 @@
             supabaseClient.channel('polls-channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
                     await fetchPolls();
+                    updatePollBadges();
                     if (state.adminTab === 'polls' && state.currentView === 'admin') renderAdminPollsSection(document.getElementById('adminPollContent'));
                     if (state.memberPanelTab === 'votes') renderMemberPanel();
                 })
