@@ -801,7 +801,12 @@
 
             <div class="form-group section-box" id="participantSection" style="display:none">
                 <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
-                <div id="participantList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
+                <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요.</p>
+                <div id="participantList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                <div style="margin-top:10px">
+                    <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                    <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자는 여기에 적어주세요.</p>
+                </div>
             </div>
 
             <button type="submit" class="submit-btn">예약 하기</button>
@@ -1222,6 +1227,10 @@
             }
             if (result.error) { alert('저장 실패: ' + result.error.message); return; }
             showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
+            if (isNew) {
+                const regName = document.getElementById('regName') ? document.getElementById('regName').value.trim() : (state.user && state.user.nickname) || '';
+                setTimeout(() => notifyAdminSignupKakao(regName), 400);
+            }
             renderMypagePanel();
         }
 
@@ -1246,6 +1255,8 @@
             cachedMembers: [],
             bgmTracks: [],
             participantIds: [],
+            participantEtc: '',
+            lastReservation: null,
             polls: [],
             pollVotes: [],
             editingPoll: { options: ['', ''] },
@@ -3076,13 +3087,27 @@
                 alert("예약 실패: " + error.message);
             } else {
                 const timeStr = `${state.startTime} ~ ${TIMES[endIdx + 1] || '23:00'}`;
+                state.lastReservation = {
+                    dateStr, timeStr, name,
+                    participantIds: [...state.participantIds],
+                    etc: state.participantEtc
+                };
                 const res = document.getElementById('result');
                 res.style.display = 'block';
                 const statusMsg = reservationStatus === 'approved'
                     ? '예약이 확정되었습니다.'
                     : '관리자 승인 후 확정됩니다.';
-                res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">${statusMsg}</small>`;
-                state.selectedDate = null; state.startTime = null; state.endTime = null; state.participantIds = [];
+                res.innerHTML = `
+                    <strong>${escapeHtml(name)}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br>
+                    <small style="opacity:0.8">${statusMsg}</small>
+                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                        <button type="button" onclick="shareLastReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:#FEE500;color:#3C1E1E;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">카카오톡 공유</button>
+                        <button type="button" onclick="notifyAdminReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">관리자에게 알림</button>
+                    </div>`;
+                state.selectedDate = null; state.startTime = null; state.endTime = null;
+                state.participantIds = []; state.participantEtc = '';
+                const etcEl = document.getElementById('participantEtcInput');
+                if (etcEl) etcEl.value = '';
                 fetchReservations();
             }
         }
@@ -3225,6 +3250,7 @@
             if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
             alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
+            notifyAdminSignupKakao(name);
             showPendingScreen(name);
         }
 
@@ -3417,6 +3443,36 @@
                 text: `[Gather All Around 투표]\n\n📊 ${poll.title}\n\n멤버 여러분의 투표에 참여해주세요!`,
                 link: { webUrl: siteUrl, mobileWebUrl: siteUrl }
             });
+        }
+
+        function _kakaoLink(text) {
+            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
+            const siteUrl = window.location.origin + window.location.pathname;
+            Kakao.Link.sendDefault({ objectType: 'text', text, link: { webUrl: siteUrl, mobileWebUrl: siteUrl } });
+        }
+
+        function shareLastReservationKakao() {
+            const r = state.lastReservation;
+            if (!r) return;
+            const memberNames = (r.participantIds || [])
+                .map(id => (state.cachedMembers.find(m => m.id === id) || {}).name || '')
+                .filter(Boolean).join(', ') || '미정';
+            const etcLine = r.etc ? `\n기타: ${r.etc}` : '';
+            _kakaoLink(`[Gather All Around 예약]\n📅 ${r.dateStr} ${r.timeStr}\n👥 참여: ${memberNames}${etcLine}`);
+        }
+
+        function notifyAdminReservationKakao() {
+            const r = state.lastReservation;
+            if (!r) return;
+            const memberNames = (r.participantIds || [])
+                .map(id => (state.cachedMembers.find(m => m.id === id) || {}).name || '')
+                .filter(Boolean).join(', ') || '미정';
+            const etcLine = r.etc ? `\n기타: ${r.etc}` : '';
+            _kakaoLink(`[GAA 예약 알림]\n${r.name}님이 예약을 신청했습니다.\n📅 ${r.dateStr} ${r.timeStr}\n👥 참여: ${memberNames}${etcLine}\n\n확인 후 승인 부탁드립니다!`);
+        }
+
+        function notifyAdminSignupKakao(name) {
+            _kakaoLink(`[GAA 가입 신청 알림]\n${name}님이 멤버 가입을 신청했습니다.\n\n관리자 페이지에서 승인해주세요!`);
         }
 
         function subscribeToPolls() {
