@@ -717,6 +717,20 @@
             .song-chip img { width: 32px; height: 32px; }
             .team-form-actions button { padding: 12px; font-size: 0.92rem; }
         }
+
+        /* Pull-to-refresh */
+        #ptrIndicator {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: var(--wds-primary);
+            transform: translateY(-60px); transition: transform 0.15s ease-out;
+            pointer-events: none; z-index: 9999;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0));
+        }
+        body.dark #ptrIndicator { background: linear-gradient(to bottom, rgba(20,20,20,0.95), rgba(20,20,20,0)); }
+        #ptrIndicator.visible { transform: translateY(0); }
+        #ptrIndicator .ptr-spin { animation: ptrSpin 0.8s linear infinite; }
+        @keyframes ptrSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -4801,7 +4815,49 @@
         }
 
         initTheme();
-        document.addEventListener('DOMContentLoaded', () => { initTheme(); initApp(); });
+        document.addEventListener('DOMContentLoaded', () => { initTheme(); initApp(); initPullToRefresh(); });
+
+        // Pull-to-refresh (PWA standalone 모드에서도 동작)
+        function initPullToRefresh() {
+            const indicator = document.createElement('div');
+            indicator.id = 'ptrIndicator';
+            indicator.innerHTML = '<span id="ptrIcon">↓</span>';
+            document.body.appendChild(indicator);
+            const icon = indicator.querySelector('#ptrIcon');
+            const THRESHOLD = 70;
+            let startY = 0, currentY = 0, pulling = false, refreshing = false;
+            document.addEventListener('touchstart', (e) => {
+                if (refreshing) return;
+                if (window.scrollY > 0) { pulling = false; return; }
+                startY = e.touches[0].clientY;
+                pulling = true;
+            }, { passive: true });
+            document.addEventListener('touchmove', (e) => {
+                if (!pulling || refreshing) return;
+                currentY = e.touches[0].clientY;
+                const dy = currentY - startY;
+                if (dy <= 0) { indicator.classList.remove('visible'); return; }
+                const pulled = Math.min(dy, THRESHOLD * 1.5);
+                indicator.style.transform = `translateY(${pulled - 60}px)`;
+                indicator.classList.add('visible');
+                icon.textContent = dy >= THRESHOLD ? '↑' : '↓';
+            }, { passive: true });
+            document.addEventListener('touchend', () => {
+                if (!pulling || refreshing) return;
+                const dy = currentY - startY;
+                indicator.style.transform = '';
+                if (dy >= THRESHOLD) {
+                    refreshing = true;
+                    icon.textContent = '⟳';
+                    icon.classList.add('ptr-spin');
+                    indicator.classList.add('visible');
+                    setTimeout(() => location.reload(), 250);
+                } else {
+                    indicator.classList.remove('visible');
+                }
+                pulling = false;
+            }, { passive: true });
+        }
     </script>
 
     <!-- ── Background Music Player ── -->
