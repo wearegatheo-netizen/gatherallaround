@@ -2900,7 +2900,6 @@
                 res.innerHTML = `<strong>${name}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br><small style="opacity:0.8">${statusMsg}</small>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null; state.participantIds = [];
                 fetchReservations();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
 
