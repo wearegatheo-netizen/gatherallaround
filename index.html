@@ -3991,14 +3991,16 @@
         async function sendAdminPush(title, body) {
             try {
                 const subs = await getAdminPushSubscriptions();
-                if (!subs.length) return;
-                await Promise.allSettled(subs.map(sub =>
+                console.log('[push] admin subs found:', subs.length);
+                if (!subs.length) { console.warn('[push] no admin subscriptions - RLS or empty column'); return; }
+                const results = await Promise.allSettled(subs.map(sub =>
                     fetch('/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title, body, subscription: sub })
-                    })
+                    }).then(r => r.json())
                 ));
+                console.log('[push] send results:', results);
             } catch (e) { console.warn('sendAdminPush error', e); }
         }
 
@@ -4126,9 +4128,11 @@
         }
         // ────────────────────────────────────────────────────────────────────
 
+        let _pollsChannel = null;
         function subscribeToPolls() {
             if (!supabaseClient) return;
-            supabaseClient.channel('polls-channel')
+            if (_pollsChannel) { try { supabaseClient.removeChannel(_pollsChannel); } catch (e) {} _pollsChannel = null; }
+            _pollsChannel = supabaseClient.channel('polls-channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, async () => {
                     await fetchPolls();
                     updatePollBadges();
