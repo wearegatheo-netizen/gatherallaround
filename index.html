@@ -3410,7 +3410,7 @@
                             if (showEtc) s.title = `기타: ${occupiedRes.participant_etc}`;
                         }
                         if (showEtc) {
-                            s.innerHTML = `${escapeHtml(maskName(occupiedRes.user_name))}<span style="color:#e07b00">*</span><div style="font-size:0.62rem;color:#e07b00;line-height:1.1;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${escapeHtml(occupiedRes.participant_etc)}</div>`;
+                            s.innerHTML = `${escapeHtml(maskName(occupiedRes.user_name))}<span style="color:#e07b00">*</span>`;
                         } else {
                             s.textContent = maskName(occupiedRes.user_name);
                         }
