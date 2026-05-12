@@ -3398,14 +3398,22 @@
                         s.classList.add('slot-occupied');
                         s.style.fontSize = '0.72rem';
                         s.style.color = 'var(--wds-gray-700)';
+                        const showEtc = canApproveRes() && occupiedRes.participant_etc;
                         if (isSuper()) {
                             s.style.cursor = 'pointer';
-                            s.title = `${occupiedRes.user_name} — 클릭하여 예약 취소`;
+                            s.title = showEtc
+                                ? `${occupiedRes.user_name}\n기타: ${occupiedRes.participant_etc}\n— 클릭하여 예약 취소`
+                                : `${occupiedRes.user_name} — 클릭하여 예약 취소`;
                             s.onclick = () => { if (confirm(`${occupiedRes.user_name}의 예약(${d} ${time})을 취소하시겠습니까?`)) cancelReservation(occupiedRes.id, true); };
                         } else {
                             s.style.cursor = 'not-allowed';
+                            if (showEtc) s.title = `기타: ${occupiedRes.participant_etc}`;
                         }
-                        s.textContent = maskName(occupiedRes.user_name);
+                        if (showEtc) {
+                            s.innerHTML = `${escapeHtml(maskName(occupiedRes.user_name))}<span style="color:#e07b00">*</span><div style="font-size:0.62rem;color:#e07b00;line-height:1.1;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${escapeHtml(occupiedRes.participant_etc)}</div>`;
+                        } else {
+                            s.textContent = maskName(occupiedRes.user_name);
+                        }
                     } else {
                         if (isSlotSelected(d, time)) s.classList.add('selected');
                         s.onclick = () => onSlotClick(d, time);
