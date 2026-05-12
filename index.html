@@ -760,7 +760,7 @@
 
         <div class="form-group section-box" id="memberPanel">
             <div class="member-panel-header" onclick="toggleMemberPanel()">
-                <span class="label" style="margin:0">👥 멤버 & 팀 <span id="livePollBadge" style="display:none;margin-left:6px;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;vertical-align:middle;animation:pulse 2s infinite">🔴 투표중</span></span>
+                <span class="label" style="margin:0;display:inline-flex;align-items:center;gap:6px">👥 멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴 투표중</span></span>
                 <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
             </div>
             <div class="section-summary">동료 멤버들을 확인하고, 함께할 팀을 구성하거나 참여 중인 팀을 관리하세요.</div>
@@ -3252,7 +3252,7 @@
             const open = state.polls.filter(p => p.status === 'open');
             const badge = document.getElementById('livePollBadge');
             const banner = document.getElementById('livePollBanner');
-            if (badge) badge.style.display = open.length > 0 ? 'inline' : 'none';
+            if (badge) badge.style.display = open.length > 0 ? 'inline-flex' : 'none';
             if (banner) {
                 if (open.length > 0) {
                     const titles = open.map(p => `"${p.title}"`).join(', ');
