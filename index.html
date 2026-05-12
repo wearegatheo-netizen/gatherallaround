@@ -3200,13 +3200,13 @@
                     <small style="opacity:0.8">${statusMsg}</small>
                     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
                         <button type="button" onclick="shareLastReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:#FEE500;color:#3C1E1E;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">카카오톡 공유</button>
-                        <button type="button" onclick="notifyAdminReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">관리자에게 알림</button>
                     </div>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
                 state.participantIds = []; state.participantEtc = '';
                 const etcEl = document.getElementById('participantEtcInput');
                 if (etcEl) etcEl.value = '';
                 fetchReservations();
+                if (reservationStatus === 'pending') setTimeout(() => notifyAdminReservationKakao(), 500);
             }
         }
 
