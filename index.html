@@ -3130,6 +3130,51 @@
             dashSection.innerHTML = `<div class="admin-section-title">📊 멤버 대시보드</div><div id="memberDash"><p style="color:var(--wds-gray-500);font-size:0.9rem">불러오는 중...</p></div>`;
             container.appendChild(dashSection);
 
+            const roleSection = document.createElement('div');
+            roleSection.className = 'admin-section';
+            roleSection.innerHTML = `
+                <div class="admin-section-title">🔐 권한 안내</div>
+                <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:520px">
+                    <thead>
+                        <tr style="background:var(--wds-gray-100)">
+                            <th style="padding:10px 8px;text-align:left;border-bottom:2px solid var(--wds-gray-300);white-space:nowrap">기능 / 권한</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#3366FF;white-space:nowrap">👑 총괄</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#00b894;white-space:nowrap">⭐ 세션장</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#999;white-space:nowrap">일반</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${[
+                            ['예약 신청', '✅', '✅', '✅'],
+                            ['예약 시 자동 승인', '✅', '✅', '2시간 이하만'],
+                            ['선예약 기간', '제한 없음', '제한 없음', '최대 2개월'],
+                            ['예약 승인/거절', '✅', '✅', '—'],
+                            ['모든 예약 강제 취소 (지난 예약 포함)', '✅', '—', '—'],
+                            ['주간 뷰에서 예약 셀 클릭 취소', '✅', '—', '—'],
+                            ['기타란 내용 열람', '✅', '✅', '본인 예약만'],
+                            ['멤버 가입 승인', '✅', '✅', '—'],
+                            ['멤버 차단 / 역할 변경', '✅', '—', '—'],
+                            ['투표 생성/관리', '✅', '✅', '—'],
+                            ['공지 / 시간 차단 / BGM', '✅', '—', '—'],
+                            ['운영안내 문서 관리', '✅', '✅', '—'],
+                            ['푸시 알림 발송', '✅', '✅', '—'],
+                        ].map((row, i) => `
+                            <tr style="${i % 2 === 0 ? 'background:white' : 'background:var(--wds-gray-100)'}">
+                                <td style="padding:8px;border-bottom:1px solid var(--wds-gray-200)">${row[0]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600">${row[1]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600">${row[2]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600;color:var(--wds-gray-600)">${row[3]}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+                </div>
+                <div style="margin-top:12px;padding:10px 12px;background:var(--wds-primary-light);border-radius:var(--wds-radius-s);font-size:0.8rem;color:var(--wds-gray-700);line-height:1.5">
+                    💡 <strong>역할 변경</strong>은 총괄 권한자가 아래 멤버 목록에서 직접 지정합니다. 권한이 바뀌면 해당 멤버의 다음 로그인부터 적용됩니다.
+                </div>
+            `;
+            container.appendChild(roleSection);
+
             const memberSection = document.createElement('div');
             memberSection.className = 'admin-section';
             memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 목록</div><div id="memberList"></div>`;
