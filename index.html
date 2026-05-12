@@ -3067,6 +3067,11 @@
                 pending.forEach(r => {
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div'); item.className = 'my-res-item';
+                    item.style.flexWrap = 'wrap';
+                    item.style.rowGap = '6px';
+                    const etcLine = r.participant_etc
+                        ? `<div style="flex-basis:100%;font-size:0.76rem;color:#e07b00;padding-top:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
+                        : '';
                     item.innerHTML = `
                         <div class="my-res-info">
                             <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
@@ -3075,7 +3080,8 @@
                         <div>
                             ${canApproveRes() ? `<button type="button" class="approve-btn" onclick="approveReservation('${r.id}')">승인</button>` : ''}
                             ${canCancelRes() ? `<button type="button" class="reject-btn" onclick="rejectReservation('${r.id}')">거절</button>` : ''}
-                        </div>`;
+                        </div>
+                        ${etcLine}`;
                     pendingList.appendChild(item);
                 });
                 pendingSection.appendChild(pendingList);
