@@ -1,0 +1,17 @@
+{
+  "name": "Gather all around",
+  "short_name": "GAA",
+  "description": "Premium Studio Reservation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#3366FF",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
