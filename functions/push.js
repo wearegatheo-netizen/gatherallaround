@@ -125,20 +125,15 @@ async function createVapidJwt(audience, subject, privateKeyPkcs8B64) {
 
 // ── RFC 8291 Payload Encryption ────────────────────────────────────────────
 
-async function hkdfExpand(prk, info, length) {
-    const prkKey = await crypto.subtle.importKey('raw', prk, 'HKDF', false, ['deriveBits']);
+async function hkdfExtractExpand(salt, ikm, info, length) {
+    // Use WebCrypto HKDF directly: it performs HKDF-Extract+Expand(salt, ikm, info, length)
+    const ikmKey = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
     const bits = await crypto.subtle.deriveBits(
-        { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info },
-        prkKey,
+        { name: 'HKDF', hash: 'SHA-256', salt, info },
+        ikmKey,
         length * 8
     );
     return new Uint8Array(bits);
-}
-
-async function hkdfExtractExpand(salt, ikm, info, length) {
-    const saltKey = await crypto.subtle.importKey('raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const prk = new Uint8Array(await crypto.subtle.sign('HMAC', saltKey, ikm));
-    return hkdfExpand(prk, info, length);
 }
 
 async function encryptPayload(subscription, message) {
