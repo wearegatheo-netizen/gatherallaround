@@ -791,7 +791,7 @@
             </div>
 
             <div class="form-group section-box" id="participantSection" style="display:none">
-                <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500)">(선택)</span></span>
+                <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
                 <div id="participantList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
             </div>
 
@@ -1409,7 +1409,7 @@
             const show = isReservable && state.startTime;
             section.style.display = show ? '' : 'none';
             if (!show) return;
-            const members = state.cachedMembers || [];
+            const members = (state.cachedMembers || []).filter(m => !isHiddenMember(m));
             if (members.length === 0) {
                 list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.85rem;margin:0">아직 등록된 멤버가 없습니다.</p>';
                 return;
@@ -1419,7 +1419,7 @@
                 const bg = sel ? 'var(--wds-primary)' : 'white';
                 const color = sel ? '#fff' : 'var(--wds-gray-700)';
                 const border = sel ? 'var(--wds-primary)' : 'var(--wds-gray-300)';
-                return `<button type="button" onclick="toggleParticipant('${m.id}')" style="padding:6px 12px;font-size:0.85rem;background:${bg};color:${color};border:1px solid ${border};border-radius:20px;cursor:pointer;font-weight:600">${escapeHtml(m.name)}</button>`;
+                return `<button type="button" onclick="toggleParticipant('${m.id}')" style="padding:6px 12px;font-size:0.85rem;background:${bg};color:${color};border:1px solid ${border};border-radius:20px;cursor:pointer;font-weight:600">${memberDisplayName(m)}</button>`;
             }).join('');
         }
 
@@ -1468,10 +1468,10 @@
         async function renderParticipationStatsTab(container) {
             container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
             const members = await fetchMembers();
-            const approved = (members || []).filter(m => m.status === 'approved');
+            const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
             state.cachedMembers = approved;
             const totalRes = (state.reservations || []).filter(r => r.status === 'approved' || r.status === 'pending').length;
-            const rows = approved.map(m => {
+            const rowsRaw = approved.map(m => {
                 const count = (state.reservations || []).filter(r =>
                     (r.status === 'approved' || r.status === 'pending') &&
                     Array.isArray(r.participant_ids) &&
@@ -1479,26 +1479,85 @@
                 ).length;
                 return { m, count };
             }).sort((a, b) => b.count - a.count);
+            // 동점 처리: 같은 count면 같은 등수
+            let lastCount = -1, lastRank = 0;
+            const rows = rowsRaw.map((r, i) => {
+                const rank = r.count === lastCount ? lastRank : (i + 1);
+                lastCount = r.count; lastRank = rank;
+                return { ...r, rank };
+            });
             const maxCount = rows.length ? Math.max(...rows.map(r => r.count), 1) : 1;
+            const topThree = rows.filter(r => r.rank <= 3 && r.count > 0);
+            const restRows = rows.filter(r => !topThree.includes(r));
+
+            const medalStyle = (rank) => {
+                if (rank === 1) return { emoji: '👑', bg: 'linear-gradient(135deg,#FFD700 0%,#FFA500 100%)', shadow: '0 4px 16px rgba(255,165,0,0.4)', size: '1.5rem', label: '1등' };
+                if (rank === 2) return { emoji: '🥈', bg: 'linear-gradient(135deg,#E8E8E8 0%,#A9A9A9 100%)', shadow: '0 3px 12px rgba(160,160,160,0.35)', size: '1.25rem', label: '2등' };
+                if (rank === 3) return { emoji: '🥉', bg: 'linear-gradient(135deg,#CD7F32 0%,#8B4513 100%)', shadow: '0 3px 12px rgba(139,69,19,0.3)', size: '1.15rem', label: '3등' };
+                return null;
+            };
+
+            const renderPodium = ({ m, count, rank }) => {
+                const style = medalStyle(rank);
+                const pct = totalRes > 0 ? Math.round((count / totalRes) * 100) : 0;
+                const scale = rank === 1 ? '1' : '0.92';
+                return `<div style="background:${style.bg};border-radius:14px;padding:16px;color:#fff;box-shadow:${style.shadow};transform:scale(${scale});margin-bottom:10px;position:relative;overflow:hidden">
+                    <div style="position:absolute;top:-10px;right:-10px;font-size:5rem;opacity:0.15">${style.emoji}</div>
+                    <div style="display:flex;align-items:center;gap:12px;position:relative">
+                        <div style="font-size:${style.size};font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:48px;text-align:center">${style.emoji}<br><span style="font-size:0.7rem">${style.label}</span></div>
+                        <div style="flex:1">
+                            <div style="font-size:1.1rem;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.15);margin-bottom:2px">${memberDisplayName(m)}</div>
+                            <div style="font-size:0.85rem;opacity:0.95">참여 <strong style="font-size:1rem">${count}회</strong> · ${pct}%</div>
+                        </div>
+                    </div>
+                </div>`;
+            };
+
+            const renderRow = ({ m, count, rank }) => {
+                const pct = totalRes > 0 ? Math.round((count / totalRes) * 100) : 0;
+                const barPct = Math.round((count / maxCount) * 100);
+                const isZero = count === 0;
+                const color = isZero ? 'var(--wds-gray-400)' : 'var(--wds-gray-800)';
+                return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:white;border:1px solid var(--wds-gray-200);border-radius:10px">
+                    <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-500);min-width:28px;text-align:center">${rank}위</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                            <span style="font-size:0.88rem;font-weight:600;color:${color}">${memberDisplayName(m)}</span>
+                            <span style="font-size:0.75rem;color:var(--wds-gray-500)">참여 <strong style="color:var(--wds-primary)">${count}회</strong> · ${pct}%</span>
+                        </div>
+                        <div style="background:var(--wds-gray-100);height:5px;border-radius:3px;overflow:hidden">
+                            <div style="width:${barPct}%;height:100%;background:linear-gradient(90deg,var(--wds-primary) 0%,#7B9EFF 100%);border-radius:3px"></div>
+                        </div>
+                    </div>
+                </div>`;
+            };
+
+            const champLine = topThree.length && topThree[0].rank === 1
+                ? `<div style="text-align:center;font-size:0.95rem;font-weight:700;color:var(--wds-primary);margin:14px 0 8px 0">🏆 현재 챔피언: <span style="font-size:1.05rem">${memberDisplayName(topThree[0].m)}</span> 🏆</div>`
+                : '';
+
             container.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--wds-gray-100);border-radius:var(--wds-radius-m)">
-                    <span style="font-size:0.85rem;color:var(--wds-gray-600)">전체 예약 수</span>
-                    <span style="font-size:1.1rem;font-weight:700;color:var(--wds-primary)">${totalRes}건</span>
+                <div style="display:flex;justify-content:space-around;align-items:center;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff">
+                    <div style="text-align:center">
+                        <div style="font-size:0.7rem;opacity:0.85">전체 예약</div>
+                        <div style="font-size:1.3rem;font-weight:800">${totalRes}건</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:0.7rem;opacity:0.85">참여 멤버</div>
+                        <div style="font-size:1.3rem;font-weight:800">${rows.filter(r => r.count > 0).length}명</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:0.7rem;opacity:0.85">최고 참여</div>
+                        <div style="font-size:1.3rem;font-weight:800">${maxCount}회</div>
+                    </div>
                 </div>
-                ${rows.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">멤버가 없습니다.</p>' :
-                rows.map(({ m, count }) => {
-                    const pct = totalRes > 0 ? Math.round((count / totalRes) * 100) : 0;
-                    const barPct = Math.round((count / maxCount) * 100);
-                    return `<div style="margin-bottom:10px">
-                        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-                            <span style="font-size:0.9rem;font-weight:600">${escapeHtml(m.name)}</span>
-                            <span style="font-size:0.78rem;color:var(--wds-gray-500)">참여 ${count}회 <span style="color:var(--wds-primary);font-weight:600">(${pct}%)</span></span>
-                        </div>
-                        <div style="background:var(--wds-gray-100);height:6px;border-radius:3px;overflow:hidden">
-                            <div style="width:${barPct}%;height:100%;background:var(--wds-primary);border-radius:3px"></div>
-                        </div>
-                    </div>`;
-                }).join('')}
+                ${champLine}
+                ${rows.length === 0
+                    ? '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">멤버가 없습니다.</p>'
+                    : `${topThree.map(renderPodium).join('')}
+                       ${restRows.length ? `<div style="font-size:0.75rem;color:var(--wds-gray-500);margin:14px 0 6px 0;padding-left:4px">기타 순위</div>` : ''}
+                       ${restRows.map(renderRow).join('')}`
+                }
             `;
         }
 
@@ -1637,7 +1696,19 @@
             return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
-        function renderSongList() {
+        // 멤버 목록에서 숨길 계정 (중복/구 계정)
+        function isHiddenMember(m) {
+            return m.name === '최경수(세션장)' || m.name === '최경수(일반)';
+        }
+
+        // 본인 외에는 이름 뒤 '(관리자)' 등 괄호 뱃지 숨김
+        function memberDisplayName(m) {
+            const name = m.name || '';
+            const isSelf = state.user && m.kakao_id === state.user.kakaoId;
+            return escapeHtml(isSelf ? name : name.replace('(관리자)', '').trim());
+        }
+
+
             const c = document.getElementById('editingSongList');
             if (!c) return;
             if (state.editingSongs.length === 0) {
@@ -1801,7 +1872,7 @@
         async function renderMembersTab(container) {
             container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">불러오는 중...</p>';
             const members = await fetchMembers();
-            const approved = (members || []).filter(m => m.status === 'approved');
+            const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
             const isS = isSuper();
             container.innerHTML = '';
             if (approved.length === 0) {
@@ -1848,7 +1919,7 @@
                 const countTag = `<span style="font-size:0.75rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">참여 ${resCount}회</span>`;
                 return `<div class="my-res-item" style="margin-bottom:4px">
                     <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
-                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${escapeHtml(m.name)}</span>${countTag}${roleTag}${instBadges(subInsts)}${adminMeta}
+                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${memberDisplayName(m)}</span>${countTag}${roleTag}${instBadges(subInsts)}${adminMeta}
                     </div>
                 </div>`;
             };
@@ -2799,6 +2870,7 @@
             }
             const name = (state.user && state.user.nickname) || document.getElementById('userNameInput').value || '';
             if (!name) { alert('사용자 정보를 불러오지 못했습니다. 다시 로그인해주세요.'); return; }
+            if (!state.participantIds || state.participantIds.length === 0) { alert('참여 멤버를 1명 이상 선택해주세요.'); return; }
             // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
             const dateStr = state.selectedDate.toLocaleDateString('en-CA');
             // 2시간 이하는 자동 승인, 초과하면 관리자 승인 필요
