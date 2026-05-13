@@ -4238,10 +4238,6 @@
                 if (i === 6) h.classList.add('week-sat');
                 if (isSameDay(d, today)) h.classList.add('week-today');
                 h.innerHTML = `<div style="font-size:0.7rem; opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
-                h.style.cursor = 'pointer';
-                h.title = '클릭하여 일간 보기';
-                const _d = new Date(d);
-                h.onclick = () => { state.viewDate = _d; state.currentView = 'day'; render(); };
                 grid.appendChild(h);
             }
             TIMES.forEach((time, idx) => {
@@ -4310,11 +4306,6 @@
         }
 
         function renderDay(container) {
-            const backBar = document.createElement('div');
-            backBar.style.cssText = 'font-size:0.8rem;color:var(--wds-primary);cursor:pointer;margin-bottom:8px;padding:4px 0;display:inline-flex;align-items:center;gap:4px;font-weight:600';
-            backBar.innerHTML = '← 주간으로';
-            backBar.onclick = () => { state.currentView = 'week'; render(); };
-            container.appendChild(backBar);
             const grid = document.createElement('div'); grid.className = 'weekly-grid day-grid'; grid.style.gridTemplateColumns = '130px 1fr';
             TIMES.forEach((time, idx) => {
                 const endTime = TIMES[idx + 1] || '23:00';
