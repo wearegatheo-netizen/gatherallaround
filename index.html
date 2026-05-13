@@ -2685,9 +2685,18 @@
                     ${groupsHtml}
                     <button type="button" onclick="schedEditorAddGroup()"
                         style="width:100%;padding:7px;border:1.5px dashed var(--wds-primary);border-radius:7px;background:none;cursor:pointer;font-size:0.82rem;color:var(--wds-primary);font-weight:600;margin-bottom:8px">+ 그룹 추가</button>
-                    <button type="button" onclick="saveScheduleForDate()"
-                        style="width:100%;padding:10px;border:none;background:var(--wds-primary);color:white;border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit">저장</button>
+                    <div style="display:flex;gap:6px">
+                        <button type="button" onclick="schedEditorClose()"
+                            style="flex:1;padding:10px;border:1px solid var(--wds-gray-300);background:white;color:var(--wds-gray-700);border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit">닫기</button>
+                        <button type="button" onclick="saveScheduleForDate()"
+                            style="flex:2;padding:10px;border:none;background:var(--wds-primary);color:white;border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit">저장</button>
+                    </div>
                 </div>`;
+        }
+
+        function schedEditorClose() {
+            const el = document.getElementById('schedEditor');
+            if (el) el.innerHTML = '';
         }
 
         function schedEditorUpdateGroup(gi, key, val) { if (state.scheduleEditorGroups[gi]) state.scheduleEditorGroups[gi][key] = val; }
@@ -2835,6 +2844,7 @@
             container.innerHTML = `
                 <div>
                     ${canEdit ? '<div id="schedEditor"></div>' : ''}
+                    ${canEdit ? `<button type="button" onclick="schedEditorInit(new Date().toLocaleDateString('en-CA'));document.getElementById('schedEditor')?.scrollIntoView({behavior:'smooth',block:'start'})" style="width:100%;padding:9px;margin-bottom:10px;border:1.5px dashed var(--wds-primary);border-radius:7px;background:none;cursor:pointer;font-size:0.85rem;color:var(--wds-primary);font-weight:700">+ 새 일정 추가</button>` : ''}
                     <div style="display:flex;gap:6px;margin-bottom:12px">
                         <button type="button" onclick="state.scheduleFilter='upcoming';renderMemberPanel()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${!showPast?'var(--wds-primary)':'white'};color:${!showPast?'#fff':'var(--wds-primary)'}">다가오는 일정</button>
                         <button type="button" onclick="state.scheduleFilter='past';renderMemberPanel()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${showPast?'var(--wds-primary)':'white'};color:${showPast?'#fff':'var(--wds-primary)'}">지난 일정</button>
@@ -2843,7 +2853,6 @@
                         ? `<p style="text-align:center;color:var(--wds-gray-500);font-size:0.9rem;padding:30px 0">${showPast?'지난 일정이 없습니다.':'등록된 일정이 없습니다.'}</p>`
                         : sortedDates.map(d => timetableDay(d, dateMap[d])).join('')}
                 </div>`;
-            if (canEdit) schedEditorInit(state.scheduleEditorDate || today);
         }
 
         async function renderTeamsTab(container) {
