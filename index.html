@@ -170,7 +170,11 @@
         .portal-btn.portal-btn-primary:hover { background: var(--wds-primary-hover); border-color: var(--wds-primary-hover); }
         .portal-btn.portal-btn-disabled { opacity: 0.45; cursor: not-allowed; }
         .portal-btn.portal-btn-disabled:hover { border-color: var(--wds-gray-300); background: var(--wds-white); transform: none; }
-        .portal-btn-icon { font-size: 1.4rem; margin-right: 10px; }
+        .portal-btn-icon { font-size: 1.4rem; margin-right: 10px; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; }
+        .portal-btn-icon img { width: 28px; height: 28px; object-fit: contain; display:block; }
+        .portal-btn-icon .icon-dark { display: none; }
+        body.dark .portal-btn-icon .icon-light { display: none; }
+        body.dark .portal-btn-icon .icon-dark { display: block; }
         .portal-btn-text { display: flex; flex-direction: column; align-items: flex-start; }
         .portal-btn-title { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
         .portal-btn-desc { font-size: 0.78rem; font-weight: 400; opacity: 0.72; margin-top: 2px; }
@@ -903,7 +907,7 @@
         <p class="portal-sub">게더올어라운드 이용 시스템</p>
 
         <button type="button" class="portal-btn portal-btn-primary" onclick="showGatheoSection()">
-            <span class="portal-btn-icon">🎵</span>
+            <span class="portal-btn-icon"><img class="icon-light" src="/GatheO-light.png" alt=""><img class="icon-dark" src="/GatheO-dark.png" alt=""></span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">게더링 (GatheO)</span>
                 <span class="portal-btn-desc">게더링 멤버들을 위한 공간</span>
