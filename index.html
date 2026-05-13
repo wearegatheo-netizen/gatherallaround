@@ -906,14 +906,14 @@
             <span class="portal-btn-icon">🎵</span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">게더링 (GatheO)</span>
-                <span class="portal-btn-desc">합주실 예약 및 멤버 관리 시스템</span>
+                <span class="portal-btn-desc">게더링 멤버들을 위한 공간</span>
             </span>
         </button>
         <button type="button" class="portal-btn portal-btn-primary" onclick="showBandSection()">
             <span class="portal-btn-icon">🎸</span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">고정 합주팀</span>
-                <span class="portal-btn-desc">고정 밴드 팀원 전용 공간</span>
+                <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
             </span>
         </button>
         <button type="button" class="portal-btn portal-btn-disabled" onclick="showComingSoon()">
@@ -1580,8 +1580,7 @@
                 if (error) { alert('가입 신청 실패: ' + error.message); return; }
                 hideKakaoSignupModal();
                 showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
-                setTimeout(() => notifyAdminSignupKakao(name, instruments), 400);
-                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 600);
+                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 400);
                 fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
             } finally {
                 _kakaoSignupBusy = false;
@@ -1886,8 +1885,7 @@
             showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
             if (isNew) {
                 const regName = document.getElementById('regName') ? document.getElementById('regName').value.trim() : (state.user && state.user.nickname) || '';
-                setTimeout(() => notifyAdminSignupKakao(regName, instruments), 400);
-                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${regName} · ${instruments || '세션 미입력'}`), 600);
+                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${regName} · ${instruments || '세션 미입력'}`), 400);
             }
             renderMypagePanel();
         }
@@ -4425,16 +4423,10 @@
                     etc: etcFinal
                 };
                 const res = document.getElementById('result');
-                res.style.display = 'block';
-                const statusMsg = (reservationStatus === 'approved' || canApproveRes())
-                    ? '예약이 확정되었습니다.'
-                    : '관리자 승인 후 확정됩니다.';
+                const isApproved = (reservationStatus === 'approved' || canApproveRes());
                 res.innerHTML = `
-                    <strong>${escapeHtml(name)}</strong>님, <strong>${dateStr} ${timeStr}</strong> 예약 신청 완료!<br>
-                    <small style="opacity:0.8">${statusMsg}</small>
-                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                        <button type="button" onclick="shareLastReservationKakao()" style="flex:1;min-width:120px;padding:8px;background:#FEE500;color:#3C1E1E;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">카카오톡 공유</button>
-                    </div>`;
+                    <strong>${escapeHtml(name)}</strong>님, <strong>${dateStr} ${timeStr}</strong> ${isApproved ? '예약 확정!' : '예약 신청 완료!'}<br>
+                    <small style="opacity:0.8">${isApproved ? '예약이 확정되었습니다.' : '관리자 승인 후 확정됩니다.'}</small>`;
                 state.selectedDate = null; state.startTime = null; state.endTime = null;
                 state.participantIds = []; state.participantEtc = ''; state.participantCount = 0;
                 const etcEl = document.getElementById('participantEtcInput');
@@ -4442,8 +4434,8 @@
                 const cntEl = document.getElementById('participantCountInput');
                 if (cntEl) cntEl.value = '0';
                 fetchReservations();
-                if (reservationStatus === 'pending') setTimeout(() => notifyAdminReservationKakao(), 500);
-                setTimeout(() => sendAdminPush('🎸 새 예약 신청', `${name} · ${dateStr} ${timeStr}`), 600);
+                const pushTitle = isApproved ? '🎸 예약 확정' : '🎸 새 예약 신청';
+                setTimeout(() => sendAdminPush(pushTitle, `${name} · ${dateStr} ${timeStr}`), 600);
             }
         }
 
@@ -5099,7 +5091,6 @@
                 if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
                 alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
-                notifyAdminSignupKakao(name, instruments);
                 sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
                 showPendingScreen(name);
             } finally {
