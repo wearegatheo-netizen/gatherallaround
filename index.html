@@ -104,7 +104,7 @@
         body.dark .notice-card { background: #2a2510 !important; border-color: #4a3d1a !important; }
         body.dark .like-btn.liked { background: #2a1515 !important; }
         body.dark [style*="background:linear-gradient(135deg,#667eea"] { background: linear-gradient(135deg, #3a4a8a, #4a3070) !important; }
-        .theme-toggle-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; height: 32px; width: 36px; cursor: pointer; font-size: 1.05rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--wds-gray-700); margin-right: 6px; transition: 0.2s; font-family: inherit; }
+        .theme-toggle-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 50%; height: 32px; width: 32px; cursor: pointer; font-size: 1.05rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--wds-gray-700); margin-right: 6px; transition: 0.2s; font-family: inherit; }
         .theme-toggle-btn:hover { color: var(--wds-primary); border-color: var(--wds-primary); }
 
         body {
@@ -1138,6 +1138,19 @@
                 <div class="band-section-title">🎵 밴드 정보</div>
             </div>
 
+            <!-- 관리자 (게더링 팀 전용) -->
+            <div id="bandAdminSection" class="band-section-card hidden" style="border:2px solid var(--wds-primary)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div class="band-section-title" style="margin-bottom:0">🛠️ 관리자</div>
+                    <span style="font-size:0.72rem;color:var(--wds-primary);font-weight:600">게더링 팀 전용</span>
+                </div>
+                <div class="admin-subtabs" style="border-bottom:2px solid var(--wds-gray-300);margin-bottom:12px">
+                    <div class="admin-subtab active" onclick="setBandAdminTab('pending')">가입 신청</div>
+                    <div class="admin-subtab" onclick="setBandAdminTab('teams')">팀 관리</div>
+                </div>
+                <div id="bandAdminView"></div>
+            </div>
+
             <!-- 공지사항 -->
             <div id="bandNoticesSection" class="band-section-card">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1176,7 +1189,6 @@
             <div id="bandCommentsSection" class="band-section-card">
                 <div class="band-section-title">💬 댓글</div>
                 <div style="margin-bottom:12px">
-                    <input type="text" id="bandCommentAuthor" placeholder="작성자 (선택)" style="width:100%;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;box-sizing:border-box;margin-bottom:6px">
                     <div style="display:flex;gap:8px">
                         <textarea id="bandCommentContent" placeholder="댓글을 입력하세요" rows="2" style="flex:1;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;resize:vertical"></textarea>
                         <button type="button" onclick="postBandComment()" style="padding:0 12px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.88rem;font-family:inherit;align-self:stretch">등록</button>
@@ -4544,11 +4556,95 @@
             // 공지 추가 버튼: 게더링 팀(관리자)만 표시
             const noticeAddBtn = document.getElementById('bandNoticeAddBtn');
             if (noticeAddBtn) noticeAddBtn.style.display = isBandAdmin() ? '' : 'none';
+            // 관리자 섹션: 게더링 팀만 표시
+            const adminSec = document.getElementById('bandAdminSection');
+            if (adminSec) adminSec.classList.toggle('hidden', !isBandAdmin());
+            if (isBandAdmin()) {
+                state.bandAdminTab = state.bandAdminTab || 'pending';
+                renderBandAdminTab();
+            }
             renderBandInfo(profile);
             fetchAndRenderBandNotices();
             fetchAndRenderBandTeamList();
             fetchAndRenderBandMembers();
             fetchAndRenderBandComments();
+        }
+
+        function setBandAdminTab(tab) {
+            state.bandAdminTab = tab;
+            const subs = document.querySelectorAll('#bandAdminSection .admin-subtab');
+            subs.forEach((el, i) => el.classList.toggle('active', (i === 0 && tab === 'pending') || (i === 1 && tab === 'teams')));
+            renderBandAdminTab();
+        }
+
+        async function renderBandAdminTab() {
+            if (!isBandAdmin()) return;
+            const view = document.getElementById('bandAdminView');
+            if (!view) return;
+            view.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:14px">불러오는 중...</div>';
+            const teams = await fetchBandProfiles();
+            if (state.bandAdminTab === 'pending') {
+                const pending = teams.filter(t => t.status === 'pending');
+                if (!pending.length) { view.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:14px">대기 중인 가입 신청이 없습니다.</div>'; return; }
+                view.innerHTML = pending.map(t => bandAdminTeamCard(t, 'pending')).join('');
+            } else {
+                const approved = teams.filter(t => t.status === 'approved');
+                if (!approved.length) { view.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:14px">승인된 팀이 없습니다.</div>'; return; }
+                view.innerHTML = approved.map(t => bandAdminTeamCard(t, 'approved')).join('');
+            }
+        }
+
+        function bandAdminTeamCard(t, kind) {
+            const days = ['월','화','수','목','금','토','일'];
+            const slots = t.timeslots || [];
+            const timeslotDisplay = ['주간','야간'].map(time => {
+                const active = days.filter(d => slots.includes(d + '_' + time));
+                return active.length ? `${time}: ${active.join(', ')}` : null;
+            }).filter(Boolean).join(' · ') || '미정';
+            const btns = kind === 'pending'
+                ? `<button type="button" onclick="approveBandProfile('${t.id}')" style="padding:5px 11px;border-radius:var(--wds-radius-s);border:none;background:#00b894;color:white;cursor:pointer;font-weight:700;font-size:0.78rem;font-family:inherit">승인</button>
+                   <button type="button" onclick="rejectBandProfile('${t.id}')" style="padding:5px 11px;border-radius:var(--wds-radius-s);border:none;background:#e74c3c;color:white;cursor:pointer;font-weight:700;font-size:0.78rem;font-family:inherit">거절</button>`
+                : (t.id === state.bandProfile.id ? '<span style="font-size:0.7rem;color:var(--wds-gray-500)">본인 팀</span>' :
+                   `<button type="button" onclick="removeBandProfile('${t.id}')" style="padding:5px 11px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-gray-700);cursor:pointer;font-weight:600;font-size:0.78rem;font-family:inherit">탈퇴 처리</button>`);
+            return `
+                <div style="padding:10px 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);margin-bottom:8px;background:var(--wds-white)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:700;font-size:0.95rem">${escHtml(t.band_name_kr||'-')} <span style="font-size:0.75rem;color:var(--wds-gray-500);font-weight:400">${escHtml(t.band_name_en||'')}</span></div>
+                            <div style="font-size:0.78rem;color:var(--wds-gray-600);margin-top:3px">리더: ${escHtml(t.leader_name||'-')} · ${escHtml(t.leader_phone||'-')}</div>
+                            <div style="font-size:0.75rem;color:var(--wds-primary);margin-top:3px">${escHtml(timeslotDisplay)}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-shrink:0">${btns}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function approveBandProfile(id) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            if (!confirm('이 팀의 가입을 승인하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
+            if (error) { alert('승인 실패: ' + error.message); return; }
+            renderBandAdminTab();
+            fetchAndRenderBandTeamList();
+        }
+
+        async function rejectBandProfile(id) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            if (!confirm('이 팀의 가입을 거절하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
+            if (error) { alert('거절 실패: ' + error.message); return; }
+            renderBandAdminTab();
+        }
+
+        async function removeBandProfile(id) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            if (id === state.bandProfile.id) { alert('본인 팀은 처리할 수 없습니다.'); return; }
+            if (!confirm('이 팀을 탈퇴(거절 상태)로 처리하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
+            if (error) { alert('처리 실패: ' + error.message); return; }
+            renderBandAdminTab();
+            fetchAndRenderBandTeamList();
         }
 
         function renderBandInfo(profile) {
@@ -4791,16 +4887,22 @@
             `).join('');
         }
 
+        function bandTeamDisplayName(profile) {
+            if (!profile) return '익명';
+            const kr = (profile.band_name_kr || '').trim();
+            const en = (profile.band_name_en || '').trim();
+            if (kr && en) return `${kr}(${en})`;
+            return kr || en || profile.name || '익명';
+        }
+
         async function postBandComment() {
             if (!supabaseClient || !state.bandProfile) return;
-            const authorEl = document.getElementById('bandCommentAuthor');
             const contentEl = document.getElementById('bandCommentContent');
-            const author = authorEl.value.trim();
             const content = contentEl.value.trim();
             if (!content) { alert('댓글을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('band_comments').insert({
                 band_profile_id: state.bandProfile.id,
-                author_name: author || (state.bandProfile.leader_name || state.bandProfile.name || '익명'),
+                author_name: bandTeamDisplayName(state.bandProfile),
                 content
             });
             if (error) { alert('등록 실패: ' + error.message); return; }
@@ -4995,7 +5097,15 @@
         async function fetchMembers() {
             if (!supabaseClient) return [];
             const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
-            return error ? [] : data;
+            if (error) return [];
+            // 고정 합주팀(band) 멤버는 게더링 시스템 목록에서 제외
+            return (data || []).filter(m => m.member_type !== 'band');
+        }
+
+        async function fetchBandProfiles() {
+            if (!supabaseClient) return [];
+            const { data, error } = await supabaseClient.from('profiles').select('*').eq('member_type', 'band').order('created_at', { ascending: false });
+            return error ? [] : (data || []);
         }
 
         // --- 투표 ---
