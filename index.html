@@ -1030,13 +1030,13 @@
     <div id="landing-page-band" class="hidden">
         <button type="button" id="themeToggleBtnBand" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
         <button type="button" class="portal-back-btn" onclick="showPortal()" style="position:absolute;top:22px;left:20px">← 돌아가기</button>
-        <h1>고정 합주팀</h1>
-        <p>팀원 전용 공간</p>
+        <h1>Gather all around</h1>
+        <p>고정 합주팀 전용 공간</p>
 
         <div id="band-email-section">
             <!-- 로그인 폼 -->
             <div id="band-login-form" class="email-form">
-                <input type="email" id="bandLoginEmail" placeholder="이메일" autocomplete="email">
+                <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30">
                 <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password">
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
@@ -1063,7 +1063,7 @@
                 <div style="text-align:left;margin-bottom:4px">
                     <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">아이디 (이메일) <span style="color:#e74c3c">*</span></label>
                 </div>
-                <input type="email" id="bandSignupEmail" placeholder="이메일" autocomplete="email">
+                <input type="text" id="bandSignupId" placeholder="아이디 (영문 또는 영문+숫자, 4~20자)" autocomplete="username" maxlength="20">
                 <div style="text-align:left;margin-bottom:4px">
                     <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">비밀번호 <span style="color:#e74c3c">*</span></label>
                 </div>
@@ -1105,7 +1105,7 @@
 
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
-                    • 수집 항목: 이름, 전화번호, 이메일, 밴드명, 합주 타임<br>
+                    • 수집 항목: 팀 리더 이름, 전화번호, 밴드명(국문/영문), 아이디, 합주 타임<br>
                     • 수집 목적: 고정 합주팀 서비스 제공 및 팀 관리<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
                     • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.<br><br>
@@ -4435,13 +4435,18 @@
             document.getElementById('band-signup-form').classList.remove('hidden');
         }
 
+        const BAND_ID_DOMAIN = '@band.gatheo.kr';
+        function bandIdToEmail(id) { return id.toLowerCase() + BAND_ID_DOMAIN; }
+
         async function handleBandEmailLogin() {
-            const email = document.getElementById('bandLoginEmail').value.trim();
+            const rawId = document.getElementById('bandLoginId').value.trim();
             const password = document.getElementById('bandLoginPassword').value;
-            if (!email || !password) { alert('아이디(이메일)와 비밀번호를 입력해주세요.'); return; }
+            if (!rawId || !password) { alert('아이디와 비밀번호를 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
             if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
+            const email = bandIdToEmail(rawId);
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { alert('로그인 실패: ' + error.message); return; }
+            if (error) { alert('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
             if (data?.user) {
                 await checkEmailUserApproval(data.user);
             }
@@ -4452,19 +4457,22 @@
             const leaderPhone = document.getElementById('bandSignupLeaderPhone').value.trim();
             const bandNameKr = document.getElementById('bandSignupNameKr').value.trim();
             const bandNameEn = document.getElementById('bandSignupNameEn').value.trim();
-            const email = document.getElementById('bandSignupEmail').value.trim();
+            const rawId = document.getElementById('bandSignupId').value.trim();
             const password = document.getElementById('bandSignupPassword').value;
             const confirm = document.getElementById('bandSignupPasswordConfirm').value;
             const consent = document.getElementById('bandPrivacyConsent').checked;
             const timeslots = Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
 
-            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !email || !password) { alert('모든 항목을 입력해주세요.'); return; }
+            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { alert('모든 항목을 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
+            if (rawId.length < 4 || rawId.length > 20) { alert('아이디는 4~20자 사이여야 합니다.'); return; }
             if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { alert('올바른 전화번호를 입력해주세요.'); return; }
             if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
             if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
             if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
             if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
 
+            const email = bandIdToEmail(rawId);
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) { alert('가입 신청 실패: ' + error.message); return; }
             if (data?.user) {
@@ -4478,6 +4486,7 @@
                     band_name_en: bandNameEn,
                     timeslots: timeslots,
                     member_type: 'band',
+                    instruments: rawId,
                     status: 'pending',
                     role: '일반'
                 };
