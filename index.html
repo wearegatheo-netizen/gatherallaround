@@ -394,8 +394,12 @@
         .docs-cat-tab:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
         .docs-cat-tab.active { background: var(--wds-primary); color: white; border-color: var(--wds-primary); }
         .docs-list { display: flex; flex-direction: column; gap: 14px; }
-        .docs-card { padding: 18px 20px; background: white; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
-        .docs-card-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-gray-900); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--wds-gray-100); }
+        .docs-card { padding: 14px 18px; background: white; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); }
+        .docs-card.collapsed .docs-card-body { display: none; }
+        .docs-card-title { font-size: 1.02rem; font-weight: 700; color: var(--wds-gray-900); cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; }
+        .docs-card-title .docs-toggle-icon { transition: transform 0.2s; color: var(--wds-gray-500); font-size: 0.9rem; flex-shrink: 0; }
+        .docs-card.collapsed .docs-toggle-icon { transform: rotate(-90deg); }
+        .docs-card-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--wds-gray-100); }
         .docs-card-content { font-size: 0.92rem; line-height: 1.65; color: var(--wds-gray-900); word-break: break-word; }
         .docs-card-content h1, .docs-card-content h2, .docs-card-content h3 { margin: 12px 0 6px; font-weight: 700; }
         .docs-card-content h1 { font-size: 1.2rem; }
@@ -4338,11 +4342,13 @@
                         </div>
                     </div>` : '';
                 return `
-                <div class="docs-card">
+                <div class="docs-card collapsed" id="docs-card-${d.id}">
                     <div class="doc-view-${d.id}">
-                        <div class="docs-card-title">${escapeHtml(d.title)}</div>
-                        <div class="docs-card-content">${renderMarkdown(d.content)}</div>
-                        ${adminBar}
+                        <div class="docs-card-title" onclick="toggleDocsCard('${d.id}')"><span class="docs-toggle-icon">▼</span><span style="flex:1">${escapeHtml(d.title)}</span></div>
+                        <div class="docs-card-body">
+                            <div class="docs-card-content">${renderMarkdown(d.content)}</div>
+                            ${adminBar}
+                        </div>
                     </div>
                     ${editBlock}
                 </div>`;
@@ -4447,6 +4453,11 @@
             document.getElementById('newDocContent').value = '';
             await fetchDocs();
             render();
+        }
+
+        function toggleDocsCard(id) {
+            const card = document.getElementById(`docs-card-${id}`);
+            if (card) card.classList.toggle('collapsed');
         }
 
         function toggleDocEdit(id) {
