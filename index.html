@@ -1567,12 +1567,12 @@
         const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
 
         // --- 권한 헬퍼 ---
-        function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '총괄'); }
-        function canApproveRes() { return state.user && (isSuper() || state.user.role === '세션장'); }
+        function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '운영 총괄'); }
+        function canApproveRes() { return state.user && (isSuper() || state.user.role === '총괄' || state.user.role === '세션장'); }
         function canCancelRes() { return isSuper(); }
-        function canApproveMember() { return state.user && (isSuper() || state.user.role === '세션장'); }
-        function canBanMember() { return isSuper(); }
-        function canPostNotice() { return isSuper(); }
+        function canApproveMember() { return state.user && (isSuper() || state.user.role === '총괄' || state.user.role === '세션장'); }
+        function canBanMember() { return state.user && (isSuper() || state.user.role === '총괄'); }
+        function canPostNotice() { return state.user && (isSuper() || state.user.role === '총괄'); }
         function isAdminUser() { return canApproveRes(); }
 
         async function fetchReservations() {
@@ -2497,7 +2497,7 @@
                 return ai - bi;
             });
 
-            const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+            const roleColors = { '운영 총괄': '#e04000', '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
             const roleEmoji = (r) => r === '총괄' ? '👑' : r === '세션장' ? '⭐' : '';
             const renderItem = (m) => {
                 const role = m.role || '일반';
@@ -2591,7 +2591,8 @@
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
                 ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
-                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }, { key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
+                ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
+                ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
                 ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }] : [])
             ];
             subtabDefs.forEach(t => {
@@ -3152,42 +3153,46 @@
             roleSection.innerHTML = `
                 <div class="admin-section-title">🔐 권한 안내</div>
                 <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:520px">
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:600px">
                     <thead>
                         <tr style="background:var(--wds-gray-100)">
                             <th style="padding:10px 8px;text-align:left;border-bottom:2px solid var(--wds-gray-300);white-space:nowrap">기능 / 권한</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#3366FF;white-space:nowrap">👑 총괄</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#00b894;white-space:nowrap">⭐ 세션장</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#e04000;white-space:nowrap">운영 총괄</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#3366FF;white-space:nowrap">총괄</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#00b894;white-space:nowrap">세션장</th>
                             <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#999;white-space:nowrap">일반</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${[
-                            ['예약 신청', '✅', '✅', '✅'],
-                            ['예약 시 자동 승인', '✅', '✅', '2시간 이하만'],
-                            ['선예약 기간', '제한 없음', '제한 없음', '최대 2개월'],
-                            ['예약 승인/거절', '✅', '✅', '—'],
-                            ['모든 예약 강제 취소 (지난 예약 포함)', '✅', '—', '—'],
-                            ['주간 뷰에서 예약 셀 클릭 취소', '✅', '—', '—'],
-                            ['기타란 내용 열람', '✅', '✅', '본인 예약만'],
-                            ['멤버 가입 승인', '✅', '✅', '—'],
-                            ['멤버 차단 / 역할 변경', '✅', '—', '—'],
-                            ['투표 생성/관리', '✅', '✅', '—'],
-                            ['공지 / 시간 차단 / BGM', '✅', '—', '—'],
-                            ['운영안내 문서 관리', '✅', '✅', '—'],
-                            ['푸시 알림 발송', '✅', '✅', '—'],
+                            ['예약 신청',                       '✅', '✅', '✅', '✅'],
+                            ['예약 시 자동 승인',               '✅', '✅', '✅', '2시간 이하만'],
+                            ['선예약 기간',                     '무제한', '무제한', '무제한', '최대 2개월'],
+                            ['예약 승인 / 거절',               '✅', '✅', '✅', '—'],
+                            ['모든 예약 강제 취소',            '✅', '—', '—', '—'],
+                            ['주간 뷰 예약 셀 클릭 취소',      '✅', '—', '—', '—'],
+                            ['기타란 내용 열람',               '✅', '✅', '✅', '본인만'],
+                            ['멤버 가입 승인',                 '✅', '✅', '✅', '—'],
+                            ['멤버 차단',                      '✅', '✅', '—', '—'],
+                            ['역할 변경',                      '✅', '—', '—', '—'],
+                            ['공지사항 작성 / 수정',           '✅', '✅', '—', '—'],
+                            ['투표 생성 / 관리',               '✅', '✅', '✅', '—'],
+                            ['운영안내 문서 관리',             '✅', '✅', '✅', '—'],
+                            ['푸시 알림 발송',                 '✅', '✅', '✅', '—'],
+                            ['시간 차단 / BGM',               '✅', '—', '—', '—'],
                         ].map((row, i) => `
                             <tr style="${i % 2 === 0 ? 'background:white' : 'background:var(--wds-gray-100)'}">
                                 <td style="padding:8px;border-bottom:1px solid var(--wds-gray-200)">${row[0]}</td>
-                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600">${row[1]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600;color:#e04000">${row[1]}</td>
                                 <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600">${row[2]}</td>
-                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600;color:var(--wds-gray-600)">${row[3]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600">${row[3]}</td>
+                                <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600;color:var(--wds-gray-600)">${row[4]}</td>
                             </tr>`).join('')}
                     </tbody>
                 </table>
                 </div>
                 <div style="margin-top:12px;padding:10px 12px;background:var(--wds-primary-light);border-radius:var(--wds-radius-s);font-size:0.8rem;color:var(--wds-gray-700);line-height:1.5">
-                    💡 <strong>역할 변경</strong>은 총괄 권한자가 아래 멤버 목록에서 직접 지정합니다. 권한이 바뀌면 해당 멤버의 다음 로그인부터 적용됩니다.
+                    💡 <strong>역할 변경</strong>은 운영 총괄만 가능합니다. 아래 멤버 목록에서 직접 지정하며 다음 로그인부터 적용됩니다.
                 </div>
             `;
             container.appendChild(roleSection);
@@ -3205,6 +3210,7 @@
             const pending = members.filter(m => m.status === 'pending').length;
             const approved = members.filter(m => m.status === 'approved').length;
             const rejected = members.filter(m => m.status === 'rejected').length;
+            const opSupers = members.filter(m => m.role === '운영 총괄').length;
             const supers = members.filter(m => m.role === '총괄').length;
             const leaders = members.filter(m => m.role === '세션장').length;
             const normals = members.filter(m => !m.role || m.role === '일반').length;
@@ -3230,6 +3236,7 @@
                 </div>
                 <div style="margin-top:14px;font-size:0.85rem;color:var(--wds-gray-700);font-weight:600">권한 분포</div>
                 <div class="stat-grid" style="margin-top:6px">
+                    ${opSupers > 0 ? statCard('운영 총괄', opSupers, '#e04000', namesOf(m => m.role === '운영 총괄')) : ''}
                     ${statCard('총괄', supers, '#3366FF', namesOf(m => m.role === '총괄'))}
                     ${statCard('세션장', leaders, '#00b894', namesOf(m => m.role === '세션장'))}
                     ${statCard('일반', normals, '#999', namesOf(m => !m.role || m.role === '일반'))}
@@ -3254,7 +3261,7 @@
             const members = state.allMembers;
             if (!members || members.length === 0) return;
             const isS = isSuper();
-            const roleColors = { '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
+            const roleColors = { '운영 총괄': '#e04000', '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
             const statusMap = { pending: ['status-pending', '대기'], approved: ['status-approved', '승인'], rejected: ['status-rejected', '거절'] };
 
             const renderAdminItem = (m) => {
@@ -3277,6 +3284,7 @@
                         <option value="일반" ${role==='일반'?'selected':''}>일반</option>
                         <option value="세션장" ${role==='세션장'?'selected':''}>세션장</option>
                         <option value="총괄" ${role==='총괄'?'selected':''}>총괄</option>
+                        <option value="운영 총괄" ${role==='운영 총괄'?'selected':''}>운영 총괄</option>
                     </select>` : '';
                 const contactInfo = isS
                     ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span><span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
@@ -4134,7 +4142,7 @@
             const { data } = await supabaseClient
                 .from('profiles')
                 .select('push_subscription')
-                .in('role', ['총괄', '세션장'])
+                .in('role', ['운영 총괄', '총괄', '세션장'])
                 .not('push_subscription', 'is', null);
             return (data || []).map(r => r.push_subscription).filter(Boolean);
         }
