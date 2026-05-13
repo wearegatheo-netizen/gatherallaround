@@ -4294,8 +4294,10 @@
 
         function renderDocsPage(container) {
             const docs = state.docs || [];
+            const isAdmin = canApproveRes();
             if (!docs.length) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500);font-size:0.9rem">등록된 운영 안내가 없습니다.</div>';
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500);font-size:0.9rem">등록된 운영 안내가 없습니다.</div>'
+                    + (isAdmin ? `<div style="text-align:center"><button type="button" onclick="quickAddDoc()" style="padding:8px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.85rem">+ 새 문서 추가</button></div>` : '');
                 return;
             }
             const categories = [];
@@ -4308,17 +4310,56 @@
             }).join('');
 
             const filtered = docs.filter(d => d.category === selectedCat);
-            const cards = filtered.map(d => `
+            const cards = filtered.map(d => {
+                const safeC = (d.category||'').replace(/"/g,'&quot;');
+                const safeT = (d.title||'').replace(/"/g,'&quot;');
+                const safeBody = (d.content||'').replace(/</g,'&lt;');
+                const adminBar = isAdmin ? `
+                    <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end">
+                        <button type="button" style="padding:4px 12px;font-size:0.75rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">수정</button>
+                        <button type="button" style="padding:4px 12px;font-size:0.75rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="deleteDoc('${d.id}')">삭제</button>
+                    </div>` : '';
+                const editBlock = isAdmin ? `
+                    <div class="doc-edit-${d.id}" style="display:none">
+                        <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
+                        <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <textarea id="doc-edit-content-${d.id}" style="width:100%;height:200px;margin-bottom:8px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
+                        <div style="display:flex;gap:6px;justify-content:flex-end">
+                            <button type="button" style="padding:6px 14px;font-size:0.8rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700" onclick="updateDoc('${d.id}')">저장</button>
+                            <button type="button" style="padding:6px 14px;font-size:0.8rem;background:white;color:var(--wds-gray-600);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">취소</button>
+                        </div>
+                    </div>` : '';
+                return `
                 <div class="docs-card">
-                    <div class="docs-card-title">${escapeHtml(d.title)}</div>
-                    <div class="docs-card-content">${renderMarkdown(d.content)}</div>
-                </div>
-            `).join('');
+                    <div class="doc-view-${d.id}">
+                        <div class="docs-card-title">${escapeHtml(d.title)}</div>
+                        <div class="docs-card-content">${renderMarkdown(d.content)}</div>
+                        ${adminBar}
+                    </div>
+                    ${editBlock}
+                </div>`;
+            }).join('');
 
+            const addBtn = isAdmin ? `<div style="text-align:right;margin-top:16px"><button type="button" onclick="quickAddDoc()" style="padding:8px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.85rem">+ 새 문서 추가</button></div>` : '';
             container.innerHTML = `
                 <div class="docs-categories">${catTabs}</div>
                 <div class="docs-list">${cards}</div>
+                ${addBtn}
             `;
+        }
+
+        async function quickAddDoc() {
+            const category = prompt('카테고리 (예: 운영규칙, FAQ)', state.docsCategory || '');
+            if (!category) return;
+            const title = prompt('제목');
+            if (!title) return;
+            const content = prompt('내용 (마크다운 지원)');
+            if (!content) return;
+            const { error } = await supabaseClient.from('documents').insert([{ category: category.trim(), title: title.trim(), content: content.trim() }]);
+            if (error) { alert('추가 실패: ' + error.message); return; }
+            state.docsCategory = category.trim();
+            await fetchDocs();
+            render();
         }
 
         function renderAdminDocsSection(container) {
@@ -4497,22 +4538,56 @@
 
         function renderNotices() {
             const container = document.getElementById('notice_container');
-            if (!notices || notices.length === 0) { container.classList.add('hidden'); return; }
+            const isAdmin = canPostNotice();
+            if (!notices || notices.length === 0) {
+                if (isAdmin) {
+                    container.classList.remove('hidden');
+                    container.innerHTML = `<div style="text-align:right;padding:4px 0"><button type="button" onclick="quickAddNotice()" style="padding:6px 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.8rem">+ 공지 추가</button></div>`;
+                } else {
+                    container.classList.add('hidden');
+                }
+                return;
+            }
             container.classList.remove('hidden');
-            container.innerHTML = notices.map(n => {
+            const addBtn = isAdmin ? `<div style="text-align:right;margin-bottom:8px"><button type="button" onclick="quickAddNotice()" style="padding:6px 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.8rem">+ 공지 추가</button></div>` : '';
+            container.innerHTML = addBtn + notices.map(n => {
                 const date = new Date(n.created_at).toLocaleDateString('ko-KR');
-                const isAdmin = state.user && state.user.kakaoId === ADMIN_ID;
-                return `<div class="notice-card">
-                    <div class="notice-header">
-                        <span class="notice-title">📢 ${n.title.replace(/</g,'&lt;')}</span>
-                        <span style="display:flex;align-items:center">
-                            <span class="notice-date">${date}</span>
-                            ${isAdmin ? `<button class="notice-delete-btn" onclick="deleteNotice('${n.id}')">삭제</button>` : ''}
-                        </span>
+                const safeTitle = n.title.replace(/</g,'&lt;').replace(/"/g,'&quot;');
+                const safeContent = (n.content||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+                const adminBtns = isAdmin ? `
+                    <button type="button" style="margin-left:8px;padding:2px 8px;font-size:0.7rem;background:var(--wds-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600" onclick="toggleNoticeEdit('${n.id}')">수정</button>
+                    <button class="notice-delete-btn" onclick="deleteNotice('${n.id}')">삭제</button>` : '';
+                return `<div class="notice-card" id="notice-row-${n.id}">
+                    <div class="notice-view-${n.id}">
+                        <div class="notice-header">
+                            <span class="notice-title">📢 ${n.title.replace(/</g,'&lt;')}</span>
+                            <span style="display:flex;align-items:center">
+                                <span class="notice-date">${date}</span>
+                                ${adminBtns}
+                            </span>
+                        </div>
+                        <div class="notice-content">${n.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
                     </div>
-                    <div class="notice-content">${n.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+                    ${isAdmin ? `<div class="notice-edit-${n.id}" style="display:none;padding:10px">
+                        <input id="notice-edit-title-${n.id}" type="text" value="${safeTitle}" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <textarea id="notice-edit-content-${n.id}" style="width:100%;height:100px;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box">${safeContent}</textarea>
+                        <div style="display:flex;gap:6px;justify-content:flex-end">
+                            <button type="button" style="padding:5px 14px;font-size:0.78rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700" onclick="updateNotice('${n.id}')">저장</button>
+                            <button type="button" style="padding:5px 14px;font-size:0.78rem;background:white;color:var(--wds-gray-600);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleNoticeEdit('${n.id}')">취소</button>
+                        </div>
+                    </div>` : ''}
                 </div>`;
             }).join('');
+        }
+
+        async function quickAddNotice() {
+            const title = prompt('공지 제목');
+            if (!title) return;
+            const content = prompt('공지 내용');
+            if (!content) return;
+            const { error } = await supabaseClient.from('notices').insert([{ title: title.trim(), content: content.trim() }]);
+            if (error) { alert('추가 실패: ' + error.message); return; }
+            await fetchNotices();
         }
 
         function renderAdminNotices() {
