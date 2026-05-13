@@ -1555,8 +1555,15 @@
         async function checkKakaoUserProfile() {
             if (!state.user || state.user.authType === 'email') return;
             if (!supabaseClient) return;
-            const { data } = await supabaseClient.from('profiles').select('id').eq('kakao_id', state.user.kakaoId).maybeSingle();
-            if (!data) showKakaoSignupModal();
+            const { data } = await supabaseClient.from('profiles').select('id, name').eq('kakao_id', state.user.kakaoId).maybeSingle();
+            if (!data) { showKakaoSignupModal(); return; }
+            if (data.name) {
+                state.user.nickname = data.name;
+                const el = document.getElementById('userNameDisplay');
+                if (el) el.textContent = data.name;
+                const inp = document.getElementById('userNameInput');
+                if (inp) inp.value = data.name;
+            }
         }
 
         function showKakaoSignupModal() {
