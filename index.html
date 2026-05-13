@@ -1548,7 +1548,9 @@
             document.body.style.overflow = '';
         }
 
+        let _kakaoSignupBusy = false;
         async function submitKakaoSignup() {
+            if (_kakaoSignupBusy) return;
             const name = document.getElementById('ksName').value.trim();
             const email = document.getElementById('ksEmail').value.trim();
             const phone = document.getElementById('ksPhone').value.trim();
@@ -1563,19 +1565,28 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const { error } = await supabaseClient.from('profiles').insert([{
-                id: genUUID(),
-                kakao_id: state.user.kakaoId,
-                name, email, phone, instruments,
-                status: 'pending',
-                role: '일반'
-            }]);
-            if (error) { alert('가입 신청 실패: ' + error.message); return; }
-            hideKakaoSignupModal();
-            showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
-            setTimeout(() => notifyAdminSignupKakao(name, instruments), 400);
-            setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 600);
-            fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            _kakaoSignupBusy = true;
+            const submitBtn = document.querySelector('button[onclick="submitKakaoSignup()"]');
+            const origLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
+            try {
+                const { error } = await supabaseClient.from('profiles').insert([{
+                    id: genUUID(),
+                    kakao_id: state.user.kakaoId,
+                    name, email, phone, instruments,
+                    status: 'pending',
+                    role: '일반'
+                }]);
+                if (error) { alert('가입 신청 실패: ' + error.message); return; }
+                hideKakaoSignupModal();
+                showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
+                setTimeout(() => notifyAdminSignupKakao(name, instruments), 400);
+                setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 600);
+                fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            } finally {
+                _kakaoSignupBusy = false;
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel; }
+            }
         }
 
         function onTabClick(e) {
@@ -4499,7 +4510,9 @@
             }
         }
 
+        let _bandSignupBusy = false;
         async function handleBandEmailSignup() {
+            if (_bandSignupBusy) return;
             const leaderName = document.getElementById('bandSignupLeaderName').value.trim();
             const leaderPhone = document.getElementById('bandSignupLeaderPhone').value.trim();
             const bandNameKr = document.getElementById('bandSignupNameKr').value.trim();
@@ -4519,29 +4532,38 @@
             if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
             if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
 
-            const email = bandIdToEmail(rawId);
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
-            if (error) { alert('가입 신청 실패: ' + error.message); return; }
-            if (data?.user) {
-                const meta = {
-                    id: data.user.id,
-                    name: leaderName,
-                    phone: leaderPhone,
-                    leader_name: leaderName,
-                    leader_phone: leaderPhone,
-                    band_name_kr: bandNameKr,
-                    band_name_en: bandNameEn,
-                    timeslots: timeslots,
-                    member_type: 'band',
-                    instruments: rawId,
-                    status: 'pending',
-                    role: '일반'
-                };
-                const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
-                if (pErr) console.error('Band profile upsert error:', pErr);
+            _bandSignupBusy = true;
+            const submitBtn = document.querySelector('button[onclick="handleBandEmailSignup()"]');
+            const origLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
+            try {
+                const email = bandIdToEmail(rawId);
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) { alert('가입 신청 실패: ' + error.message); return; }
+                if (data?.user) {
+                    const meta = {
+                        id: data.user.id,
+                        name: leaderName,
+                        phone: leaderPhone,
+                        leader_name: leaderName,
+                        leader_phone: leaderPhone,
+                        band_name_kr: bandNameKr,
+                        band_name_en: bandNameEn,
+                        timeslots: timeslots,
+                        member_type: 'band',
+                        instruments: rawId,
+                        status: 'pending',
+                        role: '일반'
+                    };
+                    const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
+                    if (pErr) console.error('Band profile upsert error:', pErr);
+                }
+                alert('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
+                showBandLoginForm();
+            } finally {
+                _bandSignupBusy = false;
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel; }
             }
-            alert('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
-            showBandLoginForm();
         }
 
         // --- 고정 합주팀 메인 ---
@@ -5039,7 +5061,9 @@
             document.getElementById('pendingName').textContent = name;
         }
 
+        let _signupBusy = false;
         async function handleEmailSignup() {
+            if (_signupBusy) return;
             const name = document.getElementById('signupName').value.trim();
             const phone = document.getElementById('signupPhone').value.trim();
             const email = document.getElementById('signupEmail').value.trim();
@@ -5053,7 +5077,6 @@
             if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
             if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
 
-            // 악기 수집
             const selectedInsts = Array.from(document.querySelectorAll('.inst-btn.selected')).map(b => b.dataset.inst);
             const customInsts = ['customInst1']
                 .map(id => document.getElementById(id).value.trim())
@@ -5061,19 +5084,28 @@
             const instruments = [...selectedInsts, ...customInsts].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
-            if (error) { alert('회원가입 실패: ' + error.message); return; }
-            if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
+            _signupBusy = true;
+            const submitBtn = document.querySelector('button[onclick="handleEmailSignup()"]');
+            const origLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) { alert('회원가입 실패: ' + error.message); return; }
+                if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
 
-            const { error: pErr } = await supabaseClient.from('profiles').insert([{
-                id: data.user.id, name, phone, email, instruments, status: 'pending'
-            }]);
-            if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
+                const { error: pErr } = await supabaseClient.from('profiles').insert([{
+                    id: data.user.id, name, phone, email, instruments, status: 'pending'
+                }]);
+                if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
-            alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
-            notifyAdminSignupKakao(name, instruments);
-            sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
-            showPendingScreen(name);
+                alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
+                notifyAdminSignupKakao(name, instruments);
+                sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
+                showPendingScreen(name);
+            } finally {
+                _signupBusy = false;
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel; }
+            }
         }
 
         async function handleEmailLogin() {
@@ -5115,12 +5147,20 @@
         }
 
         // --- 회원 관리 ---
+        let _membersInflight = null;
         async function fetchMembers() {
             if (!supabaseClient) return [];
-            const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
-            if (error) return [];
-            // 고정 합주팀(band) 멤버는 게더링 시스템 목록에서 제외
-            return (data || []).filter(m => m.member_type !== 'band');
+            if (_membersInflight) return _membersInflight;
+            _membersInflight = (async () => {
+                try {
+                    const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
+                    if (error) return [];
+                    return (data || []).filter(m => m.member_type !== 'band');
+                } finally {
+                    setTimeout(() => { _membersInflight = null; }, 300);
+                }
+            })();
+            return _membersInflight;
         }
 
         async function fetchBandProfiles() {
@@ -5768,23 +5808,36 @@
                 .subscribe();
         }
 
+        const _memberActionInflight = new Set();
         async function approveMember(id) {
-            const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
-            if (error) { alert('승인 실패: ' + error.message); return; }
-            state.paging.adminMemberPending = 0;
-            const fresh = await fetchMembers(); state.allMembers = fresh;
-            const el = document.getElementById('memberList');
-            if (el) renderAdminMemberListEl(el); else render();
+            if (_memberActionInflight.has(id)) return;
+            _memberActionInflight.add(id);
+            try {
+                const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
+                if (error) { alert('승인 실패: ' + error.message); return; }
+                state.paging.adminMemberPending = 0;
+                const fresh = await fetchMembers(); state.allMembers = fresh;
+                const el = document.getElementById('memberList');
+                if (el) renderAdminMemberListEl(el); else render();
+            } finally {
+                _memberActionInflight.delete(id);
+            }
         }
 
         async function rejectMember(id) {
+            if (_memberActionInflight.has(id)) return;
             if (!confirm('이 회원의 가입을 거절하시겠습니까?')) return;
-            const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
-            if (error) { alert('거절 실패: ' + error.message); return; }
-            state.paging.adminMemberApproved = 0;
-            const fresh = await fetchMembers(); state.allMembers = fresh;
-            const el = document.getElementById('memberList');
-            if (el) renderAdminMemberListEl(el); else render();
+            _memberActionInflight.add(id);
+            try {
+                const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
+                if (error) { alert('거절 실패: ' + error.message); return; }
+                state.paging.adminMemberApproved = 0;
+                const fresh = await fetchMembers(); state.allMembers = fresh;
+                const el = document.getElementById('memberList');
+                if (el) renderAdminMemberListEl(el); else render();
+            } finally {
+                _memberActionInflight.delete(id);
+            }
         }
 
         async function updateMemberRole(id, role) {
