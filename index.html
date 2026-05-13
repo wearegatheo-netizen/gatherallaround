@@ -1205,40 +1205,65 @@
     <!-- 카카오 로그인 후 가입정보 강제 입력 모달 -->
     <div id="kakaoSignupModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
         <div style="background:white;border-radius:14px;padding:24px;max-width:480px;width:100%;margin:5vh auto;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
-            <h2 style="margin:0 0 6px 0;font-size:1.25rem">🎉 환영합니다!</h2>
-            <p style="color:var(--wds-gray-600);font-size:0.88rem;line-height:1.5;margin:0 0 18px 0">서비스를 이용하시려면 멤버 가입 정보를 입력해주세요.<br>관리자 승인 후 예약 등 모든 기능을 사용할 수 있습니다.</p>
-            <div style="display:flex;flex-direction:column;gap:12px">
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명) <span style="color:#e74c3c">*</span></label>
-                    <input type="text" id="ksName" placeholder="실명 입력" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
-                </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이메일</label>
-                    <input type="email" id="ksEmail" placeholder="example@email.com" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
-                </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호 <span style="color:#e74c3c">*</span></label>
-                    <input type="tel" id="ksPhone" placeholder="010-0000-0000" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
-                </div>
-                <div>
-                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션 <span style="color:#e74c3c">*</span></label>
-                    <div class="instrument-buttons" id="ksInstBtns" style="margin-top:4px">
-                        <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
-                        <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
-                        <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
-                        <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
-                        <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
+            <!-- 신규 가입 뷰 -->
+            <div id="kakaoSignupView">
+                <h2 style="margin:0 0 6px 0;font-size:1.25rem">🎉 환영합니다!</h2>
+                <p style="color:var(--wds-gray-600);font-size:0.88rem;line-height:1.5;margin:0 0 18px 0">서비스를 이용하시려면 멤버 가입 정보를 입력해주세요.<br>관리자 승인 후 예약 등 모든 기능을 사용할 수 있습니다.</p>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명) <span style="color:#e74c3c">*</span></label>
+                        <input type="text" id="ksName" placeholder="실명 입력" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
                     </div>
-                    <input type="text" id="ksCustomInst" placeholder='","로 구분하여 추가 세션 작성' style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:8px">
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이메일</label>
+                        <input type="email" id="ksEmail" placeholder="example@email.com" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호 <span style="color:#e74c3c">*</span></label>
+                        <input type="tel" id="ksPhone" placeholder="010-0000-0000" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션 <span style="color:#e74c3c">*</span></label>
+                        <div class="instrument-buttons" id="ksInstBtns" style="margin-top:4px">
+                            <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
+                            <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
+                            <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
+                            <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
+                            <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
+                        </div>
+                        <input type="text" id="ksCustomInst" placeholder='","로 구분하여 추가 세션 작성' style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:8px">
+                    </div>
+                </div>
+                <div style="background:#f8f9fa;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:0.75rem;color:var(--wds-gray-600);line-height:1.6">
+                    <strong style="color:var(--wds-gray-700)">서비스 이용 안내</strong><br>
+                    예약 내역·참여 이력 등 활동 기록은 탈퇴 후에도 아카이빙 목적으로 서비스 내에 보존될 수 있습니다. 가입 신청 시 이에 동의하는 것으로 간주됩니다.
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px">
+                    <button type="button" onclick="handleLogout()" style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">로그아웃</button>
+                    <button type="button" onclick="submitKakaoSignup()" style="flex:2;padding:12px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">가입 신청</button>
+                </div>
+                <div style="text-align:center;margin-top:12px">
+                    <button type="button" onclick="showKakaoLinkView()" style="background:none;border:none;color:var(--wds-primary);font-size:0.82rem;cursor:pointer;text-decoration:underline;padding:0">이미 이메일로 가입하셨나요? 계정 연동하기</button>
                 </div>
             </div>
-            <div style="background:#f8f9fa;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:0.75rem;color:var(--wds-gray-600);line-height:1.6">
-                <strong style="color:var(--wds-gray-700)">서비스 이용 안내</strong><br>
-                예약 내역·참여 이력 등 활동 기록은 탈퇴 후에도 아카이빙 목적으로 서비스 내에 보존될 수 있습니다. 가입 신청 시 이에 동의하는 것으로 간주됩니다.
-            </div>
-            <div style="display:flex;gap:8px;margin-top:14px">
-                <button type="button" onclick="handleLogout()" style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">로그아웃</button>
-                <button type="button" onclick="submitKakaoSignup()" style="flex:2;padding:12px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">가입 신청</button>
+            <!-- 계정 연동 뷰 -->
+            <div id="kakaoLinkView" style="display:none">
+                <h2 style="margin:0 0 6px 0;font-size:1.25rem">🔗 기존 계정 연동</h2>
+                <p style="color:var(--wds-gray-600);font-size:0.88rem;line-height:1.5;margin:0 0 18px 0">이메일 가입 시 입력한 이름과 전화번호를 입력하면<br>카카오 계정과 자동으로 연동됩니다.</p>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명) <span style="color:#e74c3c">*</span></label>
+                        <input type="text" id="klName" placeholder="가입 시 입력한 실명" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호 <span style="color:#e74c3c">*</span></label>
+                        <input type="tel" id="klPhone" placeholder="010-0000-0000" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px">
+                    <button type="button" onclick="showKakaoSignupView()" style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">돌아가기</button>
+                    <button type="button" onclick="submitKakaoLink()" style="flex:2;padding:12px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">연동하기</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1536,6 +1561,7 @@
             if (!modal) return;
             const nameEl = document.getElementById('ksName');
             if (nameEl && state.user) nameEl.value = state.user.nickname || '';
+            showKakaoSignupView();
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -1544,6 +1570,59 @@
             const modal = document.getElementById('kakaoSignupModal');
             if (modal) modal.classList.add('hidden');
             document.body.style.overflow = '';
+        }
+
+        function showKakaoSignupView() {
+            document.getElementById('kakaoSignupView').style.display = 'block';
+            document.getElementById('kakaoLinkView').style.display = 'none';
+        }
+
+        function showKakaoLinkView() {
+            document.getElementById('kakaoSignupView').style.display = 'none';
+            document.getElementById('kakaoLinkView').style.display = 'block';
+            document.getElementById('klName').value = '';
+            document.getElementById('klPhone').value = '';
+        }
+
+        let _kakaoLinkBusy = false;
+        async function submitKakaoLink() {
+            if (_kakaoLinkBusy) return;
+            const name = document.getElementById('klName').value.trim();
+            const phone = document.getElementById('klPhone').value.trim();
+            if (!name) { alert('이름을 입력해주세요.'); return; }
+            if (!phone) { alert('전화번호를 입력해주세요.'); return; }
+            const phoneNorm = phone.replace(/-/g, '');
+
+            _kakaoLinkBusy = true;
+            const btn = document.querySelector('button[onclick="submitKakaoLink()"]');
+            if (btn) { btn.disabled = true; btn.textContent = '확인 중...'; }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('profiles')
+                    .select('id, name, phone')
+                    .eq('name', name)
+                    .is('kakao_id', null);
+                if (error) { alert('오류: ' + error.message); return; }
+
+                const match = (data || []).find(p => (p.phone || '').replace(/-/g, '') === phoneNorm);
+                if (!match) {
+                    alert('일치하는 계정을 찾을 수 없습니다.\n이름과 전화번호를 다시 확인해주세요.');
+                    return;
+                }
+
+                const { error: upErr } = await supabaseClient
+                    .from('profiles')
+                    .update({ kakao_id: state.user.kakaoId })
+                    .eq('id', match.id);
+                if (upErr) { alert('연동 실패: ' + upErr.message); return; }
+
+                hideKakaoSignupModal();
+                showToast('계정이 연동되었습니다! 기존 계정으로 로그인됩니다.');
+                fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            } finally {
+                _kakaoLinkBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = '연동하기'; }
+            }
         }
 
         let _kakaoSignupBusy = false;
