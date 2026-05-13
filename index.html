@@ -909,7 +909,7 @@
                 <span class="portal-btn-desc">합주실 예약 및 멤버 관리 시스템</span>
             </span>
         </button>
-        <button type="button" class="portal-btn" onclick="showBandSection()">
+        <button type="button" class="portal-btn portal-btn-primary" onclick="showBandSection()">
             <span class="portal-btn-icon">🎸</span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">고정 합주팀</span>
@@ -6272,9 +6272,7 @@
         function initTheme() {
             let saved = null;
             try { saved = localStorage.getItem('gaa_theme'); } catch (e) {}
-            if (!saved) {
-                saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-            }
+            if (!saved) saved = 'dark';
             applyTheme(saved);
         }
 
