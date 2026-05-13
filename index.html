@@ -5664,30 +5664,6 @@
 
                     ${groupedHtml || '<p style="color:var(--wds-gray-500);font-size:0.9rem">등록된 문서가 없습니다.</p>'}
 
-                    <div style="margin-top:16px;padding:10px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);font-size:0.75rem;color:var(--wds-gray-500)">
-                        💡 최초 1회: Supabase SQL 에디터에서 실행<br>
-                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS documents (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, category text NOT NULL, title text NOT NULL, content text NOT NULL, summary text DEFAULT '', sort_order int DEFAULT 0, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());</code><br><br>
-                        <code style="font-size:0.72rem">ALTER TABLE documents ADD COLUMN IF NOT EXISTS summary text DEFAULT '';</code><br><br>
-                        💡 일정표 테이블 신규 컬럼 추가:<br>
-                        <code style="font-size:0.72rem">ALTER TABLE schedules ADD COLUMN IF NOT EXISTS group_name text DEFAULT '';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE schedules ADD COLUMN IF NOT EXISTS show_banner boolean DEFAULT false;</code><br><br>
-                        💡 일정표 RLS 정책 (저장 오류 시):<br>
-                        <code style="font-size:0.72rem">ALTER TABLE schedules DISABLE ROW LEVEL SECURITY;</code><br>
-                        또는: <code style="font-size:0.72rem">CREATE POLICY "allow_all" ON schedules FOR ALL USING (true) WITH CHECK (true);</code><br><br>
-                        💡 고정 합주팀 테이블 생성 SQL:<br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS band_name_kr TEXT DEFAULT '';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS band_name_en TEXT DEFAULT '';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS leader_name TEXT DEFAULT '';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS leader_phone TEXT DEFAULT '';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS timeslots JSONB DEFAULT '[]';</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE profiles ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'gatheo';</code><br><br>
-                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS band_notices (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, title TEXT NOT NULL, content TEXT, created_by TEXT, created_at TIMESTAMPTZ DEFAULT NOW());</code><br>
-                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS band_members (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, band_profile_id UUID, name TEXT NOT NULL, part TEXT, note TEXT, created_at TIMESTAMPTZ DEFAULT NOW());</code><br>
-                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS band_comments (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, band_profile_id UUID, author_name TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE band_notices DISABLE ROW LEVEL SECURITY;</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE band_members DISABLE ROW LEVEL SECURITY;</code><br>
-                        <code style="font-size:0.72rem">ALTER TABLE band_comments DISABLE ROW LEVEL SECURITY;</code>
-                    </div>
                 </div>`;
         }
 
