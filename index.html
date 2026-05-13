@@ -83,11 +83,11 @@
         body.dark .weekly-slot.week-sat { background: rgba(52,152,219,0.08); }
         body.dark #notice_container > *, body.dark .notice-box { background: var(--wds-gray-100); color: var(--wds-black); }
         .slot-past { background: #f5f5f5; }
-        .slot-blocked { background: #ffe5e5; }
-        .slot-occupied { background: #eeeeee; }
+        .slot-blocked { background: #ffe5e5; border-left: 3px solid #e74c3c; }
+        .slot-occupied { background: #e8f0ff; border-left: 3px solid var(--wds-primary); color: var(--wds-primary); font-weight: 600; }
         body.dark .slot-past { background: #252525 !important; }
-        body.dark .slot-blocked { background: #3a1414 !important; color: #ff8080 !important; }
-        body.dark .slot-occupied { background: #2a2a2a !important; }
+        body.dark .slot-blocked { background: #3a1414 !important; color: #ff8080 !important; border-left-color: #ff4d4f; }
+        body.dark .slot-occupied { background: #1a2a4a !important; color: #7aabff !important; border-left-color: #5580ff; }
         body.dark .nav-btn { background: var(--wds-gray-100) !important; color: var(--wds-black); }
         body.dark #comments_container { background: var(--wds-white) !important; }
         body.dark .cancel-btn { background: #2a1010 !important; }
@@ -752,15 +752,16 @@
             .cal-ri, .cal-ru { display: none; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
-            .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 1fr) !important; min-width: 494px; }
-            .day-grid { grid-template-columns: 88px 1fr !important; }
-            .weekly-cell { padding: 8px 4px; font-size: 0.78rem; }
-            .weekly-time-cell { padding: 6px 3px; }
-            .weekly-time-cell > div:first-child { font-size: 0.76rem !important; }
-            .weekly-time-cell > div:last-child { font-size: 0.6rem !important; }
-            .weekly-slot { height: 50px; font-size: 0.72rem; }
-            .day-grid .weekly-slot { padding-left: 12px !important; height: 48px; }
-            .weekly-header-cell { padding: 10px 4px; font-size: 0.85rem; }
+            .weekly-grid:not(.day-grid) { grid-template-columns: 40px repeat(7, 1fr) !important; min-width: 460px; }
+            .day-grid { grid-template-columns: 80px 1fr !important; }
+            .weekly-cell { padding: 6px 3px; font-size: 0.75rem; }
+            .weekly-time-cell { padding: 5px 2px; }
+            .weekly-time-cell > div:first-child { font-size: 0.74rem !important; }
+            .weekly-time-cell > div:last-child { font-size: 0.58rem !important; }
+            .weekly-slot { height: 44px; font-size: 0.68rem; }
+            .day-grid .weekly-slot { padding-left: 12px !important; height: 46px; font-size: 0.82rem; }
+            .weekly-header-cell { padding: 8px 3px; font-size: 0.82rem; }
+            .weekly-header-cell:not(:first-child):active { opacity: 0.7; }
             .admin-subtabs { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
             .admin-subtab { padding: 8px 10px; font-size: 0.78rem; white-space: nowrap; }
             .admin-section { padding: 16px 12px; }
@@ -4237,6 +4238,10 @@
                 if (i === 6) h.classList.add('week-sat');
                 if (isSameDay(d, today)) h.classList.add('week-today');
                 h.innerHTML = `<div style="font-size:0.7rem; opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
+                h.style.cursor = 'pointer';
+                h.title = '클릭하여 일간 보기';
+                const _d = new Date(d);
+                h.onclick = () => { state.viewDate = _d; state.currentView = 'day'; render(); };
                 grid.appendChild(h);
             }
             TIMES.forEach((time, idx) => {
@@ -4305,6 +4310,11 @@
         }
 
         function renderDay(container) {
+            const backBar = document.createElement('div');
+            backBar.style.cssText = 'font-size:0.8rem;color:var(--wds-primary);cursor:pointer;margin-bottom:8px;padding:4px 0;display:inline-flex;align-items:center;gap:4px;font-weight:600';
+            backBar.innerHTML = '← 주간으로';
+            backBar.onclick = () => { state.currentView = 'week'; render(); };
+            container.appendChild(backBar);
             const grid = document.createElement('div'); grid.className = 'weekly-grid day-grid'; grid.style.gridTemplateColumns = '130px 1fr';
             TIMES.forEach((time, idx) => {
                 const endTime = TIMES[idx + 1] || '23:00';
