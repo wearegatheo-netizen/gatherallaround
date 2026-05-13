@@ -6284,6 +6284,7 @@
                 if (refreshing) return;
                 if (window.scrollY > 0) { pulling = false; return; }
                 startY = e.touches[0].clientY;
+                currentY = startY;
                 pulling = true;
             }, { passive: true });
             document.addEventListener('touchmove', (e) => {
