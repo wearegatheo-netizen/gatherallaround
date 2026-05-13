@@ -3892,21 +3892,21 @@
                     </thead>
                     <tbody>
                         ${[
-                            ['예약 신청',                       '✅', '✅', '✅', '✅'],
-                            ['예약 시 자동 승인',               '✅', '✅', '✅', '2시간 이하만'],
-                            ['선예약 기간',                     '무제한', '무제한', '무제한', '최대 2개월'],
-                            ['예약 승인 / 거절',               '✅', '✅', '✅', '—'],
-                            ['모든 예약 강제 취소',            '✅', '—', '—', '—'],
-                            ['주간 뷰 예약 셀 클릭 취소',      '✅', '—', '—', '—'],
-                            ['기타란 내용 열람',               '✅', '✅', '✅', '본인만'],
-                            ['멤버 가입 승인',                 '✅', '✅', '✅', '—'],
-                            ['멤버 차단',                      '✅', '✅', '—', '—'],
-                            ['역할 변경',                      '✅', '—', '—', '—'],
-                            ['공지사항 작성 / 수정',           '✅', '✅', '—', '—'],
-                            ['투표 생성 / 관리',               '✅', '✅', '✅', '—'],
-                            ['운영안내 문서 관리',             '✅', '✅', '✅', '—'],
-                            ['푸시 알림 발송',                 '✅', '✅', '✅', '—'],
-                            ['시간 차단 / BGM',               '✅', '—', '—', '—'],
+                            ['합주실 예약 신청',                 '✅', '✅', '✅', '✅'],
+                            ['예약 즉시 확정 (승인 불필요)',     '✅', '✅', '✅', '2시간 이하만'],
+                            ['미래 예약 가능 기간',              '제한 없음', '제한 없음', '제한 없음', '최대 2개월'],
+                            ['다른 팀원 예약 승인 / 거절',      '✅', '✅', '✅', '—'],
+                            ['모든 예약 강제 취소',             '✅', '—', '—', '—'],
+                            ['달력 클릭으로 예약 취소',         '✅', '—', '—', '—'],
+                            ['예약 메모(기타) 전체 열람',       '✅', '✅', '✅', '내 것만'],
+                            ['신규 멤버 가입 승인',             '✅', '✅', '✅', '—'],
+                            ['멤버 이용 차단',                  '✅', '✅', '—', '—'],
+                            ['멤버 역할 변경',                  '✅', '—', '—', '—'],
+                            ['공지사항 작성 · 수정',            '✅', '✅', '—', '—'],
+                            ['투표 만들기 · 관리',              '✅', '✅', '✅', '—'],
+                            ['운영 안내 문서 관리',             '✅', '✅', '✅', '—'],
+                            ['전체 푸시 알림 발송',             '✅', '✅', '✅', '—'],
+                            ['예약 불가 시간 설정 · BGM',       '✅', '—', '—', '—'],
                         ].map((row, i) => `
                             <tr style="${i % 2 === 0 ? 'background:white' : 'background:var(--wds-gray-100)'}">
                                 <td style="padding:8px;border-bottom:1px solid var(--wds-gray-200)">${row[0]}</td>
@@ -3918,8 +3918,13 @@
                     </tbody>
                 </table>
                 </div>
-                <div style="margin-top:12px;padding:10px 12px;background:var(--wds-primary-light);border-radius:var(--wds-radius-s);font-size:0.8rem;color:var(--wds-gray-700);line-height:1.5">
-                    💡 <strong>역할 변경</strong>은 운영 총괄만 가능합니다. 아래 멤버 목록에서 직접 지정하며 다음 로그인부터 적용됩니다.
+                <div style="margin-top:12px;padding:12px 14px;background:var(--wds-primary-light);border-radius:var(--wds-radius-s);font-size:0.8rem;color:var(--wds-gray-700);line-height:1.8">
+                    <div style="font-weight:700;margin-bottom:6px">📋 역할 설명</div>
+                    <div>🔴 <strong>운영 총괄</strong> — 모든 기능을 사용할 수 있는 최고 관리자</div>
+                    <div>🔵 <strong>총괄</strong> — 예약 관리, 멤버 승인, 공지 작성 등 대부분 가능</div>
+                    <div>🟢 <strong>세션장</strong> — 예약 승인, 멤버 승인, 투표 관리 가능</div>
+                    <div>⚪ <strong>일반</strong> — 본인 예약 신청만 가능 (일부 기능 제한)</div>
+                    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--wds-gray-300)">✋ <strong>역할 변경</strong>은 운영 총괄만 가능하며, 아래 멤버 목록에서 직접 지정합니다.</div>
                 </div>
             `;
             container.appendChild(roleSection);
@@ -4772,15 +4777,49 @@
             if (!state.bandNotices.length) { list.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:16px 0">등록된 공지사항이 없습니다.</div>'; return; }
             const admin = isBandAdmin();
             list.innerHTML = state.bandNotices.map(n => `
-                <div class="band-notice-item">
-                    <div style="font-weight:700;font-size:0.92rem;margin-bottom:4px">${escHtml(n.title)}</div>
-                    <div style="font-size:0.85rem;color:var(--wds-gray-700);white-space:pre-wrap;margin-bottom:6px">${escHtml(n.content||'')}</div>
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                        <span style="font-size:0.72rem;color:var(--wds-gray-500)">${escHtml(n.created_by||'')} · ${new Date(n.created_at).toLocaleDateString('ko-KR')}</span>
-                        ${admin ? `<button type="button" onclick="deleteBandNotice('${n.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-gray-500);cursor:pointer;padding:0">삭제</button>` : ''}
+                <div class="band-notice-item" id="band-notice-${n.id}">
+                    <div id="band-notice-view-${n.id}">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:4px">${escHtml(n.title)}</div>
+                        <div style="font-size:0.85rem;color:var(--wds-gray-700);white-space:pre-wrap;margin-bottom:6px">${escHtml(n.content||'')}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:0.72rem;color:var(--wds-gray-500)">${escHtml(n.created_by||'')} · ${new Date(n.created_at).toLocaleDateString('ko-KR')}</span>
+                            ${admin ? `<div style="display:flex;gap:8px">
+                                <button type="button" onclick="editBandNotice('${n.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-primary);cursor:pointer;padding:0;font-weight:600">수정</button>
+                                <button type="button" onclick="deleteBandNotice('${n.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-gray-500);cursor:pointer;padding:0">삭제</button>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                    <div id="band-notice-edit-${n.id}" style="display:none">
+                        <input type="text" id="band-notice-edit-title-${n.id}" value="${escHtml(n.title)}" style="width:100%;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px">
+                        <textarea id="band-notice-edit-content-${n.id}" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;box-sizing:border-box;resize:vertical;margin-bottom:8px">${escHtml(n.content||'')}</textarea>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" onclick="saveBandNotice('${n.id}')" style="flex:2;padding:7px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">저장</button>
+                            <button type="button" onclick="cancelBandNoticeEdit('${n.id}')" style="flex:1;padding:7px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:none;cursor:pointer;font-size:0.85rem;font-family:inherit">취소</button>
+                        </div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function editBandNotice(id) {
+            document.getElementById(`band-notice-view-${id}`).style.display = 'none';
+            document.getElementById(`band-notice-edit-${id}`).style.display = 'block';
+            document.getElementById(`band-notice-edit-title-${id}`)?.focus();
+        }
+
+        function cancelBandNoticeEdit(id) {
+            document.getElementById(`band-notice-edit-${id}`).style.display = 'none';
+            document.getElementById(`band-notice-view-${id}`).style.display = 'block';
+        }
+
+        async function saveBandNotice(id) {
+            if (!supabaseClient) return;
+            const title = document.getElementById(`band-notice-edit-title-${id}`)?.value.trim();
+            const content = document.getElementById(`band-notice-edit-content-${id}`)?.value.trim();
+            if (!title) { alert('제목을 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('band_notices').update({ title, content }).eq('id', id);
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            fetchAndRenderBandNotices();
         }
 
         function showAddBandNotice() {
@@ -4900,7 +4939,7 @@
 
         async function fetchAndRenderBandComments() {
             if (!supabaseClient || !state.bandProfile) return;
-            const { data } = await supabaseClient.from('band_comments').select('*').eq('band_profile_id', state.bandProfile.id).order('created_at', { ascending: false }).limit(30);
+            const { data } = await supabaseClient.from('band_comments').select('*').order('created_at', { ascending: true }).limit(200);
             state.bandComments = data || [];
             renderBandComments();
         }
@@ -4908,19 +4947,79 @@
         function renderBandComments() {
             const list = document.getElementById('bandCommentList');
             if (!list) return;
-            if (!state.bandComments.length) { list.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:16px 0">첫 댓글을 남겨보세요!</div>'; return; }
-            list.innerHTML = state.bandComments.map(c => `
-                <div class="band-comment-item">
+            const topLevel = state.bandComments.filter(c => !c.parent_id);
+            const repliesByParent = {};
+            state.bandComments.filter(c => c.parent_id).forEach(r => {
+                if (!repliesByParent[r.parent_id]) repliesByParent[r.parent_id] = [];
+                repliesByParent[r.parent_id].push(r);
+            });
+            if (!topLevel.length) { list.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:16px 0">첫 댓글을 남겨보세요!</div>'; return; }
+            const myId = state.bandProfile ? state.bandProfile.id : null;
+            const admin = isBandAdmin();
+            list.innerHTML = topLevel.map(c => {
+                const canDel = admin || (myId && c.band_profile_id === myId);
+                const replies = repliesByParent[c.id] || [];
+                return `
+                <div class="band-comment-item" style="margin-bottom:10px">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start">
                         <div>
                             <span style="font-weight:700;font-size:0.85rem">${escHtml(c.author_name||'익명')}</span>
                             <span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px">${new Date(c.created_at).toLocaleDateString('ko-KR')}</span>
                         </div>
-                        <button type="button" onclick="deleteBandComment('${c.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-gray-500);cursor:pointer;padding:0">삭제</button>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" onclick="toggleBandReplyForm('${c.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-primary);cursor:pointer;padding:0;font-weight:600">답글</button>
+                            ${canDel ? `<button type="button" onclick="deleteBandComment('${c.id}')" style="font-size:0.72rem;background:none;border:none;color:var(--wds-gray-500);cursor:pointer;padding:0">삭제</button>` : ''}
+                        </div>
                     </div>
                     <div style="font-size:0.88rem;color:var(--wds-gray-900);margin-top:4px;white-space:pre-wrap">${escHtml(c.content)}</div>
-                </div>
-            `).join('');
+                    ${replies.map(r => {
+                        const canDelR = admin || (myId && r.band_profile_id === myId);
+                        return `<div style="margin-left:14px;margin-top:6px;padding:8px 10px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);border-left:3px solid var(--wds-primary)">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                                <div>
+                                    <span style="font-weight:700;font-size:0.82rem">${escHtml(r.author_name||'익명')}</span>
+                                    <span style="font-size:0.7rem;color:var(--wds-gray-500);margin-left:6px">${new Date(r.created_at).toLocaleDateString('ko-KR')}</span>
+                                </div>
+                                ${canDelR ? `<button type="button" onclick="deleteBandComment('${r.id}')" style="font-size:0.7rem;background:none;border:none;color:var(--wds-gray-500);cursor:pointer;padding:0">삭제</button>` : ''}
+                            </div>
+                            <div style="font-size:0.85rem;color:var(--wds-gray-900);margin-top:3px;white-space:pre-wrap">${escHtml(r.content)}</div>
+                        </div>`;
+                    }).join('')}
+                    <div id="reply-form-${c.id}" style="display:none;margin-top:8px;margin-left:14px">
+                        <div style="display:flex;gap:6px">
+                            <textarea id="reply-content-${c.id}" placeholder="답글을 입력하세요" rows="2" style="flex:1;padding:7px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;resize:vertical"></textarea>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <button type="button" onclick="postBandReply('${c.id}')" style="padding:4px 10px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.82rem;font-family:inherit">등록</button>
+                                <button type="button" onclick="toggleBandReplyForm('${c.id}')" style="padding:4px 10px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:none;cursor:pointer;font-size:0.82rem;font-family:inherit">취소</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleBandReplyForm(commentId) {
+            const form = document.getElementById(`reply-form-${commentId}`);
+            if (!form) return;
+            const isHidden = form.style.display === 'none';
+            form.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) document.getElementById(`reply-content-${commentId}`)?.focus();
+        }
+
+        async function postBandReply(parentId) {
+            if (!supabaseClient || !state.bandProfile) return;
+            const textarea = document.getElementById(`reply-content-${parentId}`);
+            const content = (textarea?.value || '').trim();
+            if (!content) { alert('답글을 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('band_comments').insert({
+                band_profile_id: state.bandProfile.id,
+                author_name: bandTeamDisplayName(state.bandProfile),
+                content,
+                parent_id: parentId
+            });
+            if (error) { alert('등록 실패: ' + error.message); return; }
+            textarea.value = '';
+            fetchAndRenderBandComments();
         }
 
         function bandTeamDisplayName(profile) {
@@ -4939,7 +5038,8 @@
             const { error } = await supabaseClient.from('band_comments').insert({
                 band_profile_id: state.bandProfile.id,
                 author_name: bandTeamDisplayName(state.bandProfile),
-                content
+                content,
+                parent_id: null
             });
             if (error) { alert('등록 실패: ' + error.message); return; }
             contentEl.value = '';
