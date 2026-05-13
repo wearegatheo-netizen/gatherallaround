@@ -4612,6 +4612,7 @@
                     <div class="doc-edit-${d.id}" style="display:none">
                         <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                         <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <input id="doc-edit-summary-${d.id}" type="text" value="${(d.summary||'').replace(/"/g,'&quot;')}" placeholder="간단 요약 (제목 옆에 작은 글씨로 표시)" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                         <textarea id="doc-edit-content-${d.id}" style="width:100%;height:200px;margin-bottom:8px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
                         <div style="display:flex;gap:6px;justify-content:flex-end">
                             <button type="button" style="padding:6px 14px;font-size:0.8rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700" onclick="updateDoc('${d.id}')">저장</button>
@@ -4621,7 +4622,7 @@
                 return `
                 <div class="docs-card collapsed" id="docs-card-${d.id}">
                     <div class="doc-view-${d.id}">
-                        <div class="docs-card-title" onclick="toggleDocsCard('${d.id}')"><span class="docs-toggle-icon">▼</span><span style="flex:1">${escapeHtml(d.title)}</span></div>
+                        <div class="docs-card-title" onclick="toggleDocsCard('${d.id}')"><span class="docs-toggle-icon">▼</span><span style="flex:1">${escapeHtml(d.title)}</span>${d.summary ? `<span style="font-size:0.72rem;font-weight:400;color:var(--wds-gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;flex-shrink:1">${escapeHtml(d.summary)}</span>` : ''}</div>
                         <div class="docs-card-body">
                             <div class="docs-card-content">${renderMarkdown(d.content)}</div>
                             ${adminBar}
@@ -4685,6 +4686,7 @@
                             <div class="doc-edit-${d.id}" style="display:none">
                                 <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" list="docCategoriesList" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                                 <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                                <input id="doc-edit-summary-${d.id}" type="text" value="${(d.summary||'').replace(/"/g,'&quot;')}" placeholder="간단 요약 (제목 옆 작은 글씨)" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                                 <textarea id="doc-edit-content-${d.id}" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
                                 <div style="display:flex;gap:6px">
                                     <button type="button" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="updateDoc('${d.id}')">저장</button>
@@ -4705,6 +4707,7 @@
                         <div style="font-weight:600;margin-bottom:8px;font-size:0.9rem">새 문서 추가</div>
                         <input id="newDocCategory" type="text" placeholder="카테고리 (예: 운영규칙, FAQ, 멤버가이드)" list="docCategoriesList" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                         <input id="newDocTitle" type="text" placeholder="제목" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
+                        <input id="newDocSummary" type="text" placeholder="간단 요약 (제목 옆에 작은 글씨로 표시, 선택)" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                         <textarea id="newDocContent" placeholder="내용 (마크다운 지원: **굵게**, *기울임*, - 리스트, [링크](url), ## 소제목, 줄바꿈은 그대로 적용)" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
                         <button type="button" onclick="addDoc()" style="padding:6px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">추가</button>
                     </div>
@@ -4713,7 +4716,12 @@
 
                     <div style="margin-top:16px;padding:10px;background:var(--wds-gray-100);border-radius:var(--wds-radius-s);font-size:0.75rem;color:var(--wds-gray-500)">
                         💡 최초 1회: Supabase SQL 에디터에서 실행<br>
-                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS documents (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, category text NOT NULL, title text NOT NULL, content text NOT NULL, sort_order int DEFAULT 0, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());</code>
+                        <code style="font-size:0.72rem">CREATE TABLE IF NOT EXISTS documents (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, category text NOT NULL, title text NOT NULL, content text NOT NULL, summary text DEFAULT '', sort_order int DEFAULT 0, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());</code><br><br>
+                        <code style="font-size:0.72rem">ALTER TABLE documents ADD COLUMN IF NOT EXISTS summary text DEFAULT '';</code><br><br>
+                        💡 일정표 테이블 RLS 정책 (schedules 저장 오류 시):<br>
+                        <code style="font-size:0.72rem">ALTER TABLE schedules DISABLE ROW LEVEL SECURITY;</code><br>
+                        또는 허용 정책 추가:<br>
+                        <code style="font-size:0.72rem">CREATE POLICY "allow_all" ON schedules FOR ALL USING (true) WITH CHECK (true);</code>
                     </div>
                 </div>`;
         }
@@ -4721,12 +4729,15 @@
         async function addDoc() {
             const category = document.getElementById('newDocCategory').value.trim();
             const title = document.getElementById('newDocTitle').value.trim();
+            const summary = (document.getElementById('newDocSummary')?.value || '').trim();
             const content = document.getElementById('newDocContent').value.trim();
             if (!category || !title || !content) { alert('카테고리/제목/내용을 모두 입력해주세요.'); return; }
-            const { error } = await supabaseClient.from('documents').insert([{ category, title, content }]);
+            const { error } = await supabaseClient.from('documents').insert([{ category, title, summary, content }]);
             if (error) { alert('추가 실패: ' + error.message); return; }
             document.getElementById('newDocCategory').value = '';
             document.getElementById('newDocTitle').value = '';
+            const sumEl = document.getElementById('newDocSummary');
+            if (sumEl) sumEl.value = '';
             document.getElementById('newDocContent').value = '';
             await fetchDocs();
             render();
@@ -4750,8 +4761,10 @@
             const c = document.getElementById(`doc-edit-cat-${id}`).value.trim();
             const t = document.getElementById(`doc-edit-title-${id}`).value.trim();
             const co = document.getElementById(`doc-edit-content-${id}`).value.trim();
+            const sumEl = document.getElementById(`doc-edit-summary-${id}`);
+            const s = sumEl ? sumEl.value.trim() : '';
             if (!c || !t || !co) { alert('카테고리/제목/내용 모두 입력해주세요.'); return; }
-            const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, updated_at: new Date().toISOString() }).eq('id', id);
+            const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, summary: s, updated_at: new Date().toISOString() }).eq('id', id);
             if (error) { alert('수정 실패: ' + error.message); return; }
             await fetchDocs();
             if (state.memberPanelTab === 'docs') {
