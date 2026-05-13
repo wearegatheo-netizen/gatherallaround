@@ -170,7 +170,7 @@
         .portal-btn.portal-btn-primary:hover { background: var(--wds-primary-hover); border-color: var(--wds-primary-hover); }
         .portal-btn.portal-btn-disabled { opacity: 0.45; cursor: not-allowed; }
         .portal-btn.portal-btn-disabled:hover { border-color: var(--wds-gray-300); background: var(--wds-white); transform: none; }
-        .portal-btn-icon { font-size: 1.4rem; margin-right: 12px; display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:50%; background:#fcfcfc; flex-shrink:0; }
+        .portal-btn-icon { font-size: 1.4rem; margin-right: 12px; display:inline-flex; align-items:center; justify-content:center; width:42px; min-width:42px; max-width:42px; height:42px; min-height:42px; max-height:42px; border-radius:50%; background:#fcfcfc; flex:0 0 42px; aspect-ratio:1/1; box-sizing:border-box; padding:0; }
         body.dark .portal-btn-icon { background:#121212; }
         .portal-btn-icon img { width: 34px; height: 34px; object-fit: contain; display:block; }
         .portal-btn-icon .icon-dark { display: none; }
@@ -915,14 +915,12 @@
             </span>
         </button>
         <button type="button" class="portal-btn portal-btn-primary" onclick="showBandSection()">
-            <span class="portal-btn-icon">🎸</span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">고정 합주팀</span>
                 <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
             </span>
         </button>
         <button type="button" class="portal-btn portal-btn-disabled" onclick="showComingSoon()">
-            <span class="portal-btn-icon">✨</span>
             <span class="portal-btn-text">
                 <span class="portal-btn-title">준비 중</span>
                 <span class="portal-btn-desc">곧 오픈 예정입니다</span>
