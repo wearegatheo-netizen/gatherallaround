@@ -4458,7 +4458,11 @@
             const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, updated_at: new Date().toISOString() }).eq('id', id);
             if (error) { alert('수정 실패: ' + error.message); return; }
             await fetchDocs();
-            render();
+            if (state.memberPanelTab === 'docs') {
+                const view = document.getElementById('memberPanelView');
+                if (view) renderDocsPage(view);
+            }
+            if (state.currentView === 'admin') render();
         }
 
         async function deleteDoc(id) {
@@ -4466,7 +4470,11 @@
             const { error } = await supabaseClient.from('documents').delete().eq('id', id);
             if (error) { alert('삭제 실패: ' + error.message); return; }
             await fetchDocs();
-            render();
+            if (state.memberPanelTab === 'docs') {
+                const view = document.getElementById('memberPanelView');
+                if (view) renderDocsPage(view);
+            }
+            if (state.currentView === 'admin') render();
         }
         // ────────────────────────────────────────────────────────────────────
 
