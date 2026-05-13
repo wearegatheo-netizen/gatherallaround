@@ -136,7 +136,7 @@
         }
 
         #landing-page h1 { font-size: 2.2rem; margin-bottom: 12px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
-        #landing-page p { color: var(--wds-gray-700); margin-bottom: 40px; font-size: 1.1rem; }
+        #landing-page p { color: var(--wds-gray-700); margin-bottom: 32px; font-size: 1.05rem; }
 
         /* Portal page */
         #portal-page {
@@ -724,7 +724,7 @@
             .container { padding: 18px 14px; }
             #landing-page { padding: 36px 20px; margin-top: 4vh; }
             #landing-page h1 { font-size: 1.7rem; font-family: 'KkuBulLim', sans-serif; }
-            #landing-page p { font-size: 0.95rem; margin-bottom: 28px; }
+            #landing-page p { font-size: 0.9rem; margin-bottom: 24px; }
             #portal-page { padding: 36px 20px; margin-top: 4vh; }
             #portal-page h1 { font-size: 1.7rem; }
             #portal-page .portal-sub { font-size: 0.9rem; margin-bottom: 24px; }
@@ -732,6 +732,8 @@
             #landing-page-band { padding: 36px 20px; margin-top: 4vh; }
             #landing-page-band h1 { font-size: 1.7rem; }
             #landing-page-band p { font-size: 0.9rem; margin-bottom: 24px; }
+            #band-main-content { margin: -12px -6px; }
+            .band-header { padding: 12px 14px; }
             header h1 { font-size: 1.5rem; }
             .subtitle { font-size: 0.9rem; }
             .form-group { padding: 16px 14px; }
@@ -880,11 +882,11 @@
         body.dark #band-main-content { background: #121212; }
         body.dark .band-header { background: #1A1A1A; border-color: #333; }
         body.dark .band-section-card { background: #1A1A1A; border-color: #333; }
-        body.dark .band-section-title { color: var(--wds-white); }
+        body.dark .band-section-title { color: var(--wds-black); }
         body.dark .band-notice-item { background: #232323; border-color: #333; }
         body.dark .band-member-row { border-color: #333; }
         body.dark .band-comment-item { border-color: #333; }
-        body.dark #bandHeaderName { color: var(--wds-white); }
+        body.dark #bandHeaderName { color: var(--wds-black); }
     </style>
 </head>
 <body>
@@ -1126,8 +1128,8 @@
     <!-- 고정 합주팀 메인 페이지 -->
     <div id="band-main-content" class="hidden">
         <div class="band-header">
-            <span id="bandHeaderName" style="font-size:1.05rem;font-weight:700;color:var(--wds-black)">고정 합주팀</span>
-            <div style="display:flex;gap:8px;align-items:center">
+            <span id="bandHeaderName" style="font-size:1.05rem;font-weight:700;color:var(--wds-black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;margin-right:8px">고정 합주팀</span>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
                 <button type="button" id="themeToggleBtnBandMain" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
                 <button type="button" onclick="handleBandLogout()" style="padding:6px 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);background:var(--wds-gray-100);cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--wds-gray-700);font-family:inherit">로그아웃</button>
             </div>
@@ -4552,7 +4554,7 @@
             const profile = state.bandProfile;
             if (!profile) return;
             const headerName = document.getElementById('bandHeaderName');
-            if (headerName) headerName.textContent = profile.band_name_kr || profile.name || '고정 합주팀';
+            if (headerName) headerName.textContent = bandTeamDisplayName(profile);
             // 공지 추가 버튼: 게더링 팀(관리자)만 표시
             const noticeAddBtn = document.getElementById('bandNoticeAddBtn');
             if (noticeAddBtn) noticeAddBtn.style.display = isBandAdmin() ? '' : 'none';
@@ -4720,7 +4722,7 @@
             state.bandProfile = { ...state.bandProfile, band_name_kr: nameKr, band_name_en: nameEn, leader_name: leaderName, leader_phone: leaderPhone };
             renderBandInfo(state.bandProfile);
             const headerName = document.getElementById('bandHeaderName');
-            if (headerName) headerName.textContent = nameKr || state.bandProfile.name || '고정 합주팀';
+            if (headerName) headerName.textContent = bandTeamDisplayName(state.bandProfile);
         }
 
         async function fetchAndRenderBandNotices() {
