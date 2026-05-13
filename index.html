@@ -1954,6 +1954,8 @@
                 if (el) renderAdminMemberListEl(el);
             } else if (key.startsWith('member_')) {
                 renderMemberPanel();
+            } else if (key.startsWith('block')) {
+                renderBlockList();
             } else {
                 render();
             }
@@ -3674,36 +3676,44 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex;gap:4px;flex-shrink:0">
+                    <div style="display:flex;gap:4px;flex-shrink:0" id="blk-btns-${b.id}">
                         <button type="button" onclick="toggleBlockEdit('${b.id}')" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">수정</button>
                         <button type="button" onclick="deleteTimeBlock('${b.id}')" style="padding:4px 10px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600">삭제</button>
                     </div>
                 </div>`;
             };
 
-            const sectionHtml = (title, color, arr) => arr.length === 0 ? '' : `
-                <div class="block-list-section">
+            const sectionHtml = (title, color, arr, pageKey) => {
+                if (arr.length === 0) return '';
+                const { items, page, totalPages, total } = getPaged(arr, pageKey);
+                return `<div class="block-list-section">
                     <div class="block-list-section-title" style="border-left-color:${color}">${title} <span class="member-group-count">${arr.length}</span></div>
-                    ${arr.map(renderOne).join('')}
+                    ${items.map(renderOne).join('')}
+                    ${pagerHTML(pageKey, page, totalPages, total)}
                 </div>`;
+            };
 
-            list.innerHTML = sectionHtml('🔄 매주 반복', '#3366FF', weekly)
-                           + sectionHtml('📌 특정 날짜', '#f0a050', once);
+            list.innerHTML = sectionHtml('🔄 매주 반복', '#3366FF', weekly, 'blockWeekly')
+                           + sectionHtml('📌 특정 날짜', '#f0a050', once, 'blockOnce');
         }
 
         window.toggleBlockEdit = function(id) {
             const editDiv = document.querySelector(`.blk-edit-${id}`);
             const viewDiv = document.querySelector(`.blk-view-${id}`);
+            const btnsDiv = document.getElementById(`blk-btns-${id}`);
             if (!editDiv || !viewDiv) return;
             const isHidden = editDiv.style.display === 'none' || editDiv.style.display === '';
             editDiv.style.display = isHidden ? 'block' : 'none';
             viewDiv.style.display = isHidden ? 'none' : 'block';
+            if (btnsDiv) btnsDiv.style.display = isHidden ? 'none' : 'flex';
         };
         window.cancelBlockEdit = function(id) {
             const editDiv = document.querySelector(`.blk-edit-${id}`);
             const viewDiv = document.querySelector(`.blk-view-${id}`);
+            const btnsDiv = document.getElementById(`blk-btns-${id}`);
             if (editDiv) editDiv.style.display = 'none';
             if (viewDiv) viewDiv.style.display = 'block';
+            if (btnsDiv) btnsDiv.style.display = 'flex';
         };
         window.saveBlockEdit = async function(id) {
             const b = state.blocks.find(x => x.id === id);
