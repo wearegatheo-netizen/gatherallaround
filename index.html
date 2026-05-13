@@ -309,6 +309,7 @@
         .cancel-btn { padding: 8px 16px; border: 1px solid #ff4d4f; border-radius: var(--wds-radius-s); background: white; color: #ff4d4f; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
 
         /* 공지사항 */
+        #schedule_banner { margin-bottom: 12px; }
         #notice_container { margin-bottom: 20px; }
         #livePollBanner { margin-bottom: 12px; }
         .live-poll-banner-inner { display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:10px 14px; border-radius:var(--wds-radius-m); cursor:pointer; font-size:0.88rem; font-weight:600; transition:opacity 0.2s; }
@@ -941,6 +942,7 @@
             </div>
         </div>
 
+        <div id="schedule_banner" class="hidden"></div>
         <div id="livePollBanner" class="hidden"></div>
         <div id="notice_container" class="hidden"></div>
 
@@ -964,6 +966,7 @@
                     <div class="admin-subtab active" onclick="setMemberTab('docs')">운영안내</div>
                     <div class="admin-subtab" onclick="setMemberTab('list')">멤버 목록</div>
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
+                    <div class="admin-subtab" onclick="setMemberTab('schedule')">일정표</div>
                     <div class="admin-subtab" onclick="setMemberTab('stats')">참여율</div>
                     <div class="admin-subtab" onclick="setMemberTab('votes')">투표</div>
                 </div>
@@ -1147,20 +1150,13 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
-            if (!document.querySelector('[data-view="schedule"]')) {
-                const schedTab = document.createElement('div');
-                schedTab.className = 'tab';
-                schedTab.dataset.view = 'schedule';
-                schedTab.textContent = '일정표';
-                tabs.appendChild(schedTab);
-                schedTab.addEventListener('click', onTabClick);
-            }
             fetchReservations();
             fetchComments();
             fetchNotices();
             fetchDocs();
             fetchBlocks().then(() => render());
             fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            fetchSchedules();
             fetchPolls();
             fetchPollVotes();
             subscribeToPolls();
@@ -1251,9 +1247,6 @@
             if (adminTab) adminTab.remove();
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
-            const schedTab = document.querySelector('[data-view="schedule"]');
-            if (schedTab) schedTab.remove();
-
             state.user = null;
             notices = [];
             document.getElementById('notice_container').classList.add('hidden');
@@ -1724,7 +1717,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'schedule';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const result = document.getElementById('result');
@@ -1739,10 +1732,6 @@
                 title.textContent = '';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
-            } else if (state.currentView === 'schedule') {
-                title.textContent = '일정표';
-                if (nav) nav.style.display = 'none';
-                renderScheduleView(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -1766,7 +1755,7 @@
             const sel = document.getElementById('participantSelect');
             const chips = document.getElementById('participantChips');
             if (!section || !sel || !chips) return;
-            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month' && state.currentView !== 'schedule';
+            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month';
             const show = isReservable && state.startTime;
             section.style.display = show ? '' : 'none';
             if (!show) return;
@@ -1981,7 +1970,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
-            const order = ['docs', 'list', 'teams', 'stats', 'votes'];
+            const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'votes'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -1997,6 +1986,8 @@
                 await renderVotesTab(view);
             } else if (state.memberPanelTab === 'docs') {
                 renderDocsPage(view);
+            } else if (state.memberPanelTab === 'schedule') {
+                await renderScheduleView(view);
             } else {
                 await renderTeamsTab(view);
             }
