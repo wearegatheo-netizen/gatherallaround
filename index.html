@@ -383,7 +383,7 @@
 
         /* 관리자 서브탭 */
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-        .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
         .admin-subtabs::-webkit-scrollbar { display: none; }
         .admin-subtab { padding: 10px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
         .admin-subtab.active { color: var(--wds-primary); border-bottom-color: var(--wds-primary); }
@@ -685,7 +685,7 @@
             .weekly-slot { height: 50px; font-size: 0.72rem; }
             .day-grid .weekly-slot { padding-left: 12px !important; height: 48px; }
             .weekly-header-cell { padding: 10px 4px; font-size: 0.85rem; }
-            .admin-subtabs { overflow-x: auto; flex-wrap: nowrap; }
+            .admin-subtabs { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
             .admin-subtab { padding: 8px 10px; font-size: 0.78rem; white-space: nowrap; }
             .admin-section { padding: 16px 12px; }
             .admin-section-title { font-size: 0.95rem; }
@@ -2209,10 +2209,17 @@
             entries.forEach(s => {
                 const gn = s.group_name || '';
                 if (!groupMap[gn]) { groupMap[gn] = []; groupOrder.push(gn); }
-                groupMap[gn].push({ startTime: s.start_time || '', endTime: s.end_time || '', teamId: s.team_id || '', note: s.note || '' });
+                const isCustom = !s.team_id && s.team_name;
+                groupMap[gn].push({
+                    startTime: s.start_time || '',
+                    endTime: s.end_time || '',
+                    teamId: isCustom ? '__custom__' : (s.team_id || ''),
+                    customName: isCustom ? s.team_name : '',
+                    note: s.note || ''
+                });
             });
             state.scheduleEditorGroups = groupOrder.length === 0
-                ? [{ name: '', entries: [{ startTime: '', endTime: '', teamId: '', note: '' }] }]
+                ? [{ name: '', entries: [{ startTime: '', endTime: '', teamId: '', customName: '', note: '' }] }]
                 : groupOrder.map(gn => ({ name: gn, entries: groupMap[gn] }));
             state.scheduleEditorShowBanner = entries.some(s => s.show_banner);
             renderScheduleEditor();
@@ -2231,28 +2238,38 @@
             };
             const groupsHtml = state.scheduleEditorGroups.map((g, gi) => {
                 const entriesHtml = g.entries.map((e, ei) => {
-                    const teamPreview = e.teamId ? (() => {
+                    const isCustom = e.teamId === '__custom__';
+                    const teamPreview = (e.teamId && !isCustom) ? (() => {
                         const t = state.teams.find(t => t.id === e.teamId);
                         if (!t) return '';
                         const mems = (t.members||[]).map(s => (memberMap[s.memberId]?.name||'').replace(/\s*\(.*?\)\s*$/,'')).filter(Boolean);
                         return mems.length ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);flex-shrink:0">${mems.slice(0,3).join('·')}${mems.length>3?'…':''}</span>` : '';
                     })() : '';
-                    return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;flex-wrap:wrap">
-                        <input type="text" value="${escapeHtml(e.startTime)}" placeholder="10:00" maxlength="5"
-                            oninput="schedEditorUpdateEntry(${gi},${ei},'startTime',this.value)"
-                            style="width:56px;height:32px;padding:0 4px;border:1px solid var(--wds-gray-300);border-radius:5px;font-size:0.85rem;font-family:inherit;text-align:center;box-sizing:border-box">
-                        <span style="color:var(--wds-gray-400);font-size:0.85rem;flex-shrink:0">~</span>
-                        <input type="text" value="${escapeHtml(e.endTime)}" placeholder="12:00" maxlength="5"
-                            oninput="schedEditorUpdateEntry(${gi},${ei},'endTime',this.value)"
-                            style="width:56px;height:32px;padding:0 4px;border:1px solid var(--wds-gray-300);border-radius:5px;font-size:0.85rem;font-family:inherit;text-align:center;box-sizing:border-box">
-                        <select onchange="schedEditorUpdateEntry(${gi},${ei},'teamId',this.value)"
-                            style="flex:1;min-width:90px;height:32px;padding:0 5px;border:1px solid var(--wds-gray-300);border-radius:5px;font-size:0.82rem;font-family:inherit;background:white;box-sizing:border-box">
-                            <option value="">팀 없음</option>
-                            ${state.teams.map(t => `<option value="${t.id}" ${e.teamId===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
-                        </select>
-                        ${teamPreview}
-                        <button type="button" onclick="schedEditorRemoveEntry(${gi},${ei})"
-                            style="width:24px;height:24px;border:none;background:none;cursor:pointer;color:var(--wds-gray-400);font-size:1rem;padding:0;flex-shrink:0">×</button>
+                    const customInputRow = isCustom ? `<div style="display:flex;margin:4px 0 6px 0">
+                        <input type="text" value="${escapeHtml(e.customName||'')}" placeholder="팀/일정 이름 직접 입력"
+                            oninput="schedEditorUpdateEntry(${gi},${ei},'customName',this.value)"
+                            style="flex:1;height:30px;padding:0 8px;border:1px solid var(--wds-primary);border-radius:5px;font-size:0.82rem;font-family:inherit;box-sizing:border-box">
+                    </div>` : '';
+                    return `<div style="margin-bottom:5px">
+                        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                            <input type="text" value="${escapeHtml(e.startTime)}" placeholder="10:00" maxlength="5"
+                                oninput="schedEditorUpdateEntry(${gi},${ei},'startTime',this.value)"
+                                style="width:56px;height:32px;padding:0 4px;border:1px solid var(--wds-gray-300);border-radius:5px;font-size:0.85rem;font-family:inherit;text-align:center;box-sizing:border-box">
+                            <span style="color:var(--wds-gray-400);font-size:0.85rem;flex-shrink:0">~</span>
+                            <input type="text" value="${escapeHtml(e.endTime)}" placeholder="12:00" maxlength="5"
+                                oninput="schedEditorUpdateEntry(${gi},${ei},'endTime',this.value)"
+                                style="width:56px;height:32px;padding:0 4px;border:1px solid var(--wds-gray-300);border-radius:5px;font-size:0.85rem;font-family:inherit;text-align:center;box-sizing:border-box">
+                            <select onchange="schedEditorUpdateEntry(${gi},${ei},'teamId',this.value)"
+                                style="flex:1;min-width:90px;height:32px;padding:0 5px;border:1px solid ${isCustom?'var(--wds-primary)':'var(--wds-gray-300)'};border-radius:5px;font-size:0.82rem;font-family:inherit;background:white;box-sizing:border-box">
+                                <option value="">팀 없음</option>
+                                ${state.teams.map(t => `<option value="${t.id}" ${e.teamId===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+                                <option value="__custom__" ${isCustom?'selected':''}>✏️ 직접 입력</option>
+                            </select>
+                            ${teamPreview}
+                            <button type="button" onclick="schedEditorRemoveEntry(${gi},${ei})"
+                                style="width:24px;height:24px;border:none;background:none;cursor:pointer;color:var(--wds-gray-400);font-size:1rem;padding:0;flex-shrink:0">×</button>
+                        </div>
+                        ${customInputRow}
                     </div>`;
                 }).join('');
                 return `<div style="background:white;border:1px solid var(--wds-gray-200);border-radius:8px;padding:10px 12px;margin-bottom:8px">
@@ -2298,16 +2315,20 @@
         }
 
         function schedEditorUpdateGroup(gi, key, val) { if (state.scheduleEditorGroups[gi]) state.scheduleEditorGroups[gi][key] = val; }
-        function schedEditorUpdateEntry(gi, ei, key, val) { if (state.scheduleEditorGroups[gi]?.entries[ei]) state.scheduleEditorGroups[gi].entries[ei][key] = val; }
-        function schedEditorAddGroup() { state.scheduleEditorGroups.push({ name: '', entries: [{ startTime: '', endTime: '', teamId: '', note: '' }] }); renderScheduleEditor(); }
+        function schedEditorUpdateEntry(gi, ei, key, val) {
+            if (!state.scheduleEditorGroups[gi]?.entries[ei]) return;
+            state.scheduleEditorGroups[gi].entries[ei][key] = val;
+            if (key === 'teamId') renderScheduleEditor();
+        }
+        function schedEditorAddGroup() { state.scheduleEditorGroups.push({ name: '', entries: [{ startTime: '', endTime: '', teamId: '', customName: '', note: '' }] }); renderScheduleEditor(); }
         function schedEditorRemoveGroup(gi) {
             if (state.scheduleEditorGroups.length <= 1) { alert('최소 1개 그룹이 필요합니다.'); return; }
             state.scheduleEditorGroups.splice(gi, 1); renderScheduleEditor();
         }
-        function schedEditorAddEntry(gi) { if (state.scheduleEditorGroups[gi]) { state.scheduleEditorGroups[gi].entries.push({ startTime: '', endTime: '', teamId: '', note: '' }); renderScheduleEditor(); } }
+        function schedEditorAddEntry(gi) { if (state.scheduleEditorGroups[gi]) { state.scheduleEditorGroups[gi].entries.push({ startTime: '', endTime: '', teamId: '', customName: '', note: '' }); renderScheduleEditor(); } }
         function schedEditorRemoveEntry(gi, ei) {
             const g = state.scheduleEditorGroups[gi]; if (!g) return;
-            if (g.entries.length <= 1) { g.entries[0] = { startTime: '', endTime: '', teamId: '', note: '' }; renderScheduleEditor(); return; }
+            if (g.entries.length <= 1) { g.entries[0] = { startTime: '', endTime: '', teamId: '', customName: '', note: '' }; renderScheduleEditor(); return; }
             g.entries.splice(ei, 1); renderScheduleEditor();
         }
         function schedEditorShiftDate(dir) {
@@ -2329,11 +2350,14 @@
             for (const group of state.scheduleEditorGroups) {
                 for (const entry of group.entries) {
                     if (!entry.startTime.trim()) continue;
-                    const team = state.teams.find(t => t.id === entry.teamId);
+                    const isCustom = entry.teamId === '__custom__';
+                    const team = (!isCustom && entry.teamId) ? state.teams.find(t => t.id === entry.teamId) : null;
+                    const teamName = isCustom ? (entry.customName || '').trim() : (team ? team.name : null);
                     records.push({
                         date, group_name: group.name || '',
                         start_time: entry.startTime.trim(), end_time: entry.endTime.trim() || null,
-                        team_id: entry.teamId || null, team_name: team ? team.name : null,
+                        team_id: team ? team.id : null,
+                        team_name: teamName || null,
                         members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
                         show_banner: showBanner,
@@ -4914,16 +4938,18 @@
             };
             const items = dates.map(date => {
                 const entries = dateMap[date];
-                const label = isToday(date) ? '오늘' : fmtDate(date);
-                const teamNames = [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,3);
+                const groupNames = [...new Set(entries.map(e => e.group_name).filter(Boolean))];
                 const timeRange = entries.length > 0 ? `${entries[0].start_time || ''}${entries[entries.length-1].end_time ? ' ~ ' + entries[entries.length-1].end_time : ''}` : '';
+                const groupsLabel = groupNames.length > 0
+                    ? groupNames.slice(0,3).map(g => escapeHtml(g)).join(' · ') + (groupNames.length > 3 ? ` 외 ${groupNames.length-3}` : '')
+                    : [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,3).map(g => escapeHtml(g)).join(' · ');
                 return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff;margin-bottom:8px;cursor:pointer" onclick="openScheduleForDate('${date}')">
-                    <div>
+                    <div style="min-width:0;flex:1">
                         <span style="font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;margin-right:8px">${isToday(date)?'🔴 오늘':'📅 '+fmtDate(date)}</span>
-                        ${teamNames.length ? `<span style="font-size:0.82rem;font-weight:600">${teamNames.join(' · ')}</span>` : ''}
+                        ${groupsLabel ? `<span style="font-size:0.82rem;font-weight:600">${groupsLabel}</span>` : ''}
                         ${timeRange ? `<span style="font-size:0.78rem;opacity:0.85;margin-left:6px">${timeRange}</span>` : ''}
                     </div>
-                    <span style="font-size:0.78rem;font-weight:600;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:8px;flex-shrink:0">일정표 보기 →</span>
+                    <span style="font-size:0.78rem;font-weight:600;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:8px;flex-shrink:0">보기 →</span>
                 </div>`;
             }).join('');
             banner.innerHTML = items;
