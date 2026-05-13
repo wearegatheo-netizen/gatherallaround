@@ -4448,8 +4448,10 @@
 
         function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
 
+        let _resBusy = false;
         async function onReserve(e) {
             e.preventDefault();
+            if (_resBusy) return;
             if (!state.selectedDate || !state.startTime) { alert("날짜와 시간을 선택해주세요."); return; }
             if (isPastSlot(state.selectedDate, state.startTime)) { alert("지나간 날짜/시간에는 예약할 수 없습니다."); return; }
             if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
@@ -4484,6 +4486,24 @@
             // 관리자(총괄·세션장)는 자동 승인, 일반 멤버는 2시간 이하 자동 승인
             const reservationStatus = canApproveRes() ? 'approved' : ((endIdx - startIdx) > 1 ? 'pending' : 'approved');
 
+            // 일반 멤버: 5분 내 중복 예약 방지 (서버 created_at 기준)
+            if (!canApproveRes()) {
+                const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+                const resQuery = supabaseClient.from('reservations').select('id').gte('created_at', fiveMinAgo).limit(1);
+                if (state.user.kakaoId) resQuery.eq('kakao_id', state.user.kakaoId);
+                else resQuery.eq('user_name', name);
+                const { data: recentRes } = await resQuery;
+                if (recentRes && recentRes.length > 0) {
+                    alert('예약은 5분에 1회만 가능합니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+            }
+
+            _resBusy = true;
+            const reserveBtn = document.querySelector('button[type="submit"]');
+            const origLabel = reserveBtn ? reserveBtn.textContent : '';
+            if (reserveBtn) { reserveBtn.disabled = true; reserveBtn.textContent = '처리 중...'; }
+            try {
             const { data, error } = await supabaseClient
                 .from('reservations')
                 .insert([{
@@ -4520,6 +4540,10 @@
                 fetchReservations();
                 const pushTitle = isApproved ? '🎸 예약 확정' : '🎸 새 예약 신청';
                 setTimeout(() => sendAdminPush(pushTitle, `${name} · ${dateStr} ${timeStr}`), 600);
+            }
+            } finally {
+                _resBusy = false;
+                if (reserveBtn) { reserveBtn.disabled = false; reserveBtn.textContent = origLabel; }
             }
         }
 
