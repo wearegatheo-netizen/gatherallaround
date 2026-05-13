@@ -744,10 +744,13 @@
             .user-info { padding: 12px 14px; font-size: 0.9rem; flex-wrap: wrap; gap: 8px; }
             .tabs { flex-wrap: wrap; gap: 4px; }
             .tab { padding: 8px 12px; font-size: 0.85rem; flex: 1; min-width: 60px; text-align: center; }
-            .calendar-grid { gap: 4px; }
-            .calendar-day { min-height: 58px; padding: 3px 2px; }
+            .calendar-grid { gap: 2px; }
+            .calendar-day { min-height: 52px; padding: 4px 2px; }
             .cal-day-num { font-size: 0.85rem; }
-            .cal-day-info { font-size: 0.55rem; line-height: 1.15; gap: 0; }
+            .cal-day-info { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 2px; padding: 2px 0 0; }
+            .cal-day-info span { font-size: 0 !important; width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+            .cal-day-info .approved { background: var(--wds-primary); }
+            .cal-day-info .pending { background: #f39c12; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
             .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 1fr) !important; min-width: 494px; }
