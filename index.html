@@ -2669,14 +2669,11 @@
                 <div style="background:var(--wds-gray-100);border-radius:10px;padding:12px 14px;margin-bottom:14px">
                     <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">날짜 선택</div>
                     <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+                        <button type="button" onclick="schedEditorShiftDate(-1)" style="height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;font-size:0.85rem">◀</button>
                         <input type="date" id="schedEditorDateInput" value="${state.scheduleEditorDate}"
                             onchange="schedEditorInit(this.value)"
                             style="height:36px;padding:0 8px;border:1.5px solid var(--wds-primary);border-radius:6px;font-size:0.85rem;font-family:inherit;color:var(--wds-primary);font-weight:700;box-sizing:border-box">
-                        <button type="button" onclick="schedEditorShiftDate(-1)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;font-size:0.8rem">◀</button>
-                        <button type="button" onclick="schedEditorShiftDate(0)"
-                            style="height:32px;padding:0 8px;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-300)'};border-radius:6px;background:${isToday?'var(--wds-primary)':'white'};color:${isToday?'#fff':'inherit'};cursor:pointer;font-size:0.8rem;font-weight:${isToday?'700':'400'}">오늘</button>
-                        <button type="button" onclick="schedEditorShiftDate(1)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;font-size:0.8rem">▶</button>
-                        <span style="font-size:0.8rem;color:${isToday?'#ff4d4f':'var(--wds-gray-500)'};font-weight:${isToday?'700':'400'}">${isToday?'• 오늘':fmtDate(state.scheduleEditorDate)}</span>
+                        <button type="button" onclick="schedEditorShiftDate(1)" style="height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;font-size:0.85rem">▶</button>
                     </div>
                     <label style="display:flex;align-items:center;gap:7px;margin-bottom:12px;cursor:pointer;user-select:none;font-size:0.83rem;font-weight:600;color:var(--wds-gray-700)">
                         <input type="checkbox" id="schedBannerToggle" ${state.scheduleEditorShowBanner?'checked':''}
@@ -2809,9 +2806,9 @@
                         return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--wds-gray-100)">
                             <div style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;min-width:88px">${escapeHtml(timeStr)}</div>
                             <div style="flex:1;min-width:0">
-                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">🎵 ${escapeHtml(s.team_name)}</div>`:''}
+                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">${escapeHtml(s.team_name)}</div>`:''}
                                 ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">🎶 ${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
                             </div>
                         </div>`;
                     }).join('');
@@ -5862,17 +5859,11 @@
             const container = document.getElementById('notice_container');
             const isAdmin = canPostNotice();
             if (!notices || notices.length === 0) {
-                if (isAdmin) {
-                    container.classList.remove('hidden');
-                    container.innerHTML = `<div style="text-align:right;padding:4px 0"><button type="button" onclick="quickAddNotice()" style="padding:6px 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.8rem">+ 공지 추가</button></div>`;
-                } else {
-                    container.classList.add('hidden');
-                }
+                container.classList.add('hidden');
                 return;
             }
             container.classList.remove('hidden');
-            const addBtn = isAdmin ? `<div style="text-align:right;margin-bottom:8px"><button type="button" onclick="quickAddNotice()" style="padding:6px 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600;font-size:0.8rem">+ 공지 추가</button></div>` : '';
-            container.innerHTML = addBtn + notices.map(n => {
+            container.innerHTML = notices.map(n => {
                 const date = new Date(n.created_at).toLocaleDateString('ko-KR');
                 const safeTitle = n.title.replace(/</g,'&lt;').replace(/"/g,'&quot;');
                 const safeContent = (n.content||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
