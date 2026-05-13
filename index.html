@@ -104,7 +104,7 @@
         body.dark .notice-card { background: #2a2510 !important; border-color: #4a3d1a !important; }
         body.dark .like-btn.liked { background: #2a1515 !important; }
         body.dark [style*="background:linear-gradient(135deg,#667eea"] { background: linear-gradient(135deg, #3a4a8a, #4a3070) !important; }
-        .theme-toggle-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; height: 32px; cursor: pointer; font-size: 0.78rem; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: var(--wds-gray-700); margin-right: 6px; transition: 0.2s; white-space: nowrap; font-weight: 600; font-family: inherit; }
+        .theme-toggle-btn { background: none; border: 1px solid var(--wds-gray-300); border-radius: 20px; height: 32px; width: 36px; cursor: pointer; font-size: 1.05rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--wds-gray-700); margin-right: 6px; transition: 0.2s; font-family: inherit; }
         .theme-toggle-btn:hover { color: var(--wds-primary); border-color: var(--wds-primary); }
 
         body {
@@ -744,7 +744,7 @@
     <!-- 공지사항 (항상 표시) -->
     <!-- Landing/Login -->
     <div id="landing-page">
-        <button type="button" id="themeToggleBtnLanding" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙 다크</button>
+        <button type="button" id="themeToggleBtnLanding" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
         <h1>Gather all around</h1>
         <p>게더올어라운드 이용 시스템</p>
 
@@ -819,7 +819,10 @@
                     • 수집 항목: 이름, 전화번호, 이메일 주소, 메인 세션<br>
                     • 수집 목적: 합주실 예약 서비스 제공, 예약 확인 및 안내<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
-                    • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.
+                    • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.<br><br>
+                    <strong>서비스 이용 및 기록 보존 안내</strong><br>
+                    • 예약 내역, 참여 이력 등 활동 기록은 아카이빙 목적으로 탈퇴 후에도 서비스 내에 보존될 수 있습니다.<br>
+                    • 보존된 기록은 통계·참여율 산출 등에 활용되며, 개인 식별 정보와 분리하여 관리됩니다.
                 </div>
                 <label class="privacy-label">
                     <input type="checkbox" id="privacyConsent">
@@ -873,7 +876,11 @@
                     <input type="text" id="ksCustomInst" placeholder='","로 구분하여 추가 세션 작성' style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:8px">
                 </div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:18px">
+            <div style="background:#f8f9fa;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:0.75rem;color:var(--wds-gray-600);line-height:1.6">
+                <strong style="color:var(--wds-gray-700)">서비스 이용 안내</strong><br>
+                예약 내역·참여 이력 등 활동 기록은 탈퇴 후에도 아카이빙 목적으로 서비스 내에 보존될 수 있습니다. 가입 신청 시 이에 동의하는 것으로 간주됩니다.
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px">
                 <button type="button" onclick="handleLogout()" style="flex:1;padding:12px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">로그아웃</button>
                 <button type="button" onclick="submitKakaoSignup()" style="flex:2;padding:12px;border-radius:var(--wds-radius-s);border:none;background:var(--wds-primary);color:white;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">가입 신청</button>
             </div>
@@ -929,7 +936,7 @@
         <div id="userInfoArea" class="user-info">
             <span><strong id="userNameDisplay"></strong>님, 환영합니다!</span>
             <div style="display:flex;align-items:center;gap:4px">
-                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙 다크</button>
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
                 <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
             </div>
         </div>
@@ -1140,6 +1147,14 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
+            if (!document.querySelector('[data-view="schedule"]')) {
+                const schedTab = document.createElement('div');
+                schedTab.className = 'tab';
+                schedTab.dataset.view = 'schedule';
+                schedTab.textContent = '일정표';
+                tabs.appendChild(schedTab);
+                schedTab.addEventListener('click', onTabClick);
+            }
             fetchReservations();
             fetchComments();
             fetchNotices();
@@ -1236,6 +1251,8 @@
             if (adminTab) adminTab.remove();
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
+            const schedTab = document.querySelector('[data-view="schedule"]');
+            if (schedTab) schedTab.remove();
 
             state.user = null;
             notices = [];
@@ -1287,6 +1304,8 @@
                 else if (r.status === 'pending') pendingCount++;
                 return true;
             });
+            const totalApproved = state.reservations.filter(r => r.status === 'approved').length;
+            const participationPct = totalApproved > 0 ? Math.round((approvedCount / totalApproved) * 100) : 0;
             const myTeams = profile
                 ? state.teams.filter(t => (t.members || []).some(s => s.memberId === profile.id))
                 : [];
@@ -1399,7 +1418,9 @@
                     <div class="stat-card" style="border-left:4px solid var(--wds-primary)"><div class="stat-label">전체 예약</div><div class="stat-value">${myRes.length}</div></div>
                     <div class="stat-card" style="border-left:4px solid #00b894"><div class="stat-label">승인됨</div><div class="stat-value">${approvedCount}</div></div>
                     <div class="stat-card" style="border-left:4px solid #f0a050"><div class="stat-label">대기중</div><div class="stat-value">${pendingCount}</div></div>
+                    <div class="stat-card" style="border-left:4px solid #6c5ce7"><div class="stat-label">참여율</div><div class="stat-value">${participationPct}%</div></div>
                 </div>
+                <div style="font-size:0.75rem;color:var(--wds-gray-500);margin-top:4px">참여율 = 내 승인 예약 / 전체 승인 예약</div>
                 ${teamsHtml}
             `;
         }
@@ -1530,7 +1551,9 @@
             pollVotes: [],
             editingPoll: { options: ['', ''] },
             statsFilter: 'all',
-            paging: {}
+            paging: {},
+            schedules: [],
+            scheduleFilter: 'upcoming'
         };
 
         const PAGE_SIZE = 10;
@@ -1701,7 +1724,7 @@
             const nav = document.querySelector('.nav-btns');
             container.innerHTML = '';
             const d = state.viewDate;
-            const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
+            const isSpecial = state.currentView === 'my' || state.currentView === 'admin' || state.currentView === 'schedule';
             const hideSubmit = isSpecial || state.currentView === 'month';
             const submitBtn = document.querySelector('#reservationForm .submit-btn');
             const result = document.getElementById('result');
@@ -1716,6 +1739,10 @@
                 title.textContent = '';
                 if (nav) nav.style.display = 'none';
                 renderAdminPage(container);
+            } else if (state.currentView === 'schedule') {
+                title.textContent = '일정표';
+                if (nav) nav.style.display = 'none';
+                renderScheduleView(container);
             } else {
                 if (nav) nav.style.display = 'flex';
                 if (state.currentView === 'month') {
@@ -1739,7 +1766,7 @@
             const sel = document.getElementById('participantSelect');
             const chips = document.getElementById('participantChips');
             if (!section || !sel || !chips) return;
-            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month';
+            const isReservable = state.currentView !== 'my' && state.currentView !== 'admin' && state.currentView !== 'month' && state.currentView !== 'schedule';
             const show = isReservable && state.startTime;
             section.style.display = show ? '' : 'none';
             if (!show) return;
@@ -2170,6 +2197,189 @@
             if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('teams').select('*').order('created_at', { ascending: false });
             if (!error) state.teams = data || [];
+        }
+
+        async function fetchSchedules() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.from('schedules').select('*').order('date', { ascending: false }).order('start_time', { ascending: false });
+            if (!error) state.schedules = data || [];
+        }
+
+        async function saveSchedule() {
+            const id = document.getElementById('schedFormId')?.value;
+            const date = document.getElementById('schedFormDate')?.value;
+            const startTime = document.getElementById('schedFormStart')?.value;
+            const endTime = document.getElementById('schedFormEnd')?.value;
+            const teamId = document.getElementById('schedFormTeam')?.value;
+            const note = document.getElementById('schedFormNote')?.value?.trim();
+            if (!date || !startTime) { alert('날짜와 시작 시간을 선택해주세요.'); return; }
+            const team = state.teams.find(t => t.id === teamId);
+            const record = {
+                date,
+                start_time: startTime,
+                end_time: endTime || null,
+                team_id: teamId || null,
+                team_name: team ? team.name : null,
+                members: team ? (team.members || []) : [],
+                songs: team ? (team.songs || []) : [],
+                note: note || null,
+                created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
+            };
+            let error;
+            if (id) {
+                ({ error } = await supabaseClient.from('schedules').update(record).eq('id', id));
+            } else {
+                ({ error } = await supabaseClient.from('schedules').insert([record]));
+            }
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            showToast('일정이 저장되었습니다.');
+            await fetchSchedules();
+            const container = document.getElementById('viewContainer');
+            if (container) renderScheduleView(container);
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('이 일정을 삭제할까요?')) return;
+            const { error } = await supabaseClient.from('schedules').delete().eq('id', id);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
+            showToast('삭제되었습니다.');
+            await fetchSchedules();
+            const container = document.getElementById('viewContainer');
+            if (container) renderScheduleView(container);
+        }
+
+        function onScheduleTeamChange() {
+            const teamId = document.getElementById('schedFormTeam')?.value;
+            const team = state.teams.find(t => t.id === teamId);
+            const preview = document.getElementById('schedTeamPreview');
+            if (!preview) return;
+            if (!team) { preview.innerHTML = ''; return; }
+            const members = (team.members || []).map(s => s.memberName || s.memberId || '').filter(Boolean);
+            const songs = (team.songs || []).map(s => s.title || s).filter(Boolean);
+            preview.innerHTML = `
+                <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;font-size:0.82rem;margin-top:8px">
+                    ${members.length ? `<div style="margin-bottom:4px"><strong>멤버:</strong> ${members.map(n => escapeHtml(n)).join(', ')}</div>` : ''}
+                    ${songs.length ? `<div><strong>곡:</strong> ${songs.slice(0,3).map(s => escapeHtml(s)).join(', ')}${songs.length > 3 ? ` 외 ${songs.length-3}곡` : ''}</div>` : ''}
+                </div>`;
+        }
+
+        async function renderScheduleView(container) {
+            await fetchSchedules();
+            if (state.teams.length === 0) await fetchTeams();
+            const TIMES = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
+            const allScheds = state.schedules || [];
+            const today = new Date().toLocaleDateString('en-CA');
+            const upcoming = allScheds.filter(s => s.date >= today).reverse();
+            const past = allScheds.filter(s => s.date < today);
+            const showPast = state.scheduleFilter === 'past';
+            const list = showPast ? past : upcoming;
+
+            const scheduleCard = (s) => {
+                const members = (s.members || []).map(m => m.memberName || m.memberId || '').filter(Boolean);
+                const songs = (s.songs || []).map(sg => sg.title || sg).filter(Boolean);
+                const timeStr = s.start_time + (s.end_time ? ` ~ ${s.end_time}` : '');
+                const isPast = s.date < today;
+                return `<div style="background:white;border:1px solid var(--wds-gray-200);border-radius:10px;padding:14px 16px;margin-bottom:10px;${isPast?'opacity:0.75':''}">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+                        <div>
+                            <div style="font-size:1rem;font-weight:700;color:var(--wds-gray-900)">${escapeHtml(s.date)} <span style="font-size:0.85rem;font-weight:600;color:var(--wds-primary)">${escapeHtml(timeStr)}</span></div>
+                            ${s.team_name ? `<div style="font-size:0.85rem;font-weight:600;color:#6c5ce7;margin-top:2px">🎵 ${escapeHtml(s.team_name)}</div>` : ''}
+                        </div>
+                        <div style="display:flex;gap:6px;flex-shrink:0">
+                            <button type="button" onclick="showScheduleEditForm('${s.id}')" style="padding:4px 10px;font-size:0.78rem;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;color:var(--wds-gray-700)">수정</button>
+                            <button type="button" onclick="deleteSchedule('${s.id}')" style="padding:4px 10px;font-size:0.78rem;border:1px solid #fca5a5;border-radius:6px;background:white;cursor:pointer;color:#e74c3c">삭제</button>
+                        </div>
+                    </div>
+                    ${members.length ? `<div style="font-size:0.82rem;color:var(--wds-gray-700);margin-bottom:4px">👥 ${members.map(n=>escapeHtml(n)).join(' · ')}</div>` : ''}
+                    ${songs.length ? `<div style="font-size:0.82rem;color:var(--wds-gray-600)">🎶 ${songs.slice(0,4).map(sg=>escapeHtml(sg)).join(', ')}${songs.length>4?` 외 ${songs.length-4}곡`:''}</div>` : ''}
+                    ${s.note ? `<div style="font-size:0.82rem;color:var(--wds-gray-500);margin-top:6px;padding-top:6px;border-top:1px solid var(--wds-gray-100)">📝 ${escapeHtml(s.note)}</div>` : ''}
+                </div>`;
+            };
+
+            const teamOptions = state.teams.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+            const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
+            const endTimeOptions = TIMES.map((t, i) => {
+                const endLabel = i === TIMES.length - 1 ? '23:00' : TIMES[i + 1];
+                return `<option value="${endLabel}">${endLabel}</option>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div style="margin-bottom:16px">
+                    <div style="display:flex;gap:6px;margin-bottom:14px">
+                        <button type="button" onclick="state.scheduleFilter='upcoming';render()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${!showPast?'var(--wds-primary)':'white'};color:${!showPast?'#fff':'var(--wds-primary)'}">다가오는 일정</button>
+                        <button type="button" onclick="state.scheduleFilter='past';render()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${showPast?'var(--wds-primary)':'white'};color:${showPast?'#fff':'var(--wds-primary)'}">지난 일정</button>
+                    </div>
+
+                    <div id="schedFormWrap" style="background:var(--wds-gray-100);border-radius:10px;padding:14px;margin-bottom:14px">
+                        <div style="font-size:0.88rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:10px" id="schedFormTitle">+ 새 일정 추가</div>
+                        <input type="hidden" id="schedFormId">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                            <div>
+                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">날짜</label>
+                                <input type="date" id="schedFormDate" value="${today}" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;margin-top:2px">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">팀 선택</label>
+                                <select id="schedFormTeam" onchange="onScheduleTeamChange()" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">
+                                    <option value="">팀 없음</option>
+                                    ${teamOptions}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                            <div>
+                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">시작 시간</label>
+                                <select id="schedFormStart" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">${timeOptions}</select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">종료 시간</label>
+                                <select id="schedFormEnd" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">
+                                    <option value="">미정</option>
+                                    ${endTimeOptions}
+                                </select>
+                            </div>
+                        </div>
+                        <div id="schedTeamPreview"></div>
+                        <textarea id="schedFormNote" placeholder="메모 (선택)" rows="2" style="width:100%;padding:8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;margin-top:8px"></textarea>
+                        <div style="display:flex;gap:8px;margin-top:8px">
+                            <button type="button" id="schedCancelBtn" onclick="resetScheduleForm()" style="display:none;flex:1;padding:9px;border:1px solid var(--wds-gray-300);background:white;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;font-family:inherit">취소</button>
+                            <button type="button" onclick="saveSchedule()" style="flex:2;padding:9px;border:none;background:var(--wds-primary);color:white;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">저장</button>
+                        </div>
+                    </div>
+
+                    ${list.length === 0 ? `<p style="text-align:center;color:var(--wds-gray-500);font-size:0.9rem;padding:20px">${showPast ? '지난 일정이 없습니다.' : '등록된 일정이 없습니다.'}</p>` : list.map(scheduleCard).join('')}
+                </div>
+            `;
+        }
+
+        function showScheduleEditForm(id) {
+            const s = (state.schedules || []).find(x => x.id === id);
+            if (!s) return;
+            document.getElementById('schedFormId').value = s.id;
+            document.getElementById('schedFormDate').value = s.date;
+            document.getElementById('schedFormTeam').value = s.team_id || '';
+            document.getElementById('schedFormStart').value = s.start_time;
+            document.getElementById('schedFormEnd').value = s.end_time || '';
+            document.getElementById('schedFormNote').value = s.note || '';
+            document.getElementById('schedFormTitle').textContent = '✏️ 일정 수정';
+            const cancelBtn = document.getElementById('schedCancelBtn');
+            if (cancelBtn) cancelBtn.style.display = '';
+            onScheduleTeamChange();
+            document.getElementById('schedFormWrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function resetScheduleForm() {
+            document.getElementById('schedFormId').value = '';
+            document.getElementById('schedFormDate').value = new Date().toLocaleDateString('en-CA');
+            document.getElementById('schedFormTeam').value = '';
+            document.getElementById('schedFormStart').selectedIndex = 0;
+            document.getElementById('schedFormEnd').value = '';
+            document.getElementById('schedFormNote').value = '';
+            document.getElementById('schedFormTitle').textContent = '+ 새 일정 추가';
+            const cancelBtn = document.getElementById('schedCancelBtn');
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            const preview = document.getElementById('schedTeamPreview');
+            if (preview) preview.innerHTML = '';
         }
 
         async function renderTeamsTab(container) {
@@ -4894,7 +5104,7 @@
         function applyTheme(theme) {
             const isDark = theme === 'dark';
             document.body.classList.toggle('dark', isDark);
-            const label = isDark ? '☀️ 라이트' : '🌙 다크';
+            const label = isDark ? '☀️' : '🌙';
             const a = document.getElementById('themeToggleBtn');
             const b = document.getElementById('themeToggleBtnLanding');
             if (a) a.textContent = label;
