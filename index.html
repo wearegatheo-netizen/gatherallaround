@@ -292,6 +292,7 @@
         .calendar-day { min-height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; border-radius: var(--wds-radius-m); transition: 0.2s; padding: 4px; gap: 2px; }
         .cal-day-num { font-size: 0.95rem; }
         .cal-day-info { font-size: 0.62rem; line-height: 1.2; display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; padding: 0 2px; }
+        .cal-ri, .cal-ru { font-style: normal; }
         .cal-day-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
         .cal-day-info .approved { color: var(--wds-primary); font-weight: 600; }
         .cal-day-info .pending { color: #f0a050; }
@@ -747,10 +748,8 @@
             .calendar-grid { gap: 2px; }
             .calendar-day { min-height: 52px; padding: 4px 2px; }
             .cal-day-num { font-size: 0.85rem; }
-            .cal-day-info { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 2px; padding: 2px 0 0; }
-            .cal-day-info span { font-size: 0 !important; width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-            .cal-day-info .approved { background: var(--wds-primary); }
-            .cal-day-info .pending { background: #f39c12; }
+            .cal-day-info { font-size: 0.52rem; line-height: 1.2; gap: 1px; }
+            .cal-ri, .cal-ru { display: none; }
             .calendar-day-header { font-size: 0.75rem; padding-bottom: 8px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--wds-radius-m); }
             .weekly-grid:not(.day-grid) { grid-template-columns: 46px repeat(7, 1fr) !important; min-width: 494px; }
@@ -4204,16 +4203,16 @@
                     const icon = r.status === 'approved' ? '✓' : '⏳';
                     const etcTitle = canApproveRes() && r.participant_etc ? ` title="기타: ${r.participant_etc.replace(/"/g,'&quot;')}"` : '';
                     const etcMark = canApproveRes() && r.participant_etc ? '<span style="color:#e07b00">*</span>' : '';
-                    info.innerHTML += `<span class="${cls}"${etcTitle}>${icon}${startH}-${endH}시${etcMark}</span>`;
+                    info.innerHTML += `<span class="${cls}"${etcTitle}><i class="cal-ri">${icon}</i>${startH}-${endH}<i class="cal-ru">시</i>${etcMark}</span>`;
                 });
                 if (dayRes.length > 3) {
-                    info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}건</span>`;
+                    info.innerHTML += `<span style="color:var(--wds-gray-500)">+${dayRes.length - 3}<i class="cal-ru">건</i></span>`;
                 }
                 dayBlocks.forEach(b => {
                     const sh = parseInt(b.start_time.split(':')[0]);
                     const endStr = TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00';
                     const eh = parseInt(endStr.split(':')[0]);
-                    info.innerHTML += `<span style="color:#e74c3c">🚫${sh}-${eh}시</span>`;
+                    info.innerHTML += `<span style="color:#e74c3c"><i class="cal-ri">🚫</i>${sh}-${eh}<i class="cal-ru">시</i></span>`;
                 });
                 if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
 
