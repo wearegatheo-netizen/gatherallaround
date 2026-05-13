@@ -2192,26 +2192,34 @@
 
         async function fetchSchedules() {
             if (!supabaseClient) return;
-            const { data, error } = await supabaseClient.from('schedules').select('*').order('date', { ascending: false }).order('start_time', { ascending: false });
-            if (!error) state.schedules = data || [];
+            const { data, error } = await supabaseClient.from('schedules').select('*').order('date', { ascending: true }).order('start_time', { ascending: true });
+            if (!error) { state.schedules = data || []; renderScheduleBanner(); }
         }
 
         async function saveSchedule() {
+            if (!canApproveRes()) { alert('세션장 이상 권한이 필요합니다.'); return; }
             const id = document.getElementById('schedFormId')?.value;
             const date = document.getElementById('schedFormDate')?.value;
-            const startTime = document.getElementById('schedFormStart')?.value;
-            const endTime = document.getElementById('schedFormEnd')?.value;
+            const startTime = (document.getElementById('schedFormStart')?.value || '').trim();
+            const endTime = (document.getElementById('schedFormEnd')?.value || '').trim();
             const teamId = document.getElementById('schedFormTeam')?.value;
             const note = document.getElementById('schedFormNote')?.value?.trim();
-            if (!date || !startTime) { alert('날짜와 시작 시간을 선택해주세요.'); return; }
+            if (!date || !startTime) { alert('날짜와 시작 시간을 입력해주세요.'); return; }
             const team = state.teams.find(t => t.id === teamId);
+            const memberMap = {};
+            (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
+            const members = team ? (team.members || []).map(slot => ({
+                session: slot.session,
+                memberId: slot.memberId,
+                memberName: memberMap[slot.memberId] ? memberMap[slot.memberId].name : (slot.memberName || '')
+            })) : [];
             const record = {
                 date,
                 start_time: startTime,
                 end_time: endTime || null,
                 team_id: teamId || null,
                 team_name: team ? team.name : null,
-                members: team ? (team.members || []) : [],
+                members,
                 songs: team ? (team.songs || []) : [],
                 note: note || null,
                 created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
@@ -2225,18 +2233,19 @@
             if (error) { alert('저장 실패: ' + error.message); return; }
             showToast('일정이 저장되었습니다.');
             await fetchSchedules();
-            const container = document.getElementById('viewContainer');
-            if (container) renderScheduleView(container);
+            const container = document.getElementById('memberPanelView');
+            if (container && state.memberPanelTab === 'schedule') await renderScheduleView(container);
         }
 
         async function deleteSchedule(id) {
+            if (!canApproveRes()) return;
             if (!confirm('이 일정을 삭제할까요?')) return;
             const { error } = await supabaseClient.from('schedules').delete().eq('id', id);
             if (error) { alert('삭제 실패: ' + error.message); return; }
             showToast('삭제되었습니다.');
             await fetchSchedules();
-            const container = document.getElementById('viewContainer');
-            if (container) renderScheduleView(container);
+            const container = document.getElementById('memberPanelView');
+            if (container && state.memberPanelTab === 'schedule') await renderScheduleView(container);
         }
 
         function onScheduleTeamChange() {
@@ -2245,102 +2254,18 @@
             const preview = document.getElementById('schedTeamPreview');
             if (!preview) return;
             if (!team) { preview.innerHTML = ''; return; }
-            const members = (team.members || []).map(s => s.memberName || s.memberId || '').filter(Boolean);
+            const memberMap = {};
+            (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
+            const members = (team.members || []).map(s => {
+                const m = memberMap[s.memberId];
+                return m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : (s.memberName || '?');
+            }).filter(Boolean);
             const songs = (team.songs || []).map(s => s.title || s).filter(Boolean);
             preview.innerHTML = `
-                <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;font-size:0.82rem;margin-top:8px">
-                    ${members.length ? `<div style="margin-bottom:4px"><strong>멤버:</strong> ${members.map(n => escapeHtml(n)).join(', ')}</div>` : ''}
-                    ${songs.length ? `<div><strong>곡:</strong> ${songs.slice(0,3).map(s => escapeHtml(s)).join(', ')}${songs.length > 3 ? ` 외 ${songs.length-3}곡` : ''}</div>` : ''}
+                <div style="background:var(--wds-primary-light);border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-top:6px;border:1px solid rgba(51,102,255,0.15)">
+                    ${members.length ? `<div style="margin-bottom:3px;color:var(--wds-gray-700)"><strong style="color:var(--wds-primary)">멤버</strong> ${members.map(n => escapeHtml(n)).join(' · ')}</div>` : ''}
+                    ${songs.length ? `<div style="color:var(--wds-gray-700)"><strong style="color:var(--wds-primary)">곡</strong> ${songs.slice(0,4).map(s => escapeHtml(s)).join(', ')}${songs.length > 4 ? ` 외 ${songs.length-4}곡` : ''}</div>` : ''}
                 </div>`;
-        }
-
-        async function renderScheduleView(container) {
-            await fetchSchedules();
-            if (state.teams.length === 0) await fetchTeams();
-            const TIMES = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
-            const allScheds = state.schedules || [];
-            const today = new Date().toLocaleDateString('en-CA');
-            const upcoming = allScheds.filter(s => s.date >= today).reverse();
-            const past = allScheds.filter(s => s.date < today);
-            const showPast = state.scheduleFilter === 'past';
-            const list = showPast ? past : upcoming;
-
-            const scheduleCard = (s) => {
-                const members = (s.members || []).map(m => m.memberName || m.memberId || '').filter(Boolean);
-                const songs = (s.songs || []).map(sg => sg.title || sg).filter(Boolean);
-                const timeStr = s.start_time + (s.end_time ? ` ~ ${s.end_time}` : '');
-                const isPast = s.date < today;
-                return `<div style="background:white;border:1px solid var(--wds-gray-200);border-radius:10px;padding:14px 16px;margin-bottom:10px;${isPast?'opacity:0.75':''}">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
-                        <div>
-                            <div style="font-size:1rem;font-weight:700;color:var(--wds-gray-900)">${escapeHtml(s.date)} <span style="font-size:0.85rem;font-weight:600;color:var(--wds-primary)">${escapeHtml(timeStr)}</span></div>
-                            ${s.team_name ? `<div style="font-size:0.85rem;font-weight:600;color:#6c5ce7;margin-top:2px">🎵 ${escapeHtml(s.team_name)}</div>` : ''}
-                        </div>
-                        <div style="display:flex;gap:6px;flex-shrink:0">
-                            <button type="button" onclick="showScheduleEditForm('${s.id}')" style="padding:4px 10px;font-size:0.78rem;border:1px solid var(--wds-gray-300);border-radius:6px;background:white;cursor:pointer;color:var(--wds-gray-700)">수정</button>
-                            <button type="button" onclick="deleteSchedule('${s.id}')" style="padding:4px 10px;font-size:0.78rem;border:1px solid #fca5a5;border-radius:6px;background:white;cursor:pointer;color:#e74c3c">삭제</button>
-                        </div>
-                    </div>
-                    ${members.length ? `<div style="font-size:0.82rem;color:var(--wds-gray-700);margin-bottom:4px">👥 ${members.map(n=>escapeHtml(n)).join(' · ')}</div>` : ''}
-                    ${songs.length ? `<div style="font-size:0.82rem;color:var(--wds-gray-600)">🎶 ${songs.slice(0,4).map(sg=>escapeHtml(sg)).join(', ')}${songs.length>4?` 외 ${songs.length-4}곡`:''}</div>` : ''}
-                    ${s.note ? `<div style="font-size:0.82rem;color:var(--wds-gray-500);margin-top:6px;padding-top:6px;border-top:1px solid var(--wds-gray-100)">📝 ${escapeHtml(s.note)}</div>` : ''}
-                </div>`;
-            };
-
-            const teamOptions = state.teams.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
-            const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
-            const endTimeOptions = TIMES.map((t, i) => {
-                const endLabel = i === TIMES.length - 1 ? '23:00' : TIMES[i + 1];
-                return `<option value="${endLabel}">${endLabel}</option>`;
-            }).join('');
-
-            container.innerHTML = `
-                <div style="margin-bottom:16px">
-                    <div style="display:flex;gap:6px;margin-bottom:14px">
-                        <button type="button" onclick="state.scheduleFilter='upcoming';render()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${!showPast?'var(--wds-primary)':'white'};color:${!showPast?'#fff':'var(--wds-primary)'}">다가오는 일정</button>
-                        <button type="button" onclick="state.scheduleFilter='past';render()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${showPast?'var(--wds-primary)':'white'};color:${showPast?'#fff':'var(--wds-primary)'}">지난 일정</button>
-                    </div>
-
-                    <div id="schedFormWrap" style="background:var(--wds-gray-100);border-radius:10px;padding:14px;margin-bottom:14px">
-                        <div style="font-size:0.88rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:10px" id="schedFormTitle">+ 새 일정 추가</div>
-                        <input type="hidden" id="schedFormId">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                            <div>
-                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">날짜</label>
-                                <input type="date" id="schedFormDate" value="${today}" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;margin-top:2px">
-                            </div>
-                            <div>
-                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">팀 선택</label>
-                                <select id="schedFormTeam" onchange="onScheduleTeamChange()" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">
-                                    <option value="">팀 없음</option>
-                                    ${teamOptions}
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-                            <div>
-                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">시작 시간</label>
-                                <select id="schedFormStart" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">${timeOptions}</select>
-                            </div>
-                            <div>
-                                <label style="font-size:0.78rem;font-weight:600;color:var(--wds-gray-600)">종료 시간</label>
-                                <select id="schedFormEnd" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">
-                                    <option value="">미정</option>
-                                    ${endTimeOptions}
-                                </select>
-                            </div>
-                        </div>
-                        <div id="schedTeamPreview"></div>
-                        <textarea id="schedFormNote" placeholder="메모 (선택)" rows="2" style="width:100%;padding:8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;margin-top:8px"></textarea>
-                        <div style="display:flex;gap:8px;margin-top:8px">
-                            <button type="button" id="schedCancelBtn" onclick="resetScheduleForm()" style="display:none;flex:1;padding:9px;border:1px solid var(--wds-gray-300);background:white;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;font-family:inherit">취소</button>
-                            <button type="button" onclick="saveSchedule()" style="flex:2;padding:9px;border:none;background:var(--wds-primary);color:white;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">저장</button>
-                        </div>
-                    </div>
-
-                    ${list.length === 0 ? `<p style="text-align:center;color:var(--wds-gray-500);font-size:0.9rem;padding:20px">${showPast ? '지난 일정이 없습니다.' : '등록된 일정이 없습니다.'}</p>` : list.map(scheduleCard).join('')}
-                </div>
-            `;
         }
 
         function showScheduleEditForm(id) {
@@ -2349,7 +2274,7 @@
             document.getElementById('schedFormId').value = s.id;
             document.getElementById('schedFormDate').value = s.date;
             document.getElementById('schedFormTeam').value = s.team_id || '';
-            document.getElementById('schedFormStart').value = s.start_time;
+            document.getElementById('schedFormStart').value = s.start_time || '';
             document.getElementById('schedFormEnd').value = s.end_time || '';
             document.getElementById('schedFormNote').value = s.note || '';
             document.getElementById('schedFormTitle').textContent = '✏️ 일정 수정';
@@ -2360,17 +2285,151 @@
         }
 
         function resetScheduleForm() {
-            document.getElementById('schedFormId').value = '';
-            document.getElementById('schedFormDate').value = new Date().toLocaleDateString('en-CA');
-            document.getElementById('schedFormTeam').value = '';
-            document.getElementById('schedFormStart').selectedIndex = 0;
-            document.getElementById('schedFormEnd').value = '';
-            document.getElementById('schedFormNote').value = '';
-            document.getElementById('schedFormTitle').textContent = '+ 새 일정 추가';
+            const idEl = document.getElementById('schedFormId');
+            const dateEl = document.getElementById('schedFormDate');
+            const teamEl = document.getElementById('schedFormTeam');
+            const startEl = document.getElementById('schedFormStart');
+            const endEl = document.getElementById('schedFormEnd');
+            const noteEl = document.getElementById('schedFormNote');
+            const titleEl = document.getElementById('schedFormTitle');
             const cancelBtn = document.getElementById('schedCancelBtn');
-            if (cancelBtn) cancelBtn.style.display = 'none';
             const preview = document.getElementById('schedTeamPreview');
+            if (idEl) idEl.value = '';
+            if (dateEl) dateEl.value = new Date().toLocaleDateString('en-CA');
+            if (teamEl) teamEl.value = '';
+            if (startEl) startEl.value = '';
+            if (endEl) endEl.value = '';
+            if (noteEl) noteEl.value = '';
+            if (titleEl) titleEl.textContent = '+ 새 항목 추가';
+            if (cancelBtn) cancelBtn.style.display = 'none';
             if (preview) preview.innerHTML = '';
+        }
+
+        async function renderScheduleView(container) {
+            if (!container) return;
+            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            await fetchSchedules();
+            if (state.teams.length === 0) await fetchTeams();
+            if (!state.cachedMembers || state.cachedMembers.length === 0) {
+                const members = await fetchMembers();
+                state.cachedMembers = (members || []).filter(m => m.status === 'approved');
+            }
+            const memberMap = {};
+            (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
+
+            const allScheds = state.schedules || [];
+            const today = new Date().toLocaleDateString('en-CA');
+            const showPast = state.scheduleFilter === 'past';
+
+            let list = showPast
+                ? allScheds.filter(s => s.date < today)
+                : allScheds.filter(s => s.date >= today);
+
+            // Group by date
+            const dateMap = {};
+            list.forEach(s => {
+                if (!dateMap[s.date]) dateMap[s.date] = [];
+                dateMap[s.date].push(s);
+            });
+            const sortedDates = Object.keys(dateMap).sort(showPast ? (a,b) => b.localeCompare(a) : undefined);
+
+            const fmtDate = (d) => {
+                const parts = d.split('-');
+                const days = ['일','월','화','수','목','금','토'];
+                const dow = new Date(d).getDay();
+                const dayNames = {0:'일',1:'월',2:'화',3:'수',4:'목',5:'금',6:'토'};
+                return `${parseInt(parts[1])}월 ${parseInt(parts[2])}일 (${dayNames[dow]})`;
+            };
+
+            const timetableDay = (date, entries) => {
+                const isToday = date === today;
+                const sortedEntries = [...entries].sort((a,b) => (a.start_time||'').localeCompare(b.start_time||''));
+                const canEdit = canApproveRes();
+                const entriesHtml = sortedEntries.map(s => {
+                    const members = (s.members || []).map(m => {
+                        const prof = memberMap[m.memberId];
+                        const name = prof ? prof.name.replace(/\s*\(.*?\)\s*$/, '') : (m.memberName || '?');
+                        return `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--wds-gray-100);border-radius:6px;padding:2px 7px;font-size:0.75rem"><strong style="color:var(--wds-primary);font-size:0.7rem">${escapeHtml(s.team_name?'':'')}</strong>${escapeHtml(m.session ? m.session+' ' : '')}${escapeHtml(name)}</span>`;
+                    }).join('');
+                    const songs = (s.songs || []).map(sg => sg.title || sg).filter(Boolean);
+                    const timeStr = s.start_time + (s.end_time ? ` ~ ${s.end_time}` : '');
+                    return `<div style="border-left:3px solid var(--wds-primary);padding:8px 12px;margin-bottom:8px;background:white;border-radius:0 8px 8px 0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px">
+                            <div>
+                                <span style="font-size:0.95rem;font-weight:700;color:var(--wds-primary)">${escapeHtml(timeStr)}</span>
+                                ${s.team_name ? `<span style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-800);margin-left:8px">🎵 ${escapeHtml(s.team_name)}</span>` : ''}
+                            </div>
+                            ${canEdit ? `<div style="display:flex;gap:4px;flex-shrink:0">
+                                <button type="button" onclick="showScheduleEditForm('${s.id}')" style="padding:3px 8px;font-size:0.72rem;border:1px solid var(--wds-gray-300);border-radius:5px;background:white;cursor:pointer;color:var(--wds-gray-700)">수정</button>
+                                <button type="button" onclick="deleteSchedule('${s.id}')" style="padding:3px 8px;font-size:0.72rem;border:1px solid #fca5a5;border-radius:5px;background:white;cursor:pointer;color:#e74c3c">삭제</button>
+                            </div>` : ''}
+                        </div>
+                        ${members ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:${songs.length?'5px':'0'}">${members}</div>` : ''}
+                        ${songs.length ? `<div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:2px">🎶 ${songs.slice(0,4).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>4?` 외 ${songs.length-4}곡`:''}</div>` : ''}
+                        ${s.note ? `<div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:5px;padding-top:5px;border-top:1px dashed var(--wds-gray-200)">📝 ${escapeHtml(s.note)}</div>` : ''}
+                    </div>`;
+                }).join('');
+
+                return `<div style="margin-bottom:16px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'}">
+                        ${isToday ? '<span style="background:#ff4d4f;color:#fff;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:10px">오늘</span>' : ''}
+                        <span style="font-size:0.95rem;font-weight:700;color:${isToday?'var(--wds-primary)':'var(--wds-gray-800)'}">${fmtDate(date)}</span>
+                        <span style="font-size:0.75rem;color:var(--wds-gray-500)">${entries.length}개 팀</span>
+                    </div>
+                    ${entriesHtml}
+                </div>`;
+            };
+
+            const canEdit = canApproveRes();
+            const teamOptions = state.teams.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+
+            const formHtml = canEdit ? `
+                <div id="schedFormWrap" style="background:var(--wds-gray-100);border-radius:10px;padding:14px;margin-bottom:16px">
+                    <div style="font-size:0.88rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:10px" id="schedFormTitle">+ 새 항목 추가</div>
+                    <input type="hidden" id="schedFormId">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:var(--wds-gray-600)">날짜</label>
+                            <input type="date" id="schedFormDate" value="${today}" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;margin-top:2px">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:var(--wds-gray-600)">팀 선택</label>
+                            <select id="schedFormTeam" onchange="onScheduleTeamChange()" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;background:white;box-sizing:border-box;margin-top:2px">
+                                <option value="">팀 없음</option>
+                                ${teamOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:var(--wds-gray-600)">시작 시간 <span style="font-weight:400;color:var(--wds-gray-400)">(예: 10:30)</span></label>
+                            <input type="text" id="schedFormStart" placeholder="10:30" maxlength="5" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;margin-top:2px">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:var(--wds-gray-600)">종료 시간 <span style="font-weight:400;color:var(--wds-gray-400)">(선택)</span></label>
+                            <input type="text" id="schedFormEnd" placeholder="12:00" maxlength="5" style="width:100%;height:38px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;margin-top:2px">
+                        </div>
+                    </div>
+                    <div id="schedTeamPreview"></div>
+                    <textarea id="schedFormNote" placeholder="메모 (선택)" rows="2" style="width:100%;padding:8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;margin-top:6px"></textarea>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button type="button" id="schedCancelBtn" onclick="resetScheduleForm()" style="display:none;flex:1;padding:9px;border:1px solid var(--wds-gray-300);background:white;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;font-family:inherit">취소</button>
+                        <button type="button" onclick="saveSchedule()" style="flex:2;padding:9px;border:none;background:var(--wds-primary);color:white;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">저장</button>
+                    </div>
+                </div>` : '';
+
+            container.innerHTML = `
+                <div>
+                    <div style="display:flex;gap:6px;margin-bottom:14px">
+                        <button type="button" onclick="state.scheduleFilter='upcoming';renderMemberPanel()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${!showPast?'var(--wds-primary)':'white'};color:${!showPast?'#fff':'var(--wds-primary)'}">다가오는 일정</button>
+                        <button type="button" onclick="state.scheduleFilter='past';renderMemberPanel()" style="flex:1;padding:7px 0;font-size:0.83rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${showPast?'var(--wds-primary)':'white'};color:${showPast?'#fff':'var(--wds-primary)'}">지난 일정</button>
+                    </div>
+                    ${formHtml}
+                    ${sortedDates.length === 0
+                        ? `<p style="text-align:center;color:var(--wds-gray-500);font-size:0.9rem;padding:30px 0">${showPast ? '지난 일정이 없습니다.' : '등록된 일정이 없습니다.'}</p>`
+                        : sortedDates.map(d => timetableDay(d, dateMap[d])).join('')}
+                </div>
+            `;
         }
 
         async function renderTeamsTab(container) {
@@ -2452,35 +2511,52 @@
             const isEdit = !!team;
             c.classList.remove('hidden');
             c.innerHTML = `
-                <h4>${isEdit ? '팀 수정' : '새 팀 만들기'}</h4>
-                <input type="text" id="teamName" placeholder="팀 이름" value="${isEdit ? escapeHtml(team.name) : ''}">
-                <div class="team-form-row">
-                    <label style="font-size:0.85rem;font-weight:600;flex:0 0 80px">활동 기간</label>
-                    <input type="date" id="teamStartDate" value="${isEdit && team.start_date ? team.start_date : ''}">
-                    <span>~</span>
-                    <input type="date" id="teamEndDate" value="${isEdit && team.end_date ? team.end_date : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--wds-primary)">
+                    <h4 style="margin:0;font-size:1.02rem;color:var(--wds-primary)">${isEdit ? '팀 수정' : '새 팀 만들기'}</h4>
+                    <button type="button" onclick="hideTeamForm()" style="background:none;border:none;cursor:pointer;color:var(--wds-gray-400);font-size:1.2rem;padding:0;line-height:1">×</button>
                 </div>
-                <div class="music-search-box">
-                    <label>합주 곡 (여러 곡 추가 가능)</label>
-                    <div class="song-list" id="editingSongList"></div>
-                    <div class="team-form-row" style="margin-top:6px">
-                        <input type="text" id="teamMusicSearch" placeholder="곡 또는 아티스트 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();searchMusic();}">
-                        <button type="button" onclick="searchMusic()" style="padding:8px 14px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;flex-shrink:0">🔍</button>
+
+                <div style="margin-bottom:14px">
+                    <label style="display:block;font-size:0.8rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">팀 이름</label>
+                    <input type="text" id="teamName" placeholder="팀 이름을 입력하세요" value="${isEdit ? escapeHtml(team.name) : ''}" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.92rem;font-family:inherit;box-sizing:border-box;outline:none">
+                </div>
+
+                <div style="margin-bottom:14px">
+                    <label style="display:block;font-size:0.8rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">활동 기간</label>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <input type="date" id="teamStartDate" value="${isEdit && team.start_date ? team.start_date : ''}" style="flex:1;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;box-sizing:border-box">
+                        <span style="color:var(--wds-gray-500);font-weight:600;flex-shrink:0">~</span>
+                        <input type="date" id="teamEndDate" value="${isEdit && team.end_date ? team.end_date : ''}" style="flex:1;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;box-sizing:border-box">
                     </div>
-                    <div id="musicResults"></div>
-                    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--wds-gray-300)">
-                        <div style="font-size:0.78rem;color:var(--wds-gray-700);margin-bottom:6px;font-weight:600">또는 직접 입력</div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap">
-                            <input type="text" id="manualSongTitle" placeholder="곡 제목" style="flex:2;min-width:120px;padding:7px 10px;font-size:0.85rem;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-family:inherit">
-                            <input type="text" id="manualSongArtist" placeholder="아티스트 (선택)" style="flex:1;min-width:100px;padding:7px 10px;font-size:0.85rem;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-family:inherit">
-                            <button type="button" onclick="addManualSong()" style="padding:7px 12px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.82rem;font-weight:600;flex-shrink:0">+ 추가</button>
+                </div>
+
+                <div style="margin-bottom:14px">
+                    <label style="display:block;font-size:0.8rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">합주 곡</label>
+                    <div style="background:var(--wds-gray-100);border-radius:var(--wds-radius-s);padding:10px 12px">
+                        <div class="song-list" id="editingSongList" style="margin-bottom:8px"></div>
+                        <div style="display:flex;gap:6px;margin-bottom:8px">
+                            <input type="text" id="teamMusicSearch" placeholder="곡 또는 아티스트 검색" onkeydown="if(event.key==='Enter'){event.preventDefault();searchMusic();}" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.87rem;font-family:inherit;box-sizing:border-box">
+                            <button type="button" onclick="searchMusic()" style="padding:0 14px;height:38px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;flex-shrink:0;font-size:0.9rem">🔍</button>
+                        </div>
+                        <div id="musicResults"></div>
+                        <div style="padding-top:8px;border-top:1px dashed var(--wds-gray-300)">
+                            <div style="font-size:0.75rem;color:var(--wds-gray-500);margin-bottom:6px;font-weight:600">직접 입력</div>
+                            <div style="display:flex;gap:6px">
+                                <input type="text" id="manualSongTitle" placeholder="곡 제목" style="flex:2;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
+                                <input type="text" id="manualSongArtist" placeholder="아티스트 (선택)" style="flex:1;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
+                                <button type="button" onclick="addManualSong()" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-size:0.82rem;font-weight:600;flex-shrink:0;white-space:nowrap">+ 추가</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">팀 구성</label>
-                <div id="teamSlots"></div>
-                <button type="button" class="add-slot-btn" onclick="addTeamSlot()">+ 세션 추가</button>
-                <div class="team-form-actions">
+
+                <div style="margin-bottom:14px">
+                    <label style="display:block;font-size:0.8rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">팀 구성 멤버</label>
+                    <div id="teamSlots"></div>
+                    <button type="button" class="add-slot-btn" onclick="addTeamSlot()" style="margin-top:6px">+ 세션 추가</button>
+                </div>
+
+                <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--wds-gray-200)">
                     <button type="button" class="team-cancel-btn" onclick="hideTeamForm()">취소</button>
                     <button type="button" class="team-save-btn" onclick="saveTeam()">${isEdit ? '수정 저장' : '저장'}</button>
                 </div>
@@ -4762,6 +4838,63 @@
             if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('notices').select('*').order('created_at', { ascending: false });
             if (!error) { notices = data; renderNotices(); }
+        }
+
+        function renderScheduleBanner() {
+            const banner = document.getElementById('schedule_banner');
+            if (!banner) return;
+            const today = new Date().toLocaleDateString('en-CA');
+            const upcoming = (state.schedules || [])
+                .filter(s => s.date >= today)
+                .sort((a, b) => a.date.localeCompare(b.date) || (a.start_time||'').localeCompare(b.start_time||''));
+            // Group by date
+            const dateMap = {};
+            upcoming.forEach(s => {
+                if (!dateMap[s.date]) dateMap[s.date] = [];
+                dateMap[s.date].push(s);
+            });
+            const dates = Object.keys(dateMap).sort().slice(0, 2); // show at most 2 upcoming dates
+            if (dates.length === 0) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                return;
+            }
+            const isToday = (d) => d === today;
+            const fmtDate = (d) => {
+                const [y,m,day] = d.split('-');
+                const days = ['일','월','화','수','목','금','토'];
+                const dow = new Date(d).getDay();
+                return `${parseInt(m)}/${parseInt(day)}(${days[dow]})`;
+            };
+            const items = dates.map(date => {
+                const entries = dateMap[date];
+                const label = isToday(date) ? '오늘' : fmtDate(date);
+                const teamNames = [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,3);
+                const timeRange = entries.length > 0 ? `${entries[0].start_time || ''}${entries[entries.length-1].end_time ? ' ~ ' + entries[entries.length-1].end_time : ''}` : '';
+                return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff;margin-bottom:8px;cursor:pointer" onclick="openScheduleForDate('${date}')">
+                    <div>
+                        <span style="font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;margin-right:8px">${isToday(date)?'🔴 오늘':'📅 '+fmtDate(date)}</span>
+                        ${teamNames.length ? `<span style="font-size:0.82rem;font-weight:600">${teamNames.join(' · ')}</span>` : ''}
+                        ${timeRange ? `<span style="font-size:0.78rem;opacity:0.85;margin-left:6px">${timeRange}</span>` : ''}
+                    </div>
+                    <span style="font-size:0.78rem;font-weight:600;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:8px;flex-shrink:0">일정표 보기 →</span>
+                </div>`;
+            }).join('');
+            banner.innerHTML = items;
+            banner.classList.remove('hidden');
+        }
+
+        function openScheduleForDate(date) {
+            state.scheduleFilter = 'upcoming';
+            state.scheduleTargetDate = date;
+            const memberPanel = document.getElementById('memberPanelContent');
+            if (memberPanel && memberPanel.classList.contains('hidden')) {
+                memberPanel.classList.remove('hidden');
+                const arrow = document.getElementById('memberPanelArrow');
+                if (arrow) arrow.textContent = '▲ 접기';
+            }
+            setMemberTab('schedule');
+            document.getElementById('memberPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function renderNotices() {
