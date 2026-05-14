@@ -5032,7 +5032,11 @@
                         <label>비밀번호 확인 <span style="color:#e74c3c">*</span></label>
                         <input type="password" id="cc_pw2" placeholder="비밀번호 재입력" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
-                    <div style="display:flex;gap:8px;margin-top:8px;">
+                    <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:8px 0 16px;">
+                    <div style="font-size:0.9rem;font-weight:700;color:var(--wds-black);margin-bottom:10px;">참여 신청 항목 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500);">(선택)</span></div>
+                    <div id="communityCreateFieldEditor"></div>
+                    <button class="edit-btn" style="margin-bottom:16px;" onclick="addCommunityCreateField()">+ 항목 추가</button>
+                    <div style="display:flex;gap:8px;margin-top:4px;">
                         <button class="edit-btn" style="flex:1;padding:9px;font-size:0.85rem;" onclick="communityToggleCreate()">취소</button>
                         <button class="edit-btn" style="flex:2;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="submitCommunityCreate()">모임 만들기</button>
                     </div>
@@ -5188,15 +5192,15 @@
             const el = document.getElementById('communityContent');
             if (!el) return;
 
-            let html = `<button class="edit-btn" style="margin-bottom:18px;" onclick="communityBackToList()">← 목록으로</button>`;
+            let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
+                <button class="edit-btn" onclick="communityBackToList()">← 목록으로</button>
+                <button class="edit-btn" style="padding:6px 16px;" onclick="communityShowAuthModal('${id}')">✏️ 수정</button>
+            </div>`;
 
-            // Detail header
+            // Detail header — always show cover image, fallback to /icon.jpg
             html += `<div class="community-detail-header">`;
-            if (meeting.cover_image_url) {
-                html += `<img src="${escapeHtml(meeting.cover_image_url)}" alt="${escapeHtml(meeting.title)}" class="community-detail-img" onerror="this.style.display='none'">`;
-            } else {
-                html += `<div class="community-placeholder-img" style="width:120px;height:120px;font-size:44px;border-radius:var(--wds-radius-m);margin-bottom:16px;">${escapeHtml(meeting.title.charAt(0))}</div>`;
-            }
+            const imgSrc = meeting.cover_image_url || '/icon.jpg';
+            html += `<img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(meeting.title)}" class="community-detail-img" onerror="this.src='/icon.jpg'">`;
             html += `<div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
                     <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:var(--wds-black);">${escapeHtml(meeting.title)}</h2>
@@ -5230,8 +5234,7 @@
                 </div>
                 <div class="community-field-row">
                     <label>전화번호</label>
-                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                </div>`;
+                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"></div>`;
                 formFields.forEach((f, i) => {
                     const fid = `ca_custom_${i}`;
                     html += `<div class="community-field-row">
@@ -5251,98 +5254,87 @@
             }
             html += `</div>`;
 
-            // Organizer management
-            html += `<div class="community-form-section">
-                <h3 style="margin:0 0 12px;font-size:0.95rem;font-weight:700;color:var(--wds-black);">🔑 모임장 관리</h3>`;
-            if (!authed) {
-                html += `<div style="display:flex;gap:8px;">
-                    <input type="password" id="comm_auth_pw" placeholder="모임장 비밀번호" style="flex:1;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;">
-                    <button class="edit-btn" style="padding:8px 16px;" onclick="communityOrganizerAuth('${id}')">인증</button>
-                </div>`;
-            } else {
-                // Edit form
-                html += `<div id="communityEditForm">
-                    <div class="community-field-row">
-                        <label>모임명</label>
-                        <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            // Organizer edit panel — only shown after password auth
+            if (authed) {
+                html += `<div class="community-form-section" id="communityOrganizerPanel">
+                    <h3 style="margin:0 0 14px;font-size:1rem;font-weight:700;color:var(--wds-black);">✏️ 모임 수정</h3>
+                    <div id="communityEditForm">
                         <div class="community-field-row">
-                            <label>모임 날짜</label>
-                            <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>모임명</label>
+                            <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div class="community-field-row">
+                                <label>모임 날짜</label>
+                                <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
+                            <div class="community-field-row">
+                                <label>시간</label>
+                                <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div class="community-field-row">
+                                <label>모임장 이름</label>
+                                <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
+                            <div class="community-field-row">
+                                <label>모임장 연락처</label>
+                                <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
                         </div>
                         <div class="community-field-row">
-                            <label>시간</label>
-                            <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>모임장 이메일</label>
+                            <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
-                    </div>
-                    <div class="community-field-row">
-                        <label>장소</label>
-                        <input type="text" id="ce_location" value="${escapeHtml(meeting.location || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                        <div class="community-field-row">
-                            <label>모임장 이름</label>
-                            <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div class="community-field-row">
+                                <label>참여비용</label>
+                                <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
+                            <div class="community-field-row">
+                                <label>준비물</label>
+                                <input type="text" id="ce_items" value="${escapeHtml(meeting.items_to_bring || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
                         </div>
-                        <div class="community-field-row">
-                            <label>모임장 연락처</label>
-                            <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                        </div>
-                    </div>
-                    <div class="community-field-row">
-                        <label>모임장 이메일</label>
-                        <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                        <div class="community-field-row">
-                            <label>참여비용</label>
-                            <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div class="community-field-row">
+                                <label>정원</label>
+                                <input type="number" id="ce_capacity" value="${meeting.capacity || ''}" min="1" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
+                            <div class="community-field-row">
+                                <label>신청 마감일</label>
+                                <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            </div>
                         </div>
                         <div class="community-field-row">
-                            <label>준비물</label>
-                            <input type="text" id="ce_items" value="${escapeHtml(meeting.items_to_bring || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                        </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                        <div class="community-field-row">
-                            <label>정원</label>
-                            <input type="number" id="ce_capacity" value="${meeting.capacity || ''}" min="1" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>모임 설명</label>
+                            <textarea id="ce_desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
                         </div>
                         <div class="community-field-row">
-                            <label>신청 마감일</label>
-                            <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>대표 이미지 교체</label>
+                            <input type="file" id="ce_image" accept="image/*" style="font-size:0.85rem;">
                         </div>
-                    </div>
-                    <div class="community-field-row">
-                        <label>모임 설명</label>
-                        <textarea id="ce_desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
-                    </div>
-                    <div class="community-field-row">
-                        <label>대표 이미지 교체</label>
-                        <input type="file" id="ce_image" accept="image/*" style="font-size:0.85rem;">
-                    </div>
-                    <button class="edit-btn" style="width:100%;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-bottom:8px;" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>
+                        <button class="edit-btn" style="width:100%;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-bottom:16px;" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>
 
-                    <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:16px 0;">
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:0 0 16px;">
 
-                    <div style="font-size:0.9rem;font-weight:700;color:var(--wds-black);margin-bottom:10px;">커스텀 신청 필드</div>
-                    <div id="communityFieldEditor"></div>
-                    <button class="edit-btn" style="margin-bottom:8px;" onclick="addCommunityFormField()">+ 필드 추가</button>
-                    <button class="edit-btn" style="padding:7px 14px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-left:6px;" onclick="saveCommunityFormFields('${id}')">필드 저장</button>
+                        <div style="font-size:0.9rem;font-weight:700;color:var(--wds-black);margin-bottom:10px;">참여 신청 항목</div>
+                        <div id="communityFieldEditor"></div>
+                        <button class="edit-btn" style="margin-bottom:8px;" onclick="addCommunityFormField()">+ 항목 추가</button>
+                        <button class="edit-btn" style="padding:7px 14px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-left:6px;" onclick="saveCommunityFormFields('${id}')">항목 저장</button>
 
-                    <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:16px 0;">
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:16px 0;">
 
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button class="edit-btn" style="padding:8px 14px;" onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
-                        <button class="edit-btn" style="padding:8px 14px;" onclick="downloadCommunityApplicantsCsv('${id}')">신청자 CSV 다운로드</button>
-                        <button class="edit-btn" style="padding:8px 14px;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
-                    </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                            <button class="edit-btn" style="padding:8px 14px;" onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
+                            <button class="edit-btn" style="padding:8px 14px;" onclick="downloadCommunityApplicantsCsv('${id}')">신청자 CSV 다운로드</button>
+                            <button class="edit-btn" style="padding:8px 14px;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
+                        </div>
 
-                    <div style="margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--wds-black);">신청자 목록 (${cnt}명)</div>
-                    <div style="margin-top:8px;">`;
+                        <div style="font-size:0.88rem;font-weight:700;color:var(--wds-black);margin-bottom:8px;">신청자 목록 (${cnt}명)</div>
+                        <div>`;
                 appList.forEach(a => {
-                    const fd = a.form_data || {};
                     html += `<div style="padding:8px 10px;border-bottom:1px solid var(--wds-gray-200);font-size:0.85rem;">
                         <span style="font-weight:600;">${escapeHtml(a.applicant_name)}</span>
                         <span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_email)}</span>
@@ -5350,17 +5342,53 @@
                         <span style="color:var(--wds-gray-400);margin-left:8px;font-size:0.78rem;">${new Date(a.created_at).toLocaleDateString('ko-KR')}</span>
                     </div>`;
                 });
-                html += `</div></div>`;
+                html += `</div></div></div>`;
             }
-            html += `</div>`;
 
             el.innerHTML = html;
 
-            // Render custom field editor if authed
             if (authed) {
                 state.communityEditFields = JSON.parse(JSON.stringify(formFields));
                 renderCommunityFieldEditor();
+                document.getElementById('communityOrganizerPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+        }
+
+        function communityShowAuthModal(id) {
+            if (state.communityEditAuth[id]) {
+                const panel = document.getElementById('communityOrganizerPanel');
+                if (panel) { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+                renderCommunityDetail(id);
+                return;
+            }
+            document.getElementById('commAuthModal')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'commAuthModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+            overlay.innerHTML = `<div style="background:var(--wds-white);border-radius:var(--wds-radius-l);padding:28px 24px;max-width:360px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+                <h3 style="margin:0 0 6px;font-size:1rem;font-weight:700;color:var(--wds-black);">모임장 인증</h3>
+                <p style="font-size:0.85rem;color:var(--wds-gray-500);margin:0 0 16px;">모임 수정을 위해 비밀번호를 입력해주세요.</p>
+                <input type="password" id="commAuthModalPw" placeholder="비밀번호" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box;font-family:inherit;margin-bottom:12px;" onkeydown="if(event.key==='Enter')communityOrganizerAuthModal('${id}')">
+                <div style="display:flex;gap:8px;">
+                    <button class="edit-btn" style="flex:1;padding:9px;" onclick="document.getElementById('commAuthModal').remove()">취소</button>
+                    <button class="edit-btn" style="flex:2;padding:9px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityOrganizerAuthModal('${id}')">확인</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+            setTimeout(() => document.getElementById('commAuthModalPw')?.focus(), 50);
+        }
+
+        async function communityOrganizerAuthModal(id) {
+            const pw = document.getElementById('commAuthModalPw')?.value || '';
+            if (!pw) return alert('비밀번호를 입력해주세요.');
+            const meeting = state.communityMeetings.find(m => m.id === id);
+            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            const hash = await hashPw(pw, meeting.password_salt);
+            if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            state.communityEditAuth[id] = true;
+            document.getElementById('commAuthModal')?.remove();
+            renderCommunityDetail(id);
         }
 
         function renderCommunityFieldEditor() {
@@ -5531,15 +5559,25 @@
                 return alert('신청 실패: ' + error.message);
             }
 
-            // Send email via Resend
-            let emailBody = `<h3>[${meeting.title}] 신청 안내</h3>`;
-            emailBody += `<p><b>신청자:</b> ${name} (${email})</p>`;
-            if (phone) emailBody += `<p><b>전화번호:</b> ${phone}</p>`;
-            Object.entries(formData).forEach(([k, v]) => { emailBody += `<p><b>${k}:</b> ${v}</p>`; });
-            try {
-                await sendResendEmail(meeting.organizer_email, `[${meeting.title}] 신규 신청: ${name}`, emailBody);
-            } catch (e) {
-                console.warn('이메일 발송 실패:', e.message);
+            // Send email — Resend if configured, else mailto: fallback
+            let emailSent = false;
+            const mailSubject = `[${meeting.title}] 신규 신청: ${name}`;
+            let mailBodyText = `[${meeting.title}] 신규 신청\n\n이름: ${name}\n이메일: ${email}`;
+            if (phone) mailBodyText += `\n전화번호: ${phone}`;
+            Object.entries(formData).forEach(([k, v]) => { mailBodyText += `\n${k}: ${v}`; });
+            if (RESEND_API_KEY && RESEND_API_KEY !== 're_REPLACE_ME') {
+                let emailBody = `<h3>[${meeting.title}] 신청 안내</h3>`;
+                emailBody += `<p><b>신청자:</b> ${name} (${email})</p>`;
+                if (phone) emailBody += `<p><b>전화번호:</b> ${phone}</p>`;
+                Object.entries(formData).forEach(([k, v]) => { emailBody += `<p><b>${k}:</b> ${v}</p>`; });
+                try {
+                    await sendResendEmail(meeting.organizer_email, mailSubject, emailBody);
+                    emailSent = true;
+                } catch (e) { console.warn('Resend 실패:', e.message); }
+            }
+            if (!emailSent) {
+                const mailto = `mailto:${encodeURIComponent(meeting.organizer_email)}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBodyText)}`;
+                window.open(mailto);
             }
 
             state.communityApplicationCounts[id] = (state.communityApplicationCounts[id] || 0) + 1;
