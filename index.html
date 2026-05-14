@@ -994,7 +994,7 @@
         </button>
         <button type="button" class="portal-btn portal-btn-primary" onclick="showCommunitySection()">
             <span class="portal-btn-text">
-                <span class="portal-btn-title">커뮤니티</span>
+                <span class="portal-btn-title">게·어·드 커뮤니티</span>
                 <span class="portal-btn-desc">모임 신청 및 안내 등</span>
             </span>
         </button>
@@ -1373,11 +1373,11 @@
 
     <!-- 커뮤니티 페이지 -->
     <div id="landing-page-community" class="hidden">
-        <div style="max-width:860px;margin:0 auto;padding:24px 16px 48px;">
+        <div style="max-width:1100px;margin:0 auto;padding:24px 16px 48px;">
             <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:52px;">
                 <div>
-                    <h2 style="margin:0 0 4px;font-size:1.7rem;font-weight:800;color:var(--wds-black);font-family:'KkuBulLim',sans-serif;">커뮤니티</h2>
+                    <h2 style="margin:0 0 4px;font-size:1.7rem;font-weight:800;color:var(--wds-black);font-family:'KkuBulLim',sans-serif;">게·어·드 커뮤니티</h2>
                     <p style="margin:0;font-size:0.92rem;color:var(--wds-gray-500);">모임을 만들고 함께해요.</p>
                 </div>
                 <div class="community-visitor-count" id="communityVisitorCount">오늘 방문자: 0명</div>
@@ -4807,8 +4807,53 @@
             state.communityCurrentId = null;
             state.communityCreateOpen = false;
             await incrementCommunityVisit();
-            await fetchCommunityMeetings();
+            await Promise.all([
+                fetchCommunityMeetings(),
+                fetchCommunityReservationsAndBlocks(),
+            ]);
             renderCommunityList();
+        }
+
+        async function fetchCommunityReservationsAndBlocks() {
+            try {
+                const [rb, bb] = await Promise.all([
+                    supabaseClient.from('reservations').select('id, res_date, start_time, end_time, status'),
+                    supabaseClient.from('time_blocks').select('*'),
+                ]);
+                if (rb.data) state.reservations = rb.data;
+                if (bb.data) state.blocks = bb.data;
+            } catch (e) { /* ignore */ }
+        }
+
+        function checkCommunityTimeConflict(dateStr, startTime, endTime) {
+            const sIdx = TIMES.indexOf(startTime);
+            const eIdx = TIMES.indexOf(endTime);
+            if (sIdx < 0 || eIdx < 0 || sIdx > eIdx) return '시간 범위가 올바르지 않습니다.';
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const dow = new Date(y, m - 1, d).getDay();
+
+            // Check time_blocks
+            for (const b of (state.blocks || [])) {
+                if (b.day_of_week !== dow) continue;
+                if (b.start_date && dateStr < b.start_date) continue;
+                if (b.end_date && dateStr > b.end_date) continue;
+                const bSIdx = TIMES.indexOf(b.start_time);
+                const bEIdx = TIMES.indexOf(b.end_time);
+                if (sIdx <= bEIdx && eIdx >= bSIdx) {
+                    return `해당 시간대는 차단되어 있습니다 (${b.start_time}~${b.end_time}${b.reason ? ' · ' + b.reason : ''}).`;
+                }
+            }
+            // Check reservations (approved + pending)
+            for (const r of (state.reservations || [])) {
+                if (r.status === 'rejected' || r.status === 'cancelled') continue;
+                if (r.res_date !== dateStr) continue;
+                const rSIdx = TIMES.indexOf(r.start_time);
+                const rEIdx = TIMES.indexOf(r.end_time);
+                if (sIdx <= rEIdx && eIdx >= rSIdx) {
+                    return `해당 시간대에 이미 예약이 있습니다 (${r.start_time}~${r.end_time}).`;
+                }
+            }
+            return null;
         }
 
         async function incrementCommunityVisit() {
@@ -4906,54 +4951,63 @@
                     <h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;color:var(--wds-black);">새 모임 만들기</h3>
                     <div class="community-field-row">
                         <label>모임명 <span style="color:#e74c3c">*</span></label>
-                        <input type="text" id="cc_title" placeholder="모임 제목" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="text" id="cc_title" placeholder="모임 제목" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div class="community-field-row">
+                        <label>모임 날짜 <span style="color:#e74c3c">*</span></label>
+                        <input type="date" id="cc_date" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
-                            <label>모임 날짜 <span style="color:#e74c3c">*</span></label>
-                            <input type="date" id="cc_date" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>시작 시간 <span style="color:#e74c3c">*</span></label>
+                            <select id="cc_start_time" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:white;">
+                                ${TIMES.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
                         </div>
                         <div class="community-field-row">
-                            <label>시간 (표시용)</label>
-                            <input type="text" id="cc_time" placeholder="예: 오후 3시" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <label>종료 시간 <span style="color:#e74c3c">*</span></label>
+                            <select id="cc_end_time" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:white;">
+                                ${TIMES.map((t, i) => `<option value="${t}">${TIMES[i+1] || '23:00'}</option>`).join('')}
+                            </select>
                         </div>
                     </div>
+                    <p style="font-size:0.74rem;color:var(--wds-gray-500);margin:-6px 0 12px;">⚠️ GatheO 예약·차단된 시간은 선택할 수 없습니다.</p>
                     <div class="community-field-row">
                         <label>장소</label>
-                        <input type="text" id="cc_location" placeholder="모임 장소" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="text" id="cc_location" placeholder="모임 장소" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>모임장 이름 <span style="color:#e74c3c">*</span></label>
-                            <input type="text" id="cc_org_name" placeholder="모임장 이름" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="cc_org_name" placeholder="모임장 이름" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>모임장 연락처</label>
-                            <input type="tel" id="cc_org_phone" placeholder="010-0000-0000" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="tel" id="cc_org_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div class="community-field-row">
                         <label>모임장 이메일 <span style="color:#e74c3c">*</span></label>
-                        <input type="email" id="cc_org_email" placeholder="organizer@example.com" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="email" id="cc_org_email" placeholder="organizer@example.com" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>참여비용</label>
-                            <input type="text" id="cc_fee" placeholder="무료 / 1만원 등" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="cc_fee" placeholder="무료 / 1만원 등" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>준비물</label>
-                            <input type="text" id="cc_items" placeholder="필요 준비물" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="cc_items" placeholder="필요 준비물" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>정원</label>
-                            <input type="number" id="cc_capacity" placeholder="최대 인원 (선택)" min="1" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="number" id="cc_capacity" placeholder="최대 인원 (선택)" min="1" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>신청 마감일</label>
-                            <input type="date" id="cc_deadline" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="date" id="cc_deadline" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div class="community-field-row">
@@ -4967,11 +5021,11 @@
                     </div>
                     <div class="community-field-row">
                         <label>비밀번호 <span style="color:#e74c3c">*</span> <span style="font-size:0.75rem;color:var(--wds-gray-500);font-weight:400;">(모임 수정/삭제용)</span></label>
-                        <input type="password" id="cc_pw" placeholder="비밀번호 입력" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="password" id="cc_pw" placeholder="비밀번호 입력" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div class="community-field-row">
                         <label>비밀번호 확인 <span style="color:#e74c3c">*</span></label>
-                        <input type="password" id="cc_pw2" placeholder="비밀번호 재입력" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="password" id="cc_pw2" placeholder="비밀번호 재입력" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:flex;gap:8px;margin-top:8px;">
                         <button class="edit-btn" style="flex:1;padding:9px;font-size:0.85rem;" onclick="communityToggleCreate()">취소</button>
@@ -5028,7 +5082,8 @@
         async function submitCommunityCreate() {
             const title = document.getElementById('cc_title').value.trim();
             const date = document.getElementById('cc_date').value;
-            const time = document.getElementById('cc_time').value.trim();
+            const startTime = document.getElementById('cc_start_time').value;
+            const endTime = document.getElementById('cc_end_time').value;
             const location = document.getElementById('cc_location').value.trim();
             const orgName = document.getElementById('cc_org_name').value.trim();
             const orgPhone = document.getElementById('cc_org_phone').value.trim();
@@ -5044,10 +5099,17 @@
 
             if (!title) return alert('모임명을 입력해주세요.');
             if (!date) return alert('모임 날짜를 입력해주세요.');
+            if (!startTime || !endTime) return alert('모임 시간을 선택해주세요.');
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return alert('시작 시간이 종료 시간보다 늦을 수 없습니다.');
             if (!orgName) return alert('모임장 이름을 입력해주세요.');
             if (!orgEmail) return alert('모임장 이메일을 입력해주세요.');
             if (!pw) return alert('비밀번호는 필수입니다.');
             if (pw !== pw2) return alert('비밀번호가 일치하지 않습니다.');
+
+            // Check conflict with GatheO reservations & time_blocks
+            await fetchCommunityReservationsAndBlocks();
+            const conflict = checkCommunityTimeConflict(date, startTime, endTime);
+            if (conflict) return alert(conflict);
 
             const salt = genSalt();
             const hash = await hashPw(pw, salt);
@@ -5058,10 +5120,11 @@
                 catch (e) { alert('이미지 업로드 실패: ' + e.message + '\n이미지 없이 모임을 생성합니다.'); }
             }
 
+            const timeText = `${startTime} ~ ${TIMES[TIMES.indexOf(endTime)+1] || '23:00'}`;
             const payload = {
                 title, cover_image_url: coverImageUrl,
                 meeting_date: date || null,
-                meeting_time: time || null,
+                meeting_time: timeText,
                 location: location || null,
                 organizer_name: orgName, organizer_phone: orgPhone || null, organizer_email: orgEmail,
                 fee: fee || null, items_to_bring: items || null,
@@ -5074,6 +5137,20 @@
 
             const { data, error } = await supabaseClient.from('community_meetings').insert(payload).select().single();
             if (error) return alert('모임 생성 실패: ' + error.message);
+
+            // Insert time_block to reflect in GatheO
+            try {
+                const [y, m, d] = date.split('-').map(Number);
+                const dow = new Date(y, m - 1, d).getDay();
+                await supabaseClient.from('time_blocks').insert({
+                    day_of_week: dow,
+                    start_time: startTime,
+                    end_time: endTime,
+                    reason: `[커뮤니티] ${title}`,
+                    start_date: date,
+                    end_date: date,
+                });
+            } catch (e) { console.warn('time_block 생성 실패:', e); }
 
             state.communityCreateOpen = false;
             await fetchCommunityMeetings();
@@ -5141,15 +5218,15 @@
             } else {
                 html += `<div class="community-field-row">
                     <label>이름 <span style="color:#e74c3c">*</span></label>
-                    <input type="text" id="ca_name" placeholder="이름" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    <input type="text" id="ca_name" placeholder="이름" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                 </div>
                 <div class="community-field-row">
                     <label>이메일 <span style="color:#e74c3c">*</span></label>
-                    <input type="email" id="ca_email" placeholder="이메일" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    <input type="email" id="ca_email" placeholder="이메일" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                 </div>
                 <div class="community-field-row">
                     <label>전화번호</label>
-                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                 </div>`;
                 formFields.forEach((f, i) => {
                     const fid = `ca_custom_${i}`;
@@ -5158,11 +5235,11 @@
                     if (f.type === 'textarea') {
                         html += `<textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>`;
                     } else if (f.type === 'select' && f.options) {
-                        html += `<select id="${fid}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"><option value="">선택하세요</option>`;
+                        html += `<select id="${fid}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"><option value="">선택하세요</option>`;
                         f.options.forEach(o => { html += `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`; });
                         html += `</select>`;
                     } else {
-                        html += `<input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">`;
+                        html += `<input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">`;
                     }
                     html += `</div>`;
                 });
@@ -5183,54 +5260,54 @@
                 html += `<div id="communityEditForm">
                     <div class="community-field-row">
                         <label>모임명</label>
-                        <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>모임 날짜</label>
-                            <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>시간</label>
-                            <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div class="community-field-row">
                         <label>장소</label>
-                        <input type="text" id="ce_location" value="${escapeHtml(meeting.location || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="text" id="ce_location" value="${escapeHtml(meeting.location || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>모임장 이름</label>
-                            <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>모임장 연락처</label>
-                            <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div class="community-field-row">
                         <label>모임장 이메일</label>
-                        <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>참여비용</label>
-                            <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>준비물</label>
-                            <input type="text" id="ce_items" value="${escapeHtml(meeting.items_to_bring || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="text" id="ce_items" value="${escapeHtml(meeting.items_to_bring || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>정원</label>
-                            <input type="number" id="ce_capacity" value="${meeting.capacity || ''}" min="1" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="number" id="ce_capacity" value="${meeting.capacity || ''}" min="1" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
                             <label>신청 마감일</label>
-                            <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
                     <div class="community-field-row">
@@ -5399,8 +5476,18 @@
 
         async function deleteCommunityMeeting(id) {
             if (!confirm('모임을 삭제하면 모든 신청 정보도 삭제됩니다. 정말 삭제하시겠습니까?')) return;
+            const meeting = state.communityMeetings.find(m => m.id === id);
             const { error } = await supabaseClient.from('community_meetings').delete().eq('id', id);
             if (error) return alert('삭제 실패: ' + error.message);
+            // Remove associated time_block in GatheO
+            if (meeting) {
+                try {
+                    await supabaseClient.from('time_blocks')
+                        .delete()
+                        .eq('reason', `[커뮤니티] ${meeting.title}`)
+                        .eq('start_date', meeting.meeting_date);
+                } catch (e) { /* ignore */ }
+            }
             delete state.communityEditAuth[id];
             await fetchCommunityMeetings();
             communityBackToList();
