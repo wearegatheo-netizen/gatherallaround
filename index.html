@@ -920,6 +920,21 @@
         body.dark .community-tab.active { background:#1e293b; }
         .community-tab:hover:not(.active) { color:var(--wds-black); background:var(--wds-gray-100); }
         .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+        @media (max-width:640px) {
+            #landing-page-community > div { padding:16px 12px 36px !important; }
+            #landing-page-community h2 { font-size:1.35rem !important; }
+            .community-tab { padding:7px 14px; font-size:0.85rem; }
+            .community-card-img { width:76px; height:76px; }
+            .community-placeholder-img { width:76px !important; height:76px !important; font-size:1.6rem !important; }
+            .community-card-body { padding:10px 12px; gap:3px; }
+            .community-card-title { white-space:normal; font-size:0.92rem; }
+            .community-form-section { padding:16px 14px 14px; }
+            .community-field-row { margin-bottom:10px; }
+            .community-detail-header { flex-direction:column; padding:14px; gap:12px; }
+            .community-detail-img { width:100% !important; height:180px !important; border-radius:var(--wds-radius-s); }
+            .community-detail-title { font-size:1.2rem !important; }
+            .community-detail-meta-card { padding:16px; }
+        }
         .community-create-btn { background:#16a34a; color:#fff; border:none; border-radius:var(--wds-radius-m); padding:10px 22px; font-size:0.97rem; font-weight:700; cursor:pointer; transition:background 0.15s; display:inline-flex; align-items:center; gap:7px; }
         .community-create-btn:hover { background:#15803d; }
         .community-form-section { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-l); padding:22px 24px 18px; margin-bottom:26px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
@@ -4929,6 +4944,11 @@
             return `<div class="community-placeholder-img" style="width:${s}px;height:${s}px;font-size:${Math.round(s*0.36)}px;">${escapeHtml(ch)}</div>`;
         }
 
+        function communityIsFreeMeeting(fee) {
+            if (!fee) return false;
+            return parseInt(fee.replace(/[^\d]/g, '') || '9') === 0;
+        }
+
         function communityIsClosed(m) {
             if (m.is_closed) return true;
             if (m.application_deadline && m.application_deadline < new Date().toLocaleDateString('en-CA')) return true;
@@ -5028,7 +5048,7 @@
                     </div>
                     <div class="community-field-row">
                         <label>모임 설명</label>
-                        <textarea id="cc_desc" rows="4" placeholder="모임에 대한 설명을 작성하세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+                        <textarea id="cc_desc" rows="4" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
                     </div>
                     <div class="community-field-row">
                         <label>대표 이미지</label>
@@ -5074,13 +5094,18 @@
                     html += `<div class="community-card" onclick="renderCommunityDetail('${m.id}')">`;
                     const cardImg = m.cover_image_url || '/icon.jpg';
                     html += `<img class="community-card-img" src="${escapeHtml(cardImg)}" alt="${escapeHtml(m.title)}" onerror="this.src='/icon.jpg'">`;
+                    const isFree = communityIsFreeMeeting(m.fee);
                     html += `<div class="community-card-body">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
                             <div class="community-card-title">${escapeHtml(m.title)}</div>
-                            <span class="community-badge ${closed ? 'closed' : 'open'}" style="flex-shrink:0;">${closed ? '마감' : '모집중'}</span>
+                            <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+                                ${isFree ? `<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:800;">무료!</span>` : ''}
+                                <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '마감' : '모집중'}</span>
+                            </div>
                         </div>
                         ${dateStr || m.meeting_time ? `<div class="community-card-meta">${dateStr}${m.meeting_time ? ' · ' + escapeHtml(m.meeting_time) : ''}</div>` : ''}
                         <div class="community-card-meta">모임장: ${escapeHtml(m.organizer_name)}</div>
+                        ${m.fee && !isFree ? `<div class="community-card-meta">참여비: ${escapeHtml(m.fee)}</div>` : ''}
                         <div class="community-card-meta" style="font-weight:600;color:var(--wds-primary);">신청 ${capStr}</div>
                     </div></div>`;
                 });
@@ -5263,7 +5288,7 @@
             if (dateStr || meeting.meeting_time) html += `<div class="community-detail-info-row">📅 ${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</div>`;
             if (meeting.location) html += `<div class="community-detail-info-row">📍 ${escapeHtml(meeting.location)}</div>`;
             html += `<div class="community-detail-info-row">👤 ${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</div>`;
-            if (meeting.fee) html += `<div class="community-detail-info-row">💰 ${escapeHtml(meeting.fee)}</div>`;
+            if (meeting.fee) html += `<div class="community-detail-info-row">💰 ${communityIsFreeMeeting(meeting.fee) ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-size:0.82rem;font-weight:800;">무료!</span>' : escapeHtml(meeting.fee)}</div>`;
             if (meeting.items_to_bring) html += `<div class="community-detail-info-row">🎒 ${escapeHtml(meeting.items_to_bring)}</div>`;
             html += `<div class="community-detail-info-row" style="font-weight:600;color:var(--wds-primary);">신청 ${capStr}</div>`;
             html += `</div></div>`;
@@ -5319,12 +5344,12 @@
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                             <div class="community-field-row">
-                                <label>모임 날짜</label>
-                                <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                                <label>모임 날짜 <span style="font-size:0.72rem;color:var(--wds-gray-400);font-weight:400;">(수정 불가)</span></label>
+                                <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-500);cursor:not-allowed;">
                             </div>
                             <div class="community-field-row">
-                                <label>시간</label>
-                                <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                                <label>시간 <span style="font-size:0.72rem;color:var(--wds-gray-400);font-weight:400;">(수정 불가)</span></label>
+                                <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-500);cursor:not-allowed;">
                             </div>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -5363,7 +5388,7 @@
                         </div>
                         <div class="community-field-row">
                             <label>모임 설명</label>
-                            <textarea id="ce_desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
+                            <textarea id="ce_desc" rows="4" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
                         </div>
                         <div class="community-field-row">
                             <label>대표 이미지 교체</label>
@@ -5542,9 +5567,10 @@
 
         async function saveCommunityMeetingEdit(id) {
             const title = document.getElementById('ce_title').value.trim();
-            const date = document.getElementById('ce_date').value;
-            const time = document.getElementById('ce_time').value.trim();
             const location = document.getElementById('ce_location')?.value.trim() || '';
+            const meeting0 = state.communityMeetings.find(m => m.id === id);
+            const date = meeting0?.meeting_date || null;
+            const time = meeting0?.meeting_time || null;
             const orgName = document.getElementById('ce_org_name').value.trim();
             const orgPhone = document.getElementById('ce_org_phone').value.trim();
             const orgEmail = document.getElementById('ce_org_email').value.trim();
