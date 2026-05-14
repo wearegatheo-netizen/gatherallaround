@@ -1592,14 +1592,23 @@
                     console.log("카카오 인증 성공:", auth);
                     Kakao.API.request({
                         url: '/v2/user/me',
-                        success: function(res) {
+                        success: async function(res) {
                             console.log("사용자 정보 요청 성공:", res);
-                            const nickname = (res.kakao_account && res.kakao_account.profile) 
-                                ? res.kakao_account.profile.nickname 
+                            const nickname = (res.kakao_account && res.kakao_account.profile)
+                                ? res.kakao_account.profile.nickname
                                 : (res.properties ? res.properties.nickname : '사용자');
                             const kakaoId = res.id.toString();
-                            state.user = { nickname, kakaoId };
-                            loginUI(nickname);
+                            if (supabaseClient) {
+                                const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', kakaoId).maybeSingle();
+                                if (!data) { state.user = { nickname, kakaoId }; loginUI(nickname); return; }
+                                if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
+                                if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
+                                if (data.status !== 'approved') { alert('계정 상태를 확인할 수 없습니다. 관리자에게 문의해주세요.'); return; }
+                                state.user = { nickname: data.name || nickname, kakaoId, role: data.role || '일반' };
+                            } else {
+                                state.user = { nickname, kakaoId };
+                            }
+                            loginUI(state.user.nickname);
                         },
                         fail: function(err) {
                             alert("사용자 정보 요청 실패: " + JSON.stringify(err));
@@ -2321,13 +2330,15 @@
                         const kakaoId = res.id.toString();
                         const nickname = res.kakao_account.profile.nickname;
                         if (supabaseClient) {
-                            const { data } = await supabaseClient.from('profiles').select('name, status').eq('kakao_id', kakaoId).maybeSingle();
-                            if (data) {
-                                if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
-                                if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
-                            }
+                            const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', kakaoId).maybeSingle();
+                            if (!data) { logoutUI(); return; }
+                            if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
+                            if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
+                            if (data.status !== 'approved') { logoutUI(); return; }
+                            state.user = { nickname: data.name || nickname, kakaoId, role: data.role || '일반' };
+                        } else {
+                            state.user = { nickname, kakaoId };
                         }
-                        state.user = { nickname, kakaoId };
                         loginUI(state.user.nickname);
                     },
                     fail: (err) => {
