@@ -5495,7 +5495,7 @@
             const title = document.getElementById('ce_title').value.trim();
             const date = document.getElementById('ce_date').value;
             const time = document.getElementById('ce_time').value.trim();
-            const location = document.getElementById('ce_location').value.trim();
+            const location = document.getElementById('ce_location')?.value.trim() || '';
             const orgName = document.getElementById('ce_org_name').value.trim();
             const orgPhone = document.getElementById('ce_org_phone').value.trim();
             const orgEmail = document.getElementById('ce_org_email').value.trim();
