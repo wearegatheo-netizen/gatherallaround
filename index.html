@@ -919,15 +919,19 @@
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); background:var(--wds-primary-light); }
         body.dark .community-tab.active { background:#1e293b; }
         .community-tab:hover:not(.active) { color:var(--wds-black); background:var(--wds-gray-100); }
-        .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+        #communityContent { padding:0 16px; }
+        .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; margin-left:-16px; margin-right:-16px; }
         .community-section-title { font-size:1.05rem; font-weight:800; color:var(--wds-black); margin:18px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--wds-primary); }
         .community-section-title:first-child { margin-top:0; }
         body.dark .community-section-title { color:var(--wds-black); }
         .community-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .community-grid-2 > * { min-width:0; }
         @media (max-width:640px) {
-            #landing-page-community > div { padding:14px 4px 36px !important; }
+            #landing-page-community > div:first-child { padding:14px 12px 0 !important; }
             #landing-page-community h2 { font-size:1.35rem !important; }
+            #communityContent { padding:0 12px; }
+            .community-list { margin-left:-12px; margin-right:-12px; }
+            .community-card { border-radius:0; border-left:none; border-right:none; }
             .community-tab { padding:7px 14px; font-size:0.85rem; }
             .community-card-img { width:72px; min-height:72px; }
             .community-placeholder-img { width:72px !important; min-height:72px !important; font-size:1.6rem !important; }
@@ -1399,7 +1403,7 @@
 
     <!-- 커뮤니티 페이지 -->
     <div id="landing-page-community" class="hidden">
-        <div style="max-width:1400px;margin:0 auto;padding:24px 8px 48px;">
+        <div style="padding:24px 16px 0;">
             <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:52px;">
                 <div>
@@ -1408,8 +1412,8 @@
                 </div>
                 <div class="community-visitor-count" id="communityVisitorCount">오늘 방문자: 0명</div>
             </div>
-            <div id="communityContent" style="margin-top:22px;"></div>
         </div>
+        <div id="communityContent" style="margin-top:22px;padding-bottom:48px;"></div>
     </div>
 
     <!-- 승인 대기 화면 -->
