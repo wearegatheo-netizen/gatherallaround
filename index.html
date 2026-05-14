@@ -2593,30 +2593,6 @@
                 return { ...r, rank };
             });
             const maxCount = rows.length ? Math.max(...rows.map(r => r.count), 1) : 1;
-            const topThree = rows.filter(r => r.rank <= 3 && r.count > 0);
-            const restRows = rows.filter(r => !topThree.includes(r));
-
-            const medalStyle = (rank) => {
-                if (rank === 1) return { emoji: '👑', bg: 'linear-gradient(135deg,#FFD700 0%,#FFA500 100%)', shadow: '0 4px 16px rgba(255,165,0,0.4)', size: '1.5rem', label: '1등' };
-                if (rank === 2) return { emoji: '🥈', bg: 'linear-gradient(135deg,#E8E8E8 0%,#A9A9A9 100%)', shadow: '0 3px 12px rgba(160,160,160,0.35)', size: '1.25rem', label: '2등' };
-                if (rank === 3) return { emoji: '🥉', bg: 'linear-gradient(135deg,#CD7F32 0%,#8B4513 100%)', shadow: '0 3px 12px rgba(139,69,19,0.3)', size: '1.15rem', label: '3등' };
-                return null;
-            };
-
-            const renderPodium = ({ m, count, rank }) => {
-                const style = medalStyle(rank);
-                const scale = rank === 1 ? '1' : '0.92';
-                return `<div style="background:${style.bg};border-radius:14px;padding:16px;color:#fff;box-shadow:${style.shadow};transform:scale(${scale});margin-bottom:10px;position:relative;overflow:hidden">
-                    <div style="position:absolute;top:-10px;right:-10px;font-size:5rem;opacity:0.15">${style.emoji}</div>
-                    <div style="display:flex;align-items:center;gap:12px;position:relative">
-                        <div style="font-size:${style.size};font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:48px;text-align:center">${style.emoji}<br><span style="font-size:0.7rem">${style.label}</span></div>
-                        <div style="flex:1">
-                            <div style="font-size:1.1rem;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.15);margin-bottom:2px">${memberDisplayName(m)}</div>
-                            <div style="font-size:0.85rem;opacity:0.95">참여횟수 <strong style="font-size:1rem">${count}회</strong></div>
-                        </div>
-                    </div>
-                </div>`;
-            };
 
             const renderRow = ({ m, count, rank }) => {
                 const barPct = Math.round((count / maxCount) * 100);
@@ -2636,10 +2612,6 @@
                 </div>`;
             };
 
-            const champLine = topThree.length && topThree[0].rank === 1
-                ? `<div style="text-align:center;font-size:0.95rem;font-weight:700;color:var(--wds-primary);margin:14px 0 8px 0">🏆 현재 챔피언: <span style="font-size:1.05rem">${memberDisplayName(topThree[0].m)}</span> 🏆</div>`
-                : '';
-
             container.innerHTML = `
                 <div style="display:flex;gap:6px;margin-bottom:12px">
                     ${['all','month','year'].map(f => `<button type="button" onclick="setStatsFilter('${f}')" style="flex:1;padding:6px 0;font-size:0.8rem;font-weight:700;border-radius:var(--wds-radius-s);border:1.5px solid var(--wds-primary);cursor:pointer;background:${state.statsFilter===f?'var(--wds-primary)':'white'};color:${state.statsFilter===f?'#fff':'var(--wds-primary)'}">${filterLabels[f]}</button>`).join('')}
@@ -2658,12 +2630,9 @@
                         <div style="font-size:1.3rem;font-weight:800">${maxCount}회</div>
                     </div>
                 </div>
-                ${champLine}
                 ${rows.length === 0
                     ? '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">멤버가 없습니다.</p>'
-                    : `${topThree.map(renderPodium).join('')}
-                       ${restRows.length ? `<div style="font-size:0.75rem;color:var(--wds-gray-500);margin:14px 0 6px 0;padding-left:4px">기타 순위</div>` : ''}
-                       ${restRows.map(renderRow).join('')}`
+                    : rows.map(renderRow).join('')
                 }
             `;
         }
