@@ -5075,6 +5075,7 @@
             }
 
             el.innerHTML = html;
+            if (state.communityCreateOpen) renderCommunityCreateFieldEditor();
         }
 
         function communitySetTab(tab) {
@@ -5085,7 +5086,44 @@
 
         function communityToggleCreate() {
             state.communityCreateOpen = !state.communityCreateOpen;
+            if (state.communityCreateOpen) state.communityCreateFields = [];
             renderCommunityList();
+        }
+
+        function renderCommunityCreateFieldEditor() {
+            const el = document.getElementById('communityCreateFieldEditor');
+            if (!el) return;
+            const fields = state.communityCreateFields || [];
+            if (fields.length === 0) {
+                el.innerHTML = `<div style="color:var(--wds-gray-500);font-size:0.82rem;margin-bottom:8px;">추가된 항목 없음</div>`;
+                return;
+            }
+            let html = '';
+            fields.forEach((f, i) => {
+                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:8px 10px;margin-bottom:8px;background:var(--wds-gray-100);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <input type="text" value="${escapeHtml(f.label)}" placeholder="항목명" onchange="state.communityCreateFields[${i}].label=this.value" style="flex:1;min-width:80px;height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                    <select onchange="state.communityCreateFields[${i}].type=this.value" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                        <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
+                        <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
+                    </select>
+                    <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
+                        <input type="checkbox" ${f.required?'checked':''} onchange="state.communityCreateFields[${i}].required=this.checked"> 필수
+                    </label>
+                    <button class="edit-btn" style="padding:2px 8px;color:#e74c3c;border-color:#e74c3c;" onclick="removeCommunityCreateField(${i})">삭제</button>
+                </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        function addCommunityCreateField() {
+            if (!state.communityCreateFields) state.communityCreateFields = [];
+            state.communityCreateFields.push({ label: '', type: 'text', required: false });
+            renderCommunityCreateFieldEditor();
+        }
+
+        function removeCommunityCreateField(i) {
+            state.communityCreateFields.splice(i, 1);
+            renderCommunityCreateFieldEditor();
         }
 
         async function submitCommunityCreate() {
@@ -5140,7 +5178,7 @@
                 application_deadline: deadline || null,
                 description: desc || null,
                 password_salt: salt, password_hash: hash,
-                is_closed: false, form_fields: []
+                is_closed: false, form_fields: state.communityCreateFields || []
             };
 
             const { data, error } = await supabaseClient.from('community_meetings').insert(payload).select().single();
