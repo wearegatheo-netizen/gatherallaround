@@ -2051,7 +2051,7 @@
             if (key.startsWith('adminMember')) {
                 const el = document.getElementById('memberList');
                 if (el) renderAdminMemberListEl(el);
-            } else if (key.startsWith('member_')) {
+            } else if (key.startsWith('member_') || key === 'statsRanking') {
                 renderMemberPanel();
             } else if (key.startsWith('block')) {
                 renderBlockList();
