@@ -4977,10 +4977,6 @@
                             </select>
                         </div>
                     </div>
-                    <div class="community-field-row">
-                        <label>장소</label>
-                        <input type="text" id="cc_location" placeholder="모임 장소" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                    </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>모임장 이름 <span style="color:#e74c3c">*</span></label>
@@ -5089,7 +5085,6 @@
             const date = document.getElementById('cc_date').value;
             const startTime = document.getElementById('cc_start_time').value;
             const endTime = document.getElementById('cc_end_time').value;
-            const location = document.getElementById('cc_location').value.trim();
             const orgName = document.getElementById('cc_org_name').value.trim();
             const orgPhone = document.getElementById('cc_org_phone').value.trim();
             const orgEmail = document.getElementById('cc_org_email').value.trim();
@@ -5130,7 +5125,6 @@
                 title, cover_image_url: coverImageUrl,
                 meeting_date: date || null,
                 meeting_time: timeText,
-                location: location || null,
                 organizer_name: orgName, organizer_phone: orgPhone || null, organizer_email: orgEmail,
                 fee: fee || null, items_to_bring: items || null,
                 capacity: capacity ? parseInt(capacity) : null,
