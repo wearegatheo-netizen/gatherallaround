@@ -1534,6 +1534,7 @@
         const SUPABASE_URL = 'https://xdcygyvsybsirmaknmpq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
         const ADMIN_ID = '4883868250'; // 관리자 카카오 ID (최경수)
+        const COMMUNITY_ADMIN_PW = 'admin123456'; // 커뮤니티 모임 마스터 비밀번호 (모든 모임 수정 가능)
         // 이메일 발송은 Supabase Edge Function 'send-email'을 통해 처리됩니다.
         // 실제 RESEND_API_KEY는 Supabase secrets에 저장됨.
         const EMAIL_ENABLED = true;
@@ -5454,8 +5455,10 @@
             if (!pw) return alert('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
-            const hash = await hashPw(pw, meeting.password_salt);
-            if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            if (pw !== COMMUNITY_ADMIN_PW) {
+                const hash = await hashPw(pw, meeting.password_salt);
+                if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            }
             state.communityEditAuth[id] = true;
             document.getElementById('commAuthModal')?.remove();
             renderCommunityDetail(id);
@@ -5521,8 +5524,10 @@
             if (!pw) return alert('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
-            const hash = await hashPw(pw, meeting.password_salt);
-            if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            if (pw !== COMMUNITY_ADMIN_PW) {
+                const hash = await hashPw(pw, meeting.password_salt);
+                if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            }
             state.communityEditAuth[id] = true;
             renderCommunityDetail(id);
         }
