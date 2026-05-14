@@ -4990,11 +4990,15 @@
                     <div class="community-field-row">
                         <label>모임장 이메일 <span style="color:#e74c3c">*</span></label>
                         <input type="email" id="cc_org_email" placeholder="organizer@example.com" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0;">해당 이메일로 신청폼이 전달됩니다.</p>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div class="community-field-row">
                             <label>참여비용</label>
-                            <input type="text" id="cc_fee" placeholder="무료 / 1만원 등" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <input type="number" id="cc_fee" placeholder="0" min="0" step="100" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                                <span style="font-size:0.88rem;color:var(--wds-gray-600);font-weight:600;">원</span>
+                            </div>
                         </div>
                         <div class="community-field-row">
                             <label>준비물</label>
@@ -5088,7 +5092,8 @@
             const orgName = document.getElementById('cc_org_name').value.trim();
             const orgPhone = document.getElementById('cc_org_phone').value.trim();
             const orgEmail = document.getElementById('cc_org_email').value.trim();
-            const fee = document.getElementById('cc_fee').value.trim();
+            const feeRaw = document.getElementById('cc_fee').value.trim();
+            const fee = feeRaw ? `${parseInt(feeRaw).toLocaleString('ko-KR')}원` : null;
             const items = document.getElementById('cc_items').value.trim();
             const capacity = document.getElementById('cc_capacity').value;
             const deadline = document.getElementById('cc_deadline').value;
