@@ -2013,6 +2013,7 @@
             statsFilter: 'all',
             paging: {},
             schedules: [],
+            scheduleAttendees: {},
             scheduleFilter: 'upcoming',
             scheduleEditorDate: new Date().toLocaleDateString('en-CA'),
             scheduleEditorGroups: [],
@@ -2660,6 +2661,44 @@
             if (!error) { state.schedules = data || []; renderScheduleBanner(); }
         }
 
+        async function fetchScheduleAttendees(dates) {
+            state.scheduleAttendees = {};
+            if (!supabaseClient || !dates || dates.length === 0) return;
+            const { data, error } = await supabaseClient
+                .from('schedule_attendees')
+                .select('schedule_date, profile_id')
+                .in('schedule_date', dates);
+            if (error) return;
+            (data || []).forEach(r => {
+                const d = r.schedule_date;
+                if (!state.scheduleAttendees[d]) state.scheduleAttendees[d] = [];
+                state.scheduleAttendees[d].push(r.profile_id);
+            });
+        }
+
+        window.toggleScheduleAttendance = async function(date) {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
+            if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            const attendees = (state.scheduleAttendees || {})[date] || [];
+            const already = attendees.includes(me.id);
+            if (already) {
+                const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id);
+                if (error) { alert('취소 실패: ' + error.message); return; }
+            } else {
+                const { error } = await supabaseClient.from('schedule_attendees').insert({ schedule_date: date, profile_id: me.id });
+                if (error) {
+                    if (error.code === '42P01' || (error.message||'').includes('does not exist')) {
+                        alert('⚠️ schedule_attendees 테이블이 없습니다.\n\nSupabase SQL Editor에서 아래 SQL을 실행해주세요:\n\nCREATE TABLE schedule_attendees (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  schedule_date date NOT NULL,\n  profile_id uuid NOT NULL,\n  created_at timestamptz DEFAULT now(),\n  UNIQUE(schedule_date, profile_id)\n);\nALTER TABLE schedule_attendees ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow_all" ON schedule_attendees FOR ALL USING (true) WITH CHECK (true);');
+                    } else {
+                        alert('신청 실패: ' + error.message);
+                    }
+                    return;
+                }
+            }
+            renderMemberPanel();
+        };
+
         function schedEditorInit(date) {
             state.scheduleEditorDate = date || new Date().toLocaleDateString('en-CA');
             const entries = (state.schedules || []).filter(s => s.date === state.scheduleEditorDate)
@@ -2874,6 +2913,10 @@
             const sortedDates = Object.keys(dateMap).sort(showPast ? (a,b)=>b.localeCompare(a) : undefined);
             const fmtDate = (d) => { const p=d.split('-'),dn={0:'일',1:'월',2:'화',3:'수',4:'목',5:'금',6:'토'}; return `${parseInt(p[1])}월 ${parseInt(p[2])}일 (${dn[new Date(d).getDay()]})`; };
 
+            const myMember = state.user ? (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email) : null;
+            const myId = myMember ? myMember.id : null;
+            await fetchScheduleAttendees(sortedDates);
+
             const timetableDay = (date, entries) => {
                 const isToday = date === today;
                 const gMap = {}, gOrder = [];
@@ -2903,6 +2946,25 @@
                     }).join('');
                     return `<div>${header}${rows}</div>`;
                 }).join('');
+                const dateAttendees = state.scheduleAttendees[date] || [];
+                const isMeIn = !!(myId && dateAttendees.includes(myId));
+                const attendeeNames = dateAttendees.map(pid => {
+                    const p = memberMap[pid];
+                    return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
+                }).filter(Boolean);
+                const attendeeSection = `
+                    <div style="padding:8px 12px;border-top:1px solid var(--wds-gray-200)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${attendeeNames.length ? '6px' : '0'}">
+                            <span style="font-size:0.75rem;font-weight:700;color:var(--wds-gray-600)">참여 신청${dateAttendees.length > 0 ? ` (${dateAttendees.length}명)` : ''}</span>
+                            ${state.user ? `<button type="button" onclick="toggleScheduleAttendance('${date}')"
+                                style="padding:3px 10px;font-size:0.72rem;border-radius:4px;border:1.5px solid ${isMeIn ? '#EF4444' : 'var(--wds-primary)'};background:${isMeIn ? '#FEF2F2' : 'var(--wds-primary-light)'};color:${isMeIn ? '#EF4444' : 'var(--wds-primary)'};cursor:pointer;font-weight:700">
+                                ${isMeIn ? '✓ 신청 취소' : '+ 참여 신청'}</button>` : ''}
+                        </div>
+                        ${attendeeNames.length
+                            ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${attendeeNames.map(n => `<span style="background:var(--wds-primary-light);border-radius:5px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}</div>`
+                            : `<p style="font-size:0.75rem;color:var(--wds-gray-400);margin:0">아직 참여 신청한 멤버가 없습니다.</p>`}
+                    </div>`;
+
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
                         <div style="display:flex;align-items:center;gap:7px">
@@ -2918,6 +2980,7 @@
                         </div>` : ''}
                     </div>
                     <div style="padding:8px 12px">${groupsHtml}</div>
+                    ${attendeeSection}
                 </div>`;
             };
 
