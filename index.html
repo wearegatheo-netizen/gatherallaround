@@ -1378,7 +1378,7 @@
 
     <!-- 커뮤니티 페이지 -->
     <div id="landing-page-community" class="hidden">
-        <div style="max-width:1100px;margin:0 auto;padding:24px 16px 48px;">
+        <div style="max-width:1400px;margin:0 auto;padding:24px 28px 48px;">
             <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:52px;">
                 <div>
@@ -5071,12 +5071,8 @@
                     const capStr = m.capacity ? `${cnt}/${m.capacity}명` : `${cnt}명 신청`;
                     const dateStr = m.meeting_date ? m.meeting_date.replace(/-/g, '.') : '';
                     html += `<div class="community-card" onclick="renderCommunityDetail('${m.id}')">`;
-                    if (m.cover_image_url) {
-                        html += `<img class="community-card-img" src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;
-                        html += `<div class="community-placeholder-img" style="display:none;">${escapeHtml(m.title.charAt(0))}</div>`;
-                    } else {
-                        html += `<div class="community-placeholder-img">${escapeHtml(m.title.charAt(0))}</div>`;
-                    }
+                    const cardImg = m.cover_image_url || '/icon.jpg';
+                    html += `<img class="community-card-img" src="${escapeHtml(cardImg)}" alt="${escapeHtml(m.title)}" onerror="this.src='/icon.jpg'">`;
                     html += `<div class="community-card-body">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
                             <div class="community-card-title">${escapeHtml(m.title)}</div>
@@ -5413,7 +5409,7 @@
 
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px;">
                             <button onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})" style="padding:14px;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;color:var(--wds-black);">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
-                            <button onclick="downloadCommunityApplicantsCsv('${id}')" style="padding:14px;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">신청자 CSV 다운로드</button>
+                            <button onclick="downloadCommunityApplicantsCsv('${id}')" style="padding:14px;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">신청자 목록 CSV 다운로드</button>
                             <button onclick="deleteCommunityMeeting('${id}')" style="padding:14px;background:#e74c3c;color:#fff;border:1px solid #e74c3c;border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">모임 삭제</button>
                         </div>
                         </div></div>`;
