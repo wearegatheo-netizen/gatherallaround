@@ -6029,7 +6029,7 @@
             if (!row) return;
             const { resDate, startTime, endTime, userName, etc } = row.dataset;
             const timeOpts = TIMES.map(t => `<option value="${t}" ${t===startTime?'selected':''}>${t}</option>`).join('');
-            const endOpts  = TIMES.map(t => `<option value="${t}" ${t===endTime?'selected':''}>${t}</option>`).join('');
+            const endOpts  = TIMES.map((t, i) => `<option value="${t}" ${t===endTime?'selected':''}>${TIMES[i+1]||'23:00'}</option>`).join('');
             row.innerHTML = `
                 <div style="display:flex;flex-direction:column;gap:8px;padding:6px 0;width:100%">
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
