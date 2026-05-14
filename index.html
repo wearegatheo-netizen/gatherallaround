@@ -95,6 +95,7 @@
         body.dark .reject-btn { background: #2a1010 !important; }
         body.dark .team-card { background: var(--wds-gray-100) !important; }
         body.dark .admin-member-row { background: var(--wds-gray-100) !important; }
+        body.dark .edit-btn { border-color: var(--wds-gray-500) !important; color: var(--wds-gray-400) !important; }
         body.dark .block-list-row { background: var(--wds-gray-100) !important; }
         body.dark #teamFormContainer { background: var(--wds-gray-100) !important; }
         body.dark #musicResults { background: var(--wds-gray-100) !important; }
@@ -400,12 +401,14 @@
 
         /* 관리자 섹션 */
         .admin-section { margin-bottom: 32px; }
-        .admin-section-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--wds-gray-100); }
+        .admin-section-title { font-size: 1rem; font-weight: 700; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--wds-gray-300); color: var(--wds-black); }
         .notice-input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
         .notice-input-group input, .notice-input-group textarea { padding: 10px 14px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); font-family: inherit; font-size: 0.9rem; outline: none; }
         .notice-input-group textarea { resize: vertical; min-height: 60px; }
         .approve-btn { padding: 6px 14px; border: 1px solid #10B981; border-radius: var(--wds-radius-s); background: white; color: #10B981; cursor: pointer; font-weight: 600; font-size: 0.82rem; margin-right: 6px; }
         .reject-btn { padding: 6px 14px; border: 1px solid #EF4444; border-radius: var(--wds-radius-s); background: white; color: #EF4444; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
+        .edit-btn { padding: 3px 10px; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--wds-gray-400); background: none; cursor: pointer; color: var(--wds-gray-600); font-weight: 600; }
+        .admin-member-row .cancel-btn { padding: 3px 10px; font-size: 0.72rem; }
         .admin-post-btn { padding: 10px 20px; background: var(--wds-black); color: white; border: none; border-radius: var(--wds-radius-m); font-size: 0.9rem; font-weight: 700; cursor: pointer; align-self: flex-end; }
         body.dark .admin-post-btn { background: var(--wds-gray-700) !important; color: var(--wds-white) !important; }
 
@@ -3933,6 +3936,7 @@
             } else {
                 const { items: approved, page: ap, totalPages: atp, total: at } = getPaged(allApproved, 'adminApproved');
                 const approvedList = document.createElement('div');
+                approvedList.className = 'admin-member-list';
                 approved.forEach(r => {
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div');
@@ -3943,16 +3947,18 @@
                     item.dataset.endTime = r.end_time;
                     item.dataset.userName = r.user_name;
                     item.dataset.etc = r.participant_etc || '';
-                    item.style.cssText = 'justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;row-gap:4px';
+                    item.style.cssText = 'flex-wrap:wrap;row-gap:4px';
                     const etcLine = canApproveRes() && r.participant_etc
-                        ? `<div style="flex-basis:100%;font-size:0.74rem;color:#e07b00;padding-left:4px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
+                        ? `<div style="flex-basis:100%;font-size:0.74rem;color:#e07b00;padding-top:2px;padding-left:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
                         : '';
                     item.innerHTML = `
-                        <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
-                        <span style="font-size:0.78rem;color:var(--wds-gray-600);white-space:nowrap">${r.start_time}~${endTimeDisplay}</span>
-                        <span style="font-size:0.82rem;flex:1;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
-                        <div style="display:flex;gap:4px;flex-shrink:0">
-                            ${isSuper() ? `<button type="button" onclick="editResInfo('${r.id}')" style="font-size:0.72rem;padding:2px 8px;border-radius:4px;border:1px solid var(--wds-gray-400);background:none;cursor:pointer;color:var(--wds-gray-600)">수정</button>` : ''}
+                        <div class="admin-member-main">
+                            <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
+                            <span style="font-size:0.78rem;color:var(--wds-gray-500);white-space:nowrap;padding-left:4px">${r.start_time}–${endTimeDisplay}</span>
+                            <span style="font-size:0.82rem;font-weight:600;padding-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
+                        </div>
+                        <div class="admin-member-side">
+                            ${isSuper() ? `<button type="button" class="edit-btn" onclick="editResInfo('${r.id}')">수정</button>` : ''}
                             ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
                         </div>
                         ${etcLine}`;
@@ -4117,7 +4123,7 @@
                     ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span><span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
                     : '';
                 const editBtn = isS && (m.status === 'pending' || m.status === 'approved')
-                    ? `<button type="button" onclick="editMemberInfo('${m.id}')" style="font-size:0.72rem;padding:2px 8px;border-radius:4px;border:1px solid var(--wds-gray-400);background:none;cursor:pointer;color:var(--wds-gray-600)">수정</button>`
+                    ? `<button type="button" class="edit-btn" onclick="editMemberInfo('${m.id}')">수정</button>`
                     : '';
                 return `<div class="admin-member-row" id="admin-member-row-${m.id}"
                     data-name="${escapeHtml(m.name)}" data-email="${escapeHtml(m.email||'')}" data-phone="${escapeHtml(m.phone||'')}" data-instruments="${escapeHtml(m.instruments||'')}">
