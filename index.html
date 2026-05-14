@@ -3319,15 +3319,9 @@
                 // 부 악기만 뱃지로
                 const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
                 const subInsts = insts.slice(1).join(',');
-                const resCount = (state.reservations || []).filter(r =>
-                    (r.status === 'approved' || r.status === 'pending') &&
-                    Array.isArray(r.participant_ids) &&
-                    r.participant_ids.includes(m.id)
-                ).length;
-                const countTag = `<span style="font-size:0.75rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">참여 ${resCount}회</span>`;
                 return `<div class="my-res-item" style="margin-bottom:4px">
                     <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
-                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${memberDisplayName(m)}</span>${countTag}${roleTag}${instBadges(subInsts)}${adminMeta}
+                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${memberDisplayName(m)}</span>${roleTag}${instBadges(subInsts)}${adminMeta}
                     </div>
                 </div>`;
             };
