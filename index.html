@@ -919,8 +919,9 @@
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); background:var(--wds-primary-light); }
         body.dark .community-tab.active { background:#1e293b; }
         .community-tab:hover:not(.active) { color:var(--wds-black); background:var(--wds-gray-100); }
-        #communityContent { padding:0 16px; }
-        .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; margin-left:-16px; margin-right:-16px; }
+        #communityContent { padding:0; }
+        .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+        .community-content-pad { padding:0 16px; }
         .community-section-title { font-size:1.05rem; font-weight:800; color:var(--wds-black); margin:18px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--wds-primary); }
         .community-section-title:first-child { margin-top:0; }
         body.dark .community-section-title { color:var(--wds-black); }
@@ -929,20 +930,19 @@
         @media (max-width:640px) {
             #landing-page-community > div:first-child { padding:14px 12px 0 !important; }
             #landing-page-community h2 { font-size:1.35rem !important; }
-            #communityContent { padding:0 12px; }
-            .community-list { margin-left:-12px; margin-right:-12px; }
+            .community-content-pad { padding:0 12px; }
             .community-card { border-radius:0; border-left:none; border-right:none; }
             .community-tab { padding:7px 14px; font-size:0.85rem; }
             .community-card-img { width:72px; min-height:72px; }
             .community-placeholder-img { width:72px !important; min-height:72px !important; font-size:1.6rem !important; }
             .community-card-body { padding:10px 12px; gap:3px; }
             .community-card-title { white-space:normal; font-size:0.92rem; }
-            .community-form-section { padding:14px 12px 12px; }
+            .community-form-section { padding:14px 12px 12px; border-radius:0; border-left:none; border-right:none; }
             .community-field-row { margin-bottom:10px; }
-            .community-detail-header { flex-direction:column; padding:14px; gap:12px; }
+            .community-detail-header { flex-direction:column; padding:14px; gap:12px; border-radius:0; border-left:none; border-right:none; }
             .community-detail-img { width:100% !important; height:180px !important; border-radius:var(--wds-radius-s); }
             .community-detail-title { font-size:1.2rem !important; }
-            .community-detail-meta-card { padding:16px; }
+            .community-detail-meta-card { padding:16px; border-radius:0; border-left:none; border-right:none; }
             .community-grid-2 { grid-template-columns:1fr; gap:0; }
         }
         .community-create-btn { background:#16a34a; color:#fff; border:none; border-radius:var(--wds-radius-m); padding:10px 22px; font-size:0.97rem; font-weight:700; cursor:pointer; transition:background 0.15s; display:inline-flex; align-items:center; gap:7px; }
@@ -4981,20 +4981,20 @@
             if (visitorEl) visitorEl.textContent = `오늘 방문자: ${state.communityTodayVisits}명`;
 
             let html = '';
-            // Tabs
-            html += `<div class="community-tab-bar">
-                <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
-                <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
-            </div>`;
-
-            // Create button
-            html += `<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-                <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
+            // Tabs + create button (padded row)
+            html += `<div class="community-content-pad">
+                <div class="community-tab-bar">
+                    <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
+                    <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                    <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
+                </div>
             </div>`;
 
             // Create form
             if (state.communityCreateOpen) {
-                html += `<div class="community-form-section" id="communityCreateForm">
+                html += `<div class="community-content-pad"><div class="community-form-section" id="communityCreateForm">
                     <h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;color:var(--wds-black);">새 모임 만들기</h3>
                     <div class="community-field-row">
                         <label>모임명 <span style="color:#e74c3c">*</span></label>
@@ -5088,12 +5088,12 @@
                         <button class="edit-btn" style="flex:1;padding:9px;font-size:0.85rem;" onclick="communityToggleCreate()">취소</button>
                         <button class="edit-btn" style="flex:2;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="submitCommunityCreate()">모임 만들기</button>
                     </div>
-                </div>`;
+                </div></div>`;
             }
 
             // Meeting grid
             if (paged.items.length === 0) {
-                html += `<div style="text-align:center;padding:48px 0;color:var(--wds-gray-500);font-size:0.95rem;">${tab === 'current' ? '현재 모집 중인 모임이 없습니다.' : '지난 모임이 없습니다.'}</div>`;
+                html += `<div class="community-content-pad"><div style="text-align:center;padding:48px 0;color:var(--wds-gray-500);font-size:0.95rem;">${tab === 'current' ? '현재 모집 중인 모임이 없습니다.' : '지난 모임이 없습니다.'}</div></div>`;
             } else {
                 html += `<div class="community-list">`;
                 paged.items.forEach(m => {
@@ -5120,7 +5120,7 @@
                     </div></div>`;
                 });
                 html += `</div>`;
-                html += pagerHTML('commList', paged.page, paged.totalPages, paged.total);
+                html += `<div class="community-content-pad">${pagerHTML('commList', paged.page, paged.totalPages, paged.total)}</div>`;
             }
 
             el.innerHTML = html;
@@ -5283,7 +5283,7 @@
             const el = document.getElementById('communityContent');
             if (!el) return;
 
-            let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
+            let html = `<div class="community-content-pad" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
                 <button class="edit-btn" onclick="communityBackToList()">← 목록으로</button>
                 <button class="edit-btn" style="padding:6px 16px;" onclick="communityShowAuthModal('${id}')">✏️ 수정</button>
             </div>`;
