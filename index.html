@@ -1679,8 +1679,18 @@
         async function checkKakaoUserProfile() {
             if (!state.user || state.user.authType === 'email') return;
             if (!supabaseClient) return;
-            const { data } = await supabaseClient.from('profiles').select('id, name').eq('kakao_id', state.user.kakaoId).maybeSingle();
+            const { data } = await supabaseClient.from('profiles').select('id, name, status').eq('kakao_id', state.user.kakaoId).maybeSingle();
             if (!data) { showKakaoSignupModal(); return; }
+            if (data.status === 'pending') {
+                logoutUI();
+                showPendingScreen(data.name || state.user.nickname);
+                return;
+            }
+            if (data.status === 'rejected') {
+                alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.');
+                logoutUI();
+                return;
+            }
             if (data.name) {
                 state.user.nickname = data.name;
                 const el = document.getElementById('userNameDisplay');
@@ -2306,12 +2316,18 @@
             if (Kakao.Auth.getAccessToken()) {
                 Kakao.API.request({
                     url: '/v2/user/me',
-                    success: (res) => {
+                    success: async (res) => {
                         console.log("기존 세션 확인 성공");
-                        state.user = { 
-                            nickname: res.kakao_account.profile.nickname, 
-                            kakaoId: res.id.toString() 
-                        };
+                        const kakaoId = res.id.toString();
+                        const nickname = res.kakao_account.profile.nickname;
+                        if (supabaseClient) {
+                            const { data } = await supabaseClient.from('profiles').select('name, status').eq('kakao_id', kakaoId).maybeSingle();
+                            if (data) {
+                                if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
+                                if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
+                            }
+                        }
+                        state.user = { nickname, kakaoId };
                         loginUI(state.user.nickname);
                     },
                     fail: (err) => {
