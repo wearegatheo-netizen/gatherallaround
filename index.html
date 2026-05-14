@@ -903,8 +903,8 @@
         .community-card { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-m); overflow:hidden; cursor:pointer; transition:box-shadow 0.18s; display:flex; flex-direction:row; align-items:stretch; }
         .community-card:hover { box-shadow:0 4px 18px rgba(0,0,0,0.11); }
         body.dark .community-card { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
-        .community-card-img { width:100px; height:100px; object-fit:cover; flex-shrink:0; display:block; background:var(--wds-gray-100); }
-        .community-placeholder-img { width:100px; height:100px; flex-shrink:0; background:var(--wds-primary); display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:800; color:#fff; user-select:none; }
+        .community-card-img { width:100px; min-height:80px; object-fit:cover; flex-shrink:0; display:block; align-self:stretch; background:var(--wds-gray-100); }
+        .community-placeholder-img { width:100px; min-height:80px; flex-shrink:0; align-self:stretch; background:var(--wds-primary); display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:800; color:#fff; user-select:none; }
         .community-card-body { padding:12px 16px; flex:1; display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; }
         .community-card-title { font-size:1rem; font-weight:700; color:var(--wds-black); margin:0; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .community-card-meta { font-size:0.82rem; color:var(--wds-gray-500); display:flex; flex-wrap:wrap; gap:2px 8px; }
@@ -921,11 +921,11 @@
         .community-tab:hover:not(.active) { color:var(--wds-black); background:var(--wds-gray-100); }
         .community-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
         @media (max-width:640px) {
-            #landing-page-community > div { padding:16px 12px 36px !important; }
+            #landing-page-community > div { padding:16px 8px 36px !important; }
             #landing-page-community h2 { font-size:1.35rem !important; }
             .community-tab { padding:7px 14px; font-size:0.85rem; }
-            .community-card-img { width:76px; height:76px; }
-            .community-placeholder-img { width:76px !important; height:76px !important; font-size:1.6rem !important; }
+            .community-card-img { width:72px; min-height:72px; }
+            .community-placeholder-img { width:72px !important; min-height:72px !important; font-size:1.6rem !important; }
             .community-card-body { padding:10px 12px; gap:3px; }
             .community-card-title { white-space:normal; font-size:0.92rem; }
             .community-form-section { padding:16px 14px 14px; }
@@ -1393,7 +1393,7 @@
 
     <!-- 커뮤니티 페이지 -->
     <div id="landing-page-community" class="hidden">
-        <div style="max-width:1400px;margin:0 auto;padding:24px 28px 48px;">
+        <div style="max-width:1400px;margin:0 auto;padding:24px 20px 48px;">
             <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:52px;">
                 <div>
@@ -5014,7 +5014,7 @@
                             <input type="text" id="cc_org_name" placeholder="모임장 이름" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div class="community-field-row">
-                            <label>모임장 연락처</label>
+                            <label>모임장 연락처 <span style="color:#e74c3c">*</span></label>
                             <input type="tel" id="cc_org_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                     </div>
@@ -5047,7 +5047,7 @@
                         </div>
                     </div>
                     <div class="community-field-row">
-                        <label>모임 설명</label>
+                        <label>모임 설명 <span style="color:#e74c3c">*</span></label>
                         <textarea id="cc_desc" rows="4" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
                     </div>
                     <div class="community-field-row">
@@ -5069,7 +5069,7 @@
                         <div style="font-weight:700;margin-bottom:6px;color:var(--wds-gray-700);">기본 필수 항목 (자동 포함)</div>
                         <div style="display:flex;flex-direction:column;gap:4px;">
                             <span>• 이름 <span style="color:#e74c3c;font-weight:700;">*</span></span>
-                            <span>• 전화번호 <span style="color:#e74c3c;font-weight:700;">*</span></span>
+                            <span>• 연락처 <span style="color:#e74c3c;font-weight:700;">*</span></span>
                         </div>
                     </div>
                     <div id="communityCreateFieldEditor"></div>
@@ -5188,7 +5188,9 @@
             if (!startTime || !endTime) return alert('모임 시간을 선택해주세요.');
             if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return alert('시작 시간이 종료 시간보다 늦을 수 없습니다.');
             if (!orgName) return alert('모임장 이름을 입력해주세요.');
+            if (!orgPhone) return alert('모임장 연락처를 입력해주세요.');
             if (!orgEmail) return alert('모임장 이메일을 입력해주세요.');
+            if (!desc) return alert('모임 설명을 입력해주세요.');
             if (!capacity || parseInt(capacity) < 1) return alert('정원은 1명 이상 필수입니다.');
             if (deadline && date && deadline > date) return alert('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
             if (!pw) return alert('비밀번호는 필수입니다.');
@@ -5285,12 +5287,12 @@
                     <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:var(--wds-black);">${escapeHtml(meeting.title)}</h2>
                     <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '모집 마감' : '모집 중'}</span>
                 </div>`;
-            if (dateStr || meeting.meeting_time) html += `<div class="community-detail-info-row">📅 ${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</div>`;
-            if (meeting.location) html += `<div class="community-detail-info-row">📍 ${escapeHtml(meeting.location)}</div>`;
-            html += `<div class="community-detail-info-row">👤 ${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</div>`;
-            if (meeting.fee) html += `<div class="community-detail-info-row">💰 ${communityIsFreeMeeting(meeting.fee) ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-size:0.82rem;font-weight:800;">무료!</span>' : escapeHtml(meeting.fee)}</div>`;
-            if (meeting.items_to_bring) html += `<div class="community-detail-info-row">🎒 ${escapeHtml(meeting.items_to_bring)}</div>`;
-            html += `<div class="community-detail-info-row" style="font-weight:600;color:var(--wds-primary);">신청 ${capStr}</div>`;
+            if (dateStr || meeting.meeting_time) html += `<div class="community-detail-info-row"><span class="info-label">날짜 · 시간</span>${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</div>`;
+            if (meeting.location) html += `<div class="community-detail-info-row"><span class="info-label">장소</span>${escapeHtml(meeting.location)}</div>`;
+            html += `<div class="community-detail-info-row"><span class="info-label">모임장</span>${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</div>`;
+            if (meeting.fee) html += `<div class="community-detail-info-row"><span class="info-label">참여비</span>${communityIsFreeMeeting(meeting.fee) ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-size:0.82rem;font-weight:800;">무료!</span>' : escapeHtml(meeting.fee)}</div>`;
+            if (meeting.items_to_bring) html += `<div class="community-detail-info-row"><span class="info-label">준비물</span>${escapeHtml(meeting.items_to_bring)}</div>`;
+            html += `<div class="community-detail-info-row"><span class="info-label">신청 현황</span><span style="font-weight:600;color:var(--wds-primary);">${capStr}</span></div>`;
             html += `</div></div>`;
 
             if (meeting.description) {
@@ -5308,11 +5310,7 @@
                     <input type="text" id="ca_name" placeholder="이름" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                 </div>
                 <div class="community-field-row">
-                    <label>이메일</label>
-                    <input type="email" id="ca_email" placeholder="이메일 (선택)" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
-                </div>
-                <div class="community-field-row">
-                    <label>전화번호 <span style="color:#e74c3c">*</span></label>
+                    <label>연락처 <span style="color:#e74c3c">*</span></label>
                     <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"></div>`;
                 formFields.forEach((f, i) => {
                     const fid = `ca_custom_${i}`;
@@ -5338,38 +5336,45 @@
                 html += `<div class="community-form-section" id="communityOrganizerPanel">
                     <h3 style="margin:0 0 14px;font-size:1rem;font-weight:700;color:var(--wds-black);">✏️ 모임 수정</h3>
                     <div id="communityEditForm">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-400);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">모임 정보</div>
                         <div class="community-field-row">
-                            <label>모임명</label>
+                            <label>모임명 <span style="color:#e74c3c">*</span></label>
                             <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                             <div class="community-field-row">
-                                <label>모임 날짜 <span style="font-size:0.72rem;color:var(--wds-gray-400);font-weight:400;">(수정 불가)</span></label>
-                                <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-500);cursor:not-allowed;">
+                                <label style="color:var(--wds-gray-400);">날짜 <span style="font-size:0.72rem;font-weight:400;">(수정 불가)</span></label>
+                                <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-400);cursor:not-allowed;">
                             </div>
                             <div class="community-field-row">
-                                <label>시간 <span style="font-size:0.72rem;color:var(--wds-gray-400);font-weight:400;">(수정 불가)</span></label>
-                                <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-500);cursor:not-allowed;">
+                                <label style="color:var(--wds-gray-400);">시간 <span style="font-size:0.72rem;font-weight:400;">(수정 불가)</span></label>
+                                <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" disabled style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;background:var(--wds-gray-100);color:var(--wds-gray-400);cursor:not-allowed;">
                             </div>
                         </div>
+
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:14px 0 12px;">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-400);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">모임장 정보</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                             <div class="community-field-row">
-                                <label>모임장 이름</label>
+                                <label>모임장 이름 <span style="color:#e74c3c">*</span></label>
                                 <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                             </div>
                             <div class="community-field-row">
-                                <label>모임장 연락처</label>
+                                <label>연락처 <span style="color:#e74c3c">*</span></label>
                                 <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                             </div>
                         </div>
                         <div class="community-field-row">
-                            <label>모임장 이메일</label>
+                            <label>이메일 <span style="color:#e74c3c">*</span></label>
                             <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                         </div>
+
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:14px 0 12px;">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-400);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">모집 설정</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                             <div class="community-field-row">
                                 <label>참여비용</label>
-                                <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                                <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" placeholder="예: 5,000원" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                             </div>
                             <div class="community-field-row">
                                 <label>준비물</label>
@@ -5386,6 +5391,9 @@
                                 <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
                             </div>
                         </div>
+
+                        <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:14px 0 12px;">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-400);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">설명 및 이미지</div>
                         <div class="community-field-row">
                             <label>모임 설명</label>
                             <textarea id="ce_desc" rows="4" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
@@ -5403,7 +5411,7 @@
                             <div style="font-weight:700;margin-bottom:6px;color:var(--wds-gray-700);">기본 필수 항목 (자동 포함)</div>
                             <div style="display:flex;flex-direction:column;gap:4px;">
                                 <span>• 이름 <span style="color:#e74c3c;font-weight:700;">*</span></span>
-                                <span>• 전화번호 <span style="color:#e74c3c;font-weight:700;">*</span></span>
+                                <span>• 연락처 <span style="color:#e74c3c;font-weight:700;">*</span></span>
                             </div>
                         </div>
                         <div id="communityFieldEditor"></div>
@@ -5433,10 +5441,10 @@
                 }
                 html += `</div>
 
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px;">
-                            <button onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})" style="padding:14px;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;color:var(--wds-black);">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
-                            <button onclick="downloadCommunityApplicantsCsv('${id}')" style="padding:14px;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">신청자 목록 CSV 다운로드</button>
-                            <button onclick="deleteCommunityMeeting('${id}')" style="padding:14px;background:#e74c3c;color:#fff;border:1px solid #e74c3c;border-radius:var(--wds-radius-s);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">모임 삭제</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
+                            <button class="edit-btn" style="padding:7px 14px;font-size:0.85rem;" onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
+                            <button class="edit-btn" style="padding:7px 14px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="downloadCommunityApplicantsCsv('${id}')">신청자 목록 CSV 다운로드</button>
+                            <button class="edit-btn" style="padding:7px 14px;font-size:0.85rem;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
                         </div>
                         </div></div>`;
             }
@@ -5646,11 +5654,11 @@
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
 
             const name = (document.getElementById('ca_name') || {}).value?.trim() || '';
-            const email = (document.getElementById('ca_email') || {}).value?.trim() || '';
+            const email = '';
             const phone = (document.getElementById('ca_phone') || {}).value?.trim() || '';
 
             if (!name) return alert('이름을 입력해주세요.');
-            if (!phone) return alert('전화번호를 입력해주세요.');
+            if (!phone) return alert('연락처를 입력해주세요.');
 
             const formFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
             const formData = {};
@@ -5665,7 +5673,7 @@
             const { error } = await supabaseClient.from('community_applications').insert({
                 meeting_id: id,
                 applicant_name: name,
-                applicant_email: email || null,
+                applicant_email: email || '',
                 applicant_phone: phone || null,
                 form_data: formData
             });
