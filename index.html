@@ -3937,6 +3937,12 @@
                     const endTimeDisplay = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const item = document.createElement('div');
                     item.className = 'admin-member-row';
+                    item.id = `admin-res-row-${r.id}`;
+                    item.dataset.resDate = r.res_date;
+                    item.dataset.startTime = r.start_time;
+                    item.dataset.endTime = r.end_time;
+                    item.dataset.userName = r.user_name;
+                    item.dataset.etc = r.participant_etc || '';
                     item.style.cssText = 'justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;row-gap:4px';
                     const etcLine = canApproveRes() && r.participant_etc
                         ? `<div style="flex-basis:100%;font-size:0.74rem;color:#e07b00;padding-left:4px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
@@ -3945,7 +3951,10 @@
                         <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
                         <span style="font-size:0.78rem;color:var(--wds-gray-600);white-space:nowrap">${r.start_time}~${endTimeDisplay}</span>
                         <span style="font-size:0.82rem;flex:1;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
-                        ${canCancelRes() ? `<button type="button" class="cancel-btn" style="flex-shrink:0" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
+                        <div style="display:flex;gap:4px;flex-shrink:0">
+                            ${isSuper() ? `<button type="button" onclick="editResInfo('${r.id}')" style="font-size:0.72rem;padding:2px 8px;border-radius:4px;border:1px solid var(--wds-gray-400);background:none;cursor:pointer;color:var(--wds-gray-600)">수정</button>` : ''}
+                            ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
+                        </div>
                         ${etcLine}`;
                     approvedList.appendChild(item);
                 });
@@ -4107,7 +4116,7 @@
                 const contactInfo = isS
                     ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span><span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
                     : '';
-                const editBtn = isS && m.status === 'pending'
+                const editBtn = isS && (m.status === 'pending' || m.status === 'approved')
                     ? `<button type="button" onclick="editMemberInfo('${m.id}')" style="font-size:0.72rem;padding:2px 8px;border-radius:4px;border:1px solid var(--wds-gray-400);background:none;cursor:pointer;color:var(--wds-gray-600)">수정</button>`
                     : '';
                 return `<div class="admin-member-row" id="admin-member-row-${m.id}"
@@ -6015,6 +6024,44 @@
         }
 
         const _memberActionInflight = new Set();
+        function editResInfo(id) {
+            const row = document.getElementById(`admin-res-row-${id}`);
+            if (!row) return;
+            const { resDate, startTime, endTime, userName, etc } = row.dataset;
+            const timeOpts = TIMES.map(t => `<option value="${t}" ${t===startTime?'selected':''}>${t}</option>`).join('');
+            const endOpts  = TIMES.map(t => `<option value="${t}" ${t===endTime?'selected':''}>${t}</option>`).join('');
+            row.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:8px;padding:6px 0;width:100%">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                        <input id="er-date-${id}" type="date" value="${escapeHtml(resDate)}" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit">
+                        <select id="er-start-${id}" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit">${timeOpts}</select>
+                        <span style="font-size:0.8rem">~</span>
+                        <select id="er-end-${id}" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit">${endOpts}</select>
+                        <input id="er-name-${id}" value="${escapeHtml(userName)}" placeholder="예약자명" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;flex:1;min-width:80px">
+                    </div>
+                    <input id="er-etc-${id}" value="${escapeHtml(etc)}" placeholder="기타 메모 (선택)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;width:100%;box-sizing:border-box">
+                    <div style="display:flex;gap:6px">
+                        <button type="button" onclick="saveResEdit('${id}')" class="approve-btn">저장</button>
+                        <button type="button" onclick="cancelMemberEdit()" style="font-size:0.78rem;padding:4px 12px;border-radius:4px;border:1px solid var(--wds-gray-300);background:none;cursor:pointer">취소</button>
+                    </div>
+                </div>`;
+        }
+
+        async function saveResEdit(id) {
+            const resDate   = document.getElementById(`er-date-${id}`)?.value.trim();
+            const startTime = document.getElementById(`er-start-${id}`)?.value;
+            const endTime   = document.getElementById(`er-end-${id}`)?.value;
+            const userName  = document.getElementById(`er-name-${id}`)?.value.trim();
+            const etc       = document.getElementById(`er-etc-${id}`)?.value.trim();
+            if (!resDate || !startTime || !endTime || !userName) { alert('날짜·시간·예약자명은 필수입니다.'); return; }
+            if (TIMES.indexOf(startTime) >= TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
+            const { error } = await supabaseClient.from('reservations')
+                .update({ res_date: resDate, start_time: startTime, end_time: endTime, user_name: userName, participant_etc: etc || null })
+                .eq('id', id);
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            fetchReservations().then(() => render());
+        }
+
         function editMemberInfo(id) {
             const row = document.getElementById(`admin-member-row-${id}`);
             if (!row) return;
