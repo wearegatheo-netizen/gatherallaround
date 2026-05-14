@@ -897,6 +897,77 @@
         body.dark .band-member-row { border-color: #333; }
         body.dark .band-comment-item { border-color: #333; }
         body.dark #bandHeaderName { color: var(--wds-black); }
+
+        /* ===================== COMMUNITY SECTION ===================== */
+        #landing-page-community { min-height:100vh; display:flex; flex-direction:column; }
+        .community-card { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-m); overflow:hidden; cursor:pointer; transition:box-shadow 0.18s,transform 0.18s; display:flex; flex-direction:column; }
+        .community-card:hover { box-shadow:0 6px 24px rgba(0,0,0,0.13); transform:translateY(-2px); }
+        body.dark .community-card { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-card-img { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:var(--wds-gray-100); }
+        .community-placeholder-img { width:100%; aspect-ratio:16/9; background:var(--wds-primary); display:flex; align-items:center; justify-content:center; font-size:3rem; font-weight:800; color:#fff; user-select:none; }
+        .community-card-body { padding:14px 16px 16px; flex:1; display:flex; flex-direction:column; gap:5px; }
+        .community-card-title { font-size:1.02rem; font-weight:700; color:var(--wds-black); margin:0 0 2px; line-height:1.3; }
+        .community-card-meta { font-size:0.82rem; color:var(--wds-gray-500); display:flex; flex-wrap:wrap; gap:3px 8px; }
+        .community-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:8px; }
+        .community-status-badge, .community-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:0.76rem; font-weight:700; white-space:nowrap; }
+        .community-status-badge.open, .community-badge.open { background:#d1fae5; color:#065f46; }
+        .community-status-badge.closed, .community-badge.closed { background:#fee2e2; color:#991b1b; }
+        body.dark .community-status-badge.open, body.dark .community-badge.open { background:#064e3b; color:#6ee7b7; }
+        body.dark .community-status-badge.closed, body.dark .community-badge.closed { background:#7f1d1d; color:#fca5a5; }
+        .community-tab-bar { display:flex; gap:0; margin-bottom:18px; border-bottom:2px solid var(--wds-gray-200); }
+        .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:8px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-500); cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+        .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); background:var(--wds-primary-light); }
+        body.dark .community-tab.active { background:#1e293b; }
+        .community-tab:hover:not(.active) { color:var(--wds-black); background:var(--wds-gray-100); }
+        .community-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-bottom:24px; }
+        @media (max-width:640px) { .community-grid { grid-template-columns:1fr; gap:14px; } }
+        .community-create-btn { background:#16a34a; color:#fff; border:none; border-radius:var(--wds-radius-m); padding:10px 22px; font-size:0.97rem; font-weight:700; cursor:pointer; transition:background 0.15s; display:inline-flex; align-items:center; gap:7px; }
+        .community-create-btn:hover { background:#15803d; }
+        .community-form-section { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-l); padding:22px 24px 18px; margin-bottom:26px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+        body.dark .community-form-section { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-form-section h3 { margin:0 0 18px; font-size:1.05rem; font-weight:700; color:var(--wds-black); }
+        .community-field-row { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+        .community-field-row label { font-size:0.875rem; font-weight:600; color:var(--wds-gray-600); }
+        .community-field-row input, .community-field-row textarea, .community-field-row select { padding:8px 11px; border:1px solid var(--wds-gray-300); border-radius:var(--wds-radius-s); font-size:0.92rem; background:white; color:var(--wds-black); width:100%; box-sizing:border-box; transition:border-color 0.15s; }
+        body.dark .community-field-row input, body.dark .community-field-row textarea, body.dark .community-field-row select { background:#2a2a2a; border-color:var(--wds-gray-400); color:var(--wds-black); }
+        .community-field-row input:focus, .community-field-row textarea:focus, .community-field-row select:focus { outline:none; border-color:var(--wds-primary); }
+        .community-field-row textarea { resize:vertical; min-height:80px; }
+        .community-form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        @media (max-width:560px) { .community-form-row-2 { grid-template-columns:1fr; } }
+        .community-detail-header { width:100%; border-radius:var(--wds-radius-l); margin-bottom:22px; background:var(--wds-gray-100); display:flex; gap:20px; align-items:flex-start; padding:20px; box-sizing:border-box; border:1px solid var(--wds-gray-200); }
+        body.dark .community-detail-header { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-detail-img { width:140px; height:140px; object-fit:cover; border-radius:var(--wds-radius-m); flex-shrink:0; background:var(--wds-gray-200); }
+        .community-detail-cover-img { width:100%; max-height:320px; object-fit:cover; display:block; }
+        .community-detail-cover-placeholder { width:100%; height:200px; background:var(--wds-primary); display:flex; align-items:center; justify-content:center; font-size:5rem; font-weight:800; color:#fff; }
+        .community-detail-meta-card { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-l); padding:22px 26px; margin-bottom:20px; }
+        body.dark .community-detail-meta-card { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-detail-title { font-size:1.5rem; font-weight:800; color:var(--wds-black); margin:0 0 12px; line-height:1.25; }
+        .community-detail-info-row { display:flex; align-items:flex-start; gap:10px; font-size:0.92rem; color:var(--wds-gray-600); margin-bottom:7px; }
+        .community-detail-info-row .info-label { font-weight:700; color:var(--wds-gray-500); min-width:72px; flex-shrink:0; }
+        .community-apply-form { background:white; border:1px solid var(--wds-gray-200); border-radius:var(--wds-radius-l); padding:22px 26px; margin-bottom:20px; }
+        body.dark .community-apply-form { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-apply-form h3 { margin:0 0 16px; font-size:1.05rem; font-weight:700; color:var(--wds-black); }
+        .community-apply-btn { background:var(--wds-primary); color:#fff; border:none; border-radius:var(--wds-radius-m); padding:11px 28px; font-size:1rem; font-weight:700; cursor:pointer; transition:filter 0.15s; margin-top:6px; }
+        .community-apply-btn:hover { filter:brightness(1.08); }
+        .community-apply-btn:disabled { opacity:0.55; cursor:not-allowed; }
+        .community-field-editor { background:var(--wds-gray-100); border:1px dashed var(--wds-gray-300); border-radius:var(--wds-radius-m); padding:16px; margin-top:14px; }
+        body.dark .community-field-editor { background:#1e1e1e; }
+        .community-field-editor-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+        .community-organizer-panel { background:#fffbeb; border:1px solid #fcd34d; border-radius:var(--wds-radius-l); padding:20px 24px; margin-bottom:20px; }
+        body.dark .community-organizer-panel { background:#292011; border-color:#92400e; }
+        .community-organizer-panel h3 { margin:0 0 14px; font-size:1rem; font-weight:700; color:#92400e; }
+        body.dark .community-organizer-panel h3 { color:#fcd34d; }
+        .community-danger-btn { background:#dc2626; color:#fff; border:none; border-radius:var(--wds-radius-m); padding:8px 18px; font-size:0.88rem; font-weight:700; cursor:pointer; }
+        .community-danger-btn:hover { background:#b91c1c; }
+        .community-secondary-btn { background:var(--wds-gray-200); color:var(--wds-black); border:none; border-radius:var(--wds-radius-m); padding:8px 18px; font-size:0.88rem; font-weight:600; cursor:pointer; }
+        body.dark .community-secondary-btn { background:var(--wds-gray-300); }
+        .community-success-msg { background:#d1fae5; color:#065f46; border-radius:var(--wds-radius-m); padding:14px 18px; font-weight:600; margin-bottom:16px; font-size:0.97rem; }
+        body.dark .community-success-msg { background:#064e3b; color:#a7f3d0; }
+        .community-closed-msg { background:#fee2e2; color:#991b1b; border-radius:var(--wds-radius-m); padding:14px 18px; font-weight:600; margin-bottom:16px; font-size:0.97rem; text-align:center; }
+        body.dark .community-closed-msg { background:#7f1d1d; color:#fca5a5; }
+        .community-visitor-count { font-size:0.82rem; color:var(--wds-gray-500); text-align:right; margin-bottom:10px; font-weight:500; }
+        .community-edit-input { padding:6px 10px; border:1px solid var(--wds-gray-300); border-radius:var(--wds-radius-s); font-size:0.92rem; background:white; color:var(--wds-black); width:100%; box-sizing:border-box; font-family:inherit; }
+        body.dark .community-edit-input { background:#2a2a2a; border-color:var(--wds-gray-400); color:var(--wds-black); }
     </style>
 </head>
 <body>
@@ -921,10 +992,10 @@
                 <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
             </span>
         </button>
-        <button type="button" class="portal-btn portal-btn-disabled" onclick="showComingSoon()">
+        <button type="button" class="portal-btn portal-btn-primary" onclick="showCommunitySection()">
             <span class="portal-btn-text">
-                <span class="portal-btn-title">준비 중</span>
-                <span class="portal-btn-desc">곧 오픈 예정입니다</span>
+                <span class="portal-btn-title">커뮤니티</span>
+                <span class="portal-btn-desc">모임 신청 및 안내 등</span>
             </span>
         </button>
     </div>
@@ -1300,6 +1371,21 @@
         </div>
     </div>
 
+    <!-- 커뮤니티 페이지 -->
+    <div id="landing-page-community" class="hidden">
+        <div style="max-width:860px;margin:0 auto;padding:24px 16px 48px;">
+            <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:52px;">
+                <div>
+                    <h2 style="margin:0 0 4px;font-size:1.7rem;font-weight:800;color:var(--wds-black);font-family:'KkuBulLim',sans-serif;">커뮤니티</h2>
+                    <p style="margin:0;font-size:0.92rem;color:var(--wds-gray-500);">모임을 만들고 함께해요.</p>
+                </div>
+                <div class="community-visitor-count" id="communityVisitorCount">오늘 방문자: 0명</div>
+            </div>
+            <div id="communityContent" style="margin-top:22px;"></div>
+        </div>
+    </div>
+
     <!-- 승인 대기 화면 -->
     <div id="pending-screen" class="hidden">
         <div class="pending-icon">⏳</div>
@@ -1443,6 +1529,8 @@
         const SUPABASE_URL = 'https://xdcygyvsybsirmaknmpq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
         const ADMIN_ID = '4883868250'; // 관리자 카카오 ID (최경수)
+        const RESEND_API_KEY = 're_REPLACE_ME'; // Resend API Key (restricted key 권장)
+        const RESEND_FROM_EMAIL = 'noreply@REPLACE_ME.com'; // 인증된 발신 이메일
 
         let supabaseClient = null;
 
@@ -2022,6 +2110,16 @@
             bandNotices: [],
             bandMembers: [],
             bandComments: [],
+            communityMeetings: [],
+            communityApplicationCounts: {},
+            communityView: 'list',
+            communityCurrentId: null,
+            communityCurrentMeeting: null,
+            communityEditAuth: {},
+            communityTab: 'current',
+            communityTodayVisits: 0,
+            communityCreateOpen: false,
+            communityEditFields: [],
         };
 
         const PAGE_SIZE = 10;
@@ -2056,6 +2154,8 @@
                 renderMemberPanel();
             } else if (key.startsWith('block')) {
                 renderBlockList();
+            } else if (key.startsWith('comm')) {
+                renderCommunityList();
             } else {
                 render();
             }
@@ -4646,6 +4746,7 @@
             document.getElementById('portal-page').classList.remove('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
+            document.getElementById('landing-page-community').classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
             const ps = document.getElementById('pending-screen');
             if (ps) ps.classList.add('hidden');
@@ -4667,6 +4768,729 @@
 
         function showComingSoon() {
             alert('준비 중입니다. 곧 오픈 예정입니다! 😊');
+        }
+
+        // ── Community Section ──────────────────────────────────────────────────
+
+        function genSalt() {
+            const arr = new Uint8Array(16);
+            crypto.getRandomValues(arr);
+            return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function hashPw(pw, salt) {
+            const enc = new TextEncoder();
+            const data = enc.encode(pw + salt);
+            const buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function sendResendEmail(to, subject, html) {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 're_REPLACE_ME') {
+                console.warn('Resend API key not configured');
+                return;
+            }
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: RESEND_FROM_EMAIL, to, subject, html })
+            });
+            if (!res.ok) throw new Error(await res.text());
+        }
+
+        async function showCommunitySection() {
+            document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('landing-page-band').classList.add('hidden');
+            document.getElementById('landing-page-community').classList.remove('hidden');
+            state.communityView = 'list';
+            state.communityCurrentId = null;
+            state.communityCreateOpen = false;
+            await incrementCommunityVisit();
+            await fetchCommunityMeetings();
+            renderCommunityList();
+        }
+
+        async function incrementCommunityVisit() {
+            try {
+                const today = new Date().toLocaleDateString('en-CA');
+                const { data: existing } = await supabaseClient
+                    .from('community_visits')
+                    .select('count')
+                    .eq('visit_date', today)
+                    .maybeSingle();
+                const newCount = (existing ? existing.count : 0) + 1;
+                await supabaseClient
+                    .from('community_visits')
+                    .upsert({ visit_date: today, count: newCount }, { onConflict: 'visit_date' });
+                state.communityTodayVisits = newCount;
+            } catch (e) { /* ignore */ }
+            const el = document.getElementById('communityVisitorCount');
+            if (el) el.textContent = `오늘 방문자: ${state.communityTodayVisits}명`;
+        }
+
+        async function fetchCommunityMeetings() {
+            const { data, error } = await supabaseClient
+                .from('community_meetings')
+                .select('*')
+                .order('meeting_date', { ascending: true, nullsFirst: false });
+            if (!error && data) {
+                state.communityMeetings = data;
+                // Fetch application counts
+                const ids = data.map(m => m.id);
+                if (ids.length > 0) {
+                    const { data: appData } = await supabaseClient
+                        .from('community_applications')
+                        .select('meeting_id')
+                        .in('meeting_id', ids);
+                    const counts = {};
+                    if (appData) appData.forEach(a => { counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1; });
+                    state.communityApplicationCounts = counts;
+                }
+            }
+        }
+
+        async function uploadCommunityImage(file) {
+            const ext = file.name.split('.').pop();
+            const path = `covers/${Date.now()}.${ext}`;
+            const { data, error } = await supabaseClient.storage
+                .from('community-images')
+                .upload(path, file, { cacheControl: '3600', upsert: false });
+            if (error) throw error;
+            const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
+            return urlData.publicUrl;
+        }
+
+        function communityPlaceholderImg(title, size) {
+            const ch = title ? title.charAt(0) : '모';
+            const s = size || 80;
+            return `<div class="community-placeholder-img" style="width:${s}px;height:${s}px;font-size:${Math.round(s*0.36)}px;">${escapeHtml(ch)}</div>`;
+        }
+
+        function communityIsClosed(m) {
+            if (m.is_closed) return true;
+            if (m.application_deadline && m.application_deadline < new Date().toLocaleDateString('en-CA')) return true;
+            const cnt = state.communityApplicationCounts[m.id] || 0;
+            if (m.capacity && cnt >= m.capacity) return true;
+            return false;
+        }
+
+        function renderCommunityList() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const today = new Date().toLocaleDateString('en-CA');
+            const currentMeetings = state.communityMeetings.filter(m => !m.meeting_date || m.meeting_date >= today);
+            const pastMeetings = state.communityMeetings.filter(m => m.meeting_date && m.meeting_date < today);
+            const tab = state.communityTab;
+            const list = tab === 'current' ? currentMeetings : pastMeetings;
+            const paged = getPaged(list, 'commList');
+
+            const visitorEl = document.getElementById('communityVisitorCount');
+            if (visitorEl) visitorEl.textContent = `오늘 방문자: ${state.communityTodayVisits}명`;
+
+            let html = '';
+            // Tabs
+            html += `<div class="community-tab-bar">
+                <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
+                <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
+            </div>`;
+
+            // Create button
+            html += `<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
+            </div>`;
+
+            // Create form
+            if (state.communityCreateOpen) {
+                html += `<div class="community-form-section" id="communityCreateForm">
+                    <h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;color:var(--wds-black);">새 모임 만들기</h3>
+                    <div class="community-field-row">
+                        <label>모임명 <span style="color:#e74c3c">*</span></label>
+                        <input type="text" id="cc_title" placeholder="모임 제목" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>모임 날짜 <span style="color:#e74c3c">*</span></label>
+                            <input type="date" id="cc_date" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>시간 (표시용)</label>
+                            <input type="text" id="cc_time" placeholder="예: 오후 3시" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>장소</label>
+                        <input type="text" id="cc_location" placeholder="모임 장소" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>모임장 이름 <span style="color:#e74c3c">*</span></label>
+                            <input type="text" id="cc_org_name" placeholder="모임장 이름" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>모임장 연락처</label>
+                            <input type="tel" id="cc_org_phone" placeholder="010-0000-0000" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>모임장 이메일 <span style="color:#e74c3c">*</span></label>
+                        <input type="email" id="cc_org_email" placeholder="organizer@example.com" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>참여비용</label>
+                            <input type="text" id="cc_fee" placeholder="무료 / 1만원 등" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>준비물</label>
+                            <input type="text" id="cc_items" placeholder="필요 준비물" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>정원</label>
+                            <input type="number" id="cc_capacity" placeholder="최대 인원 (선택)" min="1" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>신청 마감일</label>
+                            <input type="date" id="cc_deadline" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>모임 설명</label>
+                        <textarea id="cc_desc" rows="4" placeholder="모임에 대한 설명을 작성하세요." style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+                    </div>
+                    <div class="community-field-row">
+                        <label>대표 이미지</label>
+                        <input type="file" id="cc_image" accept="image/*" style="font-size:0.85rem;">
+                        <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0;">미입력 시 모임명 첫 글자가 표시됩니다.</p>
+                    </div>
+                    <div class="community-field-row">
+                        <label>비밀번호 <span style="color:#e74c3c">*</span> <span style="font-size:0.75rem;color:var(--wds-gray-500);font-weight:400;">(모임 수정/삭제용)</span></label>
+                        <input type="password" id="cc_pw" placeholder="비밀번호 입력" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div class="community-field-row">
+                        <label>비밀번호 확인 <span style="color:#e74c3c">*</span></label>
+                        <input type="password" id="cc_pw2" placeholder="비밀번호 재입력" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <button class="edit-btn" style="flex:1;padding:9px;font-size:0.85rem;" onclick="communityToggleCreate()">취소</button>
+                        <button class="edit-btn" style="flex:2;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="submitCommunityCreate()">모임 만들기</button>
+                    </div>
+                </div>`;
+            }
+
+            // Meeting grid
+            if (paged.items.length === 0) {
+                html += `<div style="text-align:center;padding:48px 0;color:var(--wds-gray-500);font-size:0.95rem;">${tab === 'current' ? '현재 모집 중인 모임이 없습니다.' : '지난 모임이 없습니다.'}</div>`;
+            } else {
+                html += `<div class="community-grid">`;
+                paged.items.forEach(m => {
+                    const cnt = state.communityApplicationCounts[m.id] || 0;
+                    const closed = communityIsClosed(m);
+                    const capStr = m.capacity ? `${cnt}/${m.capacity}명` : `${cnt}명 신청`;
+                    const dateStr = m.meeting_date ? m.meeting_date.replace(/-/g, '.') : '';
+                    html += `<div class="community-card" onclick="renderCommunityDetail('${m.id}')">`;
+                    if (m.cover_image_url) {
+                        html += `<img class="community-card-img" src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;
+                        html += `<div class="community-placeholder-img" style="display:none;">${escapeHtml(m.title.charAt(0))}</div>`;
+                    } else {
+                        html += communityPlaceholderImg(m.title, 80);
+                    }
+                    html += `<div class="community-card-body">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px;">
+                            <div class="community-card-title">${escapeHtml(m.title)}</div>
+                            <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '마감' : '모집중'}</span>
+                        </div>
+                        <div class="community-card-meta">${dateStr}${m.meeting_time ? ' · ' + escapeHtml(m.meeting_time) : ''}${m.location ? ' · ' + escapeHtml(m.location) : ''}</div>
+                        <div class="community-card-meta">모임장: ${escapeHtml(m.organizer_name)}</div>
+                        <div class="community-card-meta" style="margin-top:4px;font-weight:600;color:var(--wds-primary);">신청 ${capStr}</div>
+                    </div></div>`;
+                });
+                html += `</div>`;
+                html += pagerHTML('commList', paged.page, paged.totalPages, paged.total);
+            }
+
+            el.innerHTML = html;
+        }
+
+        function communitySetTab(tab) {
+            state.communityTab = tab;
+            state.paging['commList'] = 0;
+            renderCommunityList();
+        }
+
+        function communityToggleCreate() {
+            state.communityCreateOpen = !state.communityCreateOpen;
+            renderCommunityList();
+        }
+
+        async function submitCommunityCreate() {
+            const title = document.getElementById('cc_title').value.trim();
+            const date = document.getElementById('cc_date').value;
+            const time = document.getElementById('cc_time').value.trim();
+            const location = document.getElementById('cc_location').value.trim();
+            const orgName = document.getElementById('cc_org_name').value.trim();
+            const orgPhone = document.getElementById('cc_org_phone').value.trim();
+            const orgEmail = document.getElementById('cc_org_email').value.trim();
+            const fee = document.getElementById('cc_fee').value.trim();
+            const items = document.getElementById('cc_items').value.trim();
+            const capacity = document.getElementById('cc_capacity').value;
+            const deadline = document.getElementById('cc_deadline').value;
+            const desc = document.getElementById('cc_desc').value.trim();
+            const pw = document.getElementById('cc_pw').value;
+            const pw2 = document.getElementById('cc_pw2').value;
+            const imgFile = document.getElementById('cc_image').files[0];
+
+            if (!title) return alert('모임명을 입력해주세요.');
+            if (!date) return alert('모임 날짜를 입력해주세요.');
+            if (!orgName) return alert('모임장 이름을 입력해주세요.');
+            if (!orgEmail) return alert('모임장 이메일을 입력해주세요.');
+            if (!pw) return alert('비밀번호는 필수입니다.');
+            if (pw !== pw2) return alert('비밀번호가 일치하지 않습니다.');
+
+            const salt = genSalt();
+            const hash = await hashPw(pw, salt);
+
+            let coverImageUrl = null;
+            if (imgFile) {
+                try { coverImageUrl = await uploadCommunityImage(imgFile); }
+                catch (e) { alert('이미지 업로드 실패: ' + e.message + '\n이미지 없이 모임을 생성합니다.'); }
+            }
+
+            const payload = {
+                title, cover_image_url: coverImageUrl,
+                meeting_date: date || null,
+                meeting_time: time || null,
+                location: location || null,
+                organizer_name: orgName, organizer_phone: orgPhone || null, organizer_email: orgEmail,
+                fee: fee || null, items_to_bring: items || null,
+                capacity: capacity ? parseInt(capacity) : null,
+                application_deadline: deadline || null,
+                description: desc || null,
+                password_salt: salt, password_hash: hash,
+                is_closed: false, form_fields: []
+            };
+
+            const { data, error } = await supabaseClient.from('community_meetings').insert(payload).select().single();
+            if (error) return alert('모임 생성 실패: ' + error.message);
+
+            state.communityCreateOpen = false;
+            await fetchCommunityMeetings();
+            renderCommunityList();
+        }
+
+        async function renderCommunityDetail(id) {
+            state.communityView = 'detail';
+            state.communityCurrentId = id;
+            const m = state.communityMeetings.find(x => x.id === id);
+            if (!m) { await fetchCommunityMeetings(); }
+            const meeting = state.communityMeetings.find(x => x.id === id);
+            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            state.communityCurrentMeeting = meeting;
+
+            const { data: apps } = await supabaseClient
+                .from('community_applications')
+                .select('*')
+                .eq('meeting_id', id)
+                .order('created_at', { ascending: true });
+            const appList = apps || [];
+            const cnt = appList.length;
+            state.communityApplicationCounts[id] = cnt;
+
+            const authed = !!state.communityEditAuth[id];
+            const closed = communityIsClosed(meeting);
+            const capStr = meeting.capacity ? `${cnt} / ${meeting.capacity}명` : `${cnt}명 신청`;
+            const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
+            const formFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
+
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+
+            let html = `<button class="edit-btn" style="margin-bottom:18px;" onclick="communityBackToList()">← 목록으로</button>`;
+
+            // Detail header
+            html += `<div class="community-detail-header">`;
+            if (meeting.cover_image_url) {
+                html += `<img src="${escapeHtml(meeting.cover_image_url)}" alt="${escapeHtml(meeting.title)}" class="community-detail-img" onerror="this.style.display='none'">`;
+            } else {
+                html += `<div class="community-placeholder-img" style="width:120px;height:120px;font-size:44px;border-radius:var(--wds-radius-m);margin-bottom:16px;">${escapeHtml(meeting.title.charAt(0))}</div>`;
+            }
+            html += `<div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                    <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:var(--wds-black);">${escapeHtml(meeting.title)}</h2>
+                    <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '모집 마감' : '모집 중'}</span>
+                </div>`;
+            if (dateStr || meeting.meeting_time) html += `<div class="community-detail-info-row">📅 ${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</div>`;
+            if (meeting.location) html += `<div class="community-detail-info-row">📍 ${escapeHtml(meeting.location)}</div>`;
+            html += `<div class="community-detail-info-row">👤 ${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</div>`;
+            if (meeting.fee) html += `<div class="community-detail-info-row">💰 ${escapeHtml(meeting.fee)}</div>`;
+            if (meeting.items_to_bring) html += `<div class="community-detail-info-row">🎒 ${escapeHtml(meeting.items_to_bring)}</div>`;
+            html += `<div class="community-detail-info-row" style="font-weight:600;color:var(--wds-primary);">신청 ${capStr}</div>`;
+            html += `</div></div>`;
+
+            if (meeting.description) {
+                html += `<div class="community-form-section" style="white-space:pre-wrap;line-height:1.7;font-size:0.93rem;">${escapeHtml(meeting.description)}</div>`;
+            }
+
+            // Application form
+            html += `<div class="community-form-section">
+                <h3 style="margin:0 0 14px;font-size:1rem;font-weight:700;color:var(--wds-black);">참여 신청</h3>`;
+            if (closed) {
+                html += `<div style="text-align:center;padding:24px 0;color:#e74c3c;font-weight:700;font-size:1rem;">모집이 마감되었습니다.</div>`;
+            } else {
+                html += `<div class="community-field-row">
+                    <label>이름 <span style="color:#e74c3c">*</span></label>
+                    <input type="text" id="ca_name" placeholder="이름" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                </div>
+                <div class="community-field-row">
+                    <label>이메일 <span style="color:#e74c3c">*</span></label>
+                    <input type="email" id="ca_email" placeholder="이메일" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                </div>
+                <div class="community-field-row">
+                    <label>전화번호</label>
+                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                </div>`;
+                formFields.forEach((f, i) => {
+                    const fid = `ca_custom_${i}`;
+                    html += `<div class="community-field-row">
+                        <label>${escapeHtml(f.label)}${f.required ? ' <span style="color:#e74c3c">*</span>' : ''}</label>`;
+                    if (f.type === 'textarea') {
+                        html += `<textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>`;
+                    } else if (f.type === 'select' && f.options) {
+                        html += `<select id="${fid}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"><option value="">선택하세요</option>`;
+                        f.options.forEach(o => { html += `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`; });
+                        html += `</select>`;
+                    } else {
+                        html += `<input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">`;
+                    }
+                    html += `</div>`;
+                });
+                html += `<button class="edit-btn" style="width:100%;padding:11px;font-size:0.9rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-top:4px;" onclick="submitCommunityApplication('${id}')">신청하기</button>`;
+            }
+            html += `</div>`;
+
+            // Organizer management
+            html += `<div class="community-form-section">
+                <h3 style="margin:0 0 12px;font-size:0.95rem;font-weight:700;color:var(--wds-black);">🔑 모임장 관리</h3>`;
+            if (!authed) {
+                html += `<div style="display:flex;gap:8px;">
+                    <input type="password" id="comm_auth_pw" placeholder="모임장 비밀번호" style="flex:1;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;">
+                    <button class="edit-btn" style="padding:8px 16px;" onclick="communityOrganizerAuth('${id}')">인증</button>
+                </div>`;
+            } else {
+                // Edit form
+                html += `<div id="communityEditForm">
+                    <div class="community-field-row">
+                        <label>모임명</label>
+                        <input type="text" id="ce_title" value="${escapeHtml(meeting.title)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>모임 날짜</label>
+                            <input type="date" id="ce_date" value="${escapeHtml(meeting.meeting_date || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>시간</label>
+                            <input type="text" id="ce_time" value="${escapeHtml(meeting.meeting_time || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>장소</label>
+                        <input type="text" id="ce_location" value="${escapeHtml(meeting.location || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>모임장 이름</label>
+                            <input type="text" id="ce_org_name" value="${escapeHtml(meeting.organizer_name)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>모임장 연락처</label>
+                            <input type="tel" id="ce_org_phone" value="${escapeHtml(meeting.organizer_phone || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>모임장 이메일</label>
+                        <input type="email" id="ce_org_email" value="${escapeHtml(meeting.organizer_email)}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>참여비용</label>
+                            <input type="text" id="ce_fee" value="${escapeHtml(meeting.fee || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>준비물</label>
+                            <input type="text" id="ce_items" value="${escapeHtml(meeting.items_to_bring || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="community-field-row">
+                            <label>정원</label>
+                            <input type="number" id="ce_capacity" value="${meeting.capacity || ''}" min="1" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                        <div class="community-field-row">
+                            <label>신청 마감일</label>
+                            <input type="date" id="ce_deadline" value="${escapeHtml(meeting.application_deadline || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div class="community-field-row">
+                        <label>모임 설명</label>
+                        <textarea id="ce_desc" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;">${escapeHtml(meeting.description || '')}</textarea>
+                    </div>
+                    <div class="community-field-row">
+                        <label>대표 이미지 교체</label>
+                        <input type="file" id="ce_image" accept="image/*" style="font-size:0.85rem;">
+                    </div>
+                    <button class="edit-btn" style="width:100%;padding:9px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-bottom:8px;" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>
+
+                    <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:16px 0;">
+
+                    <div style="font-size:0.9rem;font-weight:700;color:var(--wds-black);margin-bottom:10px;">커스텀 신청 필드</div>
+                    <div id="communityFieldEditor"></div>
+                    <button class="edit-btn" style="margin-bottom:8px;" onclick="addCommunityFormField()">+ 필드 추가</button>
+                    <button class="edit-btn" style="padding:7px 14px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-left:6px;" onclick="saveCommunityFormFields('${id}')">필드 저장</button>
+
+                    <hr style="border:none;border-top:1px solid var(--wds-gray-200);margin:16px 0;">
+
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="edit-btn" style="padding:8px 14px;" onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
+                        <button class="edit-btn" style="padding:8px 14px;" onclick="downloadCommunityApplicantsCsv('${id}')">신청자 CSV 다운로드</button>
+                        <button class="edit-btn" style="padding:8px 14px;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
+                    </div>
+
+                    <div style="margin-top:14px;font-size:0.88rem;font-weight:700;color:var(--wds-black);">신청자 목록 (${cnt}명)</div>
+                    <div style="margin-top:8px;">`;
+                appList.forEach(a => {
+                    const fd = a.form_data || {};
+                    html += `<div style="padding:8px 10px;border-bottom:1px solid var(--wds-gray-200);font-size:0.85rem;">
+                        <span style="font-weight:600;">${escapeHtml(a.applicant_name)}</span>
+                        <span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_email)}</span>
+                        ${a.applicant_phone ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_phone)}</span>` : ''}
+                        <span style="color:var(--wds-gray-400);margin-left:8px;font-size:0.78rem;">${new Date(a.created_at).toLocaleDateString('ko-KR')}</span>
+                    </div>`;
+                });
+                html += `</div></div>`;
+            }
+            html += `</div>`;
+
+            el.innerHTML = html;
+
+            // Render custom field editor if authed
+            if (authed) {
+                state.communityEditFields = JSON.parse(JSON.stringify(formFields));
+                renderCommunityFieldEditor();
+            }
+        }
+
+        function renderCommunityFieldEditor() {
+            const el = document.getElementById('communityFieldEditor');
+            if (!el) return;
+            const fields = state.communityEditFields;
+            if (fields.length === 0) {
+                el.innerHTML = `<div style="color:var(--wds-gray-500);font-size:0.85rem;margin-bottom:8px;">커스텀 필드 없음</div>`;
+                return;
+            }
+            let html = '';
+            fields.forEach((f, i) => {
+                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:10px;margin-bottom:8px;background:var(--wds-gray-100);">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                        <input type="text" value="${escapeHtml(f.label)}" placeholder="필드명" onchange="state.communityEditFields[${i}].label=this.value" style="flex:1;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                        <select onchange="state.communityEditFields[${i}].type=this.value" style="padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                            <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
+                            <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
+                            <option value="select"${f.type==='select'?' selected':''}>선택</option>
+                        </select>
+                        <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
+                            <input type="checkbox" ${f.required?'checked':''} onchange="state.communityEditFields[${i}].required=this.checked"> 필수
+                        </label>
+                        <button class="edit-btn" style="padding:3px 8px;color:#e74c3c;border-color:#e74c3c;" onclick="removeCommunityFormField(${i})">삭제</button>
+                    </div>
+                    <input type="text" value="${escapeHtml(f.placeholder || '')}" placeholder="플레이스홀더 (선택)" onchange="state.communityEditFields[${i}].placeholder=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">
+                    ${f.type === 'select' ? `<input type="text" value="${escapeHtml((f.options||[]).join(', '))}" placeholder="선택지 (쉼표로 구분)" onchange="state.communityEditFields[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;margin-top:4px;">` : ''}
+                </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        function addCommunityFormField() {
+            state.communityEditFields.push({ label: '', type: 'text', placeholder: '', required: false });
+            renderCommunityFieldEditor();
+        }
+
+        function removeCommunityFormField(i) {
+            state.communityEditFields.splice(i, 1);
+            renderCommunityFieldEditor();
+        }
+
+        async function saveCommunityFormFields(id) {
+            const { error } = await supabaseClient
+                .from('community_meetings')
+                .update({ form_fields: state.communityEditFields })
+                .eq('id', id);
+            if (error) return alert('저장 실패: ' + error.message);
+            await fetchCommunityMeetings();
+            alert('커스텀 필드가 저장되었습니다.');
+            renderCommunityDetail(id);
+        }
+
+        async function communityOrganizerAuth(id) {
+            const pw = document.getElementById('comm_auth_pw').value;
+            if (!pw) return alert('비밀번호를 입력해주세요.');
+            const meeting = state.communityMeetings.find(m => m.id === id);
+            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            const hash = await hashPw(pw, meeting.password_salt);
+            if (hash !== meeting.password_hash) return alert('비밀번호가 틀렸습니다.');
+            state.communityEditAuth[id] = true;
+            renderCommunityDetail(id);
+        }
+
+        async function saveCommunityMeetingEdit(id) {
+            const title = document.getElementById('ce_title').value.trim();
+            const date = document.getElementById('ce_date').value;
+            const time = document.getElementById('ce_time').value.trim();
+            const location = document.getElementById('ce_location').value.trim();
+            const orgName = document.getElementById('ce_org_name').value.trim();
+            const orgPhone = document.getElementById('ce_org_phone').value.trim();
+            const orgEmail = document.getElementById('ce_org_email').value.trim();
+            const fee = document.getElementById('ce_fee').value.trim();
+            const items = document.getElementById('ce_items').value.trim();
+            const capacity = document.getElementById('ce_capacity').value;
+            const deadline = document.getElementById('ce_deadline').value;
+            const desc = document.getElementById('ce_desc').value.trim();
+            const imgFile = document.getElementById('ce_image').files[0];
+
+            if (!title) return alert('모임명을 입력해주세요.');
+
+            const meeting = state.communityMeetings.find(m => m.id === id);
+            let coverImageUrl = meeting.cover_image_url;
+            if (imgFile) {
+                try { coverImageUrl = await uploadCommunityImage(imgFile); }
+                catch (e) { alert('이미지 업로드 실패: ' + e.message); }
+            }
+
+            const payload = {
+                title, cover_image_url: coverImageUrl,
+                meeting_date: date || null,
+                meeting_time: time || null,
+                location: location || null,
+                organizer_name: orgName, organizer_phone: orgPhone || null, organizer_email: orgEmail,
+                fee: fee || null, items_to_bring: items || null,
+                capacity: capacity ? parseInt(capacity) : null,
+                application_deadline: deadline || null,
+                description: desc || null,
+            };
+
+            const { error } = await supabaseClient.from('community_meetings').update(payload).eq('id', id);
+            if (error) return alert('수정 실패: ' + error.message);
+            await fetchCommunityMeetings();
+            alert('수정되었습니다.');
+            renderCommunityDetail(id);
+        }
+
+        async function toggleCommunityMeetingClosed(id, currentlyClosed) {
+            const { error } = await supabaseClient
+                .from('community_meetings')
+                .update({ is_closed: !currentlyClosed })
+                .eq('id', id);
+            if (error) return alert('상태 변경 실패: ' + error.message);
+            await fetchCommunityMeetings();
+            renderCommunityDetail(id);
+        }
+
+        async function deleteCommunityMeeting(id) {
+            if (!confirm('모임을 삭제하면 모든 신청 정보도 삭제됩니다. 정말 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('community_meetings').delete().eq('id', id);
+            if (error) return alert('삭제 실패: ' + error.message);
+            delete state.communityEditAuth[id];
+            await fetchCommunityMeetings();
+            communityBackToList();
+        }
+
+        async function submitCommunityApplication(id) {
+            const meeting = state.communityMeetings.find(m => m.id === id) || state.communityCurrentMeeting;
+            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+
+            const name = (document.getElementById('ca_name') || {}).value?.trim() || '';
+            const email = (document.getElementById('ca_email') || {}).value?.trim() || '';
+            const phone = (document.getElementById('ca_phone') || {}).value?.trim() || '';
+
+            if (!name) return alert('이름을 입력해주세요.');
+            if (!email) return alert('이메일을 입력해주세요.');
+
+            const formFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
+            const formData = {};
+            for (let i = 0; i < formFields.length; i++) {
+                const f = formFields[i];
+                const el = document.getElementById(`ca_custom_${i}`);
+                const val = el ? el.value.trim() : '';
+                if (f.required && !val) return alert(`"${f.label}" 필드를 입력해주세요.`);
+                formData[f.label] = val;
+            }
+
+            const { error } = await supabaseClient.from('community_applications').insert({
+                meeting_id: id,
+                applicant_name: name,
+                applicant_email: email,
+                applicant_phone: phone || null,
+                form_data: formData
+            });
+
+            if (error) {
+                if (error.code === '23505') return alert('이미 신청하셨습니다. (이메일 중복)');
+                return alert('신청 실패: ' + error.message);
+            }
+
+            // Send email via Resend
+            let emailBody = `<h3>[${meeting.title}] 신청 안내</h3>`;
+            emailBody += `<p><b>신청자:</b> ${name} (${email})</p>`;
+            if (phone) emailBody += `<p><b>전화번호:</b> ${phone}</p>`;
+            Object.entries(formData).forEach(([k, v]) => { emailBody += `<p><b>${k}:</b> ${v}</p>`; });
+            try {
+                await sendResendEmail(meeting.organizer_email, `[${meeting.title}] 신규 신청: ${name}`, emailBody);
+            } catch (e) {
+                console.warn('이메일 발송 실패:', e.message);
+            }
+
+            state.communityApplicationCounts[id] = (state.communityApplicationCounts[id] || 0) + 1;
+            alert('신청이 완료되었습니다! 감사합니다.');
+            renderCommunityDetail(id);
+        }
+
+        async function downloadCommunityApplicantsCsv(id) {
+            const meeting = state.communityMeetings.find(m => m.id === id);
+            const { data: apps, error } = await supabaseClient
+                .from('community_applications')
+                .select('*')
+                .eq('meeting_id', id)
+                .order('created_at', { ascending: true });
+            if (error) return alert('다운로드 실패: ' + error.message);
+
+            const formFields = meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : [];
+            const headers = ['이름', '이메일', '전화번호', '신청일시', ...formFields.map(f => f.label)];
+            const rows = (apps || []).map(a => {
+                const fd = a.form_data || {};
+                return [
+                    a.applicant_name, a.applicant_email, a.applicant_phone || '',
+                    new Date(a.created_at).toLocaleString('ko-KR'),
+                    ...formFields.map(f => fd[f.label] || '')
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
+
+            const csv = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
+            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `신청자_${meeting ? meeting.title : id}.csv`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        function communityBackToList() {
+            state.communityView = 'list';
+            state.communityCurrentId = null;
+            state.communityCurrentMeeting = null;
+            state.communityCreateOpen = false;
+            fetchCommunityMeetings().then(() => renderCommunityList());
         }
 
         // Band section form helpers
