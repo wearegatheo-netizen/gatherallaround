@@ -5530,6 +5530,7 @@
             const { error } = await supabaseClient.from('community_meetings').update(payload).eq('id', id);
             if (error) return alert('수정 실패: ' + error.message);
             await fetchCommunityMeetings();
+            delete state.communityEditAuth[id];
             alert('수정되었습니다.');
             renderCommunityDetail(id);
         }
@@ -5611,7 +5612,10 @@
                 try {
                     await sendResendEmail(meeting.organizer_email, mailSubject, emailBody);
                     emailSent = true;
-                } catch (e) { console.warn('Resend 실패:', e.message); }
+                } catch (e) {
+                    console.error('Resend 실패:', e.message);
+                    alert('자동 메일 발송 실패 (Resend): ' + e.message + '\n\n메일 클라이언트로 대체합니다.');
+                }
             }
             if (!emailSent) {
                 const mailto = `mailto:${encodeURIComponent(meeting.organizer_email)}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBodyText)}`;
