@@ -989,6 +989,70 @@
         .community-field-row textarea { resize:vertical; min-height:80px; }
         .community-form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
         @media (max-width:560px) { .community-form-row-2 { grid-template-columns:1fr; } }
+
+        /* ── 모임 상세 (네이버 쇼핑 스타일) ── */
+        .community-detail-topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px; }
+        .community-detail-hero { display:grid; grid-template-columns:1fr 1fr; gap:36px; background:#fff; padding:28px; border-radius:14px; border:1px solid var(--wds-gray-200); margin-bottom:24px; box-sizing:border-box; }
+        body.dark .community-detail-hero { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-detail-hero-img-wrap { aspect-ratio:1/1; border-radius:10px; overflow:hidden; background:var(--wds-gray-100); position:relative; }
+        .community-detail-hero-img-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+        .community-detail-hero-placeholder { width:100%; height:100%; background:var(--wds-primary); display:flex; align-items:center; justify-content:center; font-size:5rem; font-weight:800; color:#fff; }
+        .community-detail-hero-info { display:flex; flex-direction:column; min-width:0; }
+        .community-detail-badges { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+        .community-detail-hero-title { font-size:1.55rem; font-weight:800; color:var(--wds-black); margin:0 0 14px; line-height:1.3; word-break:keep-all; }
+        .community-detail-price-row { display:flex; align-items:baseline; gap:6px; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--wds-gray-200); }
+        .community-detail-price-label { font-size:0.85rem; color:var(--wds-gray-500); font-weight:600; }
+        .community-detail-price-value { font-size:1.4rem; font-weight:800; color:var(--wds-black); }
+        .community-detail-price-value.free { color:#16a34a; }
+        .community-detail-spec-table { display:flex; flex-direction:column; gap:9px; margin-bottom:20px; }
+        .community-detail-spec-row { display:grid; grid-template-columns:84px 1fr; gap:12px; font-size:0.9rem; line-height:1.5; }
+        .community-detail-spec-label { color:var(--wds-gray-500); font-weight:600; }
+        .community-detail-spec-value { color:var(--wds-black); word-break:keep-all; }
+        .community-detail-spec-value.highlight { color:var(--wds-primary); font-weight:700; }
+        .community-detail-cta { width:100%; padding:14px; font-size:1rem; font-weight:700; background:var(--wds-primary); color:#fff; border:none; border-radius:8px; cursor:pointer; margin-top:auto; transition:filter 0.15s; }
+        .community-detail-cta:hover { filter:brightness(1.08); }
+        .community-detail-cta:disabled { background:var(--wds-gray-300); cursor:not-allowed; }
+
+        /* ── 모임 설명 카드 ── */
+        .community-detail-desc-card { background:#fff; border:1px solid var(--wds-gray-200); border-radius:10px; padding:24px 26px; margin-bottom:24px; }
+        body.dark .community-detail-desc-card { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .community-detail-desc-card h3 { margin:0 0 14px; font-size:1.1rem; font-weight:800; color:var(--wds-black); padding-bottom:10px; border-bottom:2px solid var(--wds-black); }
+        .community-detail-desc-body { white-space:pre-wrap; line-height:1.75; font-size:0.95rem; color:var(--wds-gray-700); }
+        body.dark .community-detail-desc-body { color:var(--wds-gray-700); }
+
+        /* ── 신청 폼 (Google Forms 스타일) ── */
+        .gforms-header { background:#fff; border-top:10px solid var(--wds-primary); border-radius:10px 10px 8px 8px; border:1px solid var(--wds-gray-200); border-top-width:10px; padding:26px 24px 20px; margin-bottom:14px; }
+        body.dark .gforms-header { background:var(--wds-gray-100); border-color:var(--wds-gray-300); border-top-color:var(--wds-primary); }
+        .gforms-header h2 { margin:0 0 8px; font-size:1.5rem; font-weight:700; color:var(--wds-black); }
+        .gforms-header p { margin:0; font-size:0.88rem; color:var(--wds-gray-600); line-height:1.5; }
+        .gforms-header .gforms-required-note { color:#e74c3c; }
+        .gforms-card { background:#fff; border:1px solid var(--wds-gray-200); border-radius:8px; padding:22px 24px; margin-bottom:14px; transition:border-color 0.15s; }
+        body.dark .gforms-card { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
+        .gforms-card:focus-within { border-color:var(--wds-primary); }
+        .gforms-label { display:block; font-size:0.98rem; font-weight:500; color:var(--wds-black); margin-bottom:14px; line-height:1.45; }
+        .gforms-label .req { color:#e74c3c; margin-left:3px; }
+        .gforms-input { width:100%; padding:6px 0; border:none; border-bottom:1px solid var(--wds-gray-300); font-size:0.95rem; background:transparent; font-family:inherit; color:var(--wds-black); transition:border-color 0.18s,border-width 0.18s; box-sizing:border-box; }
+        .gforms-input::placeholder { color:var(--wds-gray-400); }
+        .gforms-input:focus { outline:none; border-bottom:2px solid var(--wds-primary); padding-bottom:5px; }
+        .gforms-textarea { width:100%; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:6px; font-size:0.95rem; background:transparent; font-family:inherit; color:var(--wds-black); resize:vertical; min-height:72px; box-sizing:border-box; transition:border-color 0.18s; }
+        .gforms-textarea:focus { outline:none; border:2px solid var(--wds-primary); padding:9px 11px; }
+        .gforms-select { width:100%; padding:8px 0; border:none; border-bottom:1px solid var(--wds-gray-300); font-size:0.95rem; background:transparent; font-family:inherit; color:var(--wds-black); box-sizing:border-box; }
+        .gforms-select:focus { outline:none; border-bottom:2px solid var(--wds-primary); padding-bottom:7px; }
+        .gforms-submit-row { display:flex; justify-content:flex-end; margin-top:8px; }
+        .gforms-submit { padding:11px 32px; font-size:0.95rem; font-weight:700; background:var(--wds-primary); color:#fff; border:none; border-radius:6px; cursor:pointer; transition:filter 0.15s,box-shadow 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
+        .gforms-submit:hover { filter:brightness(1.06); box-shadow:0 2px 8px rgba(0,0,0,0.18); }
+        .gforms-closed { background:#fee2e2; color:#991b1b; padding:24px; border-radius:8px; text-align:center; font-weight:700; font-size:1rem; }
+        body.dark .gforms-closed { background:#7f1d1d; color:#fca5a5; }
+        @media (max-width:768px) {
+            .community-detail-hero { grid-template-columns:1fr; gap:18px; padding:18px; border-radius:10px; }
+            .community-detail-hero-title { font-size:1.3rem; }
+            .community-detail-hero-img-wrap { aspect-ratio:4/3; max-height:280px; }
+            .community-detail-spec-row { grid-template-columns:76px 1fr; font-size:0.85rem; gap:10px; }
+            .gforms-header { padding:22px 18px 18px; }
+            .gforms-header h2 { font-size:1.25rem; }
+            .gforms-card { padding:18px 18px; }
+        }
+
         .community-detail-header { width:100%; border-radius:var(--wds-radius-l); margin-bottom:22px; background:var(--wds-gray-100); display:flex; gap:20px; align-items:flex-start; padding:20px; box-sizing:border-box; border:1px solid var(--wds-gray-200); }
         body.dark .community-detail-header { background:var(--wds-gray-100); border-color:var(--wds-gray-300); }
         .community-detail-img { width:140px; height:140px; object-fit:cover; border-radius:var(--wds-radius-m); flex-shrink:0; background:var(--wds-gray-200); }
@@ -5377,65 +5441,86 @@
             const el = document.getElementById('communityContent');
             if (!el) return;
 
-            let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
+            // Topbar
+            let html = `<div class="community-detail-topbar">
                 <button class="edit-btn" onclick="communityBackToList()">← 목록으로</button>
                 <button class="edit-btn" style="padding:6px 16px;" onclick="communityShowAuthModal('${id}')">✏️ 수정</button>
             </div>`;
 
-            // Detail header — always show cover image, fallback to /icon.jpg
-            html += `<div class="community-detail-header">`;
-            const imgSrc = meeting.cover_image_url || '/icon.jpg';
-            html += `<img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(meeting.title)}" class="community-detail-img" onerror="this.src='/icon.jpg'">`;
-            html += `<div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-                    <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:var(--wds-black);">${escapeHtml(meeting.title)}</h2>
-                    <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '모집 마감' : '모집 중'}</span>
-                </div>
-                <div class="community-section-title" style="margin-top:6px;">모임 정보</div>`;
-            if (dateStr || meeting.meeting_time) html += `<div class="community-detail-info-row"><span class="info-label">날짜 · 시간</span>${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</div>`;
-            if (meeting.location) html += `<div class="community-detail-info-row"><span class="info-label">장소</span>${escapeHtml(meeting.location)}</div>`;
-            html += `<div class="community-detail-info-row"><span class="info-label">모임장</span>${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</div>`;
-            if (meeting.fee) html += `<div class="community-detail-info-row"><span class="info-label">참여비</span>${communityIsFreeMeeting(meeting.fee) ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-size:0.82rem;font-weight:800;">무료!</span>' : escapeHtml(meeting.fee)}</div>`;
-            if (meeting.items_to_bring) html += `<div class="community-detail-info-row"><span class="info-label">준비물</span>${escapeHtml(meeting.items_to_bring)}</div>`;
-            html += `<div class="community-detail-info-row"><span class="info-label">신청 현황</span><span style="font-weight:600;color:var(--wds-primary);">${capStr}</span></div>`;
-            html += `</div></div>`;
+            // Hero section (네이버 쇼핑 스타일)
+            const isFree = communityIsFreeMeeting(meeting.fee);
+            const firstChar = (meeting.title || '?')[0];
+            const heroImg = meeting.cover_image_url
+                ? `<img src="${escapeHtml(meeting.cover_image_url)}" alt="${escapeHtml(meeting.title)}" onerror="this.parentNode.innerHTML='<div class=\\'community-detail-hero-placeholder\\'>${escapeHtml(firstChar)}</div>'">`
+                : `<div class="community-detail-hero-placeholder">${escapeHtml(firstChar)}</div>`;
 
+            html += `<div class="community-detail-hero">
+                <div class="community-detail-hero-img-wrap">${heroImg}</div>
+                <div class="community-detail-hero-info">
+                    <div class="community-detail-badges">
+                        <span class="community-badge ${closed ? 'closed' : 'open'}">${closed ? '모집 마감' : '모집 중'}</span>
+                        ${isFree ? '<span class="community-free-badge">무료</span>' : ''}
+                    </div>
+                    <h1 class="community-detail-hero-title">${escapeHtml(meeting.title)}</h1>
+                    <div class="community-detail-price-row">
+                        <span class="community-detail-price-label">참여비</span>
+                        <span class="community-detail-price-value ${isFree ? 'free' : ''}">${isFree ? '무료' : (meeting.fee ? escapeHtml(meeting.fee) : '미정')}</span>
+                    </div>
+                    <div class="community-detail-spec-table">`;
+            if (dateStr || meeting.meeting_time) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">날짜·시간</span><span class="community-detail-spec-value">${dateStr}${meeting.meeting_time ? ' · ' + escapeHtml(meeting.meeting_time) : ''}</span></div>`;
+            if (meeting.location) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">장소</span><span class="community-detail-spec-value">${escapeHtml(meeting.location)}</span></div>`;
+            html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">모임장</span><span class="community-detail-spec-value">${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</span></div>`;
+            if (meeting.items_to_bring) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">준비물</span><span class="community-detail-spec-value">${escapeHtml(meeting.items_to_bring)}</span></div>`;
+            if (meeting.application_deadline) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 마감</span><span class="community-detail-spec-value">${escapeHtml(meeting.application_deadline.replace(/-/g,'.'))}</span></div>`;
+            html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 현황</span><span class="community-detail-spec-value highlight">${capStr}</span></div>`;
+            html += `</div>
+                    <button class="community-detail-cta" ${closed ? 'disabled' : ''} onclick="${closed ? '' : `document.getElementById('communityApplyForm').scrollIntoView({behavior:'smooth',block:'start'})`}">${closed ? '모집 마감' : '참여 신청하기'}</button>
+                </div>
+            </div>`;
+
+            // 모임 설명
             if (meeting.description) {
-                html += `<div class="community-form-section">
-                    <div class="community-section-title" style="margin-top:0;">모임 설명</div>
-                    <div style="white-space:pre-wrap;line-height:1.7;font-size:0.93rem;color:var(--wds-gray-700);">${escapeHtml(meeting.description)}</div>
+                html += `<div class="community-detail-desc-card">
+                    <h3>모임 설명</h3>
+                    <div class="community-detail-desc-body">${escapeHtml(meeting.description)}</div>
                 </div>`;
             }
 
-            // Application form
-            html += `<div class="community-form-section">
-                <div class="community-section-title" style="margin-top:0;">참여 신청</div>`;
+            // 신청 폼 (Google Forms 스타일)
+            html += `<div id="communityApplyForm">
+                <div class="gforms-header">
+                    <h2>참여 신청</h2>
+                    <p>아래 항목을 작성하고 신청해주세요. <span class="gforms-required-note">* 표시는 필수 항목입니다.</span></p>
+                </div>`;
             if (closed) {
-                html += `<div style="text-align:center;padding:24px 0;color:#e74c3c;font-weight:700;font-size:1rem;">모집이 마감되었습니다.</div>`;
+                html += `<div class="gforms-closed">모집이 마감되었습니다.</div>`;
             } else {
-                html += `<div class="community-field-row">
-                    <label>이름 <span style="color:#e74c3c">*</span></label>
-                    <input type="text" id="ca_name" placeholder="이름" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">
+                html += `<div class="gforms-card">
+                    <label class="gforms-label">이름<span class="req">*</span></label>
+                    <input type="text" id="ca_name" class="gforms-input" placeholder="이름을 입력해주세요">
                 </div>
-                <div class="community-field-row">
-                    <label>연락처 <span style="color:#e74c3c">*</span></label>
-                    <input type="tel" id="ca_phone" placeholder="010-0000-0000" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"></div>`;
+                <div class="gforms-card">
+                    <label class="gforms-label">연락처<span class="req">*</span></label>
+                    <input type="tel" id="ca_phone" class="gforms-input" placeholder="010-0000-0000">
+                </div>`;
                 formFields.forEach((f, i) => {
                     const fid = `ca_custom_${i}`;
-                    html += `<div class="community-field-row">
-                        <label>${escapeHtml(f.label)}${f.required ? ' <span style="color:#e74c3c">*</span>' : ''}</label>`;
+                    html += `<div class="gforms-card">
+                        <label class="gforms-label">${escapeHtml(f.label)}${f.required ? '<span class="req">*</span>' : ''}</label>`;
                     if (f.type === 'textarea') {
-                        html += `<textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>`;
+                        html += `<textarea id="${fid}" rows="3" class="gforms-textarea" placeholder="${escapeHtml(f.placeholder || '')}"></textarea>`;
                     } else if (f.type === 'select' && f.options) {
-                        html += `<select id="${fid}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;"><option value="">선택하세요</option>`;
+                        html += `<select id="${fid}" class="gforms-select"><option value="">선택하세요</option>`;
                         f.options.forEach(o => { html += `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`; });
                         html += `</select>`;
                     } else {
-                        html += `<input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}" style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;box-sizing:border-box;font-family:inherit;">`;
+                        html += `<input type="text" id="${fid}" class="gforms-input" placeholder="${escapeHtml(f.placeholder || '')}">`;
                     }
                     html += `</div>`;
                 });
-                html += `<button class="edit-btn" style="width:100%;padding:11px;font-size:0.9rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);margin-top:4px;" onclick="submitCommunityApplication('${id}')">신청하기</button>`;
+                html += `<div class="gforms-submit-row">
+                    <button class="gforms-submit" onclick="submitCommunityApplication('${id}')">신청하기</button>
+                </div>`;
             }
             html += `</div>`;
 
