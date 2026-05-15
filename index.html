@@ -89,7 +89,7 @@
         body.dark .slot-blocked { background: #3a1414 !important; color: #ff8080 !important; border-left-color: #ff4d4f; }
         body.dark .slot-occupied { background: #1a2a4a !important; color: #7aabff !important; border-left-color: #5580ff; }
         body.dark .nav-btn { background: var(--wds-gray-100) !important; color: var(--wds-black); }
-        body.dark #comments_container { background: var(--wds-white) !important; }
+        body.dark #comments_container { background: var(--wds-gray-100) !important; }
         body.dark .cancel-btn { background: #2a1010 !important; }
         body.dark .approve-btn { background: #0a2016 !important; }
         body.dark .reject-btn { background: #2a1010 !important; }
@@ -351,7 +351,7 @@
         }
         .submit-btn:hover { background: var(--wds-primary-hover); }
 
-        #comments_container { width: 100%; max-width: 800px; padding: 32px; background: white; border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
+        #comments_container { width: 100%; max-width: 800px; padding: 32px; background: var(--wds-gray-100); border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
         #comments_container h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
 
         .comment-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
@@ -1552,7 +1552,7 @@
         <!-- Sticky topbar -->
         <div id="userInfoArea" class="gatheo-topbar">
             <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-family:'KkuBulLim',sans-serif;font-size:1.15rem;font-weight:800;letter-spacing:-0.01em">게더링(GatheO)</span>
+                <span style="font-family:'KkuBulLim',sans-serif;font-size:1.15rem;font-weight:800;letter-spacing:-0.01em">GatheO</span>
                 <span style="color:var(--wds-gray-300)">|</span>
                 <strong id="userNameDisplay" style="font-family:'KkuBulLim',sans-serif;font-size:1rem"></strong>
                 <span style="color:var(--wds-gray-500);font-size:0.85rem">님</span>
@@ -1564,9 +1564,9 @@
         </div>
 
         <!-- Banners -->
-        <div id="schedule_banner" class="hidden" style="padding:0 16px"></div>
-        <div id="livePollBanner" class="hidden" style="padding:0 16px"></div>
-        <div id="notice_container" class="hidden" style="padding:0 16px"></div>
+        <div id="schedule_banner" class="hidden" style="padding:12px 20px 0"></div>
+        <div id="livePollBanner" class="hidden" style="padding:12px 20px 0"></div>
+        <div id="notice_container" class="hidden" style="padding:12px 20px 0"></div>
 
         <!-- Tab bar -->
         <div class="community-tab-bar" id="gatheoTabBar" style="margin:0 16px">
