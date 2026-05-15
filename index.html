@@ -452,6 +452,20 @@
 
         /* 관리자 서브탭 */
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+        /* ── 포털 로딩 스크린 ── */
+        #portalLoadingScreen { position:fixed; inset:0; background:#fff; z-index:99999; display:flex; align-items:center; justify-content:center; opacity:1; transition:opacity 0.35s ease; }
+        body.dark #portalLoadingScreen { background:#111; }
+        #portalLoadingScreen.fade-out { opacity:0; pointer-events:none; }
+        .portal-loading-text { font-family:'KkuBulLim',cursive; font-size:clamp(1.8rem,6vw,3rem); color:var(--wds-primary); display:flex; align-items:center; gap:0; }
+        .pll { display:inline-block; animation:portalLetterWobble 1s ease-in-out infinite; }
+        .pll-space { display:inline-block; width:0.35em; }
+        @keyframes portalLetterWobble {
+            0%,100% { transform:rotate(0deg) translateY(0); }
+            20% { transform:rotate(-9deg) translateY(-2px); }
+            50% { transform:rotate(7deg) translateY(1px); }
+            80% { transform:rotate(-4deg) translateY(-1px); }
+        }
         .admin-subtabs { display: flex; border-bottom: 2px solid var(--wds-gray-300); margin-bottom: 20px; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
         .admin-subtabs::-webkit-scrollbar { display: none; }
         .admin-subtab { padding: 10px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--wds-gray-500); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
@@ -4828,18 +4842,42 @@
             if (ps) ps.classList.add('hidden');
         }
 
+        function showPortalLoading() {
+            return new Promise(resolve => {
+                document.getElementById('portalLoadingScreen')?.remove();
+                const text = 'Gather all around';
+                const letters = text.split('').map((c, i) =>
+                    c === ' '
+                        ? `<span class="pll-space"> </span>`
+                        : `<span class="pll" style="animation-delay:${(i * 0.055).toFixed(2)}s">${c}</span>`
+                ).join('');
+                const el = document.createElement('div');
+                el.id = 'portalLoadingScreen';
+                el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
+                document.body.appendChild(el);
+                setTimeout(() => {
+                    el.classList.add('fade-out');
+                    setTimeout(() => { el.remove(); resolve(); }, 380);
+                }, 950);
+            });
+        }
+
         function showGatheoSection() {
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.remove('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            showLoginForm();
+            showPortalLoading().then(() => {
+                document.getElementById('portal-page').classList.add('hidden');
+                document.getElementById('landing-page').classList.remove('hidden');
+                document.getElementById('landing-page-band').classList.add('hidden');
+                showLoginForm();
+            });
         }
 
         function showBandSection() {
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.remove('hidden');
-            showBandLoginForm();
+            showPortalLoading().then(() => {
+                document.getElementById('portal-page').classList.add('hidden');
+                document.getElementById('landing-page').classList.add('hidden');
+                document.getElementById('landing-page-band').classList.remove('hidden');
+                showBandLoginForm();
+            });
         }
 
         function showComingSoon() {
@@ -4881,6 +4919,7 @@
         }
 
         async function showCommunitySection() {
+            await showPortalLoading();
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -5196,16 +5235,23 @@
             }
             let html = '';
             fields.forEach((f, i) => {
-                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:8px 10px;margin-bottom:8px;background:var(--wds-gray-100);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <input type="text" value="${escapeHtml(f.label)}" placeholder="항목명" onchange="state.communityCreateFields[${i}].label=this.value" style="flex:1;min-width:80px;height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                    <select onchange="state.communityCreateFields[${i}].type=this.value" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                        <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
-                        <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
-                    </select>
-                    <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
-                        <input type="checkbox" ${f.required?'checked':''} onchange="state.communityCreateFields[${i}].required=this.checked"> 필수
-                    </label>
-                    <button class="edit-btn" style="padding:2px 8px;color:#e74c3c;border-color:#e74c3c;" onclick="removeCommunityCreateField(${i})">삭제</button>
+                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:8px 10px;margin-bottom:8px;background:var(--wds-gray-100);">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+                        <input type="text" value="${escapeHtml(f.label)}" placeholder="항목명" onchange="state.communityCreateFields[${i}].label=this.value" style="flex:1;min-width:80px;height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                        <select onchange="state.communityCreateFields[${i}].type=this.value;renderCommunityCreateFieldEditor()" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
+                            <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
+                            <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
+                            <option value="select"${f.type==='select'?' selected':''}>선택</option>
+                        </select>
+                        <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
+                            <input type="checkbox" ${f.required?'checked':''} onchange="state.communityCreateFields[${i}].required=this.checked"> 필수
+                        </label>
+                        <button class="edit-btn" style="padding:2px 8px;color:#e74c3c;border-color:#e74c3c;" onclick="removeCommunityCreateField(${i})">삭제</button>
+                    </div>
+                    ${f.type === 'select'
+                        ? `<input type="text" value="${escapeHtml((f.options||[]).join(', '))}" placeholder="선택지 (쉼표로 구분)" onchange="state.communityCreateFields[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
+                        : `<input type="text" value="${escapeHtml(f.placeholder || '')}" placeholder="작성 내용 형식(필요시)" onchange="state.communityCreateFields[${i}].placeholder=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
+                    }
                 </div>`;
             });
             el.innerHTML = html;
