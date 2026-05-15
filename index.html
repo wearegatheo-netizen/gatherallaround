@@ -254,6 +254,21 @@
 
         .logout-btn { color: var(--wds-gray-500); cursor: pointer; border: none; background: none; text-decoration: underline; }
 
+        /* GatheO Community-style Layout */
+        .gatheo-main { width: 100%; max-width: 800px; margin-bottom: 40px; }
+        .gatheo-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--wds-white);
+            border-bottom: 1px solid var(--wds-gray-300);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .gatheo-tab-body { padding: 16px 4px 48px; }
+
         /* Reservation Form */
         .form-group { margin-bottom: 20px; }
         .section-box {
@@ -1533,40 +1548,98 @@
     </div>
 
     <!-- Main Content -->
-    <div id="main-content" class="container hidden">
-        <header>
-            <h1>Gather all around</h1>
-            <p class="subtitle">게더링 멤버 전용 공간</p>
-        </header>
-
-        <div id="userInfoArea" class="user-info">
-            <span><strong id="userNameDisplay" style="font-family:'KkuBulLim',sans-serif"></strong>님, 환영합니다!</span>
+    <div id="main-content" class="gatheo-main hidden">
+        <!-- Sticky topbar -->
+        <div id="userInfoArea" class="gatheo-topbar">
+            <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-family:'KkuBulLim',sans-serif;font-size:1.15rem;font-weight:800;letter-spacing:-0.01em">게어드</span>
+                <span style="color:var(--wds-gray-300)">|</span>
+                <strong id="userNameDisplay" style="font-family:'KkuBulLim',sans-serif;font-size:1rem"></strong>
+                <span style="color:var(--wds-gray-500);font-size:0.85rem">님</span>
+            </div>
             <div style="display:flex;align-items:center;gap:4px">
                 <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
                 <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
             </div>
         </div>
 
-        <div id="schedule_banner" class="hidden"></div>
-        <div id="livePollBanner" class="hidden"></div>
-        <div id="notice_container" class="hidden"></div>
+        <!-- Banners -->
+        <div id="schedule_banner" class="hidden" style="padding:0 16px"></div>
+        <div id="livePollBanner" class="hidden" style="padding:0 16px"></div>
+        <div id="notice_container" class="hidden" style="padding:0 16px"></div>
 
-        <div class="form-group section-box" id="mypagePanel">
-            <div class="member-panel-header" onclick="toggleMypagePanel()">
-                <span class="label" style="margin:0">마이페이지</span>
-                <span id="mypagePanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
-            </div>
-            <div class="section-summary">나의 예약 내역, 소속 팀, 그리고 개인 정보를 관리할 수 있는 공간입니다.</div>
-            <div id="mypagePanelContent" class="hidden" style="margin-top:16px"></div>
+        <!-- Tab bar -->
+        <div class="community-tab-bar" id="gatheoTabBar" style="margin:0 16px">
+            <button class="community-tab active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">예약</button>
+            <button class="community-tab" id="gatheoTab-member" onclick="setGatheOTab('member')">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴</span></button>
+            <button class="community-tab" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">마이페이지</button>
         </div>
 
-        <div class="form-group section-box" id="memberPanel">
-            <div class="member-panel-header" onclick="toggleMemberPanel()">
-                <span class="label" style="margin:0;display:inline-flex;align-items:center;gap:6px">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴 투표중</span></span>
-                <span id="memberPanelArrow" style="font-size:0.85rem;color:var(--wds-gray-500)">▼ 펼치기</span>
-            </div>
-            <div class="section-summary">동료 멤버들을 확인하고, 함께할 팀을 구성하거나 참여 중인 팀을 관리하세요.</div>
-            <div id="memberPanelContent" class="hidden" style="margin-top:16px">
+        <!-- Dummy spans for backwards compat (logoutUI references these) -->
+        <span id="memberPanelArrow" style="display:none"></span>
+        <span id="mypagePanelArrow" style="display:none"></span>
+
+        <!-- Tab body: 예약 -->
+        <div id="gatheOTabReservation" class="gatheo-tab-body">
+            <form id="reservationForm">
+                <input type="hidden" id="userNameInput">
+
+                <div class="form-group section-box">
+                    <span class="label">예약 및 확인</span>
+                    <div style="background:var(--wds-primary-light);border-radius:var(--wds-radius-s);padding:10px 14px;margin-bottom:16px;font-size:0.82rem;line-height:1.8;color:var(--wds-gray-700)">
+                        <span style="font-weight:700;color:var(--wds-primary)">📌 예약 전 확인해주세요</span><br>
+                        · 예약 가능 시간: <strong>오전 10시 ~ 오후 11시</strong><br>
+                        · <strong>2시간 초과</strong> 예약은 관리자 승인이 필요합니다<br>
+                        · 합주실 사용 후 <strong>정리 및 원상복구</strong>는 필수입니다<br>
+                        · 참여 멤버를 정확히 등록해주세요 <span style="color:var(--wds-gray-500)">(참여 횟수 집계에 반영됩니다)</span>
+                    </div>
+                    <div class="tabs">
+                        <div class="tab active" data-view="month">월간</div>
+                        <div class="tab" data-view="week">주간</div>
+                    </div>
+
+                    <div class="view-header">
+                        <div id="viewTitle" class="view-title">2026.05</div>
+                        <div class="nav-btns">
+                            <button type="button" class="nav-btn" id="prevBtn">&lt;</button>
+                            <button type="button" class="nav-btn" id="todayBtn">오늘</button>
+                            <button type="button" class="nav-btn" id="nextBtn">&gt;</button>
+                        </div>
+                    </div>
+
+                    <div id="viewContainer"></div>
+                    <input type="hidden" id="selectedDate" required>
+                    <input type="hidden" id="selectedTime" required>
+                </div>
+
+                <div class="form-group section-box" id="participantSection" style="display:none">
+                    <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
+                    <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요.</p>
+                    <div style="display:flex;gap:6px;margin-bottom:8px">
+                        <select id="participantSelect" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
+                        <button type="button" onclick="addParticipantFromSelect()" style="padding:0 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">+ 추가</button>
+                    </div>
+                    <div id="participantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
+                    <div style="margin-top:10px">
+                        <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                            <label style="font-size:0.8rem;color:var(--wds-gray-600);white-space:nowrap">비등록 참여 인원:</label>
+                            <input type="number" id="participantCountInput" min="0" max="99" value="0" oninput="state.participantCount=parseInt(this.value)||0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;text-align:center">
+                            <span style="font-size:0.8rem;color:var(--wds-gray-500)">명</span>
+                        </div>
+                        <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자는 여기에 적어주세요. (참여 횟수에는 반영되지 않습니다)</p>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">예약 하기</button>
+            </form>
+
+            <div id="result" class="result-card"></div>
+        </div>
+
+        <!-- Tab body: 멤버 & 팀 -->
+        <div id="gatheOTabMember" class="gatheo-tab-body hidden">
+            <div id="memberPanelContent">
                 <div class="admin-subtabs">
                     <div class="admin-subtab active" onclick="setMemberTab('docs')">운영안내</div>
                     <div class="admin-subtab" onclick="setMemberTab('list')">멤버 목록</div>
@@ -1579,60 +1652,10 @@
             </div>
         </div>
 
-        <form id="reservationForm">
-            <input type="hidden" id="userNameInput">
-
-            <div class="form-group section-box">
-                <span class="label">예약 및 확인</span>
-                <div style="background:var(--wds-primary-light);border-radius:var(--wds-radius-s);padding:10px 14px;margin-bottom:16px;font-size:0.82rem;line-height:1.8;color:var(--wds-gray-700)">
-                    <span style="font-weight:700;color:var(--wds-primary)">📌 예약 전 확인해주세요</span><br>
-                    · 예약 가능 시간: <strong>오전 10시 ~ 오후 11시</strong><br>
-                    · <strong>2시간 초과</strong> 예약은 관리자 승인이 필요합니다<br>
-                    · 합주실 사용 후 <strong>정리 및 원상복구</strong>는 필수입니다<br>
-                    · 참여 멤버를 정확히 등록해주세요 <span style="color:var(--wds-gray-500)">(참여 횟수 집계에 반영됩니다)</span>
-                </div>
-                <div class="tabs">
-                    <div class="tab active" data-view="month">월간</div>
-                    <div class="tab" data-view="week">주간</div>
-                </div>
-
-                <div class="view-header">
-                    <div id="viewTitle" class="view-title">2026.05</div>
-                    <div class="nav-btns">
-                        <button type="button" class="nav-btn" id="prevBtn">&lt;</button>
-                        <button type="button" class="nav-btn" id="todayBtn">오늘</button>
-                        <button type="button" class="nav-btn" id="nextBtn">&gt;</button>
-                    </div>
-                </div>
-
-                <div id="viewContainer"></div>
-                <input type="hidden" id="selectedDate" required>
-                <input type="hidden" id="selectedTime" required>
-            </div>
-
-            <div class="form-group section-box" id="participantSection" style="display:none">
-                <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
-                <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요.</p>
-                <div style="display:flex;gap:6px;margin-bottom:8px">
-                    <select id="participantSelect" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
-                    <button type="button" onclick="addParticipantFromSelect()" style="padding:0 14px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem">+ 추가</button>
-                </div>
-                <div id="participantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
-                <div style="margin-top:10px">
-                    <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                        <label style="font-size:0.8rem;color:var(--wds-gray-600);white-space:nowrap">비등록 참여 인원:</label>
-                        <input type="number" id="participantCountInput" min="0" max="99" value="0" oninput="state.participantCount=parseInt(this.value)||0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;text-align:center">
-                        <span style="font-size:0.8rem;color:var(--wds-gray-500)">명</span>
-                    </div>
-                    <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자는 여기에 적어주세요. (참여 횟수에는 반영되지 않습니다)</p>
-                </div>
-            </div>
-
-            <button type="submit" class="submit-btn">예약 하기</button>
-        </form>
-
-        <div id="result" class="result-card"></div>
+        <!-- Tab body: 마이페이지 -->
+        <div id="gatheOTabMypage" class="gatheo-tab-body hidden">
+            <div id="mypagePanelContent"></div>
+        </div>
     </div>
 
     <!-- Comments -->
@@ -1771,6 +1794,7 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
+            setGatheOTab('reservation');
             fetchReservations();
             fetchComments();
             fetchNotices();
@@ -1971,20 +1995,27 @@
             stopInactivityWatcher();
         }
 
-        // --- 마이페이지 ---
-        function toggleMypagePanel() {
-            const content = document.getElementById('mypagePanelContent');
-            const arrow = document.getElementById('mypagePanelArrow');
-            const isOpen = !content.classList.contains('hidden');
-            if (isOpen) {
-                content.classList.add('hidden');
-                arrow.textContent = '▼ 펼치기';
-            } else {
-                content.classList.remove('hidden');
-                arrow.textContent = '▲ 접기';
+        // --- GatheO tab navigation ---
+        function setGatheOTab(tab) {
+            state.gatheoTab = tab;
+            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage' };
+            Object.entries(map).forEach(([t, id]) => {
+                const btn = document.getElementById('gatheoTab-' + t);
+                const body = document.getElementById(id);
+                if (btn) btn.classList.toggle('active', t === tab);
+                if (body) body.classList.toggle('hidden', t !== tab);
+            });
+            if (tab === 'member') {
+                renderMemberPanel();
+                setTimeout(() => document.getElementById('gatheOTabMember')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+            } else if (tab === 'mypage') {
                 renderMypagePanel();
             }
         }
+
+        // --- 마이페이지 ---
+        function toggleMypagePanel() { setGatheOTab('mypage'); }
+
 
         async function renderMypagePanel() {
             const content = document.getElementById('mypagePanelContent');
@@ -2239,6 +2270,7 @@
             reservations: [],
             blocks: [],
             teams: [],
+            gatheoTab: 'reservation',
             memberPanelTab: 'docs',
             editingTeam: null,
             editingSlots: [],
@@ -2706,23 +2738,11 @@
         }
 
         // --- 멤버 패널 ---
-        function toggleMemberPanel() {
-            const content = document.getElementById('memberPanelContent');
-            const arrow = document.getElementById('memberPanelArrow');
-            const isOpen = !content.classList.contains('hidden');
-            if (isOpen) {
-                content.classList.add('hidden');
-                arrow.textContent = '▼ 펼치기';
-            } else {
-                content.classList.remove('hidden');
-                arrow.textContent = '▲ 접기';
-                renderMemberPanel();
-            }
-        }
+        function toggleMemberPanel() { setGatheOTab('member'); }
 
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
-            const subtabs = document.querySelectorAll('#memberPanel .admin-subtab');
+            const subtabs = document.querySelectorAll('#memberPanelContent .admin-subtab');
             const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'votes'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
@@ -6965,18 +6985,8 @@
         }
 
         function goToVotesTab() {
-            const content = document.getElementById('memberPanelContent');
-            const arrow = document.getElementById('memberPanelArrow');
-            if (content && content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                if (arrow) arrow.textContent = '▲ 접기';
-                renderMemberPanel();
-            }
+            setGatheOTab('member');
             setMemberTab('votes');
-            setTimeout(() => {
-                const panel = document.getElementById('memberPanel');
-                if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 80);
         }
 
         async function fetchPollVotes() {
@@ -7759,14 +7769,8 @@
         function openScheduleForDate(date) {
             state.scheduleFilter = 'upcoming';
             state.scheduleEditorDate = date;
-            const memberPanel = document.getElementById('memberPanelContent');
-            if (memberPanel && memberPanel.classList.contains('hidden')) {
-                memberPanel.classList.remove('hidden');
-                const arrow = document.getElementById('memberPanelArrow');
-                if (arrow) arrow.textContent = '▲ 접기';
-            }
+            setGatheOTab('member');
             setMemberTab('schedule');
-            document.getElementById('memberPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function renderNotices() {
