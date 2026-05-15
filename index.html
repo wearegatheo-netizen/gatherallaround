@@ -951,8 +951,8 @@
 
         /* 탭바 */
         .community-tab-bar { display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--wds-gray-200); }
-        .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-500); cursor:pointer; transition:color 0.15s,border-color 0.15s; }
-        .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); }
+        .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-700); cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+        .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); font-weight:700; }
         .community-tab:hover:not(.active) { color:var(--wds-black); }
 
         #communityContent { padding:0 16px; width:100%; box-sizing:border-box; }
@@ -5683,7 +5683,7 @@
                 { key: 'applicants', label: `신청자 관리 (${cnt})` },
             ];
             const tabBar = `<div style="display:flex;gap:0;border-bottom:2px solid var(--wds-gray-200);margin-bottom:20px;overflow-x:auto;">
-                ${tabs.map(t => `<button onclick="switchCommunityEditTab('${id}','${t.key}')" style="padding:10px 20px;font-size:0.92rem;font-weight:${tab===t.key?'700':'500'};color:${tab===t.key?'var(--wds-primary)':'var(--wds-gray-500)'};background:none;border:none;border-bottom:${tab===t.key?'2px solid var(--wds-primary)':'2px solid transparent'};margin-bottom:-2px;cursor:pointer;white-space:nowrap;transition:color 0.15s;">${t.label}</button>`).join('')}
+                ${tabs.map(t => `<button onclick="switchCommunityEditTab('${id}','${t.key}')" style="padding:10px 20px;font-size:0.92rem;font-weight:${tab===t.key?'700':'600'};color:${tab===t.key?'var(--wds-primary)':'var(--wds-gray-700)'};background:none;border:none;border-bottom:${tab===t.key?'2px solid var(--wds-primary)':'2px solid transparent'};margin-bottom:-2px;cursor:pointer;white-space:nowrap;transition:color 0.15s;">${t.label}</button>`).join('')}
             </div>`;
             let html = `<div class="gforms-header">
                 <h2>모임 수정</h2>
