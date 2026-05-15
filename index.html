@@ -119,6 +119,7 @@
             align-items: center;
             min-height: 100vh;
         }
+        body.portal-view { padding-left: 40px; padding-right: 40px; }
 
         .hidden { display: none !important; }
 
@@ -4909,6 +4910,7 @@
 
         // Portal navigation
         function showPortal() {
+            document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.remove('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -4939,7 +4941,7 @@
         }
 
         function showGatheoSection() {
-            // DOM 전환 먼저 (로딩 스크린이 덮어줌)
+            document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -4948,6 +4950,7 @@
         }
 
         function showBandSection() {
+            document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.remove('hidden');
@@ -4994,7 +4997,7 @@
         }
 
         async function showCommunitySection() {
-            // DOM 전환 먼저 (로딩 스크린이 덮어줌), 데이터 로드와 로딩 스크린 병렬 진행
+            document.body.classList.remove('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
