@@ -1033,6 +1033,7 @@
         .gforms-label .req { color:#e74c3c; margin-left:3px; }
         .gforms-input { width:100%; padding:6px 0; border:none; border-bottom:1px solid var(--wds-gray-300); font-size:0.95rem; background:transparent; font-family:inherit; color:var(--wds-black); transition:border-color 0.18s,border-width 0.18s; box-sizing:border-box; }
         .gforms-input::placeholder { color:var(--wds-gray-400); }
+        .gforms-textarea::placeholder { color:var(--wds-gray-400); }
         .gforms-input:focus { outline:none; border-bottom:2px solid var(--wds-primary); padding-bottom:5px; }
         .gforms-textarea { width:100%; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:6px; font-size:0.95rem; background:transparent; font-family:inherit; color:var(--wds-black); resize:vertical; min-height:72px; box-sizing:border-box; transition:border-color 0.18s; }
         .gforms-textarea:focus { outline:none; border:2px solid var(--wds-primary); padding:9px 11px; }
@@ -2264,6 +2265,9 @@
             communityCurrentMeeting: null,
             communityEditAuth: {},
             communityEditView: null,
+            communityEditTab: 'info',
+            communityCurrentAppList: [],
+            communityCurrentFormFields: [],
             communityTab: 'current',
             communityTodayVisits: 0,
             communityCreateOpen: false,
@@ -5438,13 +5442,15 @@
             const appList = apps || [];
             const cnt = appList.length;
             state.communityApplicationCounts[id] = cnt;
+            state.communityCurrentAppList = appList;
+            state.communityCurrentFormFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
 
             const authed = !!state.communityEditAuth[id];
             const editMode = authed && state.communityEditView === id;
             const closed = communityIsClosed(meeting);
             const capStr = meeting.capacity ? `${cnt} / ${meeting.capacity}명` : `${cnt}명 신청`;
             const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
-            const formFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
+            const formFields = state.communityCurrentFormFields;
 
             const el = document.getElementById('communityContent');
             if (!el) return;
@@ -5459,8 +5465,10 @@
             if (editMode) {
                 html += renderCommunityEditView(meeting, id, appList, formFields);
                 el.innerHTML = html;
-                state.communityEditFields = JSON.parse(JSON.stringify(formFields));
-                renderCommunityFieldEditor();
+                if (state.communityEditTab === 'fields') {
+                    state.communityEditFields = JSON.parse(JSON.stringify(formFields));
+                    renderCommunityFieldEditor();
+                }
                 window.scrollTo({ top: 0, behavior: 'instant' });
                 return;
             }
@@ -5492,7 +5500,6 @@
             if (meeting.application_deadline) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 마감</span><span class="community-detail-spec-value">${escapeHtml(meeting.application_deadline.replace(/-/g,'.'))}</span></div>`;
             html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 현황</span><span class="community-detail-spec-value highlight">${capStr}</span></div>`;
             html += `</div>
-                    <button class="community-detail-cta" ${closed ? 'disabled' : ''} onclick="${closed ? '' : `document.getElementById('communityApplyForm').scrollIntoView({behavior:'smooth',block:'start'})`}">${closed ? '모집 마감' : '참여 신청하기'}</button>
                 </div>
             </div>`;
 
@@ -5536,9 +5543,7 @@
                     }
                     html += `</div>`;
                 });
-                html += `<div class="gforms-submit-row">
-                    <button class="gforms-submit" onclick="submitCommunityApplication('${id}')">신청하기</button>
-                </div>`;
+                html += `<button class="gforms-submit" style="width:100%;margin-top:8px;" onclick="submitCommunityApplication('${id}')">신청하기</button>`;
             }
             html += `</div>`;
 
@@ -5662,11 +5667,22 @@
 
         function renderCommunityEditView(meeting, id, appList, formFields) {
             const cnt = appList.length;
+            const tab = state.communityEditTab || 'info';
+            const tabs = [
+                { key: 'info', label: '모임 정보' },
+                { key: 'fields', label: '참여자 작성 내용' },
+                { key: 'applicants', label: `신청자 관리 (${cnt})` },
+            ];
+            const tabBar = `<div style="display:flex;gap:0;border-bottom:2px solid var(--wds-gray-200);margin-bottom:20px;overflow-x:auto;">
+                ${tabs.map(t => `<button onclick="switchCommunityEditTab('${id}','${t.key}')" style="padding:10px 20px;font-size:0.92rem;font-weight:${tab===t.key?'700':'500'};color:${tab===t.key?'var(--wds-primary)':'var(--wds-gray-500)'};background:none;border:none;border-bottom:${tab===t.key?'2px solid var(--wds-primary)':'2px solid transparent'};margin-bottom:-2px;cursor:pointer;white-space:nowrap;transition:color 0.15s;">${t.label}</button>`).join('')}
+            </div>`;
             let html = `<div class="gforms-header">
                 <h2>모임 수정</h2>
                 <p>모임 정보를 수정하세요. <span style="color:var(--wds-gray-500);">날짜·시간은 변경할 수 없습니다.</span></p>
-            </div>
-            <div class="gforms-card">
+            </div>${tabBar}`;
+
+            if (tab === 'info') {
+                html += `<div class="gforms-card">
                 <label class="gforms-label">모임명<span class="req">*</span></label>
                 <input type="text" id="ce_title" class="gforms-input" value="${escapeHtml(meeting.title)}">
             </div>
@@ -5704,6 +5720,10 @@
                     <input type="text" id="ce_items" class="gforms-input" value="${escapeHtml(meeting.items_to_bring || '')}">
                 </div>
             </div>
+            <div class="gforms-card">
+                <label class="gforms-label">모임 설명</label>
+                <textarea id="ce_desc" rows="4" class="gforms-textarea" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요.">${escapeHtml(meeting.description || '')}</textarea>
+            </div>
             <div class="community-grid-2">
                 <div class="gforms-card">
                     <label class="gforms-label">정원</label>
@@ -5715,18 +5735,14 @@
                 </div>
             </div>
             <div class="gforms-card">
-                <label class="gforms-label">모임 설명</label>
-                <textarea id="ce_desc" rows="4" class="gforms-textarea" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요.">${escapeHtml(meeting.description || '')}</textarea>
-            </div>
-            <div class="gforms-card">
                 <label class="gforms-label">대표 이미지 교체</label>
                 <input type="file" id="ce_image" accept="image/*" style="font-size:0.9rem;padding:6px 0;">
             </div>
-            <div class="gforms-submit-row">
-                <button class="gforms-submit" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>
-            </div>
-            <div class="gforms-card">
-                <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">참여자 작성 내용</label>
+            <button class="gforms-submit" style="width:100%;margin-top:4px;" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>`;
+            }
+
+            if (tab === 'fields') {
+                html += `<div class="gforms-card">
                 <div style="background:var(--wds-gray-100);border-radius:6px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;color:var(--wds-gray-600);">
                     <div style="font-weight:700;margin-bottom:6px;color:var(--wds-gray-700);">기본 필수 항목 (자동 포함)</div>
                     <div style="display:flex;flex-direction:column;gap:4px;">
@@ -5739,15 +5755,18 @@
                     <button class="edit-btn" onclick="addCommunityFormField()">+ 항목 추가</button>
                     <button id="communityFieldSaveBtn" class="edit-btn" style="padding:7px 14px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);display:none;" onclick="saveCommunityFormFields('${id}')">항목 저장</button>
                 </div>
-            </div>
-            <div class="gforms-card">
+            </div>`;
+            }
+
+            if (tab === 'applicants') {
+                html += `<div class="gforms-card">
                 <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">신청자 목록 (${cnt}명)</label>
                 <div>`;
-            if (appList.length === 0) {
-                html += `<div style="padding:18px 10px;color:var(--wds-gray-500);font-size:0.88rem;text-align:center;">아직 신청자가 없습니다.</div>`;
-            } else {
-                appList.forEach(a => {
-                    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--wds-gray-200);font-size:0.88rem;">
+                if (appList.length === 0) {
+                    html += `<div style="padding:18px 10px;color:var(--wds-gray-500);font-size:0.88rem;text-align:center;">아직 신청자가 없습니다.</div>`;
+                } else {
+                    appList.forEach(a => {
+                        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--wds-gray-200);font-size:0.88rem;">
                         <div style="flex:1;min-width:0;">
                             <span style="font-weight:600;">${escapeHtml(a.applicant_name)}</span>
                             ${a.applicant_phone ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_phone)}</span>` : ''}
@@ -5756,10 +5775,9 @@
                         </div>
                         <button class="edit-btn" style="padding:4px 10px;font-size:0.78rem;color:#e74c3c;border-color:#e74c3c;flex-shrink:0;" onclick="deleteCommunityApplication('${id}','${a.id}')">삭제</button>
                     </div>`;
-                });
-            }
-            html += `</div>
-            </div>
+                    });
+                }
+                html += `</div></div>
             <div class="gforms-card">
                 <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">관리</label>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">
@@ -5768,17 +5786,37 @@
                     <button class="edit-btn" style="padding:11px;font-size:0.88rem;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
                 </div>
             </div>`;
+            }
+
             return html;
+        }
+
+        function switchCommunityEditTab(id, tab) {
+            state.communityEditTab = tab;
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const meeting = state.communityMeetings.find(m => m.id === id) || state.communityCurrentMeeting;
+            const appList = state.communityCurrentAppList || [];
+            const formFields = state.communityCurrentFormFields || [];
+            const topbar = el.querySelector('.community-detail-topbar')?.outerHTML || '';
+            el.innerHTML = topbar + renderCommunityEditView(meeting, id, appList, formFields);
+            if (tab === 'fields') {
+                state.communityEditFields = JSON.parse(JSON.stringify(formFields));
+                renderCommunityFieldEditor();
+            }
+            window.scrollTo({ top: 0, behavior: 'instant' });
         }
 
         function communityExitEdit(id) {
             state.communityEditView = null;
+            state.communityEditTab = 'info';
             renderCommunityDetail(id);
         }
 
         function communityShowAuthModal(id) {
             if (state.communityEditAuth[id]) {
                 state.communityEditView = id;
+                state.communityEditTab = 'info';
                 renderCommunityDetail(id);
                 return;
             }
@@ -5819,6 +5857,7 @@
             if (!ok) return alert('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
             state.communityEditView = id;
+            state.communityEditTab = 'info';
             document.getElementById('commAuthModal')?.remove();
             renderCommunityDetail(id);
         }
