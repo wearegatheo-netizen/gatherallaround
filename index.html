@@ -4864,21 +4864,20 @@
         }
 
         function showGatheoSection() {
-            showPortalLoading().then(() => {
-                document.getElementById('portal-page').classList.add('hidden');
-                document.getElementById('landing-page').classList.remove('hidden');
-                document.getElementById('landing-page-band').classList.add('hidden');
-                showLoginForm();
-            });
+            // DOM 전환 먼저 (로딩 스크린이 덮어줌)
+            document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('landing-page-band').classList.add('hidden');
+            showLoginForm();
+            showPortalLoading();
         }
 
         function showBandSection() {
-            showPortalLoading().then(() => {
-                document.getElementById('portal-page').classList.add('hidden');
-                document.getElementById('landing-page').classList.add('hidden');
-                document.getElementById('landing-page-band').classList.remove('hidden');
-                showBandLoginForm();
-            });
+            document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('landing-page-band').classList.remove('hidden');
+            showBandLoginForm();
+            showPortalLoading();
         }
 
         function showComingSoon() {
@@ -4920,7 +4919,7 @@
         }
 
         async function showCommunitySection() {
-            await showPortalLoading();
+            // DOM 전환 먼저 (로딩 스크린이 덮어줌), 데이터 로드와 로딩 스크린 병렬 진행
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -4931,8 +4930,9 @@
             state.communityTab = 'current';
             state.communityEditAuth = {};
             window.scrollTo({ top: 0, behavior: 'instant' });
-            await incrementCommunityVisit();
             await Promise.all([
+                showPortalLoading(),
+                incrementCommunityVisit(),
                 fetchCommunityMeetings(),
                 fetchCommunityReservationsAndBlocks(),
             ]);
