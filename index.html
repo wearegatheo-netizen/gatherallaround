@@ -2263,6 +2263,7 @@
             communityCurrentId: null,
             communityCurrentMeeting: null,
             communityEditAuth: {},
+            communityEditView: null,
             communityTab: 'current',
             communityTodayVisits: 0,
             communityCreateOpen: false,
@@ -5439,6 +5440,7 @@
             state.communityApplicationCounts[id] = cnt;
 
             const authed = !!state.communityEditAuth[id];
+            const editMode = authed && state.communityEditView === id;
             const closed = communityIsClosed(meeting);
             const capStr = meeting.capacity ? `${cnt} / ${meeting.capacity}명` : `${cnt}명 신청`;
             const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
@@ -5449,9 +5451,19 @@
 
             // Topbar
             let html = `<div class="community-detail-topbar">
-                <button class="edit-btn" onclick="communityBackToList()">← 목록으로</button>
-                <button class="edit-btn" style="padding:6px 16px;" onclick="communityShowAuthModal('${id}')">✏️ 수정</button>
+                <button class="edit-btn" onclick="${editMode ? `communityExitEdit('${id}')` : 'communityBackToList()'}">← ${editMode ? '상세보기' : '목록으로'}</button>
+                ${editMode ? '' : `<button class="edit-btn" style="padding:6px 16px;" onclick="communityShowAuthModal('${id}')">✏️ 수정</button>`}
             </div>`;
+
+            // 수정 모드일 때는 hero/설명/신청폼 모두 숨기고 수정 폼만 렌더링
+            if (editMode) {
+                html += renderCommunityEditView(meeting, id, appList, formFields);
+                el.innerHTML = html;
+                state.communityEditFields = JSON.parse(JSON.stringify(formFields));
+                renderCommunityFieldEditor();
+                window.scrollTo({ top: 0, behavior: 'instant' });
+                return;
+            }
 
             // Hero section (네이버 쇼핑 스타일)
             const isFree = communityIsFreeMeeting(meeting.fee);
@@ -5530,8 +5542,8 @@
             }
             html += `</div>`;
 
-            // Organizer edit panel — only shown after password auth
-            if (authed) {
+            // (Edit view is rendered in a separate flow via renderCommunityEditView)
+            if (false) {
                 html += `<div class="community-form-section" id="communityOrganizerPanel">
                     <div class="community-section-title" style="margin-top:0;font-size:1.15rem;">✏️ 모임 수정</div>
                     <div id="communityEditForm">
@@ -5646,18 +5658,127 @@
             }
 
             el.innerHTML = html;
+        }
 
-            if (authed) {
-                state.communityEditFields = JSON.parse(JSON.stringify(formFields));
-                renderCommunityFieldEditor();
-                document.getElementById('communityOrganizerPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        function renderCommunityEditView(meeting, id, appList, formFields) {
+            const cnt = appList.length;
+            let html = `<div class="gforms-header">
+                <h2>모임 수정</h2>
+                <p>모임 정보를 수정하세요. <span style="color:var(--wds-gray-500);">날짜·시간은 변경할 수 없습니다.</span></p>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label">모임명<span class="req">*</span></label>
+                <input type="text" id="ce_title" class="gforms-input" value="${escapeHtml(meeting.title)}">
+            </div>
+            <div class="community-grid-2">
+                <div class="gforms-card" style="opacity:0.6;">
+                    <label class="gforms-label">날짜 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500);">(수정 불가)</span></label>
+                    <input type="date" id="ce_date" class="gforms-input" value="${escapeHtml(meeting.meeting_date || '')}" disabled>
+                </div>
+                <div class="gforms-card" style="opacity:0.6;">
+                    <label class="gforms-label">시간 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500);">(수정 불가)</span></label>
+                    <input type="text" id="ce_time" class="gforms-input" value="${escapeHtml(meeting.meeting_time || '')}" disabled>
+                </div>
+            </div>
+            <div class="community-grid-2">
+                <div class="gforms-card">
+                    <label class="gforms-label">모임장 이름<span class="req">*</span></label>
+                    <input type="text" id="ce_org_name" class="gforms-input" value="${escapeHtml(meeting.organizer_name)}">
+                </div>
+                <div class="gforms-card">
+                    <label class="gforms-label">연락처<span class="req">*</span></label>
+                    <input type="tel" id="ce_org_phone" class="gforms-input" value="${escapeHtml(meeting.organizer_phone || '')}">
+                </div>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label">이메일<span class="req">*</span></label>
+                <input type="email" id="ce_org_email" class="gforms-input" value="${escapeHtml(meeting.organizer_email)}">
+            </div>
+            <div class="community-grid-2">
+                <div class="gforms-card">
+                    <label class="gforms-label">참여비용</label>
+                    <input type="text" id="ce_fee" class="gforms-input" value="${escapeHtml(meeting.fee || '')}" placeholder="예: 5,000원">
+                </div>
+                <div class="gforms-card">
+                    <label class="gforms-label">준비물</label>
+                    <input type="text" id="ce_items" class="gforms-input" value="${escapeHtml(meeting.items_to_bring || '')}">
+                </div>
+            </div>
+            <div class="community-grid-2">
+                <div class="gforms-card">
+                    <label class="gforms-label">정원</label>
+                    <input type="number" id="ce_capacity" class="gforms-input" value="${meeting.capacity || ''}" min="1">
+                </div>
+                <div class="gforms-card">
+                    <label class="gforms-label">신청 마감일</label>
+                    <input type="date" id="ce_deadline" class="gforms-input" value="${escapeHtml(meeting.application_deadline || '')}">
+                </div>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label">모임 설명</label>
+                <textarea id="ce_desc" rows="4" class="gforms-textarea" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요.">${escapeHtml(meeting.description || '')}</textarea>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label">대표 이미지 교체</label>
+                <input type="file" id="ce_image" accept="image/*" style="font-size:0.9rem;padding:6px 0;">
+            </div>
+            <div class="gforms-submit-row">
+                <button class="gforms-submit" onclick="saveCommunityMeetingEdit('${id}')">수정 저장</button>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">참여자 작성 내용</label>
+                <div style="background:var(--wds-gray-100);border-radius:6px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;color:var(--wds-gray-600);">
+                    <div style="font-weight:700;margin-bottom:6px;color:var(--wds-gray-700);">기본 필수 항목 (자동 포함)</div>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <span>• 이름 <span style="color:#e74c3c;font-weight:700;">*</span></span>
+                        <span>• 연락처 <span style="color:#e74c3c;font-weight:700;">*</span></span>
+                    </div>
+                </div>
+                <div id="communityFieldEditor"></div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+                    <button class="edit-btn" onclick="addCommunityFormField()">+ 항목 추가</button>
+                    <button id="communityFieldSaveBtn" class="edit-btn" style="padding:7px 14px;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);display:none;" onclick="saveCommunityFormFields('${id}')">항목 저장</button>
+                </div>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">신청자 목록 (${cnt}명)</label>
+                <div>`;
+            if (appList.length === 0) {
+                html += `<div style="padding:18px 10px;color:var(--wds-gray-500);font-size:0.88rem;text-align:center;">아직 신청자가 없습니다.</div>`;
+            } else {
+                appList.forEach(a => {
+                    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--wds-gray-200);font-size:0.88rem;">
+                        <div style="flex:1;min-width:0;">
+                            <span style="font-weight:600;">${escapeHtml(a.applicant_name)}</span>
+                            ${a.applicant_phone ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_phone)}</span>` : ''}
+                            ${a.applicant_email ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_email)}</span>` : ''}
+                            <span style="color:var(--wds-gray-400);margin-left:8px;font-size:0.78rem;">${new Date(a.created_at).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                        <button class="edit-btn" style="padding:4px 10px;font-size:0.78rem;color:#e74c3c;border-color:#e74c3c;flex-shrink:0;" onclick="deleteCommunityApplication('${id}','${a.id}')">삭제</button>
+                    </div>`;
+                });
             }
+            html += `</div>
+            </div>
+            <div class="gforms-card">
+                <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">관리</label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">
+                    <button class="edit-btn" style="padding:11px;font-size:0.88rem;" onclick="toggleCommunityMeetingClosed('${id}', ${meeting.is_closed})">${meeting.is_closed ? '모집 재개' : '수동 마감'}</button>
+                    <button class="edit-btn" style="padding:11px;font-size:0.88rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="downloadCommunityApplicantsCsv('${id}')">목록 CSV 다운로드</button>
+                    <button class="edit-btn" style="padding:11px;font-size:0.88rem;color:#e74c3c;border-color:#e74c3c;" onclick="deleteCommunityMeeting('${id}')">모임 삭제</button>
+                </div>
+            </div>`;
+            return html;
+        }
+
+        function communityExitEdit(id) {
+            state.communityEditView = null;
+            renderCommunityDetail(id);
         }
 
         function communityShowAuthModal(id) {
             if (state.communityEditAuth[id]) {
-                const panel = document.getElementById('communityOrganizerPanel');
-                if (panel) { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+                state.communityEditView = id;
                 renderCommunityDetail(id);
                 return;
             }
@@ -5697,6 +5818,7 @@
             if (!ok) ok = await verifyCommunityAdminPw(pw);
             if (!ok) return alert('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
+            state.communityEditView = id;
             document.getElementById('commAuthModal')?.remove();
             renderCommunityDetail(id);
         }
@@ -5950,6 +6072,7 @@
             state.communityCurrentId = null;
             state.communityCurrentMeeting = null;
             state.communityCreateOpen = false;
+            state.communityEditView = null;
             fetchCommunityMeetings().then(() => renderCommunityList());
         }
 
