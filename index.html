@@ -1573,6 +1573,7 @@
             <button class="community-tab active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">예약</button>
             <button class="community-tab" id="gatheoTab-member" onclick="setGatheOTab('member')">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴</span></button>
             <button class="community-tab" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">마이페이지</button>
+            <button class="community-tab hidden" id="gatheoTab-admin" onclick="setGatheOTab('admin')">관리자</button>
         </div>
 
         <!-- Dummy spans for backwards compat (logoutUI references these) -->
@@ -1659,6 +1660,9 @@
                 <div id="mypagePanelContent"></div>
             </div>
         </div>
+
+        <!-- Tab body: 관리자 -->
+        <div id="gatheOTabAdmin" class="gatheo-tab-body hidden"></div>
     </div>
 
     <!-- Comments -->
@@ -1779,16 +1783,13 @@
             document.getElementById('userNameDisplay').textContent = nickname;
             document.getElementById('userNameInput').value = nickname;
             
-            // 관리자/세션장인 경우 관리자 탭 추가
-            const tabs = document.querySelector('.tabs');
-            if (isAdminUser() && !document.querySelector('[data-view="admin"]')) {
-                const adminTab = document.createElement('div');
-                adminTab.className = 'tab';
-                adminTab.dataset.view = 'admin';
-                adminTab.textContent = '관리자';
-                tabs.appendChild(adminTab);
-                adminTab.addEventListener('click', onTabClick);
+            // 관리자인 경우 gatheo 탭바에 관리자 탭 표시
+            if (isAdminUser()) {
+                const adminBtn = document.getElementById('gatheoTab-admin');
+                if (adminBtn) adminBtn.classList.remove('hidden');
             }
+            // 내 예약 탭 추가 (예약 탭 내부)
+            const tabs = document.querySelector('.tabs');
             if (!document.querySelector('[data-view="my"]')) {
                 const myTab = document.createElement('div');
                 myTab.className = 'tab';
@@ -1975,9 +1976,9 @@
             if (epModal) epModal.classList.add('hidden');
             document.body.style.overflow = '';
 
-            // 추가한 탭 제거
-            const adminTab = document.querySelector('[data-view="admin"]');
-            if (adminTab) adminTab.remove();
+            // 관리자 탭 숨기기, 내 예약 탭 제거
+            const gatheoAdminBtn = document.getElementById('gatheoTab-admin');
+            if (gatheoAdminBtn) gatheoAdminBtn.classList.add('hidden');
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
             state.user = null;
@@ -2001,7 +2002,7 @@
         // --- GatheO tab navigation ---
         function setGatheOTab(tab) {
             state.gatheoTab = tab;
-            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage' };
+            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage', admin: 'gatheOTabAdmin' };
             Object.entries(map).forEach(([t, id]) => {
                 const btn = document.getElementById('gatheoTab-' + t);
                 const body = document.getElementById(id);
@@ -2013,7 +2014,16 @@
                 setTimeout(() => document.getElementById('gatheOTabMember')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
             } else if (tab === 'mypage') {
                 renderMypagePanel();
+            } else if (tab === 'admin') {
+                renderGatheOAdmin();
             }
+        }
+
+        function renderGatheOAdmin() {
+            const container = document.getElementById('gatheOTabAdmin');
+            if (!container) return;
+            container.innerHTML = '';
+            renderAdminPage(container);
         }
 
         // --- 마이페이지 ---
@@ -3732,7 +3742,7 @@
                 const btn = document.createElement('div');
                 btn.className = 'admin-subtab' + (state.adminTab === t.key ? ' active' : '');
                 btn.textContent = t.label;
-                btn.onclick = () => { state.adminTab = t.key; render(); };
+                btn.onclick = () => { state.adminTab = t.key; renderGatheOAdmin(); };
                 subtabBar.appendChild(btn);
             });
             container.appendChild(subtabBar);
@@ -7758,7 +7768,7 @@
                     : [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,3).map(g => escapeHtml(g)).join(' · ');
                 return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff;margin-bottom:8px;cursor:pointer" onclick="openScheduleForDate('${date}')">
                     <div style="min-width:0;flex:1">
-                        <span style="font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;margin-right:8px">${isToday(date)?'🔴 오늘':'📅 '+fmtDate(date)}</span>
+                        <span style="font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;margin-right:8px">${isToday(date)?'오늘':fmtDate(date)}</span>
                         ${groupsLabel ? `<span style="font-size:0.82rem;font-weight:600">${groupsLabel}</span>` : ''}
                         ${timeRange ? `<span style="font-size:0.78rem;opacity:0.85;margin-left:6px">${timeRange}</span>` : ''}
                     </div>
