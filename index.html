@@ -939,11 +939,14 @@
 
         /* 카드 본문 */
         .community-card-info { padding:14px 16px 16px; }
-        .community-card-title { font-size:1rem; font-weight:800; color:var(--wds-black); line-height:1.45; margin:0 0 8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .community-card-title { font-size:1.15rem; font-weight:800; color:var(--wds-black); line-height:1.4; margin:0 0 10px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-family:'KkuBulLim',sans-serif; letter-spacing:-0.01em; }
         .community-card-meta { font-size:0.8rem; color:var(--wds-gray-500); margin-bottom:3px; line-height:1.4; }
+        .community-card-meta-label { color:var(--wds-gray-400); font-weight:600; margin-right:2px; }
         .community-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--wds-gray-100); }
         .community-card-count { font-size:0.82rem; font-weight:700; color:var(--wds-primary); }
-        .community-card-organizer { font-size:0.78rem; color:var(--wds-gray-400); }
+        .community-card-organizer { font-size:0.78rem; color:var(--wds-gray-500); }
+        .community-card-organizer-label { display:inline-block; padding:1px 6px; margin-right:4px; background:var(--wds-gray-100); color:var(--wds-gray-500); border-radius:3px; font-size:0.7rem; font-weight:700; }
+        body.dark .community-card-organizer-label { background:var(--wds-gray-200); }
 
         /* 탭바 */
         .community-tab-bar { display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--wds-gray-200); }
@@ -1501,8 +1504,9 @@
 
     <!-- 커뮤니티 페이지 -->
     <div id="landing-page-community" class="hidden">
-        <div style="padding:24px 16px 0;">
+        <div style="padding:24px 16px 0;position:relative;">
             <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
+            <button type="button" id="themeToggleBtnCommunity" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:24px;right:20px;">🌙</button>
             <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;margin-top:20px;">
                 <div>
                     <h2 style="margin:0 0 4px;font-size:1.7rem;font-weight:800;color:var(--wds-black);font-family:'KkuBulLim',sans-serif;">게·어·드 커뮤니티</h2>
@@ -5273,12 +5277,12 @@
                         </div>
                         <div class="community-card-info">
                             <div class="community-card-title">${escapeHtml(m.title)}</div>
-                            ${dateStr || m.meeting_time ? `<div class="community-card-meta">📅 ${dateStr}${m.meeting_time ? ' · ' + escapeHtml(m.meeting_time) : ''}</div>` : ''}
-                            ${m.location ? `<div class="community-card-meta">📍 ${escapeHtml(m.location)}</div>` : ''}
-                            ${m.fee && !isFree ? `<div class="community-card-meta">💰 ${escapeHtml(m.fee)}</div>` : ''}
+                            ${dateStr || m.meeting_time ? `<div class="community-card-meta">📅 <span class="community-card-meta-label">일시</span> ${dateStr}${m.meeting_time ? ' · ' + escapeHtml(m.meeting_time) : ''}</div>` : ''}
+                            ${m.location ? `<div class="community-card-meta">📍 <span class="community-card-meta-label">장소</span> ${escapeHtml(m.location)}</div>` : ''}
+                            ${m.fee && !isFree ? `<div class="community-card-meta">💰 <span class="community-card-meta-label">참여비</span> ${escapeHtml(m.fee)}</div>` : ''}
                             <div class="community-card-footer">
                                 <span class="community-card-count">신청 ${capStr}</span>
-                                <span class="community-card-organizer">${escapeHtml(m.organizer_name)}</span>
+                                <span class="community-card-organizer"><span class="community-card-organizer-label">모임장</span> ${escapeHtml(m.organizer_name)}</span>
                             </div>
                         </div>
                     </div>`;
@@ -8092,10 +8096,12 @@
             const b = document.getElementById('themeToggleBtnLanding');
             const c = document.getElementById('themeToggleBtnPortal');
             const d = document.getElementById('themeToggleBtnBand');
+            const e = document.getElementById('themeToggleBtnCommunity');
             if (a) a.textContent = label;
             if (b) b.textContent = label;
             if (c) c.textContent = label;
             if (d) d.textContent = label;
+            if (e) e.textContent = label;
         }
 
         function toggleTheme() {
