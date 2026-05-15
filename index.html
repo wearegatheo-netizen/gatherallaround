@@ -914,7 +914,7 @@
         body.dark #bandHeaderName { color: var(--wds-black); }
 
         /* ===================== COMMUNITY SECTION ===================== */
-        #landing-page-community { min-height:100vh; display:flex; flex-direction:column; }
+        #landing-page-community { min-height:100vh; display:flex; flex-direction:column; align-items:stretch; width:100%; }
 
         /* 카드 그리드 */
         .community-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-bottom:32px; }
@@ -951,7 +951,7 @@
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); }
         .community-tab:hover:not(.active) { color:var(--wds-black); }
 
-        #communityContent { padding:0 16px; }
+        #communityContent { padding:0 16px; width:100%; box-sizing:border-box; }
         .community-section-title { font-size:1.05rem; font-weight:800; color:var(--wds-black); margin:18px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--wds-primary); }
         .community-section-title:first-child { margin-top:0; }
         body.dark .community-section-title { color:var(--wds-black); }
