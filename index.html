@@ -5128,14 +5128,16 @@
             if (visitorEl) visitorEl.textContent = `오늘 방문자: ${state.communityTodayVisits}명`;
 
             let html = '';
-            // Tabs + create button
-            html += `<div class="community-tab-bar">
-                <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
-                <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
-            </div>
-            <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-                <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
-            </div>`;
+            // Tabs + create button (모임 생성 중에는 숨김)
+            if (!state.communityCreateOpen) {
+                html += `<div class="community-tab-bar">
+                    <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
+                    <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                    <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
+                </div>`;
+            }
 
             // Create form — Google Forms 스타일
             if (state.communityCreateOpen) {
@@ -5238,8 +5240,10 @@
                 </div>`;
             }
 
-            // Meeting grid
-            if (paged.items.length === 0) {
+            // Meeting grid (모임 생성 중에는 숨김)
+            if (state.communityCreateOpen) {
+                // hide existing meetings while creating
+            } else if (paged.items.length === 0) {
                 html += `<div style="text-align:center;padding:64px 0;color:var(--wds-gray-400);font-size:0.95rem;">${tab === 'current' ? '현재 모집 중인 모임이 없습니다.' : '지난 모임이 없습니다.'}</div>`;
             } else {
                 html += `<div class="community-grid">`;
