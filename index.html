@@ -457,7 +457,7 @@
         #portalLoadingScreen { position:fixed; inset:0; background:#fff; z-index:99999; display:flex; align-items:center; justify-content:center; opacity:1; transition:opacity 0.35s ease; }
         body.dark #portalLoadingScreen { background:#111; }
         #portalLoadingScreen.fade-out { opacity:0; pointer-events:none; }
-        .portal-loading-text { font-family:'KkuBulLim',cursive; font-size:clamp(1.8rem,4vw,2.2rem); color:var(--wds-black); display:flex; align-items:center; gap:0; }
+        .portal-loading-text { font-family:'KkuBulLim',cursive; font-size:clamp(1.8rem,4vw,2.2rem); color:var(--wds-black); display:flex; align-items:center; gap:0; line-height:1; transform:translateY(-8px); }
         body.dark .portal-loading-text { color:#fff; }
         .pll { display:inline-block; animation:portalLetterWobble 1s ease-in-out infinite; }
         .pll-space { display:inline-block; width:0.35em; }
