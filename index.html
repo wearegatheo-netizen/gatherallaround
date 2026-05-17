@@ -1212,7 +1212,7 @@
                     <div class="instrument-buttons">
                         <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
                         <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
-                        <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
+                        <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)"><img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:18px;vertical-align:middle"> 베이스</button>
                         <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
                         <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
                     </div>
@@ -1451,7 +1451,7 @@
                         <div class="instrument-buttons" id="ksInstBtns" style="margin-top:4px">
                             <button type="button" class="inst-btn" data-inst="보컬" onclick="toggleInstrument(this)">🎤 보컬</button>
                             <button type="button" class="inst-btn" data-inst="기타" onclick="toggleInstrument(this)">🎸 기타</button>
-                            <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)">🎵 베이스</button>
+                            <button type="button" class="inst-btn" data-inst="베이스" onclick="toggleInstrument(this)"><img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:18px;vertical-align:middle"> 베이스</button>
                             <button type="button" class="inst-btn" data-inst="키보드" onclick="toggleInstrument(this)">🎹 키보드</button>
                             <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
                         </div>
@@ -2078,7 +2078,7 @@
                         <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션</label>
                         <div class="instrument-buttons" id="mypageInstBtns">
                             ${['보컬','기타','베이스','키보드','드럼'].map(inst => {
-                                const icons = {보컬:'🎤',기타:'🎸',베이스:'🎵',키보드:'🎹',드럼:'🥁'};
+                                const icons = {보컬:'🎤',기타:'🎸',베이스:'<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:16px;vertical-align:middle">',키보드:'🎹',드럼:'🥁'};
                                 const mainInsts = ['보컬','기타','베이스','키보드','드럼'];
                                 const firstMain = (profile.instruments || '').split(',').map(s=>s.trim()).find(s => mainInsts.includes(s)) || '';
                                 const sel = firstMain === inst;
@@ -2137,7 +2137,7 @@
                             <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">메인 세션</label>
                             <div class="instrument-buttons" id="regInstBtns">
                                 ${['보컬','기타','베이스','키보드','드럼'].map(inst => {
-                                    const icons = {보컬:'🎤',기타:'🎸',베이스:'🎵',키보드:'🎹',드럼:'🥁'};
+                                    const icons = {보컬:'🎤',기타:'🎸',베이스:'<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:16px;vertical-align:middle">',키보드:'🎹',드럼:'🥁'};
                                     return `<button type="button" class="inst-btn" data-inst="${inst}" onclick="toggleInstrument(this)">${icons[inst]} ${inst}</button>`;
                                 }).join('')}
                             </div>
@@ -3643,7 +3643,7 @@
             document.getElementById('teamMusicSearch').value = '';
         }
 
-        const INST_EMOJI = { '보컬': '🎤', '기타': '🎸', '베이스': '🎸', '키보드': '🎹', '드럼': '🥁' };
+        const INST_EMOJI = { '보컬': '🎤', '기타': '🎸', '베이스': '<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:1em;vertical-align:middle">', '키보드': '🎹', '드럼': '🥁' };
         function instBadges(instruments) {
             if (!instruments) return '';
             const insts = instruments.split(',').map(s => s.trim()).filter(Boolean);
@@ -6241,59 +6241,59 @@
         const INST_RESULTS = {
             vocalist:    { name:'보컬', emoji:'🎤', color:'#FF6B6B', desc:'무대의 주인공. 강한 존재감과 표현력으로 타고난 퍼포머! 밴드의 얼굴이자 목소리입니다.' },
             guitarist:   { name:'기타', emoji:'🎸', color:'#4ECDC4', desc:'감성과 기술의 예술가. 섬세한 감수성과 독창적 개성으로 곡의 색깔을 만듭니다.' },
-            bassist:     { name:'베이스', emoji:'🎵', color:'#45B7D1', desc:'없어선 안 될 기둥. 그루브와 안정감으로 밴드 전체를 완성시키는 든든한 존재입니다.' },
+            bassist:     { name:'베이스', emoji:'<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:1em;vertical-align:middle">', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png', color:'#45B7D1', desc:'없어선 안 될 기둥. 그루브와 안정감으로 밴드 전체를 완성시키는 든든한 존재입니다.' },
             drummer:     { name:'드럼', emoji:'🥁', color:'#F7B731', desc:'밴드의 엔진. 폭발적인 에너지로 공연장을 뒤흔드는 밴드의 심장입니다.' },
             keyboardist: { name:'키보드', emoji:'🎹', color:'#A29BFE', desc:'화음의 완성자. 누구와도 잘 어울리며 음악을 완성시키는 다재다능한 만능 플레이어.' },
         };
 
         const INST_QUESTIONS = [
-            { q:'팀 프로젝트에서 나의 포지션은?', opts:[
-                { label:'앞에 서서 발표하고 팀을 이끄는 리더', key:'vocalist' },
-                { label:'새 아이디어를 내고 기획을 주도하는 역할', key:'guitarist' },
-                { label:'모두의 의견을 조율하고 팀을 지원하는 역할', key:'bassist' },
-                { label:'아이디어보다 누구보다 빠르게 실행에 옮기는 역할', key:'drummer' },
-            ]},
-            { q:'처음 만나는 사람과 어떻게 친해지나요?', opts:[
-                { label:'먼저 말 걸고 자연스럽게 대화를 주도한다', key:'vocalist' },
-                { label:'분위기 파악하며 차분히 공통점을 찾아간다', key:'keyboardist' },
-                { label:'상대가 편하도록 배려하며 조용히 맞춰간다', key:'bassist' },
-                { label:'재미있는 상황을 만들며 유쾌하게 분위기를 깬다', key:'drummer' },
-            ]},
             { q:'주말 오후, 예상치 못한 자유 시간이 생겼다면?', opts:[
                 { label:'친구에게 연락해 밖에 나가서 신나게 논다', key:'vocalist' },
+                { label:'가보고 싶었던 새 장소나 활동을 즉흥적으로 도전', key:'drummer' },
                 { label:'혼자 카페나 집에서 좋아하는 것에 완전히 몰입', key:'keyboardist' },
                 { label:'집에서 느긋하게 쉬며 재충전하는 시간', key:'bassist' },
-                { label:'가보고 싶었던 새 장소나 활동을 즉흥적으로 도전', key:'drummer' },
             ]},
             { q:'카페에서 자리를 고른다면?', opts:[
                 { label:'창가 자리 — 밖을 바라보며 감성에 잠기는 곳', key:'guitarist' },
-                { label:'포근한 소파 자리 — 편하고 아늑한 공간', key:'bassist' },
                 { label:'바 자리 — 활기차고 바리스타와 가볍게 대화', key:'drummer' },
+                { label:'포근한 소파 자리 — 편하고 아늑한 공간', key:'bassist' },
                 { label:'조용한 구석 자리 — 집중할 수 있는 나만의 공간', key:'keyboardist' },
+            ]},
+            { q:'팀 프로젝트에서 나의 포지션은?', opts:[
+                { label:'앞에 서서 발표하고 팀을 이끄는 리더', key:'vocalist' },
+                { label:'새 아이디어를 내고 기획을 주도하는 역할', key:'guitarist' },
+                { label:'아이디어보다 누구보다 빠르게 실행에 옮기는 역할', key:'drummer' },
+                { label:'모두의 의견을 조율하고 팀을 지원하는 역할', key:'bassist' },
             ]},
             { q:'나의 성격을 가장 잘 표현하는 단어는?', opts:[
                 { label:'카리스마 — 강한 존재감, 자연스러운 주목', key:'vocalist' },
                 { label:'감성 — 섬세하고 독특한 감수성 보유', key:'guitarist' },
-                { label:'의리 — 묵묵히 곁을 지키는 든든함', key:'bassist' },
                 { label:'조화 — 어디서나 잘 녹아들고 분위기를 맞춤', key:'keyboardist' },
-            ]},
-            { q:'오래 지속하고 있는 나의 취미나 관심사는?', opts:[
-                { label:'SNS나 유튜브로 나만의 콘텐츠 만들기', key:'vocalist' },
-                { label:'그림·사진·글쓰기 등 혼자 하는 창작 활동', key:'guitarist' },
-                { label:'운동·클라이밍 등 격렬한 신체 활동', key:'drummer' },
-                { label:'독서·전시회·영화 감상 등 감성 활동', key:'keyboardist' },
-            ]},
-            { q:'친구 모임에서 나의 역할은?', opts:[
-                { label:'자연스럽게 모임의 중심이 되는 사람', key:'vocalist' },
-                { label:'처음엔 조용하지만 알고 보면 독특하고 재미있는 사람', key:'guitarist' },
-                { label:'없으면 뭔가 허전한, 없어선 안 될 든든한 존재', key:'bassist' },
-                { label:'분위기가 가라앉으면 제일 먼저 살리는 에너자이저', key:'drummer' },
+                { label:'의리 — 묵묵히 곁을 지키는 든든함', key:'bassist' },
             ]},
             { q:'친구들이 나에게 자주 하는 말은?', opts:[
-                { label:'"너 진짜 눈에 띄어, 어딜 가도 주목받아"', key:'vocalist' },
-                { label:'"예술가 감성이야, 감수성이 달라"', key:'guitarist' },
-                { label:'"너 없으면 우리 팀 진짜 힘들어"', key:'bassist' },
                 { label:'"넌 누구와도 잘 지내, 어떻게 하는 거야?"', key:'keyboardist' },
+                { label:'"예술가 감성이야, 감수성이 달라"', key:'guitarist' },
+                { label:'"너 진짜 눈에 띄어, 어딜 가도 주목받아"', key:'vocalist' },
+                { label:'"너 없으면 우리 팀 진짜 힘들어"', key:'bassist' },
+            ]},
+            { q:'처음 만나는 사람과 어떻게 친해지나요?', opts:[
+                { label:'먼저 말 걸고 자연스럽게 대화를 주도한다', key:'vocalist' },
+                { label:'재미있는 상황을 만들며 유쾌하게 분위기를 깬다', key:'drummer' },
+                { label:'상대가 편하도록 배려하며 조용히 맞춰간다', key:'bassist' },
+                { label:'분위기 파악하며 차분히 공통점을 찾아간다', key:'keyboardist' },
+            ]},
+            { q:'오래 지속하고 있는 나의 취미나 관심사는?', opts:[
+                { label:'독서·전시회·영화 감상 등 감성 활동', key:'keyboardist' },
+                { label:'SNS나 유튜브로 나만의 콘텐츠 만들기', key:'vocalist' },
+                { label:'운동·클라이밍 등 격렬한 신체 활동', key:'drummer' },
+                { label:'그림·사진·글쓰기 등 혼자 하는 창작 활동', key:'guitarist' },
+            ]},
+            { q:'친구 모임에서 나의 역할은?', opts:[
+                { label:'처음엔 조용하지만 알고 보면 독특하고 재미있는 사람', key:'guitarist' },
+                { label:'분위기가 가라앉으면 제일 먼저 살리는 에너자이저', key:'drummer' },
+                { label:'자연스럽게 모임의 중심이 되는 사람', key:'vocalist' },
+                { label:'없으면 뭔가 허전한, 없어선 안 될 든든한 존재', key:'bassist' },
             ]},
         ];
 
@@ -6397,7 +6397,7 @@
                     <p style="font-size:0.88rem;color:var(--wds-gray-500);margin-bottom:24px">나의 성향을 알아보고 결과를 공유해보세요!</p>
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div onclick="startCommunityTest('inst')" style="background:linear-gradient(135deg,#FF6B6B,#F7B731);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
-                            <div style="font-size:2.2rem;margin-bottom:8px">🎸🥁🎤🎹🎵</div>
+                            <div style="font-size:2.2rem;margin-bottom:8px">🎸🥁🎤🎹<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:1em;vertical-align:middle"></div>
                             <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나에게 어울리는 악기 세션은?</div>
                             <div style="font-size:0.82rem;opacity:0.9">8가지 일상 질문으로 알아보는 나만의 악기 포지션</div>
                         </div>
@@ -6503,8 +6503,8 @@
                     </div>
                     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
                         <button onclick="shareTestUrl('${escapeHtml(shareUrl)}')" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🔗 링크 복사</button>
-                        <button onclick="shareTestKakao()" style="padding:12px;border-radius:12px;border:none;background:#FEE500;cursor:pointer;font-size:0.9rem;font-weight:700;color:#3C1E1E">카카오로 공유하기</button>
                         <button onclick="downloadTestImage()" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🖼️ 이미지 저장</button>
+                        <button onclick="shareTestKakao()" style="padding:12px;border-radius:12px;border:none;background:#FEE500;cursor:pointer;font-size:0.9rem;font-weight:700;color:#3C1E1E">카카오로 공유하기</button>
                     </div>
                     <div style="display:flex;gap:10px">
                         <button onclick="startCommunityTest('${type}')" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--wds-primary);background:var(--wds-white);color:var(--wds-primary);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
@@ -6539,44 +6539,59 @@
             const key = state.communityTestResult;
             const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
             if (!result) return;
-            const canvas = document.createElement('canvas');
-            canvas.width = 600; canvas.height = 400;
-            const ctx = canvas.getContext('2d');
-            const grad = ctx.createLinearGradient(0, 0, 600, 400);
-            grad.addColorStop(0, result.color);
-            grad.addColorStop(1, result.color + 'AA');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 600, 400);
-            ctx.fillStyle = 'rgba(0,0,0,0.15)';
-            ctx.beginPath(); ctx.arc(500, 80, 180, 0, Math.PI * 2); ctx.fill();
-            ctx.textAlign = 'center';
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.font = 'bold 16px sans-serif';
-            ctx.fillText('Gather All Around', 300, 44);
-            ctx.font = '72px sans-serif';
-            ctx.fillText(result.emoji, 300, 160);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 32px sans-serif';
-            const label = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
-            ctx.fillText(label, 300, 226);
-            ctx.font = '18px sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.88)';
-            const words = result.desc.split(' ');
-            let line = '', lines = [];
-            words.forEach(w => {
-                const test = line + w + ' ';
-                if (ctx.measureText(test).width > 520 && line) { lines.push(line.trim()); line = w + ' '; }
-                else { line = test; }
-            });
-            if (line) lines.push(line.trim());
-            lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, 300, 268 + i * 28));
-            canvas.toBlob(blob => {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `band-test-${key}.png`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-            });
+            function drawCanvas(emojiOrImg) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 600; canvas.height = 400;
+                const ctx = canvas.getContext('2d');
+                const grad = ctx.createLinearGradient(0, 0, 600, 400);
+                grad.addColorStop(0, result.color);
+                grad.addColorStop(1, result.color + 'AA');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 600, 400);
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.beginPath(); ctx.arc(500, 80, 180, 0, Math.PI * 2); ctx.fill();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText('Gather All Around', 300, 44);
+                if (typeof emojiOrImg === 'string') {
+                    ctx.font = '72px sans-serif';
+                    ctx.fillText(emojiOrImg, 300, 160);
+                } else {
+                    ctx.drawImage(emojiOrImg, 300 - 40, 100, 80, 80);
+                }
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 32px sans-serif';
+                const label = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
+                ctx.fillText(label, 300, 226);
+                ctx.font = '18px sans-serif';
+                ctx.fillStyle = 'rgba(255,255,255,0.88)';
+                const words = result.desc.split(' ');
+                let line = '', lines = [];
+                words.forEach(w => {
+                    const test = line + w + ' ';
+                    if (ctx.measureText(test).width > 520 && line) { lines.push(line.trim()); line = w + ' '; }
+                    else { line = test; }
+                });
+                if (line) lines.push(line.trim());
+                lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, 300, 268 + i * 28));
+                canvas.toBlob(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `band-test-${key}.png`;
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                });
+            }
+            if (result.imgSrc) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => drawCanvas(img);
+                img.onerror = () => drawCanvas('🎵');
+                img.src = result.imgSrc;
+            } else {
+                drawCanvas(result.emoji);
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────────
