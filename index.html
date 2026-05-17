@@ -2325,6 +2325,10 @@
             communityTodayVisits: 0,
             communityCreateOpen: false,
             communityEditFields: [],
+            communityTestType: null,
+            communityTestStep: 0,
+            communityTestAnswers: [],
+            communityTestResult: null,
         };
 
         const PAGE_SIZE = 10;
@@ -2445,6 +2449,18 @@
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
             initSession();
+
+            // 공유 링크로 직접 진입 시 테스트 결과 복원
+            const _sp = new URLSearchParams(location.search);
+            if (_sp.get('ct') && _sp.get('cr')) {
+                state.communityTestType = _sp.get('ct');
+                state.communityTestResult = _sp.get('cr');
+                history.replaceState({}, '', location.pathname);
+                showCommunitySection().then(() => {
+                    state.communityTab = 'test';
+                    renderCommunityTestResult();
+                });
+            }
         }
 
         async function initSession() {
@@ -5057,6 +5073,10 @@
             state.communityCreateOpen = false;
             state.communityTab = 'current';
             state.communityEditAuth = {};
+            state.communityTestType = null;
+            state.communityTestStep = 0;
+            state.communityTestAnswers = [];
+            state.communityTestResult = null;
             window.scrollTo({ top: 0, behavior: 'instant' });
             await Promise.all([
                 showPortalLoading(),
@@ -5179,6 +5199,7 @@
         }
 
         function renderCommunityList() {
+            if (state.communityTab === 'test') { renderCommunityTestHome(); return; }
             const el = document.getElementById('communityContent');
             if (!el) return;
             const today = new Date().toLocaleDateString('en-CA');
@@ -5197,6 +5218,7 @@
                 html += `<div class="community-tab-bar">
                     <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
                     <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
+                    <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">🎸 테스트</button>
                 </div>
                 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
                     <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
@@ -5351,7 +5373,11 @@
         function communitySetTab(tab) {
             state.communityTab = tab;
             state.paging['commList'] = 0;
-            renderCommunityList();
+            if (tab === 'test') {
+                renderCommunityTestHome();
+            } else {
+                renderCommunityList();
+            }
         }
 
         function communityToggleCreate() {
@@ -6209,6 +6235,351 @@
             state.communityEditView = null;
             fetchCommunityMeetings().then(() => renderCommunityList());
         }
+
+        // ─── 커뮤니티 밴드 성향 테스트 ───────────────────────────────────────
+
+        const INST_RESULTS = {
+            vocalist:    { name:'보컬', emoji:'🎤', color:'#FF6B6B', desc:'무대의 주인공. 강한 존재감과 표현력으로 타고난 퍼포머! 밴드의 얼굴이자 목소리입니다.' },
+            guitarist:   { name:'기타', emoji:'🎸', color:'#4ECDC4', desc:'감성과 기술의 예술가. 섬세한 감수성과 독창적 개성으로 곡의 색깔을 만듭니다.' },
+            bassist:     { name:'베이스', emoji:'🎵', color:'#45B7D1', desc:'없어선 안 될 기둥. 그루브와 안정감으로 밴드 전체를 완성시키는 든든한 존재입니다.' },
+            drummer:     { name:'드럼', emoji:'🥁', color:'#F7B731', desc:'밴드의 엔진. 폭발적인 에너지로 공연장을 뒤흔드는 밴드의 심장입니다.' },
+            keyboardist: { name:'키보드', emoji:'🎹', color:'#A29BFE', desc:'화음의 완성자. 누구와도 잘 어울리며 음악을 완성시키는 다재다능한 만능 플레이어.' },
+        };
+
+        const INST_QUESTIONS = [
+            { q:'팀 프로젝트에서 나의 포지션은?', opts:[
+                { label:'앞에 서서 발표하고 팀을 이끄는 리더', key:'vocalist' },
+                { label:'새 아이디어를 내고 기획을 주도하는 역할', key:'guitarist' },
+                { label:'모두의 의견을 조율하고 팀을 지원하는 역할', key:'bassist' },
+                { label:'아이디어보다 누구보다 빠르게 실행에 옮기는 역할', key:'drummer' },
+            ]},
+            { q:'처음 만나는 사람과 어떻게 친해지나요?', opts:[
+                { label:'먼저 말 걸고 자연스럽게 대화를 주도한다', key:'vocalist' },
+                { label:'분위기 파악하며 차분히 공통점을 찾아간다', key:'keyboardist' },
+                { label:'상대가 편하도록 배려하며 조용히 맞춰간다', key:'bassist' },
+                { label:'재미있는 상황을 만들며 유쾌하게 분위기를 깬다', key:'drummer' },
+            ]},
+            { q:'주말 오후, 예상치 못한 자유 시간이 생겼다면?', opts:[
+                { label:'친구에게 연락해 밖에 나가서 신나게 논다', key:'vocalist' },
+                { label:'혼자 카페나 집에서 좋아하는 것에 완전히 몰입', key:'keyboardist' },
+                { label:'집에서 느긋하게 쉬며 재충전하는 시간', key:'bassist' },
+                { label:'가보고 싶었던 새 장소나 활동을 즉흥적으로 도전', key:'drummer' },
+            ]},
+            { q:'카페에서 자리를 고른다면?', opts:[
+                { label:'창가 자리 — 밖을 바라보며 감성에 잠기는 곳', key:'guitarist' },
+                { label:'포근한 소파 자리 — 편하고 아늑한 공간', key:'bassist' },
+                { label:'바 자리 — 활기차고 바리스타와 가볍게 대화', key:'drummer' },
+                { label:'조용한 구석 자리 — 집중할 수 있는 나만의 공간', key:'keyboardist' },
+            ]},
+            { q:'나의 성격을 가장 잘 표현하는 단어는?', opts:[
+                { label:'카리스마 — 강한 존재감, 자연스러운 주목', key:'vocalist' },
+                { label:'감성 — 섬세하고 독특한 감수성 보유', key:'guitarist' },
+                { label:'의리 — 묵묵히 곁을 지키는 든든함', key:'bassist' },
+                { label:'조화 — 어디서나 잘 녹아들고 분위기를 맞춤', key:'keyboardist' },
+            ]},
+            { q:'오래 지속하고 있는 나의 취미나 관심사는?', opts:[
+                { label:'SNS나 유튜브로 나만의 콘텐츠 만들기', key:'vocalist' },
+                { label:'그림·사진·글쓰기 등 혼자 하는 창작 활동', key:'guitarist' },
+                { label:'운동·클라이밍 등 격렬한 신체 활동', key:'drummer' },
+                { label:'독서·전시회·영화 감상 등 감성 활동', key:'keyboardist' },
+            ]},
+            { q:'친구 모임에서 나의 역할은?', opts:[
+                { label:'자연스럽게 모임의 중심이 되는 사람', key:'vocalist' },
+                { label:'처음엔 조용하지만 알고 보면 독특하고 재미있는 사람', key:'guitarist' },
+                { label:'없으면 뭔가 허전한, 없어선 안 될 든든한 존재', key:'bassist' },
+                { label:'분위기가 가라앉으면 제일 먼저 살리는 에너자이저', key:'drummer' },
+            ]},
+            { q:'친구들이 나에게 자주 하는 말은?', opts:[
+                { label:'"너 진짜 눈에 띄어, 어딜 가도 주목받아"', key:'vocalist' },
+                { label:'"예술가 감성이야, 감수성이 달라"', key:'guitarist' },
+                { label:'"너 없으면 우리 팀 진짜 힘들어"', key:'bassist' },
+                { label:'"넌 누구와도 잘 지내, 어떻게 하는 거야?"', key:'keyboardist' },
+            ]},
+        ];
+
+        const BAND_RESULTS = {
+            jannabi:       { name:'잔나비',          emoji:'🌙', color:'#8B6914', v:[3,2,4,4,4], desc:'레트로 감성과 깊은 가사로 세대를 아우르는 밴드. 팬과의 진한 소통과 열정적인 무대가 특징.' },
+            hyukoh:        { name:'혁오',             emoji:'🌊', color:'#2C3E50', v:[2,4,3,2,3], desc:'쿨한 쇼게이즈 사운드와 독창적 세계관. 트렌드보다 자기 색깔을 추구하는 아티스트.' },
+            silicagel:     { name:'실리카겔',         emoji:'🔮', color:'#6C3483', v:[4,5,2,2,3], desc:'사이키델릭과 노이즈팝의 경계를 허무는 실험정신. 강렬한 라이브로 음악 마니아를 사로잡는다.' },
+            sesoneeon:     { name:'새소년',           emoji:'🌆', color:'#2E4057', v:[4,4,3,3,3], desc:'도시의 불안과 자유를 청량한 인디록으로 담아낸다. 기존 틀을 거부하는 독립적 감성.' },
+            tencm:         { name:'10cm',             emoji:'☕', color:'#795548', v:[2,2,3,5,3], desc:'일상의 솔직한 관찰과 위트 있는 가사. 친근한 어쿠스틱 사운드로 팬과 가까이 호흡하는 뮤지션.' },
+            leenalchi:     { name:'이날치',           emoji:'🥁', color:'#C0392B', v:[4,5,2,4,2], desc:'판소리를 전자음악과 펑크로 재창조. 한국 전통의 리듬을 현대적으로 폭발시키는 퓨전 밴드.' },
+            nell:          { name:'넬',               emoji:'🌑', color:'#1A252F', v:[2,2,5,2,5], desc:'25년간 한국 록의 서정을 지킨 전설. 존재적 고뇌를 시처럼 담아내는 깊고 아름다운 음악.' },
+            broccoli:      { name:'브로콜리너마저',   emoji:'🌿', color:'#27AE60', v:[2,2,4,4,3], desc:'일상의 소소함을 따뜻하게 담는 포크팝. 남녀 보컬의 조화로 듣는 이에게 위로를 건넨다.' },
+            blackskirts:   { name:'검정치마',         emoji:'🖤', color:'#2C2C2C', v:[4,3,2,2,3], desc:'신랄하고 세련된 인디록. 독보적인 세계관으로 자신만의 언어를 만드는 솔로 프로젝트.' },
+            cryingnut:     { name:'크라잉넛',         emoji:'⚡', color:'#E74C3C', v:[5,2,1,4,2], desc:'30년을 달려온 한국 펑크의 살아있는 역사. 폭발적 에너지로 관객과 하나되는 공연의 전설.' },
+            galaxyexpress: { name:'갤럭시익스프레스', emoji:'🚀', color:'#E67E22', v:[5,3,1,3,2], desc:'홍대 가라지 록의 정수. 땀 튀기는 생생한 에너지와 거침없는 사운드가 라이브의 전부다.' },
+            guckkasten:    { name:'국카스텐',         emoji:'🔥', color:'#922B21', v:[4,4,2,3,3], desc:'시각 예술과 사이키델릭 록의 결합. 강렬한 보컬 퍼포먼스와 실험적 무대 연출로 압도한다.' },
+            sultandisco:   { name:'술탄오브더디스코', emoji:'🪩', color:'#F39C12', v:[5,3,1,5,1], desc:'디스코·펑크·소울로 온몸을 흔드는 파티 그 자체. 어디서나 흥을 폭발시키는 밴드.' },
+            yozoh:         { name:'요조',             emoji:'📚', color:'#16A085', v:[2,2,4,4,3], desc:'홍대 감성의 뮤즈. 책·카페·산책이 어울리는 따뜻하고 아기자기한 인디팝.' },
+            soran:         { name:'소란',             emoji:'☀️', color:'#D4AC0D', v:[3,2,3,5,3], desc:'대화하듯 일상을 노래하는 인디록. 팬과의 거리가 없는 따뜻한 소통이 트레이드마크.' },
+            sunwoo:        { name:'선우정아',         emoji:'🎷', color:'#1ABC9C', v:[2,3,3,3,4], desc:'재즈와 인디팝을 넘나드는 뮤지션. 음악적 깊이와 세련된 감각으로 동료 뮤지션에게도 존경받는다.' },
+            surl:          { name:'SURL',             emoji:'🌤️', color:'#5DADE2', v:[2,2,4,4,3], desc:'어쿠스틱 기반의 감성 인디팝. OST로 먼저 알려진 뒤 라이브에서 팬들과 깊은 교감을 나누는 밴드.' },
+            epitone:       { name:'에피톤프로젝트',   emoji:'🎹', color:'#85929E', v:[1,2,5,4,4], desc:"피아노 선율에 담긴 위로와 희망. '봄날, 벚꽃, 그리고 너'처럼 일상의 감동을 조용히 전달한다." },
+            lucy:          { name:'루시',             emoji:'🎻', color:'#6C5CE7', v:[3,3,4,4,4], desc:'바이올린을 품은 인디 팝록. 클래식과 록의 경계를 허물며 Coldplay도 반한 섬세한 감성.' },
+            monni:         { name:'몽니',             emoji:'🌙', color:'#7F8C8D', v:[3,2,3,3,3], desc:'욕심 많다는 이름처럼 좋은 음악에 대한 진지한 탐구. 성숙하고 차분하게 깊어지는 인디록.' },
+        };
+
+        const BAND_QUESTIONS = [
+            { q:'나는 스트레스를 어떻게 푸나요?', opts:[
+                { label:'친구들 불러서 신나게 놀기, 몸으로 발산', v:[2,0,0,1,0] },
+                { label:'혼자 좋아하는 것에 푹 빠지기', v:[0,1,1,0,1] },
+                { label:'집에서 편안하게 쉬며 재충전', v:[-1,0,1,1,0] },
+                { label:'새로운 장소·활동 즉흥 도전', v:[1,2,0,0,0] },
+            ]},
+            { q:'사람들과의 관계에서 나는?', opts:[
+                { label:'처음 만나는 사람과도 금방 친해진다', v:[1,0,0,2,0] },
+                { label:'소수와 깊게 사귄다, 친해지는 데 시간 걸림', v:[-1,1,1,-1,1] },
+                { label:'상황에 따라 유연하게 맞춰간다', v:[0,0,0,1,0] },
+                { label:'독립적으로 혼자 있는 시간이 중요하다', v:[-1,2,1,-1,1] },
+            ]},
+            { q:'내가 좋아하는 콘텐츠나 취미는?', opts:[
+                { label:'신나는 파티·페스티벌·스포츠 관람', v:[2,0,-1,2,0] },
+                { label:'독서·전시회·다큐멘터리', v:[0,1,2,0,2] },
+                { label:'SNS·유튜브·트렌디한 콘텐츠', v:[1,0,0,2,-1] },
+                { label:'독창적 창작·실험적 예술 활동', v:[0,3,1,0,1] },
+            ]},
+            { q:'그룹 안에서 나의 역할은?', opts:[
+                { label:'분위기 메이커, 에너지 공급자', v:[2,0,-1,2,0] },
+                { label:'아이디어맨, 독창적 시각 제공', v:[0,2,0,0,1] },
+                { label:'든든한 지원자, 팀의 안정감', v:[-1,0,1,2,1] },
+                { label:'분석가, 깊게 생각하고 천천히 움직임', v:[-1,1,1,-1,2] },
+            ]},
+            { q:'여행 스타일은?', opts:[
+                { label:'계획 없이 즉흥적으로, 에너지 충전', v:[2,1,0,1,0] },
+                { label:'숨겨진 로컬 명소 탐방, 나만의 루트', v:[0,2,1,0,1] },
+                { label:'편안한 휴양, 느긋하게 쉬는 여행', v:[-1,0,2,1,0] },
+                { label:'역사·문화·예술 탐방, 의미 있는 경험', v:[0,1,1,0,2] },
+            ]},
+            { q:'나를 가장 잘 표현하는 단어는?', opts:[
+                { label:'열정적·활동적·사교적', v:[2,0,0,2,0] },
+                { label:'독창적·실험적·개성있는', v:[0,3,0,-1,1] },
+                { label:'감성적·서정적·내면이 풍부한', v:[-1,0,3,0,2] },
+                { label:'따뜻한·친근한·배려심 있는', v:[0,0,1,3,1] },
+            ]},
+            { q:'일할 때(혹은 공부할 때) 나는?', opts:[
+                { label:'빠르게 결정하고 추진력 있게 실행', v:[2,0,0,0,0] },
+                { label:'전통적 방법보다 새로운 방식을 시도', v:[0,2,0,0,1] },
+                { label:'꼼꼼하게 계획하고 완성도를 높임', v:[0,1,1,0,2] },
+                { label:'팀원 의견을 잘 듣고 협력을 중시', v:[0,0,0,2,1] },
+            ]},
+            { q:'내가 중요하게 생각하는 가치는?', opts:[
+                { label:'자유와 즉흥성', v:[1,2,0,0,0] },
+                { label:'진정성과 솔직함', v:[0,1,1,1,2] },
+                { label:'공동체와 따뜻한 연대', v:[0,0,1,3,1] },
+                { label:'독창성과 나만의 세계', v:[-1,3,1,-1,1] },
+            ]},
+            { q:'나는 감정을 어떻게 표현하나요?', opts:[
+                { label:'직접적으로, 즉흥적으로 드러낸다', v:[2,0,0,1,0] },
+                { label:'예술·글·창작으로 간접적으로 표현', v:[0,1,2,0,2] },
+                { label:'가까운 사람에게 조용히 털어놓는다', v:[-1,0,1,2,1] },
+                { label:'혼자 오래 곱씹으며 내면에서 정리', v:[-1,1,2,-1,2] },
+            ]},
+            { q:'이상적인 금요일 밤은?', opts:[
+                { label:'클럽·바·파티·활기찬 모임', v:[3,0,-1,2,0] },
+                { label:'소규모 친구들과 집에서 깊은 대화', v:[0,0,1,2,2] },
+                { label:'혼자만의 시간, 나를 위한 취미', v:[-1,2,2,-1,1] },
+                { label:'새롭고 이색적인 장소 탐방', v:[1,2,0,1,0] },
+            ]},
+        ];
+
+        function renderCommunityTestHome() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            el.innerHTML = `
+                <div class="community-tab-bar">
+                    <button class="community-tab" onclick="communitySetTab('current')">모집 중</button>
+                    <button class="community-tab" onclick="communitySetTab('past')">지난 모임</button>
+                    <button class="community-tab active">🎸 테스트</button>
+                </div>
+                <div style="padding:24px 0 48px;">
+                    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px;color:var(--wds-black)">🎸 밴드 성향 테스트</h2>
+                    <p style="font-size:0.88rem;color:var(--wds-gray-500);margin-bottom:24px">나의 성향을 알아보고 결과를 공유해보세요!</p>
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div onclick="startCommunityTest('inst')" style="background:linear-gradient(135deg,#FF6B6B,#F7B731);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
+                            <div style="font-size:2.2rem;margin-bottom:8px">🎸🥁🎤🎹🎵</div>
+                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나에게 어울리는 악기 세션은?</div>
+                            <div style="font-size:0.82rem;opacity:0.9">8가지 일상 질문으로 알아보는 나만의 악기 포지션</div>
+                        </div>
+                        <div onclick="startCommunityTest('band')" style="background:linear-gradient(135deg,#6C5CE7,#2C3E50);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
+                            <div style="font-size:2.2rem;margin-bottom:8px">🌙🌊🔥⚡🌿</div>
+                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나의 성향이 맞는 밴드는?</div>
+                            <div style="font-size:0.82rem;opacity:0.9">활발히 활동 중인 국내 인디 밴드 20팀 중 나와 가장 닮은 밴드 찾기</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function startCommunityTest(type) {
+            state.communityTestType = type;
+            state.communityTestStep = 0;
+            state.communityTestAnswers = [];
+            state.communityTestResult = null;
+            renderCommunityTestQuestion();
+        }
+
+        function renderCommunityTestQuestion() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const questions = state.communityTestType === 'inst' ? INST_QUESTIONS : BAND_QUESTIONS;
+            const step = state.communityTestStep;
+            const total = questions.length;
+            const q = questions[step];
+            const pct = Math.round((step / total) * 100);
+            const title = state.communityTestType === 'inst' ? '나에게 어울리는 악기 세션은?' : '나의 성향이 맞는 밴드는?';
+
+            el.innerHTML = `
+                <div style="padding-top:8px;padding-bottom:48px;">
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 목록</button>
+                    <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-bottom:6px">${title}</div>
+                    <div style="font-size:0.75rem;color:var(--wds-gray-400);margin-bottom:8px">${step + 1} / ${total}</div>
+                    <div style="background:var(--wds-gray-200);border-radius:4px;height:6px;margin-bottom:24px;overflow:hidden">
+                        <div style="height:100%;width:${pct}%;background:var(--wds-primary);border-radius:4px;transition:width 0.3s"></div>
+                    </div>
+                    <div style="font-size:1.05rem;font-weight:700;color:var(--wds-black);margin-bottom:20px;line-height:1.5">Q${step + 1}. ${escapeHtml(q.q)}</div>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        ${q.opts.map((opt, i) => `
+                            <button onclick="answerCommunityTest(${i})" style="text-align:left;padding:14px 16px;border:1.5px solid var(--wds-gray-200);border-radius:12px;background:var(--wds-white);color:var(--wds-black);font-size:0.9rem;cursor:pointer;line-height:1.4;transition:all 0.15s" onmouseenter="this.style.borderColor='var(--wds-primary)';this.style.background='var(--wds-gray-100)'" onmouseleave="this.style.borderColor='var(--wds-gray-200)';this.style.background='var(--wds-white)'">
+                                <span style="color:var(--wds-primary);font-weight:700;margin-right:8px">${String.fromCharCode(65+i)}</span>${escapeHtml(opt.label)}
+                            </button>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function answerCommunityTest(optIdx) {
+            const questions = state.communityTestType === 'inst' ? INST_QUESTIONS : BAND_QUESTIONS;
+            const q = questions[state.communityTestStep];
+            state.communityTestAnswers.push(q.opts[optIdx]);
+            state.communityTestStep++;
+            if (state.communityTestStep >= questions.length) {
+                state.communityTestResult = calcCommunityTestResult();
+                renderCommunityTestResult();
+            } else {
+                renderCommunityTestQuestion();
+            }
+        }
+
+        function calcCommunityTestResult() {
+            if (state.communityTestType === 'inst') {
+                const counts = {};
+                state.communityTestAnswers.forEach(a => { counts[a.key] = (counts[a.key] || 0) + 1; });
+                return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+            } else {
+                const userVec = [0, 0, 0, 0, 0];
+                state.communityTestAnswers.forEach(a => {
+                    a.v.forEach((d, i) => { userVec[i] += d; });
+                });
+                let best = null, minDist = Infinity;
+                Object.entries(BAND_RESULTS).forEach(([key, band]) => {
+                    const dist = Math.sqrt(band.v.reduce((s, val, i) => s + Math.pow(val * 2 - userVec[i], 2), 0));
+                    if (dist < minDist) { minDist = dist; best = key; }
+                });
+                return best;
+            }
+        }
+
+        function renderCommunityTestResult() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const type = state.communityTestType;
+            const key = state.communityTestResult;
+            const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
+            if (!result) { renderCommunityTestHome(); return; }
+
+            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
+            history.replaceState({}, '', `?ct=${type}&cr=${key}`);
+
+            const title = type === 'inst' ? '나에게 어울리는 악기 세션은?' : '나의 성향이 맞는 밴드는?';
+            const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
+
+            el.innerHTML = `
+                <div style="padding-top:8px;padding-bottom:48px;">
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 목록</button>
+                    <div id="testResultCard" style="border-radius:20px;overflow:hidden;background:${result.color};padding:32px 24px;text-align:center;color:#fff;margin-bottom:20px;">
+                        <div style="font-size:0.8rem;opacity:0.85;margin-bottom:8px">${escapeHtml(title)}</div>
+                        <div style="font-size:3.5rem;margin-bottom:12px">${result.emoji}</div>
+                        <div style="font-size:1.5rem;font-weight:800;margin-bottom:10px">${escapeHtml(resultLabel)}</div>
+                        <div style="font-size:0.88rem;opacity:0.9;line-height:1.6;max-width:280px;margin:0 auto">${escapeHtml(result.desc)}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+                        <button onclick="shareTestUrl('${escapeHtml(shareUrl)}')" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🔗 링크 복사</button>
+                        <button onclick="shareTestKakao()" style="padding:12px;border-radius:12px;border:none;background:#FEE500;cursor:pointer;font-size:0.9rem;font-weight:700;color:#3C1E1E">카카오로 공유하기</button>
+                        <button onclick="downloadTestImage()" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🖼️ 이미지 저장</button>
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <button onclick="startCommunityTest('${type}')" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--wds-primary);background:var(--wds-white);color:var(--wds-primary);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
+                        <button onclick="renderCommunityTestHome()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">다른 테스트</button>
+                    </div>
+                </div>`;
+        }
+
+        function shareTestUrl(url) {
+            navigator.clipboard.writeText(url).then(() => alert('링크가 복사되었습니다!')).catch(() => {
+                prompt('아래 링크를 복사하세요:', url);
+            });
+        }
+
+        function shareTestKakao() {
+            const type = state.communityTestType;
+            const key = state.communityTestResult;
+            const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
+            if (!result) return;
+            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
+            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
+            const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
+            Kakao.Link.sendDefault({
+                objectType: 'text',
+                text: `${result.emoji} ${resultLabel}\n\n${result.desc}\n\n나도 테스트해보기 👇`,
+                link: { webUrl: shareUrl, mobileWebUrl: shareUrl },
+            });
+        }
+
+        function downloadTestImage() {
+            const type = state.communityTestType;
+            const key = state.communityTestResult;
+            const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
+            if (!result) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = 600; canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createLinearGradient(0, 0, 600, 400);
+            grad.addColorStop(0, result.color);
+            grad.addColorStop(1, result.color + 'AA');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 600, 400);
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath(); ctx.arc(500, 80, 180, 0, Math.PI * 2); ctx.fill();
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillText('Gather All Around', 300, 44);
+            ctx.font = '72px sans-serif';
+            ctx.fillText(result.emoji, 300, 160);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 32px sans-serif';
+            const label = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
+            ctx.fillText(label, 300, 226);
+            ctx.font = '18px sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.88)';
+            const words = result.desc.split(' ');
+            let line = '', lines = [];
+            words.forEach(w => {
+                const test = line + w + ' ';
+                if (ctx.measureText(test).width > 520 && line) { lines.push(line.trim()); line = w + ' '; }
+                else { line = test; }
+            });
+            if (line) lines.push(line.trim());
+            lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, 300, 268 + i * 28));
+            canvas.toBlob(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `band-test-${key}.png`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
 
         // Band section form helpers
         function showBandLoginForm() {
