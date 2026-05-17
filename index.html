@@ -1756,6 +1756,7 @@
         }
 
         async function handleLogout() {
+            try { localStorage.setItem('gaa_portal_required', '1'); } catch(e) {}
             // 이메일 사용자: Supabase 세션 종료
             if (state.user && state.user.authType === 'email') {
                 await supabaseClient.auth.signOut();
@@ -1961,7 +1962,6 @@
         }
 
         function logoutUI() {
-            try { localStorage.setItem('gaa_portal_required', '1'); } catch(e) {}
             document.getElementById('portal-page').classList.remove('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -6925,7 +6925,7 @@
 
         async function checkEmailUserApproval(user) {
             const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-            if (error || !data) { alert('프로필 정보를 불러올 수 없습니다.'); await supabaseClient.auth.signOut(); return; }
+            if (error || !data) { alert('프로필 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'); return; }
 
             if (data.member_type === 'band') {
                 if (data.status === 'approved') {
