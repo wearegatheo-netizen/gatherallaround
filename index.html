@@ -1757,6 +1757,7 @@
 
         async function handleLogout() {
             try { localStorage.setItem('gaa_portal_required', '1'); } catch(e) {}
+            try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
             // 이메일 사용자: Supabase 세션 종료
             if (state.user && state.user.authType === 'email') {
                 await supabaseClient.auth.signOut();
@@ -2451,6 +2452,7 @@
             const portalRequired = localStorage.getItem('gaa_portal_required');
             if (portalRequired) {
                 try { localStorage.removeItem('gaa_portal_required'); } catch(e) {}
+                try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
                 if (supabaseClient) { try { await supabaseClient.auth.signOut(); } catch(e) {} }
                 return;
             }
@@ -2463,7 +2465,21 @@
                     return;
                 }
             } catch (e) { console.warn('Supabase 세션 체크 실패:', e); }
-            // 카카오 세션 체크
+            // 카카오 세션 캐시로 복구 (token이 메모리에 없어도 재인증)
+            const cachedKakaoId = localStorage.getItem('gaa_kakao_uid');
+            if (cachedKakaoId && supabaseClient) {
+                try {
+                    const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', cachedKakaoId).maybeSingle();
+                    if (data && data.status === 'approved') {
+                        state.user = { nickname: data.name, kakaoId: cachedKakaoId, role: data.role || '일반' };
+                        loginUI(state.user.nickname);
+                        return;
+                    }
+                    if (data && data.status === 'pending') { showPendingScreen(data.name || ''); return; }
+                } catch (e) { console.warn('카카오 캐시 세션 복구 실패:', e); }
+                try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
+            }
+            // 카카오 live token 체크
             checkSession();
         }
 
@@ -2491,6 +2507,7 @@
                         } else {
                             state.user = { nickname, kakaoId };
                         }
+                        try { localStorage.setItem('gaa_kakao_uid', kakaoId); } catch(e) {}
                         loginUI(state.user.nickname);
                     },
                     fail: (err) => {
