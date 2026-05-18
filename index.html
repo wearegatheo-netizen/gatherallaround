@@ -6986,8 +6986,8 @@
             function drawCanvas(bandImg, relatedImgs) {
                 const canvas = document.createElement('canvas');
                 const DPR = 2; // 2x 해상도
-                const W = type === 'band' ? 540 : 600;
-                const H = type === 'band' ? 1450 : 400;
+                const W = type === 'band' ? 540 : 540;
+                const H = type === 'band' ? 1450 : 1100;
                 canvas.width = W * DPR; canvas.height = H * DPR;
                 const ctx = canvas.getContext('2d');
                 ctx.scale(DPR, DPR);
