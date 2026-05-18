@@ -7148,7 +7148,7 @@
                     // ── 비슷한 / 반대 성향 밴드 섹션
                     function drawRelatedRow(items, imgs, tagLabel, startY) {
                         const cellW = (W - 60 - 10) / 2;
-                        const cellH = 120;
+                        const cellH = 110;
                         items.forEach((it, i) => {
                             const x = 30 + i * (cellW + 10);
                             ctx.fillStyle = 'rgba(255,255,255,0.14)';
@@ -7196,18 +7196,18 @@
                         ctx.font = 'bold 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.fillText('💚 비슷한 성향의 밴드', 40, y + 4);
-                        y += 14;
+                        y += 18;
                         drawRelatedRow(related.similar, relatedImgs.similar, '비슷', y);
-                        y += 120 + 14;
+                        y += 110 + 18;
                     }
                     if (related.opposite.length) {
                         ctx.fillStyle = 'rgba(255,255,255,0.7)';
                         ctx.font = 'bold 11px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.fillText('🔥 완전 반대 성향의 밴드', 40, y + 4);
-                        y += 14;
+                        y += 18;
                         drawRelatedRow(related.opposite, relatedImgs.opposite, '반대', y);
-                        y += 120 + 14;
+                        y += 110 + 18;
                     }
 
                     // ── 푸터 (콘텐츠 바로 아래)
