@@ -2448,11 +2448,18 @@
             todayBtn.addEventListener('click', () => { state.viewDate = new Date(); render(); });
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
+            // 공유 링크로 직접 진입 시 — 포털·다른 화면을 동기적으로 즉시 숨김
+            const _sp = new URLSearchParams(location.search);
+            const _isShareEntry = _sp.get('ct') && _sp.get('cr');
+            if (_isShareEntry) {
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content']
+                    .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            }
+
             initSession();
 
-            // 공유 링크로 직접 진입 시 테스트 결과 복원
-            const _sp = new URLSearchParams(location.search);
-            if (_sp.get('ct') && _sp.get('cr')) {
+            // 공유 링크 결과 복원
+            if (_isShareEntry) {
                 const _ct = _sp.get('ct'), _cr = _sp.get('cr');
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
