@@ -975,7 +975,7 @@
         body.dark .community-card-organizer-label { background:var(--wds-gray-200); }
 
         /* 탭바 */
-        .community-tab-bar { display:flex; gap:0; margin-bottom:24px; border-bottom:2px solid var(--wds-gray-200); }
+        .community-tab-bar { display:flex; gap:0; margin-bottom:12px; border-bottom:2px solid var(--wds-gray-200); }
         .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-700); cursor:pointer; transition:color 0.15s,border-color 0.15s; }
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); font-weight:700; }
         .community-tab:hover:not(.active) { color:var(--wds-black); }
@@ -5238,7 +5238,7 @@
                 html += `<div class="community-tab-bar">
                     <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
                     <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
-                    <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">🎸 테스트</button>
+                    <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">테스트</button>
                 </div>
                 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
                     <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
@@ -6621,7 +6621,7 @@
                 <div class="community-tab-bar">
                     <button class="community-tab" onclick="communitySetTab('current')">모집 중</button>
                     <button class="community-tab" onclick="communitySetTab('past')">지난 모임</button>
-                    <button class="community-tab active">🎸 테스트</button>
+                    <button class="community-tab active">테스트</button>
                 </div>
                 <div style="padding:24px 0 48px;">
                     <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px;color:var(--wds-black)">🎸 밴드 성향 테스트</h2>
