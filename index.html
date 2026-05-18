@@ -6635,7 +6635,7 @@
                         <div onclick="startCommunityTest('band')" style="background:linear-gradient(135deg,#6C5CE7,#2C3E50);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
                             <div style="font-size:2.2rem;margin-bottom:8px">🌙🌊🔥⚡🌿</div>
                             <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나의 성향이 맞는 밴드는?</div>
-                            <div style="font-size:0.82rem;opacity:0.9">활발히 활동 중인 국내 인디 밴드 22팀 중 나와 가장 닮은 밴드 찾기</div>
+                            <div style="font-size:0.82rem;opacity:0.9">국내 인디 밴드 중 나와 가장 닮은 밴드 찾기</div>
                         </div>
                     </div>
                 </div>`;
@@ -6670,7 +6670,7 @@
                     <div style="font-size:1.05rem;font-weight:700;color:var(--wds-black);margin-bottom:20px;line-height:1.5">Q${step + 1}. ${escapeHtml(q.q)}</div>
                     <div style="display:flex;flex-direction:column;gap:10px">
                         ${q.opts.map((opt, i) => `
-                            <button onclick="answerCommunityTest(${i})" style="text-align:left;padding:14px 16px;border:1.5px solid var(--wds-gray-200);border-radius:12px;background:var(--wds-white);color:var(--wds-black);font-size:0.9rem;cursor:pointer;line-height:1.4;transition:all 0.15s" onmouseenter="this.style.borderColor='var(--wds-primary)';this.style.background='var(--wds-gray-100)'" onmouseleave="this.style.borderColor='var(--wds-gray-200)';this.style.background='var(--wds-white)'">
+                            <button onclick="answerCommunityTest(${i})" style="text-align:center;padding:14px 16px;border:1.5px solid var(--wds-gray-200);border-radius:12px;background:var(--wds-white);color:var(--wds-black);font-size:0.9rem;cursor:pointer;line-height:1.4;transition:all 0.15s" onmouseenter="this.style.borderColor='var(--wds-primary)';this.style.background='var(--wds-gray-100)'" onmouseleave="this.style.borderColor='var(--wds-gray-200)';this.style.background='var(--wds-white)'">
                                 <span style="color:var(--wds-primary);font-weight:700;margin-right:8px">${String.fromCharCode(65+i)}</span>${escapeHtml(opt.label)}
                             </button>`).join('')}
                     </div>
@@ -6869,7 +6869,6 @@
                     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
                         <button onclick="shareTestUrl('${escapeHtml(shareUrl)}')" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🔗 링크 복사</button>
                         <button onclick="downloadTestImage()" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--wds-black)">🖼️ 이미지 저장</button>
-                        <button onclick="shareTestKakao()" style="padding:12px;border-radius:12px;border:none;background:#FEE500;cursor:pointer;font-size:0.9rem;font-weight:700;color:#3C1E1E">카카오로 공유하기</button>
                     </div>
                     <div style="display:flex;gap:10px">
                         <button onclick="startCommunityTest('${type}')" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--wds-primary);background:var(--wds-white);color:var(--wds-primary);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
@@ -7271,10 +7270,16 @@
                     ctx.fillStyle = 'rgba(255,255,255,0.1)';
                     roundRect(30, heroY, iW - 60, heroH, 24); ctx.fill();
 
-                    const instEmoji = result.emoji && !result.emoji.startsWith('<') ? result.emoji : '🎵';
-                    ctx.font = '100px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(instEmoji, iW / 2, heroY + 140);
+                    if (bandImg && typeof bandImg !== 'string') {
+                        // 베이스 등 이미지 아이콘이 있는 경우 drawImage로 렌더
+                        const iconSize = 110;
+                        ctx.drawImage(bandImg, iW/2 - iconSize/2, heroY + (heroH - iconSize)/2, iconSize, iconSize);
+                    } else {
+                        const instEmoji = result.emoji && !result.emoji.startsWith('<') ? result.emoji : '🎵';
+                        ctx.font = '100px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(instEmoji, iW / 2, heroY + 140);
+                    }
 
                     // ── 결과 제목
                     ctx.fillStyle = 'rgba(255,255,255,0.75)';
