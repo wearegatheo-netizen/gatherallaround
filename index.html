@@ -2453,11 +2453,12 @@
             // 공유 링크로 직접 진입 시 테스트 결과 복원
             const _sp = new URLSearchParams(location.search);
             if (_sp.get('ct') && _sp.get('cr')) {
-                state.communityTestType = _sp.get('ct');
-                state.communityTestResult = _sp.get('cr');
+                const _ct = _sp.get('ct'), _cr = _sp.get('cr');
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
                     state.communityTab = 'test';
+                    state.communityTestType = _ct;
+                    state.communityTestResult = _cr;
                     renderCommunityTestResult();
                 });
             }
@@ -6344,8 +6345,8 @@
                 sns:{ instagram:'https://www.instagram.com/silica_gel_official/' },
                 songs:[
                     { title:'NO PAIN',      vibe:'극한의 노이즈 속에서 터져 나오는 강렬한 카타르시스' },
-                    { title:'Glow',         vibe:'어둠 속에서도 빛나려는 의지, 사이키델릭한 빛의 질감' },
-                    { title:'내 머릿속에', vibe:'혼돈과 실험 사이에서 길을 잃은 내면의 소리' },
+                    { title:'Desert Eagle', vibe:'폭발하는 사이키델릭 사운드, 음악 마니아를 사로잡은 명곡' },
+                    { title:'Tik Tak Tok',  vibe:'기묘하게 중독적인 리듬, 실험성과 대중성의 완벽한 균형' },
                 ]},
             sesoneeon:     { name:'새소년', emoji:'🌆', color:'#2E4057', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/Sesoneeon.jpg', v:[4,4,3,3,3],
                 desc:'도시의 불안과 자유를 청량한 인디록으로 담아낸다. 기존 틀을 거부하는 독립적 감성.',
@@ -6391,9 +6392,9 @@
                 desc:'신랄하고 세련된 인디록. 독보적인 세계관으로 자신만의 언어를 만드는 솔로 프로젝트.',
                 sns:{ instagram:'https://www.instagram.com/blackskirts/' },
                 songs:[
-                    { title:'Hollywood',     vibe:'화려한 무대 뒤의 쓸쓸함, 세련되고 신랄한 자화상' },
-                    { title:'Everything',    vibe:'전부를 쏟아붓는 사랑의 무게와 아름다움' },
-                    { title:'HATE',          vibe:'차갑고 세련된 분노, 독보적인 인디록의 언어' },
+                    { title:'EVERYTHING',     vibe:'전부를 쏟아붓는 사랑의 무게와 아름다움' },
+                    { title:'한시 오분',      vibe:'늦은 밤 새벽 한 시의 쓸쓸한 공기, 세련된 인디록의 정수' },
+                    { title:'기다린 만큼, 더', vibe:'담담하게 깊어지는 그리움, 검정치마 특유의 결이 묻어나는 곡' },
                 ]},
             cryingnut:     { name:'크라잉넛', emoji:'⚡', color:'#E74C3C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/cryingnut.jpeg', v:[5,2,1,4,2],
                 desc:'30년을 달려온 한국 펑크의 살아있는 역사. 폭발적 에너지로 관객과 하나되는 공연의 전설.',
@@ -6401,39 +6402,39 @@
                 songs:[
                     { title:'말달리자',    vibe:'30년을 달려온 한국 펑크의 심장, 듣는 순간 뛰고 싶어지는 곡' },
                     { title:'룩셈부르크', vibe:'함께라면 어디든 달려갈 것 같은 청춘의 질주' },
-                    { title:'밤이 깊어가', vibe:'밤을 온몸으로 달리는 펑크 정신의 결정체' },
+                    { title:'갈매기',     vibe:'바다를 향해 외치는 듯한 펑크의 자유, 1집 시절의 패기' },
                 ]},
             galaxyexpress: { name:'갤럭시익스프레스', emoji:'🚀', color:'#E67E22', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/galaxyexpress.jpeg', v:[5,3,1,3,2],
                 desc:'홍대 가라지 록의 정수. 땀 튀기는 생생한 에너지와 거침없는 사운드가 라이브의 전부다.',
                 sns:{ instagram:'https://www.instagram.com/galaxyexpressofficial/' },
                 songs:[
-                    { title:'폭풍',   vibe:'땀 냄새 나는 홍대 라이브의 에너지를 그대로 담은 가라지 록' },
-                    { title:'이게 뭐야', vibe:'충격과 쾌감, 날 것의 사운드로 감각을 흔드는 곡' },
-                    { title:'빛',      vibe:'어둠 속에서도 꺼지지 않는 강렬한 생의 의지' },
+                    { title:'진짜 너를 원해', vibe:'땀 냄새 나는 홍대 라이브의 에너지를 그대로 담은 가라지 록' },
+                    { title:'호롱불',         vibe:'어둠을 밝히는 작은 불빛처럼, 거칠지만 따뜻한 사운드' },
+                    { title:'언제까지나',     vibe:'질주를 멈추지 않는 청춘의 의지, 갤럭시익스프레스의 트레이드마크' },
                 ]},
             guckkasten:    { name:'국카스텐', emoji:'🔥', color:'#922B21', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/guckkasten.jpeg', v:[4,4,2,3,3],
                 desc:'시각 예술과 사이키델릭 록의 결합. 강렬한 보컬 퍼포먼스와 실험적 무대 연출로 압도한다.',
                 sns:{ instagram:'https://www.instagram.com/guckkasten/' },
                 songs:[
-                    { title:'거울',             vibe:'자아와 마주하는 강렬한 사이키델릭 록, 거울을 보듯 오싹한' },
-                    { title:'형사',             vibe:'드라마틱한 서사와 폭발적인 퍼포먼스가 만나는 국카스텐의 정수' },
-                    { title:'사랑은 책임이 없어', vibe:'무책임한 사랑의 아름다움과 아픔을 강렬하게 토해낸 곡' },
+                    { title:'거울',     vibe:'자아와 마주하는 강렬한 사이키델릭 록, 거울을 보듯 오싹한' },
+                    { title:'매니큐어', vibe:'본 모습을 감추려는 위장의 색채, 국카스텐 특유의 강렬한 이미지' },
+                    { title:'감(感)',   vibe:'본능적인 감각의 흐름, 시각적 사운드로 압도하는 라이브의 정수' },
                 ]},
             sultandisco:   { name:'술탄오브더디스코', emoji:'🪩', color:'#F39C12', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/sultandisco.jpeg', v:[5,3,1,5,1],
                 desc:'디스코·펑크·소울로 온몸을 흔드는 파티 그 자체. 어디서나 흥을 폭발시키는 밴드.',
                 sns:{ instagram:'https://www.instagram.com/sultanofdisco/' },
                 songs:[
-                    { title:'Get Ugly',        vibe:'파티의 시작을 알리는 신호탄, 온몸이 반응하는 디스코 펑크' },
-                    { title:'Burn the Floor',  vibe:'무대를 불태우는 에너지, 멈출 수 없는 리듬의 폭발' },
-                    { title:'Honey Honey',     vibe:'달콤하고 중독적인 그루브, 자꾸만 듣게 되는 파티 찬가' },
+                    { title:'요술왕자',                    vibe:'마법 같은 그루브, 디스코 펑크의 신호탄' },
+                    { title:'캐러밴',                      vibe:'사막을 가로지르는 듯한 이국적 비트, 멈출 수 없는 리듬' },
+                    { title:'Waiting For Your Calling Back', vibe:'중독적인 디스코 사운드, 자꾸만 듣게 되는 파티 찬가' },
                 ]},
             yozoh:         { name:'요조', emoji:'📚', color:'#16A085', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/yozoh.jpeg', v:[2,2,4,4,3],
                 desc:'홍대 감성의 뮤즈. 책·카페·산책이 어울리는 따뜻하고 아기자기한 인디팝.',
                 sns:{ instagram:'https://www.instagram.com/yozoh/' },
                 songs:[
-                    { title:'나는 나쁜 사람이야', vibe:'솔직한 자기 고백, 귀엽고 따뜻한 홍대 감성의 진수' },
-                    { title:'숲',                  vibe:'자연 속에 혼자 있을 때의 고요하고 포근한 위안' },
-                    { title:'안녕 나의 별',        vibe:'작별 인사처럼 조용하고 따뜻한, 마음을 살며시 두드리는 곡' },
+                    { title:'My Name Is Yozoh', vibe:'귀엽고 솔직한 자기소개, 홍대 감성의 시그니처' },
+                    { title:'꽃',               vibe:'봄볕처럼 부드럽고 따뜻한, 요조 특유의 아기자기한 인디팝' },
+                    { title:'Honey Honey Baby', vibe:'달콤하게 속삭이는 듯한 멜로디, 듣기만 해도 마음이 포근해지는 곡' },
                 ]},
             soran:         { name:'소란', emoji:'☀️', color:'#D4AC0D', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/soran.jpeg', v:[3,2,3,5,3],
                 desc:'대화하듯 일상을 노래하는 인디록. 팬과의 거리가 없는 따뜻한 소통이 트레이드마크.',
@@ -6479,25 +6480,25 @@
                 desc:'욕심 많다는 이름처럼 좋은 음악에 대한 진지한 탐구. 성숙하고 차분하게 깊어지는 인디록.',
                 sns:{ instagram:'https://www.instagram.com/monni_official/' },
                 songs:[
-                    { title:'내 손을 잡아',    vibe:'진심 담긴 간절함, 몽니의 깊고 진한 감성의 정수' },
-                    { title:'뛰어',             vibe:'망설임을 털어내고 뛰어드는 용기, 에너지 넘치는 인디록' },
+                    { title:'그대와 함께',      vibe:'EBS 스페이스 공감을 빛낸 몽니의 진심 담긴 명곡' },
+                    { title:'소나기',           vibe:'갑작스럽게 쏟아지는 감정, 보컬 김신의의 실화를 담은 곡' },
                     { title:'행복을 주는 사람', vibe:'소중한 사람에 대한 진지하고 따뜻한 고백' },
                 ]},
             hanlolo:       { name:'한로로', emoji:'🌸', color:'#E8A0B4', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/hanroro.jpeg', v:[1,2,3,3,2],
                 desc:'담백하고 솔직한 감성으로 일상의 감정을 노래하는 싱어송라이터. 따뜻한 온기가 가득한 인디팝.',
                 sns:{ instagram:'https://www.instagram.com/hanroro_official/' },
                 songs:[
-                    { title:'무너지지 마', vibe:'힘든 사람 곁에 조용히 앉아주는 따뜻한 위로의 노래' },
-                    { title:'여름밤',      vibe:'여름 밤공기처럼 포근하고 감성적인 인디팝의 정수' },
-                    { title:'하루',        vibe:'소소한 일상이 쌓여 우리가 되는 과정, 담백하고 솔직한' },
+                    { title:'사랑하게 될 거야', vibe:'멜론·애플뮤직 차트를 휩쓴 한로로의 대표곡, 설레는 감정의 결' },
+                    { title:'입춘',             vibe:'덤덤한 듯 깊은 울림, 한국대중음악상 후보에 오른 강한 첫인상' },
+                    { title:'0+0',              vibe:'\'자몽살구클럽\' 수록곡, 차트 상위권을 점령한 풋풋한 감성' },
                 ]},
             leeseungyoon:  { name:'이승윤', emoji:'🪵', color:'#6D4C41', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/leeseungyoon.jpeg', v:[1,2,3,2,4],
                 desc:'깊고 진한 이야기를 담은 포크록. 삶의 무게와 진정성을 무대 위에서 온전히 쏟아내는 아티스트.',
                 sns:{ instagram:'https://www.instagram.com/leeseungyoon/' },
                 songs:[
-                    { title:'파도야',   vibe:'삶의 무게를 파도에 실어 보내는, 깊고 진한 포크의 서정' },
-                    { title:'나 여기 있어', vibe:'존재를 확인하는 절실한 외침, 이승윤 특유의 날 것 감성' },
-                    { title:'소나기',   vibe:'갑작스럽게 찾아온 감정의 소나기, 진정성 있는 이야기' },
+                    { title:'폭포',           vibe:'한국대중음악상 최우수 모던록 노래, 웅장한 사운드로 압도하는 명곡' },
+                    { title:'역성',           vibe:'정규 3집 타이틀곡, 최우수 록 노래를 수상한 이승윤의 정수' },
+                    { title:'들려주고 싶었던', vibe:'싱어게인 우승 직후 발표한 신곡, 진심을 꾹꾹 눌러 담은 메시지' },
                 ]},
         };
 
@@ -6731,19 +6732,34 @@
             const title = type === 'inst' ? '나에게 어울리는 악기 세션은?' : '나의 성향이 맞는 밴드는?';
             const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${result.name} 같은 사람!`;
             const cardStyle = type === 'band'
-                ? `${getBandCardStyle(key, result.color)};border-radius:20px;overflow:hidden;padding:32px 24px;text-align:center;margin-bottom:20px;`
-                : `background:${result.color};border-radius:20px;overflow:hidden;padding:32px 24px;text-align:center;color:#fff;margin-bottom:20px;`;
+                ? `${getBandCardStyle(key, result.color)};border-radius:24px;overflow:hidden;text-align:center;margin-bottom:20px;box-shadow:0 14px 40px -12px rgba(0,0,0,0.35);position:relative;`
+                : `background:${result.color};border-radius:24px;overflow:hidden;padding:32px 24px;text-align:center;color:#fff;margin-bottom:20px;box-shadow:0 14px 40px -12px rgba(0,0,0,0.35);position:relative;`;
 
             el.innerHTML = `
                 <div style="padding-top:8px;padding-bottom:48px;">
                     <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 목록</button>
                     <div id="testResultCard" style="${cardStyle}">
-                        <div style="font-size:0.8rem;opacity:0.85;margin-bottom:12px">${escapeHtml(title)}</div>
-                        ${type === 'band' && result.imgSrc
-                            ? `<img src="${result.imgSrc}" crossorigin="anonymous" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.6);margin-bottom:14px;display:block;margin-left:auto;margin-right:auto">`
-                            : `<div style="font-size:3.5rem;margin-bottom:12px">${result.emoji}</div>`}
-                        <div style="font-size:1.5rem;font-weight:800;margin-bottom:10px">${escapeHtml(resultLabel)}</div>
-                        <div style="font-size:0.88rem;opacity:0.9;line-height:1.6;max-width:280px;margin:0 auto">${escapeHtml(result.desc)}</div>
+                        ${type === 'band' && result.imgSrc ? `
+                        <div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;">
+                            <img src="${result.imgSrc}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;">
+                            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.05) 55%,rgba(0,0,0,0.55) 100%);"></div>
+                            <div style="position:absolute;top:12px;left:14px;background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);padding:5px 11px;border-radius:999px;font-size:0.7rem;color:#fff;font-weight:600;letter-spacing:0.04em">✨ ${escapeHtml(title)}</div>
+                            <div style="position:absolute;top:12px;right:14px;font-size:1.6rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5))">${result.emoji}</div>
+                        </div>
+                        <div style="padding:22px 22px 28px;color:#fff;">
+                            <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;opacity:0.75;margin-bottom:6px">YOUR BAND MATCH</div>
+                            <div style="font-size:1.7rem;font-weight:800;margin-bottom:12px;line-height:1.2">${escapeHtml(resultLabel)}</div>
+                            <div style="height:2px;width:40px;background:rgba(255,255,255,0.5);margin:0 auto 14px;border-radius:2px"></div>
+                            <div style="font-size:0.88rem;opacity:0.92;line-height:1.65;max-width:300px;margin:0 auto">${escapeHtml(result.desc)}</div>
+                        </div>
+                        ` : `
+                        <div style="padding:32px 24px;">
+                            <div style="font-size:0.8rem;opacity:0.85;margin-bottom:12px">${escapeHtml(title)}</div>
+                            <div style="font-size:3.5rem;margin-bottom:12px">${result.emoji}</div>
+                            <div style="font-size:1.5rem;font-weight:800;margin-bottom:10px">${escapeHtml(resultLabel)}</div>
+                            <div style="font-size:0.88rem;opacity:0.9;line-height:1.6;max-width:280px;margin:0 auto">${escapeHtml(result.desc)}</div>
+                        </div>
+                        `}
                     </div>
                     ${RESULT_WHY[key] ? `
                     <div style="background:var(--wds-gray-100);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
@@ -6818,91 +6834,128 @@
 
             function drawCanvas(bandImg) {
                 const canvas = document.createElement('canvas');
-                canvas.width = 600; canvas.height = 400;
+                const W = type === 'band' ? 540 : 600;
+                const H = type === 'band' ? 760 : 400;
+                canvas.width = W; canvas.height = H;
                 const ctx = canvas.getContext('2d');
 
+                function roundRect(x, y, w, h, r) {
+                    ctx.beginPath();
+                    ctx.moveTo(x+r, y);
+                    ctx.arcTo(x+w, y, x+w, y+h, r);
+                    ctx.arcTo(x+w, y+h, x, y+h, r);
+                    ctx.arcTo(x, y+h, x, y, r);
+                    ctx.arcTo(x, y, x+w, y, r);
+                    ctx.closePath();
+                }
+
                 if (type === 'band') {
-                    // 배경 그라디언트 (밴드별 색상)
-                    const grad = ctx.createLinearGradient(0, 0, 600, 400);
-                    grad.addColorStop(0, darkenColor(result.color, 0.3));
-                    grad.addColorStop(1, result.color);
+                    // ── 배경 그라디언트
+                    const grad = ctx.createLinearGradient(0, 0, W, H);
+                    grad.addColorStop(0, darkenColor(result.color, 0.25));
+                    grad.addColorStop(1, darkenColor(result.color, 0.5));
                     ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, 600, 400);
+                    ctx.fillRect(0, 0, W, H);
 
-                    // 우상단 장식 원
-                    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-                    ctx.beginPath(); ctx.arc(520, -30, 180, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(550, 350, 120, 0, Math.PI*2); ctx.fill();
+                    // ── 장식 도형 (별/원)
+                    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                    ctx.beginPath(); ctx.arc(W-60, 60, 140, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(50, H-80, 100, 0, Math.PI*2); ctx.fill();
 
-                    // 왼쪽: 밴드 사진
+                    // ── 상단 밴드 사진 (둥근 모서리)
+                    const imgH = 360;
                     if (bandImg && typeof bandImg !== 'string') {
                         ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(140, 200, 100, 0, Math.PI*2);
+                        roundRect(20, 20, W-40, imgH, 22);
                         ctx.clip();
-                        ctx.drawImage(bandImg, 40, 100, 200, 200);
+                        // 이미지 비율 유지하며 cover
+                        const ir = bandImg.width / bandImg.height;
+                        const tr = (W-40) / imgH;
+                        let sx=0, sy=0, sw=bandImg.width, sh=bandImg.height;
+                        if (ir > tr) { sw = bandImg.height * tr; sx = (bandImg.width - sw)/2; }
+                        else { sh = bandImg.width / tr; sy = (bandImg.height - sh)/2; }
+                        ctx.drawImage(bandImg, sx, sy, sw, sh, 20, 20, W-40, imgH);
+                        // 하단 어둑 그라디언트 (텍스트 가독성)
+                        const og = ctx.createLinearGradient(0, 20+imgH-160, 0, 20+imgH);
+                        og.addColorStop(0, 'rgba(0,0,0,0)');
+                        og.addColorStop(1, 'rgba(0,0,0,0.55)');
+                        ctx.fillStyle = og;
+                        ctx.fillRect(20, 20+imgH-160, W-40, 160);
                         ctx.restore();
-                        // 원 테두리
-                        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                        ctx.lineWidth = 3;
-                        ctx.beginPath(); ctx.arc(140, 200, 100, 0, Math.PI*2); ctx.stroke();
+                    } else {
+                        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                        roundRect(20, 20, W-40, imgH, 22); ctx.fill();
                     }
 
-                    // 오른쪽: 텍스트
-                    ctx.textAlign = 'left';
-                    const tx = (bandImg && typeof bandImg !== 'string') ? 270 : 50;
-
-                    // 앱 브랜딩
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.font = 'bold 13px sans-serif';
-                    ctx.fillText('Gather All Around — 밴드 성향 테스트', tx, 48);
-
-                    // 결과 레이블
+                    // ── 사진 위 칩 (브랜드)
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    roundRect(38, 38, 165, 28, 14); ctx.fill();
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 28px sans-serif';
-                    const label = `나는 ${result.name} 같은 사람!`;
-                    ctx.fillText(label, tx, 105);
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('✨ 밴드 성향 테스트', 50, 57);
 
-                    // 구분선
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(tx, 118); ctx.lineTo(tx + 290, 118); ctx.stroke();
+                    // ── 사진 위 이모지 (우측 상단)
+                    ctx.font = '38px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(result.emoji, W-40, 70);
+
+                    // ── 사진 위 결과명 (이미지 하단)
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('YOUR BAND MATCH', 40, 340);
+                    ctx.font = 'bold 34px sans-serif';
+                    const label = `나는 ${result.name} 같은 사람!`;
+                    ctx.fillText(label, 40, 372);
+
+                    // ── 본문 영역 시작 (이미지 아래)
+                    const bodyY = 20 + imgH + 24;
 
                     // 설명
                     ctx.fillStyle = 'rgba(255,255,255,0.88)';
                     ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'left';
                     const descWords = result.desc.split(' ');
-                    let line = '', lines = [], maxW = 290;
+                    let line = '', lines = [], maxW = W-80;
                     descWords.forEach(w => {
                         const test = line + w + ' ';
                         if (ctx.measureText(test).width > maxW && line) { lines.push(line.trim()); line = w + ' '; }
                         else line = test;
                     });
                     if (line) lines.push(line.trim());
-                    lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, tx, 145 + i * 22));
+                    lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, 40, bodyY + i * 22));
 
-                    // 추천 트랙 (첫 번째)
+                    // ── 추천 트랙 박스
+                    const songBoxY = bodyY + Math.min(lines.length, 3) * 22 + 18;
                     if (result.songs && result.songs[0]) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                        ctx.font = 'bold 12px sans-serif';
-                        ctx.fillText('🎵 추천 트랙', tx, 225);
+                        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+                        roundRect(30, songBoxY, W-60, 86, 16); ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+                        ctx.lineWidth = 1;
+                        roundRect(30, songBoxY, W-60, 86, 16); ctx.stroke();
+
+                        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.fillText('🎵 추천 트랙', 46, songBoxY + 22);
                         ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 15px sans-serif';
-                        ctx.fillText(result.songs[0].title, tx, 246);
+                        ctx.font = 'bold 17px sans-serif';
+                        const tt = result.songs[0].title;
+                        ctx.fillText(tt.length > 24 ? tt.slice(0,24)+'…' : tt, 46, songBoxY + 46);
                         ctx.fillStyle = 'rgba(255,255,255,0.7)';
                         ctx.font = '12px sans-serif';
                         const vibe = result.songs[0].vibe || '';
-                        if (vibe.length > 38) {
-                            ctx.fillText(vibe.slice(0, 38) + '…', tx, 263);
-                        } else {
-                            ctx.fillText(vibe, tx, 263);
-                        }
+                        ctx.fillText(vibe.length > 40 ? vibe.slice(0,40)+'…' : vibe, 46, songBoxY + 68);
                     }
 
-                    // 하단 URL
-                    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-                    ctx.font = '11px sans-serif';
-                    ctx.fillText(location.hostname, tx, 310);
+                    // ── 하단 푸터
+                    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🎯 너의 밴드는? · Gather All Around', W/2, H-30);
+                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText(location.hostname, W/2, H-14);
 
                 } else {
                     // inst 타입 — 기존 디자인 유지
