@@ -2073,11 +2073,21 @@
             let files;
             try {
                 const res = await fetch(url);
-                if (!res.ok) throw new Error(`Drive API ${res.status}`);
                 const data = await res.json();
+                if (!res.ok) {
+                    const reason = data?.error?.errors?.[0]?.reason || '';
+                    const msg = data?.error?.message || `HTTP ${res.status}`;
+                    let hint = '';
+                    if (res.status === 403) {
+                        if (reason === 'accessNotConfigured' || reason === 'forbidden') hint = '<br><b>Google Cloud Console에서 Drive API가 활성화되어 있는지 확인해주세요.</b>';
+                        else if (reason === 'keyInvalid') hint = '<br><b>API 키가 잘못되었습니다.</b>';
+                        else hint = '<br><b>API 키 HTTP 리퍼러 제한을 확인하거나, 드라이브 폴더 공유 설정을 확인해주세요.</b>';
+                    }
+                    throw new Error(msg + hint);
+                }
                 files = data.files || [];
             } catch (e) {
-                root.innerHTML = `<div style="padding:24px;text-align:center;color:#e53e3e">파일을 불러오지 못했습니다.<br><small>${e.message}</small></div>`;
+                root.innerHTML = `<div style="padding:24px;text-align:center;color:#e53e3e;line-height:1.7">파일을 불러오지 못했습니다.<br><small>${e.message}</small></div>`;
                 return;
             }
 
