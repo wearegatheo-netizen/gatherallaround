@@ -7176,47 +7176,146 @@
                     return; // band 타입은 여기서 완료
 
                 } else {
-                    // inst 타입 — 기존 디자인 유지
-                    const grad = ctx.createLinearGradient(0, 0, 600, 400);
-                    grad.addColorStop(0, result.color);
-                    grad.addColorStop(1, result.color + 'AA');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, 600, 400);
-                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-                    ctx.beginPath(); ctx.arc(500, 80, 180, 0, Math.PI*2); ctx.fill();
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                    ctx.font = 'bold 16px sans-serif';
-                    ctx.fillText('Gather All Around', 300, 44);
-                    if (typeof bandImg === 'string') {
-                        ctx.font = '72px sans-serif';
-                        ctx.fillText(bandImg, 300, 160);
-                    } else if (bandImg) {
-                        ctx.drawImage(bandImg, 300-40, 100, 80, 80);
-                    }
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 32px sans-serif';
-                    ctx.fillText(`나는 ${result.name} 타입!`, 300, 226);
-                    ctx.font = '18px sans-serif';
-                    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-                    const words = result.desc.split(' ');
-                    let line = '', lines = [];
-                    words.forEach(w => {
-                        const test = line + w + ' ';
-                        if (ctx.measureText(test).width > 520 && line) { lines.push(line.trim()); line = w + ' '; }
-                        else line = test;
-                    });
-                    if (line) lines.push(line.trim());
-                    lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, 300, 268 + i * 28));
-                }
+                    // ── inst 타입 — 세로형 풍부한 결과 이미지
+                    const iW = 540;
+                    const iGrad = ctx.createLinearGradient(0, 0, iW, 1200);
+                    iGrad.addColorStop(0, darkenColor(result.color, 0.1));
+                    iGrad.addColorStop(1, darkenColor(result.color, 0.52));
+                    ctx.fillStyle = iGrad;
+                    ctx.fillRect(0, 0, iW, 1400); // 넉넉하게 채워두고 나중에 트림
 
-                canvas.toBlob(blob => {
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `band-test-${key}.png`;
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                });
+                    // 장식 원
+                    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                    ctx.beginPath(); ctx.arc(iW - 50, 90, 170, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(40,  1300, 130, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(iW + 20, 600, 100, 0, Math.PI*2); ctx.fill();
+
+                    // ── 상단 칩 (브랜드)
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                    roundRect(30, 28, 185, 30, 15); ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('🎵 악기 세션 테스트', 44, 48);
+
+                    // ── 브랜딩 (우상단)
+                    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('Gather All Around', iW - 30, 48);
+
+                    // ── 이모지 히어로 영역
+                    const heroY = 80, heroH = 220;
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                    roundRect(30, heroY, iW - 60, heroH, 24); ctx.fill();
+
+                    const instEmoji = result.emoji && !result.emoji.startsWith('<') ? result.emoji : '🎵';
+                    ctx.font = '100px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(instEmoji, iW / 2, heroY + 140);
+
+                    // ── 결과 제목
+                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('YOUR INSTRUMENT', 40, heroY + heroH + 28);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 34px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`나는 ${result.name} 타입!`, iW / 2, heroY + heroH + 62);
+
+                    let iy = heroY + heroH + 84;
+
+                    // ── 설명
+                    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+                    ctx.textAlign = 'left';
+                    const iDescLines = wrapLines(result.desc, iW - 80, '14.5px sans-serif');
+                    iDescLines.slice(0, 3).forEach((l, i) => { ctx.font = '14.5px sans-serif'; ctx.fillText(l, 40, iy + i * 22); });
+                    iy += Math.min(iDescLines.length, 3) * 22 + 16;
+
+                    // ── 선정 이유 박스
+                    const iWhy = (typeof RESULT_WHY !== 'undefined' && RESULT_WHY[key]) ? RESULT_WHY[key] : '';
+                    if (iWhy) {
+                        const iWhyLines = wrapLines(iWhy, iW - 90, '13px sans-serif');
+                        const iWhyShown = iWhyLines.slice(0, 4);
+                        const iWhyH = 30 + iWhyShown.length * 19 + 14;
+                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                        roundRect(30, iy, iW - 60, iWhyH, 14); ctx.fill();
+                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText('💡 이 결과가 나온 이유', 44, iy + 20);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '13px sans-serif';
+                        iWhyShown.forEach((l, i) => ctx.fillText(l, 44, iy + 40 + i * 19));
+                        iy += iWhyH + 16;
+                    }
+
+                    // ── 추천 트랙 박스
+                    if (result.songs && result.songs.length) {
+                        const iTracks = result.songs.slice(0, 3);
+                        const iTrackBoxH = 32 + iTracks.length * 52 + 8;
+                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                        roundRect(30, iy, iW - 60, iTrackBoxH, 14); ctx.fill();
+                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText('🎸 입문 추천 트랙', 44, iy + 20);
+                        iTracks.forEach((s, i) => {
+                            const ty = iy + 36 + i * 52;
+                            // 번호 뱃지
+                            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+                            ctx.beginPath(); ctx.arc(54, ty + 10, 12, 0, Math.PI * 2); ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 11px sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(String(i + 1), 54, ty + 14);
+                            ctx.textAlign = 'left';
+                            // 곡명
+                            ctx.font = 'bold 15px sans-serif';
+                            ctx.fillStyle = '#fff';
+                            const tt = s.title.length > 24 ? s.title.slice(0, 24) + '…' : s.title;
+                            ctx.fillText(tt, 74, ty + 8);
+                            // 아티스트
+                            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                            ctx.font = '12px sans-serif';
+                            ctx.fillText(`— ${s.artist}`, 74, ty + 24);
+                            // vibe
+                            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                            ctx.font = '11.5px sans-serif';
+                            const vb = s.vibe || '';
+                            ctx.fillText(vb.length > 34 ? vb.slice(0, 34) + '…' : vb, 74, ty + 40);
+                            ctx.fillStyle = '#fff';
+                        });
+                        iy += iTrackBoxH + 16;
+                    }
+
+                    // ── 푸터
+                    iy += 8;
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText('🎯 나에게 맞는 악기는? · 나도 테스트해보기', iW / 2, iy + 16);
+                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                    ctx.font = '10.5px sans-serif';
+                    ctx.fillText('Gather All Around · ' + location.hostname, iW / 2, iy + 32);
+                    iy += 48;
+
+                    // 실제 높이로 트림
+                    const iTrimH = Math.ceil(iy + 24);
+                    const iTrimCanvas = document.createElement('canvas');
+                    iTrimCanvas.width = iW * DPR;
+                    iTrimCanvas.height = iTrimH * DPR;
+                    iTrimCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                    iTrimCanvas.toBlob(blob => {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `inst-test-${key}.png`;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                    });
+                    return; // inst 타입 완료
+                }
             }
 
             Promise.all([
