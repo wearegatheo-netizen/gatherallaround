@@ -6886,22 +6886,76 @@
             }
             const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
             const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
-            // result.emoji가 <img> 태그인 경우(베이스) 텍스트용 대체 이모지 사용
             const emojiText = (typeof result.emoji === 'string' && result.emoji.startsWith('<')) ? '🎵' : result.emoji;
+            const linkObj = { webUrl: shareUrl, mobileWebUrl: shareUrl };
+
+            // SDK 호환: Kakao.Share (신) 우선, 없으면 Kakao.Link (구)
+            const shareApi = (Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : Kakao.Link;
+            const uploadFn = (Kakao.Share && Kakao.Share.uploadImage) ? Kakao.Share.uploadImage
+                            : (Kakao.Link && Kakao.Link.uploadImage) ? Kakao.Link.uploadImage : null;
+
+            function sendFeed(imageUrl) {
+                try {
+                    shareApi.sendDefault({
+                        objectType: 'feed',
+                        content: {
+                            title: `${emojiText} ${resultLabel}`,
+                            description: result.desc,
+                            imageUrl: imageUrl || '',
+                            link: linkObj,
+                        },
+                        buttons: [
+                            { title: '내 결과 자세히 보기', link: linkObj },
+                            { title: '나도 테스트해보기', link: linkObj },
+                        ],
+                    });
+                } catch (e) {
+                    console.error('Kakao share error:', e);
+                    shareTestUrl(shareUrl);
+                    alert('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
+                }
+            }
+
+            function sendTextFallback() {
+                try {
+                    shareApi.sendDefault({
+                        objectType: 'text',
+                        text: `${emojiText} ${resultLabel}\n\n${result.desc}\n\n링크 눌러서 나도 테스트해보기 👇`,
+                        link: linkObj,
+                        buttonTitle: '내 결과 자세히 보기',
+                    });
+                } catch (e) {
+                    console.error('Kakao share error:', e);
+                    shareTestUrl(shareUrl);
+                    alert('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
+                }
+            }
+
+            if (!uploadFn) { sendTextFallback(); return; }
+
+            // 결과 이미지 생성 → Kakao 서버 업로드 → feed 전송
             try {
-                Kakao.Link.sendDefault({
-                    objectType: 'text',
-                    text: `${emojiText} ${resultLabel}\n\n${result.desc}\n\n링크 눌러서 나도 테스트해보기 👇`,
-                    link: { webUrl: shareUrl, mobileWebUrl: shareUrl },
+                downloadTestImage((blob) => {
+                    if (!blob) { sendTextFallback(); return; }
+                    const file = new File([blob], `${type}-test-${key}.png`, { type: 'image/png' });
+                    uploadFn.call(Kakao.Share || Kakao.Link, { file: [file] })
+                        .then((res) => {
+                            const url = res && res.infos && res.infos.original && res.infos.original.url;
+                            sendFeed(url);
+                        })
+                        .catch((err) => {
+                            console.error('Kakao image upload error:', err);
+                            sendTextFallback();
+                        });
                 });
             } catch (e) {
-                console.error('Kakao share error:', e);
-                shareTestUrl(shareUrl);
-                alert('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
+                console.error('Kakao share blob error:', e);
+                sendTextFallback();
             }
         }
 
-        function downloadTestImage() {
+        function downloadTestImage(onBlob) {
+            // onBlob 제공 시: 다운로드 대신 콜백으로 Blob 전달 (Kakao 업로드용)
             const type = state.communityTestType;
             const key = state.communityTestResult;
             const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
@@ -7167,6 +7221,7 @@
                     trimCanvas.height = trimH * DPR;
                     trimCanvas.getContext('2d').drawImage(canvas, 0, 0);
                     trimCanvas.toBlob(blob => {
+                        if (onBlob) { onBlob(blob); return; }
                         const a = document.createElement('a');
                         a.href = URL.createObjectURL(blob);
                         a.download = `band-test-${key}.png`;
@@ -7308,6 +7363,7 @@
                     iTrimCanvas.height = iTrimH * DPR;
                     iTrimCanvas.getContext('2d').drawImage(canvas, 0, 0);
                     iTrimCanvas.toBlob(blob => {
+                        if (onBlob) { onBlob(blob); return; }
                         const a = document.createElement('a');
                         a.href = URL.createObjectURL(blob);
                         a.download = `inst-test-${key}.png`;
