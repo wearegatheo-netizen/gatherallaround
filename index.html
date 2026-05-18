@@ -7149,14 +7149,31 @@
                         y += 120 + 14;
                     }
 
-                    // ── 푸터
+                    // ── 푸터 (콘텐츠 바로 아래)
+                    y += 10;
                     ctx.textAlign = 'center';
                     ctx.fillStyle = 'rgba(255,255,255,0.6)';
                     ctx.font = 'bold 12px sans-serif';
-                    ctx.fillText('🎯 너의 밴드는? · 나도 테스트해보기', W/2, H-32);
+                    ctx.fillText('🎯 너의 밴드는? · 나도 테스트해보기', W/2, y + 16);
                     ctx.fillStyle = 'rgba(255,255,255,0.4)';
                     ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather All Around · ' + location.hostname, W/2, H-16);
+                    ctx.fillText('Gather All Around · ' + location.hostname, W/2, y + 32);
+                    y += 48;
+
+                    // 실제 콘텐츠 높이로 트림 (하단 여백 24px)
+                    const trimH = Math.ceil(y + 24);
+                    const trimCanvas = document.createElement('canvas');
+                    trimCanvas.width = W * DPR;
+                    trimCanvas.height = trimH * DPR;
+                    trimCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                    trimCanvas.toBlob(blob => {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `band-test-${key}.png`;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                    });
+                    return; // band 타입은 여기서 완료
 
                 } else {
                     // inst 타입 — 기존 디자인 유지
