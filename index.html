@@ -2460,23 +2460,22 @@
             todayBtn.addEventListener('click', () => { state.viewDate = new Date(); render(); });
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
-            // 공유 링크로 직접 진입 시 — 포털·다른 화면 즉시 숨기고 initSession 건너뜀
+            // 공유 링크로 직접 진입 시 — 포털·다른 화면 즉시 숨기고 테스트 목록 페이지로 이동
             const _sp = new URLSearchParams(location.search);
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
                 ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
-                const _ct = _sp.get('ct'), _cr = _sp.get('cr');
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
                     state.communityTab = 'test';
-                    state.communityTestType = _ct;
-                    state.communityTestResult = _cr;
-                    renderCommunityTestResult();
-                    window.__shareEntryMode = false; // 렌더 완료 후 플래그 해제 — 이후 로그인/로그아웃 정상 동작
+                    state.communityTestType = null;
+                    state.communityTestResult = null;
+                    renderCommunityTestHome();
+                    window.__shareEntryMode = false;
                 });
-                return; // initSession 호출 안 함 — 결과지만 표시
+                return; // initSession 호출 안 함 — 테스트 목록만 표시
             }
 
             initSession();
