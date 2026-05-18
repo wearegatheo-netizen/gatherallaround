@@ -21,7 +21,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- OG / SNS 공유 이미지 -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Gather All Around | Premium Studio">
+    <meta property="og:title" content="Gather all around | Premium Studio">
     <meta property="og:description" content="게더 올 어라운드 — 밴드·악기 성향 테스트, 모임 안내">
     <meta property="og:image" content="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/icon.jpg">
     <meta property="og:image:width" content="1200">
@@ -7070,22 +7070,20 @@
                     ctx.textAlign = 'left';
                     ctx.fillText('✨ 밴드 성향 테스트', 50, 58);
 
-                    // ── 사진 위 이모지
-                    ctx.font = '40px sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(result.emoji, W-40, 74);
-
-                    // ── 사진 위 결과명
+                    // ── 사진 위 결과명 (폰트 자동 축소로 한 줄 유지)
                     ctx.fillStyle = 'rgba(255,255,255,0.75)';
                     ctx.font = 'bold 12px sans-serif';
                     ctx.textAlign = 'left';
                     ctx.fillText('YOUR BAND MATCH', 40, 370);
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 30px sans-serif';
                     const label = `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
-                    // 길면 줄바꿈
-                    const labelLines = wrapLines(label, W-80, 'bold 30px sans-serif');
-                    labelLines.slice(0,2).forEach((l, i) => ctx.fillText(l, 40, 402 + i*32));
+                    let labelSize = 30;
+                    while (labelSize > 16) {
+                        ctx.font = `bold ${labelSize}px sans-serif`;
+                        if (ctx.measureText(label).width <= W - 80) break;
+                        labelSize--;
+                    }
+                    ctx.fillText(label, 40, 406);
 
                     // ── 본문 시작
                     let y = 20 + imgH + 28;
@@ -7220,7 +7218,7 @@
                     ctx.fillText('🎯 너의 밴드는? · 나도 테스트해보기', W/2, y + 16);
                     ctx.fillStyle = 'rgba(255,255,255,0.4)';
                     ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather All Around · ' + location.hostname, W/2, y + 32);
+                    ctx.fillText('Gather all around · ' + location.hostname, W/2, y + 32);
                     y += 48;
 
                     // 실제 콘텐츠 높이로 트림 (하단 여백 24px)
@@ -7266,7 +7264,7 @@
                     ctx.fillStyle = 'rgba(255,255,255,0.55)';
                     ctx.font = '11px sans-serif';
                     ctx.textAlign = 'right';
-                    ctx.fillText('Gather All Around', iW - 30, 48);
+                    ctx.fillText('Gather all around', iW - 30, 48);
 
                     // ── 이모지 히어로 영역
                     const heroY = 80, heroH = 220;
@@ -7362,7 +7360,7 @@
                     ctx.fillText('🎯 나에게 맞는 악기는? · 나도 테스트해보기', iW / 2, iy + 16);
                     ctx.fillStyle = 'rgba(255,255,255,0.4)';
                     ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather All Around · ' + location.hostname, iW / 2, iy + 32);
+                    ctx.fillText('Gather all around · ' + location.hostname, iW / 2, iy + 32);
                     iy += 48;
 
                     // 실제 높이로 트림
