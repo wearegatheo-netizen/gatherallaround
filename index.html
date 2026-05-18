@@ -1777,6 +1777,7 @@
         }
 
         function loginUI(nickname) {
+            if (window.__shareEntryMode) return; // 공유 링크 진입 시 GatheO 화면 노출 차단
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -1963,6 +1964,7 @@
         }
 
         function logoutUI() {
+            if (window.__shareEntryMode) return; // 공유 링크 진입 시 포털 재노출 차단
             document.getElementById('portal-page').classList.remove('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -2448,18 +2450,13 @@
             todayBtn.addEventListener('click', () => { state.viewDate = new Date(); render(); });
             document.getElementById('reservationForm').addEventListener('submit', onReserve);
 
-            // 공유 링크로 직접 진입 시 — 포털·다른 화면을 동기적으로 즉시 숨김
+            // 공유 링크로 직접 진입 시 — 포털·다른 화면 즉시 숨기고 initSession 건너뜀
             const _sp = new URLSearchParams(location.search);
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
-                ['portal-page','landing-page','landing-page-band','main-content','band-main-content']
+                window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
-            }
-
-            initSession();
-
-            // 공유 링크 결과 복원
-            if (_isShareEntry) {
                 const _ct = _sp.get('ct'), _cr = _sp.get('cr');
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
@@ -2468,7 +2465,10 @@
                     state.communityTestResult = _cr;
                     renderCommunityTestResult();
                 });
+                return; // initSession 호출 안 함 — 결과지만 표시
             }
+
+            initSession();
         }
 
         async function initSession() {
