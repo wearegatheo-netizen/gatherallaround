@@ -1583,6 +1583,7 @@
             <button class="community-tab active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">예약</button>
             <button class="community-tab" id="gatheoTab-member" onclick="setGatheOTab('member')">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴</span></button>
             <button class="community-tab" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">마이페이지</button>
+            <button class="community-tab" id="gatheoTab-activity" onclick="setGatheOTab('activity')">활동기록</button>
             <button class="community-tab hidden" id="gatheoTab-admin" onclick="setGatheOTab('admin')">관리자</button>
         </div>
 
@@ -1671,6 +1672,11 @@
             </div>
         </div>
 
+        <!-- Tab body: 활동기록 -->
+        <div id="gatheOTabActivity" class="gatheo-tab-body hidden">
+            <div id="driveGalleryRoot"></div>
+        </div>
+
         <!-- Tab body: 관리자 -->
         <div id="gatheOTabAdmin" class="gatheo-tab-body hidden"></div>
     </div>
@@ -1699,6 +1705,8 @@
 
         // --- Configuration ---
         const KAKAO_KEY = '9627dd6537f30f1c42b30de51ceea2cf';
+        const DRIVE_API_KEY = '';        // Google Drive API 키 (읽기 전용, GCP Console에서 발급)
+        const DRIVE_ROOT_FOLDER_ID = ''; // 공유 드라이브 폴더 ID
         const SUPABASE_URL = 'https://xdcygyvsybsirmaknmpq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
         const ADMIN_ID = '4883868250'; // 관리자 카카오 ID (최경수)
@@ -2015,7 +2023,7 @@
         // --- GatheO tab navigation ---
         function setGatheOTab(tab) {
             state.gatheoTab = tab;
-            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage', admin: 'gatheOTabAdmin' };
+            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage', activity: 'gatheOTabActivity', admin: 'gatheOTabAdmin' };
             Object.entries(map).forEach(([t, id]) => {
                 const btn = document.getElementById('gatheoTab-' + t);
                 const body = document.getElementById(id);
@@ -2029,7 +2037,147 @@
                 renderMypagePanel();
             } else if (tab === 'admin') {
                 renderGatheOAdmin();
+            } else if (tab === 'activity') {
+                renderDriveGallery(DRIVE_ROOT_FOLDER_ID, []);
             }
+        }
+
+        // ── 활동기록: Google Drive 갤러리 ─────────────────────────────────────
+        async function renderDriveGallery(folderId, breadcrumb) {
+            const root = document.getElementById('driveGalleryRoot');
+            if (!root) return;
+
+            // API 키 / 폴더 ID 미설정 안내
+            if (!DRIVE_API_KEY || !DRIVE_ROOT_FOLDER_ID) {
+                root.innerHTML = `
+                    <div style="padding:32px 16px;text-align:center;color:var(--wds-gray-500)">
+                        <div style="font-size:2rem;margin-bottom:12px">📁</div>
+                        <div style="font-weight:700;margin-bottom:8px;color:var(--wds-black)">드라이브 연결 설정이 필요합니다</div>
+                        <div style="font-size:0.85rem;line-height:1.7">
+                            index.html 상단의<br>
+                            <code style="background:var(--wds-gray-100);padding:2px 6px;border-radius:4px">DRIVE_API_KEY</code> 와
+                            <code style="background:var(--wds-gray-100);padding:2px 6px;border-radius:4px">DRIVE_ROOT_FOLDER_ID</code><br>
+                            값을 입력해주세요.
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            root.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--wds-gray-400)">불러오는 중…</div>`;
+
+            const effectiveFolder = folderId || DRIVE_ROOT_FOLDER_ID;
+            const q = encodeURIComponent(`'${effectiveFolder}' in parents and trashed = false`);
+            const fields = encodeURIComponent('files(id,name,mimeType,thumbnailLink,size,modifiedTime,videoMediaMetadata)');
+            const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${DRIVE_API_KEY}&fields=${fields}&orderBy=folder,name&pageSize=100`;
+
+            let files;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Drive API ${res.status}`);
+                const data = await res.json();
+                files = data.files || [];
+            } catch (e) {
+                root.innerHTML = `<div style="padding:24px;text-align:center;color:#e53e3e">파일을 불러오지 못했습니다.<br><small>${e.message}</small></div>`;
+                return;
+            }
+
+            const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+            const media   = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+            const images  = media.filter(f => f.mimeType.startsWith('image/'));
+            const videos  = media.filter(f => f.mimeType.startsWith('video/') || f.videoMediaMetadata);
+            const others  = media.filter(f => !f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/') && !f.videoMediaMetadata);
+
+            // 브레드크럼
+            const bcHtml = [{ id: DRIVE_ROOT_FOLDER_ID, name: '활동기록' }, ...breadcrumb].map((b, i, arr) => {
+                const isLast = i === arr.length - 1;
+                return isLast
+                    ? `<span style="color:var(--wds-black);font-weight:700">${escapeHtml(b.name)}</span>`
+                    : `<span onclick="renderDriveGallery('${b.id}',${JSON.stringify(arr.slice(1,i))})" style="cursor:pointer;color:var(--wds-primary)">${escapeHtml(b.name)}</span> <span style="color:var(--wds-gray-300)">›</span> `;
+            }).join('');
+
+            // 썸네일 URL
+            const thumbUrl = (f) => f.thumbnailLink
+                ? f.thumbnailLink.replace(/=s\d+/, '=s320')
+                : `https://drive.google.com/thumbnail?id=${f.id}&sz=w320`;
+
+            // 폴더 카드
+            const folderCards = folders.map(f => `
+                <div onclick="renderDriveGallery('${f.id}', ${JSON.stringify([...breadcrumb, {id: effectiveFolder, name: breadcrumb.length === 0 ? '활동기록' : breadcrumb[breadcrumb.length-1]?.name || ''}])})"
+                     style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--wds-gray-100);border-radius:12px;cursor:pointer;transition:background 0.15s"
+                     onmouseenter="this.style.background='var(--wds-gray-200)'" onmouseleave="this.style.background='var(--wds-gray-100)'">
+                    <span style="font-size:1.6rem">📁</span>
+                    <span style="font-weight:600;font-size:0.95rem;color:var(--wds-black)">${escapeHtml(f.name)}</span>
+                </div>`).join('');
+
+            // 이미지/영상 그리드 카드
+            const mediaCard = (f, type) => {
+                const thumb = thumbUrl(f);
+                const icon  = type === 'video' ? '▶' : '';
+                return `<div onclick="openDrivePreview('${f.id}','${type}')"
+                             style="position:relative;aspect-ratio:1;background:var(--wds-gray-100);border-radius:10px;overflow:hidden;cursor:pointer;">
+                    <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
+                         style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.2s"
+                         onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform='scale(1)'"
+                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem\'>${type==='video'?'🎬':'🖼️'}</div>'">
+                    ${icon ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+                        <div style="width:44px;height:44px;background:rgba(0,0,0,0.55);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem">${icon}</div>
+                    </div>` : ''}
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65));color:#fff;font-size:0.72rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</div>
+                </div>`;
+            };
+
+            // 기타 파일 목록
+            const otherRows = others.map(f => `
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wds-gray-100)">
+                    <span style="font-size:1.3rem">📄</span>
+                    <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" rel="noopener"
+                       style="flex:1;font-size:0.88rem;color:var(--wds-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</a>
+                </div>`).join('');
+
+            root.innerHTML = `
+                <div style="padding:16px 16px 0">
+                    <div style="font-size:0.83rem;margin-bottom:14px">${bcHtml}</div>
+                    ${folders.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">${folderCards}</div>` : ''}
+                    ${images.length ? `
+                        <div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:10px">사진 (${images.length})</div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:20px">
+                            ${images.map(f => mediaCard(f, 'image')).join('')}
+                        </div>` : ''}
+                    ${videos.length ? `
+                        <div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:10px">영상 (${videos.length})</div>
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px">
+                            ${videos.map(f => mediaCard(f, 'video')).join('')}
+                        </div>` : ''}
+                    ${others.length ? `
+                        <div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:6px">기타 파일 (${others.length})</div>
+                        <div style="margin-bottom:20px">${otherRows}</div>` : ''}
+                    ${!files.length ? `<div style="text-align:center;padding:32px;color:var(--wds-gray-400)">폴더가 비어있습니다.</div>` : ''}
+                </div>`;
+        }
+
+        function openDrivePreview(fileId, type) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+            const closeBtn = `<button onclick="this.closest('div').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.4rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>`;
+
+            if (type === 'video') {
+                overlay.innerHTML = `${closeBtn}
+                    <iframe src="https://drive.google.com/file/d/${fileId}/preview"
+                        style="width:min(96vw,720px);height:min(54vw,405px);border:none;border-radius:12px"
+                        allow="autoplay" allowfullscreen></iframe>
+                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
+                       style="margin-top:12px;color:rgba(255,255,255,0.7);font-size:0.8rem;text-decoration:none">드라이브에서 열기 ↗</a>`;
+            } else {
+                overlay.innerHTML = `${closeBtn}
+                    <img src="https://drive.google.com/uc?id=${fileId}&export=view"
+                         style="max-width:min(96vw,900px);max-height:80vh;border-radius:10px;object-fit:contain"
+                         onerror="this.src='https://drive.google.com/thumbnail?id=${fileId}&sz=w1200'">
+                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
+                       style="margin-top:12px;color:rgba(255,255,255,0.7);font-size:0.8rem;text-decoration:none">드라이브에서 열기 ↗</a>`;
+            }
+            document.body.appendChild(overlay);
         }
 
         function renderGatheOAdmin() {
