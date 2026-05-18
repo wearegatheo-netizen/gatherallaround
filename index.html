@@ -2464,6 +2464,7 @@
                     state.communityTestType = _ct;
                     state.communityTestResult = _cr;
                     renderCommunityTestResult();
+                    window.__shareEntryMode = false; // 렌더 완료 후 플래그 해제 — 이후 로그인/로그아웃 정상 동작
                 });
                 return; // initSession 호출 안 함 — 결과지만 표시
             }
