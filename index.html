@@ -2147,18 +2147,40 @@
             // 이미지/영상 그리드 카드
             const mediaCard = (f, type) => {
                 const thumb = thumbUrl(f);
-                const icon  = type === 'video' ? '▶' : '';
-                return `<div onclick="openDrivePreview('${f.id}','${type}')"
-                             style="position:relative;aspect-ratio:1;background:var(--wds-gray-100);border-radius:10px;overflow:hidden;cursor:pointer;">
-                    <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
-                         style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.2s"
-                         onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform='scale(1)'"
-                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem\'>${type==='video'?'🎬':'🖼️'}</div>'">
-                    ${icon ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-                        <div style="width:44px;height:44px;background:rgba(0,0,0,0.55);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem">${icon}</div>
-                    </div>` : ''}
-                    <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65));color:#fff;font-size:0.72rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</div>
-                </div>`;
+                const driveUrl = `https://drive.google.com/file/d/${f.id}/view`;
+                const dlUrl = `https://drive.google.com/uc?id=${f.id}&export=download`;
+                if (type === 'video') {
+                    // 영상: 썸네일 + 재생/다운로드 버튼 두 개
+                    return `<div style="background:var(--wds-gray-100);border-radius:12px;overflow:hidden;">
+                        <div style="position:relative;aspect-ratio:16/9;background:#000;cursor:pointer;" onclick="window.open('${driveUrl}','_blank')">
+                            <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
+                                 style="width:100%;height:100%;object-fit:cover;opacity:0.85"
+                                 onerror="this.style.display='none'">
+                            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+                                <div style="width:52px;height:52px;background:rgba(0,0,0,0.65);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem">▶</div>
+                            </div>
+                        </div>
+                        <div style="padding:8px 10px">
+                            <div style="font-size:0.78rem;font-weight:600;color:var(--wds-black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:7px">${escapeHtml(f.name)}</div>
+                            <div style="display:flex;gap:6px">
+                                <a href="${driveUrl}" target="_blank" rel="noopener"
+                                   style="flex:1;text-align:center;padding:6px 0;background:var(--wds-primary);color:#fff;border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none">▶ 재생</a>
+                                <a href="${dlUrl}" target="_blank" rel="noopener"
+                                   style="flex:1;text-align:center;padding:6px 0;background:var(--wds-gray-200);color:var(--wds-black);border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none">⬇ 다운로드</a>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // 이미지: 기존 그리드 + 클릭 시 라이트박스
+                    return `<div onclick="openDrivePreview('${f.id}','image')"
+                                 style="position:relative;aspect-ratio:1;background:var(--wds-gray-100);border-radius:10px;overflow:hidden;cursor:pointer;">
+                        <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
+                             style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.2s"
+                             onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform='scale(1)'"
+                             onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem\'>🖼️</div>'">
+                        <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:linear-gradient(transparent,rgba(0,0,0,0.65));color:#fff;font-size:0.72rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</div>
+                    </div>`;
+                }
             };
 
             // 기타 파일 목록
@@ -2180,7 +2202,7 @@
                         </div>` : ''}
                     ${videos.length ? `
                         <div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:10px">영상 (${videos.length})</div>
-                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px">
+                        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
                             ${videos.map(f => mediaCard(f, 'video')).join('')}
                         </div>` : ''}
                     ${others.length ? `
@@ -2197,21 +2219,18 @@
 
             const closeBtn = `<button onclick="this.closest('div').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.4rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>`;
 
-            if (type === 'video') {
-                overlay.innerHTML = `${closeBtn}
-                    <iframe src="https://drive.google.com/file/d/${fileId}/preview"
-                        style="width:min(96vw,720px);height:min(54vw,405px);border:none;border-radius:12px"
-                        allow="autoplay" allowfullscreen></iframe>
+            const btnRow = `
+                <div style="display:flex;gap:10px;margin-top:14px">
                     <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
-                       style="margin-top:12px;color:rgba(255,255,255,0.7);font-size:0.8rem;text-decoration:none">드라이브에서 열기 ↗</a>`;
-            } else {
-                overlay.innerHTML = `${closeBtn}
-                    <img src="https://drive.google.com/uc?id=${fileId}&export=view"
-                         style="max-width:min(96vw,900px);max-height:80vh;border-radius:10px;object-fit:contain"
-                         onerror="this.src='https://drive.google.com/thumbnail?id=${fileId}&sz=w1200'">
-                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
-                       style="margin-top:12px;color:rgba(255,255,255,0.7);font-size:0.8rem;text-decoration:none">드라이브에서 열기 ↗</a>`;
-            }
+                       style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
+                    <a href="https://drive.google.com/uc?id=${fileId}&export=download" target="_blank" rel="noopener"
+                       style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
+                </div>`;
+            overlay.innerHTML = `${closeBtn}
+                <img src="https://drive.google.com/uc?id=${fileId}&export=view"
+                     style="max-width:min(96vw,900px);max-height:75vh;border-radius:10px;object-fit:contain"
+                     onerror="this.src='https://drive.google.com/thumbnail?id=${fileId}&sz=w1200'">
+                ${btnRow}`;
             document.body.appendChild(overlay);
         }
 
