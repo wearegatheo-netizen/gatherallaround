@@ -2123,8 +2123,9 @@
             const media   = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
             const images  = media.filter(f => f.mimeType.startsWith('image/'));
             const videos  = media.filter(f => f.mimeType.startsWith('video/') || f.videoMediaMetadata);
-            // 현재 폴더 영상 목록 저장 (모달에서 좌우 탐색용)
+            // 현재 폴더 영상/사진 목록 저장 (모달에서 좌우 탐색용)
             window.__driveCurrentVideos = videos.map(f => f.id);
+            window.__driveCurrentImages = images.map(f => f.id);
             const others  = media.filter(f => !f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/') && !f.videoMediaMetadata);
 
             // 브레드크럼 (전역 스택 기반)
@@ -2374,16 +2375,43 @@
                 window.__driveNavTo = (idx) => { loadVideo(idx); };
                 loadVideo(curIdx);
             } else {
-                // 이미지: 라이트박스
-                overlay.innerHTML = `${closeBtn}
-                    <img src="https://drive.google.com/thumbnail?id=${fileId}&sz=w1600"
-                         style="max-width:min(96vw,1200px);max-height:78vh;border-radius:10px;object-fit:contain">
-                    <div style="display:flex;gap:10px;margin-top:14px">
-                        <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
-                           style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                        <button onclick="driveDownload('${fileId}')"
-                           style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:700;border:none;cursor:pointer">⬇ 다운로드</button>
-                    </div>`;
+                // 이미지: 라이트박스 + 좌우 탐색
+                const imgs = window.__driveCurrentImages || [];
+                let curIdx = imgs.indexOf(fileId);
+                if (curIdx === -1) { imgs.unshift(fileId); curIdx = 0; }
+                overlay.setAttribute('data-drive-overlay', '1');
+
+                const loadImage = (idx) => {
+                    const fid = imgs[idx];
+                    const m = (window.__driveFileMeta || {})[fid] || {};
+                    const hasPrev = idx > 0;
+                    const hasNext = idx < imgs.length - 1;
+                    const counter = imgs.length > 1 ? `<div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:#fff;padding:5px 12px;border-radius:14px;font-size:0.78rem;z-index:2">${idx+1} / ${imgs.length}</div>` : '';
+                    overlay.innerHTML = `${closeBtn}
+                        ${counter}
+                        <img src="https://drive.google.com/thumbnail?id=${fid}&sz=w1600" alt="${escapeHtml(m.name||'')}"
+                             style="max-width:min(96vw,1200px);max-height:72vh;border-radius:10px;object-fit:contain">
+                        <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+                            <a href="https://drive.google.com/file/d/${fid}/view" target="_blank" rel="noopener"
+                               style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브</a>
+                            <button onclick="driveDownload('${fid}')"
+                               style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:700;border:none;cursor:pointer">⬇ 다운로드</button>
+                        </div>
+                        ${hasPrev ? `<button onclick="window.__driveImgNavTo(${idx-1})" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10">‹</button>` : ''}
+                        ${hasNext ? `<button onclick="window.__driveImgNavTo(${idx+1})" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10">›</button>` : ''}`;
+
+                    let tx = 0;
+                    overlay.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+                    overlay.addEventListener('touchend', e => {
+                        const dx = e.changedTouches[0].clientX - tx;
+                        if (Math.abs(dx) < 50) return;
+                        if (dx < 0 && hasNext) window.__driveImgNavTo(idx + 1);
+                        else if (dx > 0 && hasPrev) window.__driveImgNavTo(idx - 1);
+                    }, { passive: true });
+                };
+
+                window.__driveImgNavTo = (idx) => { loadImage(idx); };
+                loadImage(curIdx);
             }
             document.body.appendChild(overlay);
         }
