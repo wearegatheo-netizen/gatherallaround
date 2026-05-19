@@ -1798,6 +1798,7 @@
 
         function loginUI(nickname) {
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 GatheO 화면 노출 차단
+            if (location.search) history.replaceState({}, '', location.pathname);
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
@@ -2196,7 +2197,7 @@
             const parentBtn = isRoot ? '' : `
                 <button onclick="drivePopTo(${window.__driveStack.length - 1})"
                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--wds-gray-100);border:1px solid var(--wds-gray-200);border-radius:8px;font-size:0.85rem;font-weight:600;color:var(--wds-gray-700);cursor:pointer;margin-bottom:14px">
-                    ← 상위 폴더
+                    ←
                 </button>`;
 
             root.innerHTML = `
@@ -5388,6 +5389,8 @@
 
         // Portal navigation
         function showPortal() {
+            // Clean any test result URL params so refresh doesn't re-trigger share entry
+            if (location.search) history.replaceState({}, '', location.pathname);
             document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.remove('hidden');
             document.getElementById('landing-page').classList.add('hidden');
@@ -7011,6 +7014,7 @@
         function renderCommunityTestHome() {
             const el = document.getElementById('communityContent');
             if (!el) return;
+            if (location.search) history.replaceState({}, '', location.pathname);
             el.innerHTML = `
                 <div class="community-tab-bar">
                     <button class="community-tab" onclick="communitySetTab('current')">모집 중</button>
