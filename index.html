@@ -2213,24 +2213,25 @@
             const closeBtn = `<button onclick="this.closest('[data-drive-overlay]').remove()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.18);border:none;color:#fff;font-size:1.3rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1">✕</button>`;
             overlay.setAttribute('data-drive-overlay', '1');
 
-            const dlUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=0&confirm=t`;
+            const dlUrl = `https://drive.google.com/uc?id=${fileId}&export=download&confirm=t`;
             if (type === 'video') {
-                // 영상: 뷰포트 채우는 iframe (aspect-ratio 강제하지 않아 portrait/landscape 모두 자연스럽게 표시)
-                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0';
+                // 영상: iframe을 overlay 전체 채움 (Drive 플레이어 컨트롤이 정상 렌더링됨)
+                overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999';
+                overlay.onclick = null; // 전체 영역이 iframe이므로 click-outside 닫기 비활성화
                 const iframeId = 'driveIframe_' + Date.now();
-                overlay.innerHTML = `${closeBtn}
-                    <div style="position:relative;width:96vw;max-width:1200px;height:calc(100vh - 90px);display:flex;align-items:center;justify-content:center">
-                        <div id="${iframeId}_loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.5);font-size:0.9rem">영상 불러오는 중…</div>
-                        <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
-                            style="width:100%;height:100%;border:none;display:block;background:#000;border-radius:8px"
-                            allow="autoplay; fullscreen" allowfullscreen
-                            onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>
-                    </div>
-                    <div style="display:flex;gap:10px;padding:12px 0">
+                overlay.innerHTML = `
+                    <button onclick="document.querySelector('[data-drive-overlay]').remove()"
+                        style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:1.4rem;width:42px;height:42px;border-radius:50%;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+                    <div id="${iframeId}_loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.5);font-size:0.9rem;pointer-events:none">영상 불러오는 중…</div>
+                    <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
+                        style="width:100%;height:100%;border:none;display:block"
+                        allow="autoplay; fullscreen" allowfullscreen
+                        onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(transparent,rgba(0,0,0,0.7));display:flex;justify-content:flex-end;gap:8px;pointer-events:none">
                         <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
-                           style="padding:8px 18px;background:rgba(255,255,255,0.15);color:#fff;border-radius:9px;font-size:0.82rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                        <a href="${dlUrl}" target="_blank" rel="noopener" download
-                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:9px;font-size:0.82rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
+                           style="pointer-events:all;padding:7px 14px;background:rgba(255,255,255,0.2);color:#fff;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;backdrop-filter:blur(4px)">↗ 드라이브에서 열기</a>
+                        <a href="${dlUrl}" target="_blank" rel="noopener"
+                           style="pointer-events:all;padding:7px 14px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
                     </div>`;
             } else {
                 // 이미지: 라이트박스
@@ -2240,7 +2241,7 @@
                     <div style="display:flex;gap:10px;margin-top:14px">
                         <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
                            style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                        <a href="${dlUrl}" target="_blank" rel="noopener" download
+                        <a href="${dlUrl}" target="_blank" rel="noopener"
                            style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
                     </div>`;
             }
