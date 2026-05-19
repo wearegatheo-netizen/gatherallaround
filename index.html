@@ -2210,27 +2210,35 @@
                 </div>`;
         }
 
-        function driveDownload(dlUrl) {
-            window.open(dlUrl, '_blank', 'noopener');
-            // 2초 후 토스트: 다운로드 미시작 시 Google 로그인 안내
-            setTimeout(() => {
-                const existing = document.getElementById('driveDownloadToast');
-                if (existing) existing.remove();
-                const loginUrl = `https://accounts.google.com/signin?continue=${encodeURIComponent(dlUrl)}`;
-                const toast = document.createElement('div');
-                toast.id = 'driveDownloadToast';
-                toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:14px 18px;border-radius:12px;font-size:0.82rem;z-index:99999;max-width:min(90vw,360px);text-align:center;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
-                toast.innerHTML = `다운로드가 시작되지 않았나요?<br>
-                    <span style="color:rgba(255,255,255,0.7);font-size:0.78rem">Google 계정 로그인이 필요합니다</span><br>
-                    <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
-                        <a href="${loginUrl}" target="_blank" rel="noopener"
-                           style="padding:7px 16px;background:var(--wds-primary);color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:0.8rem">Google 로그인</a>
-                        <button onclick="document.getElementById('driveDownloadToast').remove()"
-                           style="padding:7px 14px;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:0.8rem">닫기</button>
-                    </div>`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 10000);
-            }, 2000);
+        function driveDownload(fileId) {
+            // iOS Safari는 uc?export=download → drive.usercontent.google.com 리다이렉트에서 빈 화면으로 멈춤.
+            // Drive 뷰어 페이지를 열고 안내 시트를 띄우는 것이 가장 확실한 방법.
+            const viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+            const existing = document.getElementById('driveDownloadSheet');
+            if (existing) existing.remove();
+            const sheet = document.createElement('div');
+            sheet.id = 'driveDownloadSheet';
+            sheet.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+            sheet.onclick = e => { if (e.target === sheet) sheet.remove(); };
+            sheet.innerHTML = `
+                <div style="width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:24px 20px 36px;box-sizing:border-box">
+                    <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 20px"></div>
+                    <div style="font-weight:700;font-size:1rem;margin-bottom:6px">파일 다운로드</div>
+                    <div style="font-size:0.85rem;color:#666;margin-bottom:20px;line-height:1.6">
+                        Google Drive에서 파일을 열고<br>
+                        우상단 <b>⋮ → 다운로드</b> 버튼을 눌러주세요.
+                    </div>
+                    <a href="${viewUrl}" target="_blank" rel="noopener"
+                       style="display:block;text-align:center;padding:13px;background:var(--wds-primary);color:#fff;border-radius:12px;font-weight:700;font-size:0.95rem;text-decoration:none;margin-bottom:10px"
+                       onclick="document.getElementById('driveDownloadSheet').remove()">
+                        Google Drive에서 열기 →
+                    </a>
+                    <button onclick="document.getElementById('driveDownloadSheet').remove()"
+                        style="width:100%;padding:12px;background:#f2f2f2;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer;color:#333">
+                        닫기
+                    </button>
+                </div>`;
+            document.body.appendChild(sheet);
         }
 
         function openDrivePreview(fileId, type) {
@@ -2257,7 +2265,7 @@
                 const loadVideo = (idx) => {
                     const fid = videos[idx];
                     const m = (window.__driveFileMeta || {})[fid] || {};
-                    const dl = `https://drive.google.com/uc?id=${fid}&export=download&confirm=t`;
+                    const dl = fid; // driveDownload에 fileId 전달
                     const name = m.name || '';
                     const iframeId = 'driveIframe_' + Date.now();
                     const hasPrev = idx > 0;
@@ -2302,7 +2310,7 @@
                     <div style="display:flex;gap:10px;margin-top:14px">
                         <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
                            style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                        <button onclick="driveDownload('https://drive.google.com/uc?id=${fileId}&export=download&confirm=t')"
+                        <button onclick="driveDownload('${fileId}')"
                            style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:700;border:none;cursor:pointer">⬇ 다운로드</button>
                     </div>`;
             }
