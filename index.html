@@ -5539,6 +5539,7 @@
             state.communityCreateOpen = false;
             state.communityTab = 'current';
             state.communityEditAuth = {};
+            state.communityGameType = null;
             state.communityTestType = null;
             state.communityTestStep = 0;
             state.communityTestAnswers = [];
@@ -5684,7 +5685,7 @@
                 html += `<div class="community-tab-bar">
                     <button class="community-tab${tab === 'current' ? ' active' : ''}" onclick="communitySetTab('current')">모집 중 (${currentMeetings.length})</button>
                     <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
-                    <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">테스트</button>
+                    <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">테스트 & 게임</button>
                 </div>
                 <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
                     <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
@@ -7068,12 +7069,11 @@
                 <div class="community-tab-bar">
                     <button class="community-tab" onclick="communitySetTab('current')">모집 중</button>
                     <button class="community-tab" onclick="communitySetTab('past')">지난 모임</button>
-                    <button class="community-tab active">테스트</button>
+                    <button class="community-tab active">테스트 & 게임</button>
                 </div>
                 <div style="padding:24px 0 48px;">
-                    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px;color:var(--wds-black)">🎸 밴드 성향 테스트</h2>
-                    <p style="font-size:0.88rem;color:var(--wds-gray-500);margin-bottom:24px">나의 성향을 알아보고 결과를 공유해보세요!</p>
-                    <div style="display:flex;flex-direction:column;gap:14px;">
+                    <h3 style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em;margin:0 0 12px;text-transform:uppercase">🎯 성향 테스트</h3>
+                    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">
                         <div onclick="startCommunityTest('inst')" style="background:linear-gradient(135deg,#FF6B6B,#F7B731);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
                             <div style="font-size:2.2rem;margin-bottom:8px">🎸🥁🎤🎹<img src="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/base_icon.png" style="height:1em;vertical-align:middle"></div>
                             <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나에게 어울리는 악기 세션은?</div>
@@ -7085,7 +7085,313 @@
                             <div style="font-size:0.82rem;opacity:0.9">국내 인디 밴드 중 나와 가장 닮은 밴드 찾기</div>
                         </div>
                     </div>
+                    <h3 style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em;margin:0 0 12px;text-transform:uppercase">🎮 게임</h3>
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div onclick="startCommunityGame('rhythm')" style="background:linear-gradient(135deg,#F7B731,#FF6B6B);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
+                            <div style="font-size:2.2rem;margin-bottom:8px">🥁🎵🎶✨</div>
+                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">리듬 탭 게임</div>
+                            <div style="font-size:0.82rem;opacity:0.9">음표를 빠르게 탭해서 콤보를 쌓아라! 30초 승부</div>
+                        </div>
+                        <div onclick="startCommunityGame('memory')" style="background:linear-gradient(135deg,#45B7D1,#A29BFE);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
+                            <div style="font-size:2.2rem;margin-bottom:8px">🎹🎸🥁🎤</div>
+                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">멜로디 기억 게임</div>
+                            <div style="font-size:0.82rem;opacity:0.9">악기 순서를 기억하고 따라 눌러라! 몇 라운드까지?</div>
+                        </div>
+                    </div>
                 </div>`;
+        }
+
+        // ───────────────────────────────────────────────
+        // 게임 공통
+        // ───────────────────────────────────────────────
+        function startCommunityGame(type) {
+            state.communityGameType = type;
+            if (type === 'rhythm') renderRhythmGame();
+            else renderMemoryGame();
+        }
+
+        async function submitGameScore(gameType, playerName, score) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('game_scores').insert({ game_type: gameType, player_name: playerName, score });
+            } catch(e) { console.error('score save error', e); }
+            await renderGameRanking(gameType);
+        }
+
+        async function renderGameRanking(gameType) {
+            const el = document.getElementById('gameRankingSection');
+            if (!el) return;
+            el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--wds-gray-400);font-size:0.85rem">불러오는 중…</div>`;
+            if (!supabaseClient) { el.innerHTML = ''; return; }
+            const { data } = await supabaseClient
+                .from('game_scores')
+                .select('player_name,score')
+                .eq('game_type', gameType)
+                .order('score', { ascending: false })
+                .limit(10);
+            const medals = ['🥇','🥈','🥉'];
+            const unit = gameType === 'rhythm' ? '점' : '라운드';
+            const rows = (data || []).map((r, i) =>
+                `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--wds-gray-100)">
+                    <span style="width:28px;text-align:center;font-size:${i < 3 ? '1.2rem' : '0.85rem'};color:var(--wds-gray-500)">${medals[i] || (i+1)+'위'}</span>
+                    <span style="flex:1;font-weight:600;font-size:0.9rem;color:var(--wds-black)">${escapeHtml(r.player_name)}</span>
+                    <span style="font-size:0.88rem;color:var(--wds-primary);font-weight:700">${r.score}${unit}</span>
+                </div>`
+            ).join('');
+            el.innerHTML = rows
+                ? `<div style="margin-top:20px"><div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:8px">🏆 랭킹 TOP 10</div>${rows}</div>`
+                : `<div style="text-align:center;padding:12px;color:var(--wds-gray-400);font-size:0.85rem">아직 기록이 없어요. 첫 번째 도전자가 되어보세요!</div>`;
+        }
+
+        function gameOverScoreSection(gameType, finalScore) {
+            const hi = parseInt(localStorage.getItem(`gaa_${gameType}_hi`) || '0', 10);
+            const newHi = finalScore > hi;
+            if (newHi) localStorage.setItem(`gaa_${gameType}_hi`, finalScore);
+            const unit = gameType === 'rhythm' ? '점' : '라운드';
+            return `
+                <div style="text-align:center;margin-bottom:20px">
+                    <div style="font-size:3rem;margin-bottom:4px">${newHi ? '🎉' : '🎮'}</div>
+                    <div style="font-size:1.6rem;font-weight:800;color:var(--wds-black)">${finalScore}${unit}</div>
+                    ${newHi ? `<div style="font-size:0.82rem;color:var(--wds-primary);font-weight:700;margin-top:4px">✨ 신기록!</div>` : `<div style="font-size:0.82rem;color:var(--wds-gray-500);margin-top:4px">최고 기록: ${hi}${unit}</div>`}
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="font-size:0.85rem;color:var(--wds-gray-700);margin-bottom:8px;font-weight:600">이름을 입력하고 랭킹에 도전하세요!</div>
+                    <div style="display:flex;gap:8px">
+                        <input id="gameNameInput" type="text" maxlength="12" placeholder="닉네임 (최대 12자)"
+                            style="flex:1;padding:10px 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box">
+                        <button onclick="(async()=>{
+                            const n=document.getElementById('gameNameInput').value.trim();
+                            if(!n){alert('닉네임을 입력해주세요');return;}
+                            this.disabled=true;this.textContent='등록 중…';
+                            await submitGameScore('${gameType}',n,${finalScore});
+                            this.closest('.game-rank-submit')?.remove();
+                        })()"
+                            style="padding:10px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;white-space:nowrap" class="game-rank-submit">등록</button>
+                    </div>
+                </div>
+                <div id="gameRankingSection"></div>`;
+        }
+
+        // ───────────────────────────────────────────────
+        // 게임 1: 리듬 탭 게임
+        // ───────────────────────────────────────────────
+        const RHYTHM_NOTE_EMOJIS = ['🎵','🎶','🎸','🥁','🎹','🎤','🎷','🎺','🪗'];
+        const RHYTHM_DURATION = 30;
+
+        function renderRhythmGame() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const gs = { score:0, combo:1, lives:3, timeLeft:RHYTHM_DURATION, active:{}, spawnId:null, tickId:null, over:false };
+            window.__rhythmGs = gs;
+            el.innerHTML = `
+                <div style="padding-top:8px;padding-bottom:48px;">
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 & 게임</button>
+                    <div style="font-size:1.1rem;font-weight:700;margin-bottom:14px;color:var(--wds-black)">🥁 리듬 탭 게임</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;background:var(--wds-gray-100);border-radius:12px;padding:10px 16px">
+                        <div style="text-align:center"><div style="font-size:0.7rem;color:var(--wds-gray-500)">점수</div><div id="rScore" style="font-size:1.2rem;font-weight:800;color:var(--wds-black)">0</div></div>
+                        <div style="text-align:center"><div style="font-size:0.7rem;color:var(--wds-gray-500)">콤보</div><div id="rCombo" style="font-size:1.2rem;font-weight:800;color:var(--wds-primary)">×1</div></div>
+                        <div style="text-align:center"><div style="font-size:0.7rem;color:var(--wds-gray-500)">목숨</div><div id="rLives" style="font-size:1.1rem">♥♥♥</div></div>
+                        <div style="text-align:center"><div style="font-size:0.7rem;color:var(--wds-gray-500)">시간</div><div id="rTime" style="font-size:1.2rem;font-weight:800;color:#FF6B6B">${RHYTHM_DURATION}s</div></div>
+                    </div>
+                    <div id="rhythmGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+                        ${Array.from({length:9},(_,i)=>`
+                        <div id="rSlot${i}" onclick="tapRhythmSlot(${i})"
+                            style="aspect-ratio:1;background:var(--wds-gray-100);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;transition:all 0.1s;user-select:none;-webkit-user-select:none">
+                        </div>`).join('')}
+                    </div>
+                    <div id="rhythmOverlay" style="display:none"></div>
+                </div>`;
+            startRhythmLoop(gs);
+        }
+
+        function rhythmUpdateHud(gs) {
+            const sc = document.getElementById('rScore'); if(sc) sc.textContent = gs.score;
+            const cb = document.getElementById('rCombo'); if(cb) cb.textContent = '×'+gs.combo;
+            const lv = document.getElementById('rLives'); if(lv) lv.textContent = '♥'.repeat(gs.lives)+'♡'.repeat(3-gs.lives);
+            const tm = document.getElementById('rTime'); if(tm) { tm.textContent = gs.timeLeft+'s'; tm.style.color = gs.timeLeft<=5?'#e53e3e':'#FF6B6B'; }
+        }
+
+        function startRhythmLoop(gs) {
+            // 1초 카운트다운
+            gs.tickId = setInterval(() => {
+                if (gs.over) return;
+                gs.timeLeft--;
+                rhythmUpdateHud(gs);
+                if (gs.timeLeft <= 0) { clearInterval(gs.tickId); clearInterval(gs.spawnId); rhythmGameOver(gs); }
+            }, 1000);
+            // 음표 스폰
+            const spawn = () => {
+                if (gs.over) return;
+                const available = Array.from({length:9},(_,i)=>i).filter(i=>!gs.active[i]);
+                if (!available.length) return;
+                const idx = available[Math.floor(Math.random()*available.length)];
+                const emoji = RHYTHM_NOTE_EMOJIS[Math.floor(Math.random()*RHYTHM_NOTE_EMOJIS.length)];
+                const slot = document.getElementById('rSlot'+idx);
+                if (!slot) return;
+                slot.textContent = emoji;
+                slot.style.background = 'linear-gradient(135deg,#F7B731,#FF6B6B)';
+                slot.style.transform = 'scale(1.06)';
+                slot.style.boxShadow = '0 4px 14px rgba(247,183,49,0.45)';
+                const missTimer = setTimeout(() => {
+                    if (gs.over) return;
+                    delete gs.active[idx];
+                    if (slot.textContent === emoji) {
+                        slot.textContent = '';
+                        slot.style.background = 'var(--wds-gray-100)';
+                        slot.style.transform = '';
+                        slot.style.boxShadow = '';
+                    }
+                    gs.combo = 1; gs.lives--;
+                    rhythmUpdateHud(gs);
+                    if (gs.lives <= 0) { clearInterval(gs.tickId); clearInterval(gs.spawnId); rhythmGameOver(gs); }
+                }, 900);
+                gs.active[idx] = missTimer;
+                // 다음 스폰 간격 동적 조정
+                clearInterval(gs.spawnId);
+                gs.spawnId = setInterval(spawn, Math.max(350, 1300 - gs.score * 1.5));
+            };
+            gs.spawnId = setInterval(spawn, 1200);
+        }
+
+        function tapRhythmSlot(idx) {
+            const gs = window.__rhythmGs;
+            if (!gs || gs.over) return;
+            if (gs.active[idx] !== undefined) {
+                clearTimeout(gs.active[idx]);
+                delete gs.active[idx];
+                gs.score += 10 * gs.combo;
+                gs.combo++;
+                const slot = document.getElementById('rSlot'+idx);
+                if (slot) { slot.textContent = '✨'; slot.style.background = 'var(--wds-primary)'; slot.style.boxShadow=''; slot.style.transform=''; setTimeout(()=>{if(slot)slot.textContent='';slot&&(slot.style.background='var(--wds-gray-100)');},180); }
+            } else {
+                gs.combo = 1;
+            }
+            rhythmUpdateHud(gs);
+        }
+
+        function rhythmGameOver(gs) {
+            gs.over = true;
+            clearInterval(gs.tickId); clearInterval(gs.spawnId);
+            const ov = document.getElementById('rhythmOverlay');
+            if (!ov) return;
+            ov.style.display = 'block';
+            ov.innerHTML = `
+                <div style="background:var(--wds-white);border-radius:20px;border:1px solid var(--wds-gray-200);padding:24px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.12)">
+                    <div style="font-size:1rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:12px">게임 오버!</div>
+                    ${gameOverScoreSection('rhythm', gs.score)}
+                    <div style="display:flex;gap:10px;margin-top:16px">
+                        <button onclick="renderRhythmGame()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
+                        <button onclick="renderCommunityTestHome()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">돌아가기</button>
+                    </div>
+                </div>`;
+            renderGameRanking('rhythm');
+        }
+
+        // ───────────────────────────────────────────────
+        // 게임 2: 멜로디 기억 게임
+        // ───────────────────────────────────────────────
+        const MEMORY_INSTRUMENTS = [
+            { emoji:'🎸', color:'#4ECDC4', label:'기타' },
+            { emoji:'🥁', color:'#FF6B6B', label:'드럼' },
+            { emoji:'🎹', color:'#A29BFE', label:'키보드' },
+            { emoji:'🎤', color:'#F7B731', label:'보컬' },
+        ];
+
+        function renderMemoryGame() {
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            const gs = { sequence:[], playerIdx:0, round:0, isShowing:false, over:false };
+            window.__memoryGs = gs;
+            el.innerHTML = `
+                <div style="padding-top:8px;padding-bottom:48px;">
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 & 게임</button>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                        <div style="font-size:1.1rem;font-weight:700;color:var(--wds-black)">🎹 멜로디 기억 게임</div>
+                        <div id="mRound" style="font-size:0.85rem;font-weight:700;color:var(--wds-primary)">라운드 0</div>
+                    </div>
+                    <div id="mStatus" style="text-align:center;font-size:0.9rem;font-weight:600;color:var(--wds-gray-500);margin-bottom:18px;min-height:22px">시작 준비 중…</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+                        ${MEMORY_INSTRUMENTS.map((inst,i)=>`
+                        <div id="mBtn${i}" onclick="tapMemoryBtn(${i})"
+                            style="aspect-ratio:1;background:${inst.color};border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.1s;user-select:none;-webkit-user-select:none;box-shadow:0 4px 16px ${inst.color}55">
+                            <div style="font-size:2.6rem">${inst.emoji}</div>
+                            <div style="font-size:0.78rem;font-weight:700;color:#fff;margin-top:4px">${inst.label}</div>
+                        </div>`).join('')}
+                    </div>
+                    <div id="memoryOverlay" style="display:none"></div>
+                </div>`;
+            setTimeout(() => nextMemoryRound(gs), 600);
+        }
+
+        function nextMemoryRound(gs) {
+            gs.sequence.push(Math.floor(Math.random()*4));
+            gs.round++;
+            gs.playerIdx = 0;
+            gs.isShowing = true;
+            const mRound = document.getElementById('mRound');
+            const mStatus = document.getElementById('mStatus');
+            if (mRound) mRound.textContent = '라운드 '+gs.round;
+            if (mStatus) mStatus.textContent = '기억하세요…';
+            playMemorySequence(gs);
+        }
+
+        function playMemorySequence(gs) {
+            let i = 0;
+            const next = () => {
+                if (i >= gs.sequence.length) {
+                    gs.isShowing = false;
+                    const mStatus = document.getElementById('mStatus');
+                    if (mStatus) mStatus.textContent = '따라 누르세요!';
+                    return;
+                }
+                const idx = gs.sequence[i++];
+                const btn = document.getElementById('mBtn'+idx);
+                if (btn) {
+                    const orig = btn.style.boxShadow;
+                    btn.style.filter = 'brightness(1.5)';
+                    btn.style.transform = 'scale(1.08)';
+                    setTimeout(()=>{ btn.style.filter=''; btn.style.transform=''; setTimeout(next, 300); }, 400);
+                } else { next(); }
+            };
+            setTimeout(next, 400);
+        }
+
+        function tapMemoryBtn(idx) {
+            const gs = window.__memoryGs;
+            if (!gs || gs.isShowing || gs.over) return;
+            const btn = document.getElementById('mBtn'+idx);
+            if (btn) { btn.style.filter='brightness(1.4)'; btn.style.transform='scale(1.06)'; setTimeout(()=>{btn.style.filter='';btn.style.transform='';},150); }
+            if (gs.sequence[gs.playerIdx] === idx) {
+                gs.playerIdx++;
+                if (gs.playerIdx >= gs.sequence.length) {
+                    const mStatus = document.getElementById('mStatus');
+                    if (mStatus) mStatus.textContent = '정답! 🎉';
+                    setTimeout(()=>nextMemoryRound(gs), 800);
+                }
+            } else {
+                memoryGameOver(gs);
+            }
+        }
+
+        function memoryGameOver(gs) {
+            gs.over = true;
+            const ov = document.getElementById('memoryOverlay');
+            const mStatus = document.getElementById('mStatus');
+            if (mStatus) mStatus.textContent = '틀렸어요!';
+            if (!ov) return;
+            setTimeout(()=>{
+                ov.style.display = 'block';
+                ov.innerHTML = `
+                    <div style="background:var(--wds-white);border-radius:20px;border:1px solid var(--wds-gray-200);padding:24px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.12)">
+                        <div style="font-size:1rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:12px">게임 오버!</div>
+                        ${gameOverScoreSection('memory', gs.round)}
+                        <div style="display:flex;gap:10px;margin-top:16px">
+                            <button onclick="renderMemoryGame()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
+                            <button onclick="renderCommunityTestHome()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">돌아가기</button>
+                        </div>
+                    </div>`;
+                renderGameRanking('memory');
+            }, 500);
         }
 
         function startCommunityTest(type) {
@@ -7108,7 +7414,7 @@
 
             el.innerHTML = `
                 <div style="padding-top:8px;padding-bottom:48px;">
-                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 목록</button>
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 & 게임</button>
                     <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-bottom:6px">${title}</div>
                     <div style="font-size:0.75rem;color:var(--wds-gray-400);margin-bottom:8px">${step + 1} / ${total}</div>
                     <div style="background:var(--wds-gray-200);border-radius:4px;height:6px;margin-bottom:24px;overflow:hidden">
@@ -7229,7 +7535,7 @@
 
             el.innerHTML = `
                 <div style="padding-top:8px;padding-bottom:48px;">
-                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 목록</button>
+                    <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 & 게임</button>
                     <div id="testResultCard" style="${cardStyle}">
                         ${type === 'band' && result.imgSrc ? `
                         <div style="position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:rgba(0,0,0,0.35);">
