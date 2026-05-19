@@ -2208,6 +2208,29 @@
                 </div>`;
         }
 
+        function driveDownload(dlUrl) {
+            window.open(dlUrl, '_blank', 'noopener');
+            // 2초 후 토스트: 다운로드 미시작 시 Google 로그인 안내
+            setTimeout(() => {
+                const existing = document.getElementById('driveDownloadToast');
+                if (existing) existing.remove();
+                const loginUrl = `https://accounts.google.com/signin?continue=${encodeURIComponent(dlUrl)}`;
+                const toast = document.createElement('div');
+                toast.id = 'driveDownloadToast';
+                toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:14px 18px;border-radius:12px;font-size:0.82rem;z-index:99999;max-width:min(90vw,360px);text-align:center;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+                toast.innerHTML = `다운로드가 시작되지 않았나요?<br>
+                    <span style="color:rgba(255,255,255,0.7);font-size:0.78rem">Google 계정 로그인이 필요합니다</span><br>
+                    <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+                        <a href="${loginUrl}" target="_blank" rel="noopener"
+                           style="padding:7px 16px;background:var(--wds-primary);color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:0.8rem">Google 로그인</a>
+                        <button onclick="document.getElementById('driveDownloadToast').remove()"
+                           style="padding:7px 14px;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:0.8rem">닫기</button>
+                    </div>`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 10000);
+            }, 2000);
+        }
+
         function openDrivePreview(fileId, type) {
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
@@ -2237,8 +2260,8 @@
                     <div style="width:100%;flex:0 0 56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#111;gap:8px;box-sizing:border-box">
                         <button onclick="document.querySelector('[data-drive-overlay]').remove()"
                             style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:1.1rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
-                        <a href="${dlUrl}" target="_blank" rel="noopener"
-                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.82rem;font-weight:700;text-decoration:none;white-space:nowrap">⬇ 다운로드</a>
+                        <button onclick="driveDownload('${dlUrl}')"
+                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.82rem;font-weight:700;border:none;cursor:pointer;white-space:nowrap">⬇ 다운로드</button>
                     </div>
                     <div id="${iframeId}_loading" style="position:absolute;top:56px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.45);font-size:0.9rem;pointer-events:none">영상 불러오는 중…</div>
                     <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
@@ -2253,8 +2276,8 @@
                     <div style="display:flex;gap:10px;margin-top:14px">
                         <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
                            style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                        <a href="https://drive.google.com/uc?id=${fileId}&export=download&confirm=t" target="_blank" rel="noopener"
-                           style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
+                        <button onclick="driveDownload('https://drive.google.com/uc?id=${fileId}&export=download&confirm=t')"
+                           style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:700;border:none;cursor:pointer">⬇ 다운로드</button>
                     </div>`;
             }
             document.body.appendChild(overlay);
