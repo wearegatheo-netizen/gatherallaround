@@ -2038,16 +2038,38 @@
             } else if (tab === 'admin') {
                 renderGatheOAdmin();
             } else if (tab === 'activity') {
-                renderDriveGallery(DRIVE_ROOT_FOLDER_ID, []);
+                window.__driveStack = [];
+                renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
             }
         }
 
         // ── 활동기록: Google Drive 갤러리 ─────────────────────────────────────
-        async function renderDriveGallery(folderId, breadcrumb) {
+        // 폴더 탐색 스택 (JSON.stringify를 HTML 속성에 쓰면 따옴표 충돌 → 전역 스택으로 관리)
+        window.__driveStack = []; // [{id, name}, ...]  — 현재 위치까지의 경로
+
+        function drivePushFolder(folderId, folderName) {
+            const cur = window.__driveStack.length
+                ? window.__driveStack[window.__driveStack.length - 1]
+                : { id: DRIVE_ROOT_FOLDER_ID, name: '활동기록' };
+            window.__driveStack.push({ id: folderId, name: folderName, parentId: cur.id });
+            renderDriveGallery(folderId);
+        }
+
+        function drivePopTo(idx) {
+            // idx = 브레드크럼 배열 인덱스 (0 = 루트)
+            if (idx === 0) {
+                window.__driveStack = [];
+                renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
+            } else {
+                window.__driveStack = window.__driveStack.slice(0, idx);
+                renderDriveGallery(window.__driveStack[window.__driveStack.length - 1].id);
+            }
+        }
+
+        async function renderDriveGallery(folderId) {
             const root = document.getElementById('driveGalleryRoot');
             if (!root) return;
 
-            // API 키 / 폴더 ID 미설정 안내
             if (!DRIVE_API_KEY || !DRIVE_ROOT_FOLDER_ID) {
                 root.innerHTML = `
                     <div style="padding:32px 16px;text-align:center;color:var(--wds-gray-500)">
@@ -2097,12 +2119,13 @@
             const videos  = media.filter(f => f.mimeType.startsWith('video/') || f.videoMediaMetadata);
             const others  = media.filter(f => !f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/') && !f.videoMediaMetadata);
 
-            // 브레드크럼
-            const bcHtml = [{ id: DRIVE_ROOT_FOLDER_ID, name: '활동기록' }, ...breadcrumb].map((b, i, arr) => {
-                const isLast = i === arr.length - 1;
+            // 브레드크럼 (전역 스택 기반)
+            const bcItems = [{ id: DRIVE_ROOT_FOLDER_ID, name: '활동기록' }, ...window.__driveStack];
+            const bcHtml = bcItems.map((b, i) => {
+                const isLast = i === bcItems.length - 1;
                 return isLast
                     ? `<span style="color:var(--wds-black);font-weight:700">${escapeHtml(b.name)}</span>`
-                    : `<span onclick="renderDriveGallery('${b.id}',${JSON.stringify(arr.slice(1,i))})" style="cursor:pointer;color:var(--wds-primary)">${escapeHtml(b.name)}</span> <span style="color:var(--wds-gray-300)">›</span> `;
+                    : `<span onclick="drivePopTo(${i})" style="cursor:pointer;color:var(--wds-primary)">${escapeHtml(b.name)}</span> <span style="color:var(--wds-gray-300)">›</span> `;
             }).join('');
 
             // 썸네일 URL
@@ -2110,14 +2133,16 @@
                 ? f.thumbnailLink.replace(/=s\d+/, '=s320')
                 : `https://drive.google.com/thumbnail?id=${f.id}&sz=w320`;
 
-            // 폴더 카드
-            const folderCards = folders.map(f => `
-                <div onclick="renderDriveGallery('${f.id}', ${JSON.stringify([...breadcrumb, {id: effectiveFolder, name: breadcrumb.length === 0 ? '활동기록' : breadcrumb[breadcrumb.length-1]?.name || ''}])})"
+            // 폴더 카드 (id와 name만 전달 — JSON 없음)
+            const folderCards = folders.map(f => {
+                const safeName = f.name.replace(/'/g, "\\'");
+                return `<div onclick="drivePushFolder('${f.id}','${safeName}')"
                      style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--wds-gray-100);border-radius:12px;cursor:pointer;transition:background 0.15s"
                      onmouseenter="this.style.background='var(--wds-gray-200)'" onmouseleave="this.style.background='var(--wds-gray-100)'">
                     <span style="font-size:1.6rem">📁</span>
                     <span style="font-weight:600;font-size:0.95rem;color:var(--wds-black)">${escapeHtml(f.name)}</span>
-                </div>`).join('');
+                </div>`;
+            }).join('');
 
             // 이미지/영상 그리드 카드
             const mediaCard = (f, type) => {
