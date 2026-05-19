@@ -7081,7 +7081,7 @@
                         </div>
                         <div onclick="startCommunityTest('band')" style="background:linear-gradient(135deg,#6C5CE7,#2C3E50);border-radius:16px;padding:24px 20px;cursor:pointer;color:#fff;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='scale(1.02)'" onmouseleave="this.style.transform='scale(1)'">
                             <div style="font-size:2.2rem;margin-bottom:8px">🌙🌊🔥⚡🌿</div>
-                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나의 성향이 맞는 밴드는?</div>
+                            <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">나랑 어울리는 밴드는?</div>
                             <div style="font-size:0.82rem;opacity:0.9">국내 인디 밴드 중 나와 가장 닮은 밴드 찾기</div>
                         </div>
                     </div>
@@ -7104,7 +7104,7 @@
             const total = questions.length;
             const q = questions[step];
             const pct = Math.round((step / total) * 100);
-            const title = state.communityTestType === 'inst' ? '나에게 어울리는 악기 세션은?' : '나의 성향이 맞는 밴드는?';
+            const title = state.communityTestType === 'inst' ? '나에게 어울리는 악기 세션은?' : '나랑 어울리는 밴드는?';
 
             el.innerHTML = `
                 <div style="padding-top:8px;padding-bottom:48px;">
@@ -7221,7 +7221,7 @@
             const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
             history.replaceState({}, '', `?ct=${type}&cr=${key}`);
 
-            const title = type === 'inst' ? '나에게 어울리는 악기 세션은?' : '나의 성향이 맞는 밴드는?';
+            const title = type === 'inst' ? '나에게 어울리는 악기 세션은?' : '나랑 어울리는 밴드는?';
             const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
             const cardStyle = type === 'band'
                 ? `${getBandCardStyle(key, result.color)};border-radius:24px;overflow:hidden;text-align:center;margin-bottom:20px;box-shadow:0 14px 40px -12px rgba(0,0,0,0.35);position:relative;`
