@@ -2031,9 +2031,11 @@
                 if (body) body.classList.toggle('hidden', t !== tab);
             });
             if (tab === 'member') {
+                document.getElementById('memberPanelContent')?.classList.remove('hidden');
                 renderMemberPanel();
                 setTimeout(() => document.getElementById('gatheOTabMember')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
             } else if (tab === 'mypage') {
+                document.getElementById('mypagePanelContent')?.classList.remove('hidden');
                 renderMypagePanel();
             } else if (tab === 'admin') {
                 renderGatheOAdmin();
