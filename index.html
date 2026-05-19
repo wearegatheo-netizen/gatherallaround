@@ -976,7 +976,7 @@
 
         /* 탭바 */
         .community-tab-bar { display:flex; gap:0; margin-bottom:12px; border-bottom:2px solid var(--wds-gray-200); }
-        .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-700); cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+        .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-700); cursor:pointer; transition:color 0.15s,border-color 0.15s; white-space:nowrap; }
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); font-weight:700; }
         .community-tab:hover:not(.active) { color:var(--wds-black); }
 
@@ -996,7 +996,9 @@
             #communityContent { padding:0 12px; }
             .community-grid { grid-template-columns:1fr; gap:12px; }
             .community-card { border-radius:10px; }
-            .community-tab { padding:7px 14px; font-size:0.85rem; }
+            .community-tab-bar { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+            .community-tab-bar::-webkit-scrollbar { display:none; }
+            .community-tab { padding:7px 12px; font-size:0.82rem; flex-shrink:0; }
             .community-form-section { padding:14px 12px 12px; border-radius:0; border-left:none; border-right:none; }
             .community-field-row { margin-bottom:10px; }
             .community-detail-header { flex-direction:column; padding:14px; gap:12px; border-radius:0; border-left:none; border-right:none; }
@@ -2190,9 +2192,17 @@
                        style="flex:1;font-size:0.88rem;color:var(--wds-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</a>
                 </div>`).join('');
 
+            const isRoot = window.__driveStack.length === 0;
+            const parentBtn = isRoot ? '' : `
+                <button onclick="drivePopTo(${window.__driveStack.length - 1})"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--wds-gray-100);border:1px solid var(--wds-gray-200);border-radius:8px;font-size:0.85rem;font-weight:600;color:var(--wds-gray-700);cursor:pointer;margin-bottom:14px">
+                    ← 상위 폴더
+                </button>`;
+
             root.innerHTML = `
                 <div style="padding:16px 16px 0">
                     <div style="font-size:0.83rem;margin-bottom:14px">${bcHtml}</div>
+                    ${parentBtn}
                     ${folders.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">${folderCards}</div>` : ''}
                     ${images.length ? `
                         <div style="font-size:0.8rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:10px">사진 (${images.length})</div>
