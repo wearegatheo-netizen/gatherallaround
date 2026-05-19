@@ -2091,7 +2091,7 @@
 
             const effectiveFolder = folderId || DRIVE_ROOT_FOLDER_ID;
             const q = encodeURIComponent(`'${effectiveFolder}' in parents and trashed = false`);
-            const fields = encodeURIComponent('files(id,name,mimeType,thumbnailLink,size,modifiedTime,videoMediaMetadata)');
+            const fields = encodeURIComponent('files(id,name,mimeType,thumbnailLink,size,modifiedTime,videoMediaMetadata,webContentLink)');
             const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${DRIVE_API_KEY}&fields=${fields}&orderBy=folder,name&pageSize=100`;
 
             let files;
@@ -2114,6 +2114,10 @@
                 root.innerHTML = `<div style="padding:24px;text-align:center;color:#e53e3e;line-height:1.7">파일을 불러오지 못했습니다.<br><small>${e.message}</small></div>`;
                 return;
             }
+
+            // 파일 메타데이터 전역 맵 (openDrivePreview에서 방향 감지·다운로드 URL 참조)
+            window.__driveFileMeta = window.__driveFileMeta || {};
+            files.forEach(f => { window.__driveFileMeta[f.id] = f; });
 
             const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
             const media   = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
@@ -2150,10 +2154,8 @@
             const mediaCard = (f, type) => {
                 const thumb = thumbUrl(f);
                 if (type === 'video') {
-                    // 영상: 썸네일 클릭 → Drive 뷰어 새 탭 (iframe embed 한계로 Drive 직접 열기)
-                    const driveViewUrl = `https://drive.google.com/file/d/${f.id}/view`;
-                    return `<a href="${driveViewUrl}" target="_blank" rel="noopener"
-                               style="display:block;background:var(--wds-gray-100);border-radius:12px;overflow:hidden;cursor:pointer;text-decoration:none">
+                    // 영상: 썸네일 클릭 → 인라인 모달 재생 (방향 자동 감지)
+                    return `<div style="background:var(--wds-gray-100);border-radius:12px;overflow:hidden;cursor:pointer" onclick="openDrivePreview('${f.id}','video')">
                         <div style="position:relative;aspect-ratio:16/9;background:#111">
                             <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
                                  style="width:100%;height:100%;object-fit:cover;opacity:0.82"
@@ -2163,7 +2165,7 @@
                             </div>
                         </div>
                         <div style="padding:8px 10px;font-size:0.78rem;font-weight:600;color:var(--wds-black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.name)}</div>
-                    </a>`;
+                    </div>`;
                 } else {
                     // 이미지: 기존 그리드 + 클릭 시 라이트박스
                     return `<div onclick="openDrivePreview('${f.id}','image')"
@@ -2215,9 +2217,34 @@
             overlay.setAttribute('data-drive-overlay', '1');
 
             if (type === 'video') {
-                // 영상: Drive iframe embed는 내부 레이아웃 제어 불가 → Drive 뷰어 직접 열기
-                window.open(`https://drive.google.com/file/d/${fileId}/view`, '_blank', 'noopener');
-                return;
+                // videoMediaMetadata로 방향 감지 → iframe 비율을 영상에 맞춤
+                const meta = (window.__driveFileMeta || {})[fileId] || {};
+                const vm = meta.videoMediaMetadata || {};
+                const isPortrait = vm.width && vm.height && vm.height > vm.width;
+                const dlUrl = meta.webContentLink || `https://drive.google.com/uc?id=${fileId}&export=download&confirm=t`;
+
+                overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center';
+                overlay.onclick = null;
+                const iframeId = 'driveIframe_' + Date.now();
+
+                // portrait: 세로로 길게 (iframe 높이 기준으로 폭 계산)
+                // landscape: 가로로 넓게 (iframe 폭 기준으로 높이 계산)
+                const iframeStyle = isPortrait
+                    ? `width:min(calc((100dvh - 56px) * 9 / 16), 96vw);height:calc(100dvh - 56px);border:none;display:block;flex-shrink:0`
+                    : `width:96vw;max-width:960px;height:min(calc(96vw * 9 / 16), calc(100dvh - 56px));border:none;display:block;flex-shrink:0`;
+
+                overlay.innerHTML = `
+                    <div style="width:100%;flex:0 0 56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#111;gap:8px;box-sizing:border-box">
+                        <button onclick="document.querySelector('[data-drive-overlay]').remove()"
+                            style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:1.1rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+                        <a href="${dlUrl}" target="_blank" rel="noopener"
+                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.82rem;font-weight:700;text-decoration:none;white-space:nowrap">⬇ 다운로드</a>
+                    </div>
+                    <div id="${iframeId}_loading" style="position:absolute;top:56px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.45);font-size:0.9rem;pointer-events:none">영상 불러오는 중…</div>
+                    <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
+                        style="${iframeStyle}"
+                        allow="autoplay; fullscreen" allowfullscreen
+                        onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>`;
             } else {
                 // 이미지: 라이트박스
                 overlay.innerHTML = `${closeBtn}
