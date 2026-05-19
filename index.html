@@ -2210,9 +2210,82 @@
                 </div>`;
         }
 
-        function driveDownload(fileId) {
-            // iOS Safari는 uc?export=download → drive.usercontent.google.com 리다이렉트에서 빈 화면으로 멈춤.
-            // Drive 뷰어 페이지를 열고 안내 시트를 띄우는 것이 가장 확실한 방법.
+        async function driveDownload(fileId) {
+            const meta = (window.__driveFileMeta || {})[fileId] || {};
+            const filename = meta.name || 'download';
+            const size = parseInt(meta.size || '0', 10);
+            const LIMIT = 200 * 1024 * 1024; // 200MB
+
+            // 너무 크면 Drive 뷰어로 폴백
+            if (size > LIMIT) {
+                showDriveFallbackSheet(fileId, `파일이 너무 큽니다 (${(size/1024/1024).toFixed(0)}MB)`);
+                return;
+            }
+
+            // 진행률 토스트
+            const toast = document.createElement('div');
+            toast.id = 'driveDownloadToast';
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:14px 20px;border-radius:12px;font-size:0.85rem;z-index:99999;min-width:260px;max-width:90vw;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+            toast.innerHTML = `
+                <div style="margin-bottom:8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⬇ ${escapeHtml(filename)}</div>
+                <div style="height:6px;background:rgba(255,255,255,0.18);border-radius:3px;overflow:hidden">
+                    <div id="dlBar" style="height:100%;width:0%;background:var(--wds-primary);transition:width 0.2s"></div>
+                </div>
+                <div id="dlPct" style="margin-top:6px;font-size:0.75rem;color:rgba(255,255,255,0.7)">준비 중…</div>`;
+            document.body.appendChild(toast);
+            const bar = document.getElementById('dlBar');
+            const pct = document.getElementById('dlPct');
+
+            try {
+                const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${DRIVE_API_KEY}`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    if (res.status === 403 || res.status === 404) {
+                        toast.remove();
+                        showDriveFallbackSheet(fileId, '파일에 직접 접근할 수 없습니다');
+                        return;
+                    }
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                const total = parseInt(res.headers.get('content-length') || size || '0', 10);
+                const reader = res.body.getReader();
+                const chunks = [];
+                let loaded = 0;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    loaded += value.length;
+                    if (total > 0) {
+                        const p = Math.round(loaded / total * 100);
+                        bar.style.width = p + '%';
+                        pct.textContent = `${p}% · ${(loaded/1024/1024).toFixed(1)}MB / ${(total/1024/1024).toFixed(1)}MB`;
+                    } else {
+                        pct.textContent = `${(loaded/1024/1024).toFixed(1)}MB 받는 중…`;
+                    }
+                }
+
+                pct.textContent = '저장 중…';
+                const blob = new Blob(chunks);
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+
+                bar.style.width = '100%';
+                pct.textContent = '✓ 다운로드 완료';
+                setTimeout(() => toast.remove(), 2500);
+            } catch (e) {
+                toast.remove();
+                showDriveFallbackSheet(fileId, e.message || '다운로드 실패');
+            }
+        }
+
+        function showDriveFallbackSheet(fileId, reason) {
             const viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
             const existing = document.getElementById('driveDownloadSheet');
             if (existing) existing.remove();
@@ -2223,10 +2296,10 @@
             sheet.innerHTML = `
                 <div style="width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:24px 20px 36px;box-sizing:border-box">
                     <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 20px"></div>
-                    <div style="font-weight:700;font-size:1rem;margin-bottom:6px">파일 다운로드</div>
+                    <div style="font-weight:700;font-size:1rem;margin-bottom:6px">⚠️ ${escapeHtml(reason)}</div>
                     <div style="font-size:0.85rem;color:#666;margin-bottom:20px;line-height:1.6">
-                        Google Drive에서 파일을 열고<br>
-                        우상단 <b>⋮ → 다운로드</b> 버튼을 눌러주세요.
+                        Google Drive에서 직접 다운로드해주세요.<br>
+                        뷰어 우상단 <b>⋮ → 다운로드</b>
                     </div>
                     <a href="${viewUrl}" target="_blank" rel="noopener"
                        style="display:block;text-align:center;padding:13px;background:var(--wds-primary);color:#fff;border-radius:12px;font-weight:700;font-size:0.95rem;text-decoration:none;margin-bottom:10px"
@@ -2234,9 +2307,7 @@
                         Google Drive에서 열기 →
                     </a>
                     <button onclick="document.getElementById('driveDownloadSheet').remove()"
-                        style="width:100%;padding:12px;background:#f2f2f2;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer;color:#333">
-                        닫기
-                    </button>
+                        style="width:100%;padding:12px;background:#f2f2f2;border:none;border-radius:12px;font-size:0.9rem;cursor:pointer;color:#333">닫기</button>
                 </div>`;
             document.body.appendChild(sheet);
         }
