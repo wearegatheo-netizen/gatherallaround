@@ -2150,21 +2150,22 @@
                 const driveUrl = `https://drive.google.com/file/d/${f.id}/view`;
                 const dlUrl = `https://drive.google.com/uc?id=${f.id}&export=download`;
                 if (type === 'video') {
-                    // 영상: 썸네일 + 재생/다운로드 버튼 두 개
+                    // 영상: 썸네일 클릭 → 웹 인라인 재생 모달 / 버튼으로 다운로드
                     return `<div style="background:var(--wds-gray-100);border-radius:12px;overflow:hidden;">
-                        <div style="position:relative;aspect-ratio:16/9;background:#000;cursor:pointer;" onclick="window.open('${driveUrl}','_blank')">
+                        <div style="position:relative;aspect-ratio:16/9;background:#111;cursor:pointer;" onclick="openDrivePreview('${f.id}','video')">
                             <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
-                                 style="width:100%;height:100%;object-fit:cover;opacity:0.85"
+                                 style="width:100%;height:100%;object-fit:cover;opacity:0.82;transition:opacity 0.2s"
+                                 onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.82'"
                                  onerror="this.style.display='none'">
                             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-                                <div style="width:52px;height:52px;background:rgba(0,0,0,0.65);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem">▶</div>
+                                <div style="width:56px;height:56px;background:rgba(0,0,0,0.7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.5rem">▶</div>
                             </div>
                         </div>
                         <div style="padding:8px 10px">
                             <div style="font-size:0.78rem;font-weight:600;color:var(--wds-black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:7px">${escapeHtml(f.name)}</div>
                             <div style="display:flex;gap:6px">
-                                <a href="${driveUrl}" target="_blank" rel="noopener"
-                                   style="flex:1;text-align:center;padding:6px 0;background:var(--wds-primary);color:#fff;border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none">▶ 재생</a>
+                                <button onclick="openDrivePreview('${f.id}','video')"
+                                   style="flex:1;text-align:center;padding:6px 0;background:var(--wds-primary);color:#fff;border-radius:7px;font-size:0.75rem;font-weight:700;border:none;cursor:pointer">▶ 웹에서 재생</button>
                                 <a href="${dlUrl}" target="_blank" rel="noopener"
                                    style="flex:1;text-align:center;padding:6px 0;background:var(--wds-gray-200);color:var(--wds-black);border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none">⬇ 다운로드</a>
                             </div>
@@ -2217,20 +2218,40 @@
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-            const closeBtn = `<button onclick="this.closest('div').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.4rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>`;
+            const closeBtn = `<button onclick="this.closest('[data-drive-overlay]').remove()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.18);border:none;color:#fff;font-size:1.3rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1">✕</button>`;
+            overlay.setAttribute('data-drive-overlay', '1');
 
-            const btnRow = `
-                <div style="display:flex;gap:10px;margin-top:14px">
-                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
-                       style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
-                    <a href="https://drive.google.com/uc?id=${fileId}&export=download" target="_blank" rel="noopener"
-                       style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
-                </div>`;
-            overlay.innerHTML = `${closeBtn}
-                <img src="https://drive.google.com/uc?id=${fileId}&export=view"
-                     style="max-width:min(96vw,900px);max-height:75vh;border-radius:10px;object-fit:contain"
-                     onerror="this.src='https://drive.google.com/thumbnail?id=${fileId}&sz=w1200'">
-                ${btnRow}`;
+            if (type === 'video') {
+                // 영상: 최대 크기 iframe + 하단 버튼
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px';
+                const iframeId = 'driveIframe_' + Date.now();
+                overlay.innerHTML = `${closeBtn}
+                    <div style="position:relative;width:min(98vw,900px)">
+                        <div id="${iframeId}_loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.5);font-size:0.9rem;background:#111;border-radius:12px">영상 불러오는 중…</div>
+                        <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
+                            style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px;display:block"
+                            allow="autoplay; fullscreen" allowfullscreen
+                            onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:12px">
+                        <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
+                           style="padding:8px 18px;background:rgba(255,255,255,0.15);color:#fff;border-radius:9px;font-size:0.82rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
+                        <a href="https://drive.google.com/uc?id=${fileId}&export=download" target="_blank" rel="noopener"
+                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:9px;font-size:0.82rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
+                    </div>`;
+            } else {
+                // 이미지: 라이트박스
+                overlay.innerHTML = `${closeBtn}
+                    <img src="https://drive.google.com/uc?id=${fileId}&export=view"
+                         style="max-width:min(96vw,900px);max-height:75vh;border-radius:10px;object-fit:contain"
+                         onerror="this.src='https://drive.google.com/thumbnail?id=${fileId}&sz=w1200'">
+                    <div style="display:flex;gap:10px;margin-top:14px">
+                        <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" rel="noopener"
+                           style="padding:9px 20px;background:rgba(255,255,255,0.15);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">↗ 드라이브에서 열기</a>
+                        <a href="https://drive.google.com/uc?id=${fileId}&export=download" target="_blank" rel="noopener"
+                           style="padding:9px 20px;background:var(--wds-primary);color:#fff;border-radius:10px;font-size:0.85rem;font-weight:600;text-decoration:none">⬇ 다운로드</a>
+                    </div>`;
+            }
             document.body.appendChild(overlay);
         }
 
