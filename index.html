@@ -303,7 +303,7 @@
         }
 
         /* Tabs & Navigation */
-        .tabs { display: flex; border-bottom: 2px solid var(--wds-gray-100); margin-bottom: 24px; gap: 24px; }
+        .tabs { display: flex; border-bottom: 2px solid var(--wds-gray-100); margin-bottom: 24px; gap: 24px; position:sticky; top:44px; z-index:21; background:var(--wds-white); }
         .tab { padding: 12px 4px; font-weight: 600; color: var(--wds-gray-500); cursor: pointer; position: relative; }
         .tab.active { color: var(--wds-primary); }
         .tab.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background-color: var(--wds-primary); }
@@ -975,7 +975,7 @@
         body.dark .community-card-organizer-label { background:var(--wds-gray-200); }
 
         /* 탭바 */
-        .community-tab-bar { display:flex; gap:0; margin-bottom:12px; border-bottom:2px solid var(--wds-gray-200); }
+        .community-tab-bar { display:flex; gap:0; margin-bottom:12px; border-bottom:2px solid var(--wds-gray-200); position:sticky; top:0; z-index:22; background:var(--wds-white); }
         .community-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 22px; font-size:0.95rem; font-weight:600; color:var(--wds-gray-700); cursor:pointer; transition:color 0.15s,border-color 0.15s; white-space:nowrap; }
         .community-tab.active { color:var(--wds-primary); border-bottom-color:var(--wds-primary); font-weight:700; }
         .community-tab:hover:not(.active) { color:var(--wds-black); }
@@ -1581,7 +1581,7 @@
         <div id="notice_container" class="hidden" style="padding:12px 20px 0"></div>
 
         <!-- Tab bar -->
-        <div class="community-tab-bar" id="gatheoTabBar" style="margin:0 16px">
+        <div class="community-tab-bar" id="gatheoTabBar" style="padding:0 16px">
             <button class="community-tab active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">예약</button>
             <button class="community-tab" id="gatheoTab-member" onclick="setGatheOTab('member')">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴</span></button>
             <button class="community-tab" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">마이페이지</button>
