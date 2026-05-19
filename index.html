@@ -2123,6 +2123,8 @@
             const media   = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
             const images  = media.filter(f => f.mimeType.startsWith('image/'));
             const videos  = media.filter(f => f.mimeType.startsWith('video/') || f.videoMediaMetadata);
+            // 현재 폴더 영상 목록 저장 (모달에서 좌우 탐색용)
+            window.__driveCurrentVideos = videos.map(f => f.id);
             const others  = media.filter(f => !f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/') && !f.videoMediaMetadata);
 
             // 브레드크럼 (전역 스택 기반)
@@ -2240,30 +2242,58 @@
             overlay.setAttribute('data-drive-overlay', '1');
 
             if (type === 'video') {
-                const meta = (window.__driveFileMeta || {})[fileId] || {};
-                const dlUrl = meta.webContentLink || `https://drive.google.com/uc?id=${fileId}&export=download&confirm=t`;
+                const videos = window.__driveCurrentVideos || [];
+                let curIdx = videos.indexOf(fileId);
+                if (curIdx === -1) { videos.unshift(fileId); curIdx = 0; }
 
                 overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column';
                 overlay.onclick = null;
-                const iframeId = 'driveIframe_' + Date.now();
 
-                // window.innerHeight로 실제 가용 픽셀 계산 (dvh/vh 단위 브라우저 호환 문제 우회)
                 const hdrH = 52;
                 const iframeH = Math.max(window.innerHeight - hdrH, 200);
                 const iframeW = window.innerWidth;
 
-                overlay.innerHTML = `
-                    <div style="width:100%;height:${hdrH}px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#111;gap:8px;box-sizing:border-box;flex-shrink:0">
-                        <button onclick="document.querySelector('[data-drive-overlay]').remove()"
-                            style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:1.1rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-                        <button onclick="driveDownload('${dlUrl}')"
-                           style="padding:8px 18px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.82rem;font-weight:700;border:none;cursor:pointer;white-space:nowrap">⬇ 다운로드</button>
-                    </div>
-                    <div id="${iframeId}_loading" style="position:absolute;top:${hdrH}px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.45);font-size:0.9rem;pointer-events:none">영상 불러오는 중…</div>
-                    <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fileId}/preview"
-                        style="width:${iframeW}px;height:${iframeH}px;border:none;display:block;flex-shrink:0"
-                        allow="autoplay; fullscreen" allowfullscreen
-                        onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>`;
+                // 영상 로드 함수 (좌우 탐색 시 재사용)
+                const loadVideo = (idx) => {
+                    const fid = videos[idx];
+                    const m = (window.__driveFileMeta || {})[fid] || {};
+                    const dl = m.webContentLink || `https://drive.google.com/uc?id=${fid}&export=download&confirm=t`;
+                    const name = m.name || '';
+                    const iframeId = 'driveIframe_' + Date.now();
+                    const hasPrev = idx > 0;
+                    const hasNext = idx < videos.length - 1;
+                    const counter = videos.length > 1 ? `<span style="color:rgba(255,255,255,0.55);font-size:0.78rem;white-space:nowrap">${idx+1} / ${videos.length}</span>` : '';
+                    overlay.innerHTML = `
+                        <div style="width:100%;height:${hdrH}px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#111;box-sizing:border-box;flex-shrink:0">
+                            <button onclick="document.querySelector('[data-drive-overlay]').remove()"
+                                style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:1.1rem;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+                            <div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:rgba(255,255,255,0.75);min-width:0">${escapeHtml(name)}</div>
+                            ${counter}
+                            <button onclick="driveDownload('${dl}')"
+                               style="padding:6px 14px;background:var(--wds-primary);color:#fff;border-radius:8px;font-size:0.78rem;font-weight:700;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0">⬇</button>
+                        </div>
+                        <div id="${iframeId}_loading" style="position:absolute;top:${hdrH}px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.45);font-size:0.9rem;pointer-events:none">영상 불러오는 중…</div>
+                        <iframe id="${iframeId}" src="https://drive.google.com/file/d/${fid}/preview"
+                            style="width:${iframeW}px;height:${iframeH}px;border:none;display:block;flex-shrink:0"
+                            allow="autoplay; fullscreen" allowfullscreen
+                            onload="document.getElementById('${iframeId}_loading').style.display='none'"></iframe>
+                        ${hasPrev ? `<button onclick="window.__driveNavTo(${idx-1})" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10">‹</button>` : ''}
+                        ${hasNext ? `<button onclick="window.__driveNavTo(${idx+1})" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10">›</button>` : ''}`;
+
+                    // 스와이프 제스처
+                    let tx = 0;
+                    const iframe = document.getElementById(iframeId);
+                    overlay.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+                    overlay.addEventListener('touchend', e => {
+                        const dx = e.changedTouches[0].clientX - tx;
+                        if (Math.abs(dx) < 50) return;
+                        if (dx < 0 && hasNext) window.__driveNavTo(idx + 1);
+                        else if (dx > 0 && hasPrev) window.__driveNavTo(idx - 1);
+                    }, { passive: true });
+                };
+
+                window.__driveNavTo = (idx) => { loadVideo(idx); };
+                loadVideo(curIdx);
             } else {
                 // 이미지: 라이트박스
                 overlay.innerHTML = `${closeBtn}
