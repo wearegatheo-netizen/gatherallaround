@@ -2091,7 +2091,7 @@
 
             const effectiveFolder = folderId || DRIVE_ROOT_FOLDER_ID;
             const q = encodeURIComponent(`'${effectiveFolder}' in parents and trashed = false`);
-            const fields = encodeURIComponent('files(id,name,mimeType,thumbnailLink,size,modifiedTime,videoMediaMetadata,webContentLink)');
+            const fields = encodeURIComponent('files(id,name,mimeType,thumbnailLink,size,modifiedTime,videoMediaMetadata)');
             const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${DRIVE_API_KEY}&fields=${fields}&orderBy=folder,name&pageSize=100`;
 
             let files;
@@ -2257,7 +2257,7 @@
                 const loadVideo = (idx) => {
                     const fid = videos[idx];
                     const m = (window.__driveFileMeta || {})[fid] || {};
-                    const dl = m.webContentLink || `https://drive.google.com/uc?id=${fid}&export=download&confirm=t`;
+                    const dl = `https://drive.google.com/uc?id=${fid}&export=download&confirm=t`;
                     const name = m.name || '';
                     const iframeId = 'driveIframe_' + Date.now();
                     const hasPrev = idx > 0;
