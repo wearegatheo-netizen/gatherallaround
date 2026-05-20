@@ -1128,7 +1128,6 @@
     <div id="auto-toast"></div>
 
     <!-- Portal Selection Page -->
-    <div id="portalLoadingScreen"><div class="portal-loading-text">Gather all around</div></div>
     <div id="portal-page">
         <button type="button" id="themeToggleBtnPortal" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
         <h1>Gather all around</h1>
@@ -2859,6 +2858,24 @@
 
         function initApp() {
             console.log("App 초기화 시작...");
+            // 인증 체크 동안 포털 화면 플래시 방지 — 애니메이션 로딩 오버레이
+            (function() {
+                const text = 'Gather all around';
+                const letters = text.split('').map((c, i) =>
+                    c === ' ' ? `<span class="pll-space"> </span>`
+                              : `<span class="pll" style="animation-delay:${(i*0.055).toFixed(2)}s">${c}</span>`
+                ).join('');
+                const el = document.createElement('div');
+                el.id = 'portalLoadingScreen';
+                el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
+                document.body.appendChild(el);
+                // 최대 600ms — 인증이 더 빠르면 loginUI/logoutUI에서 먼저 제거
+                setTimeout(() => {
+                    if (!el.parentNode) return;
+                    el.classList.add('fade-out');
+                    setTimeout(() => el.remove(), 380);
+                }, 600);
+            })();
             initServiceWorker();
 
             // Supabase 안전한 초기화
