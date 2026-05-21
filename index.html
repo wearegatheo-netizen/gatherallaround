@@ -1778,21 +1778,14 @@
         async function handleLogout() {
             try { localStorage.setItem('gaa_portal_required', '1'); } catch(e) {}
             try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
-            // 이메일 사용자: Supabase 세션 종료
+            // 즉시 UI 전환 (서버 응답 기다리지 않음)
+            logoutUI();
+            alert("로그아웃 되었습니다.");
+            // 백그라운드에서 서버 세션 종료
             if (state.user && state.user.authType === 'email') {
-                await supabaseClient.auth.signOut();
-                logoutUI();
-                alert("로그아웃 되었습니다.");
-                return;
-            }
-            // 카카오 사용자
-            if (typeof Kakao !== 'undefined' && Kakao.Auth.getAccessToken()) {
-                Kakao.Auth.logout(() => {
-                    logoutUI();
-                    alert("로그아웃 되었습니다.");
-                });
-            } else {
-                logoutUI();
+                supabaseClient.auth.signOut().catch(() => {});
+            } else if (typeof Kakao !== 'undefined' && Kakao.Auth.getAccessToken()) {
+                try { Kakao.Auth.logout(() => {}); } catch(e) {}
             }
         }
 
