@@ -151,7 +151,7 @@
         #landing-page p { color: var(--wds-gray-700); margin-bottom: 32px; font-size: 1.05rem; }
 
         /* Portal page */
-        #portal-page {
+        #portal-page, #band-news-page {
             width: 100%;
             max-width: 480px;
             text-align: center;
@@ -774,7 +774,7 @@
             #landing-page { padding: 36px 20px; margin: auto 0; }
             #landing-page h1 { font-size: 1.7rem; font-family: 'KkuBulLim', sans-serif; }
             #landing-page p { font-size: 0.9rem; margin-bottom: 24px; }
-            #portal-page { padding: 36px 20px; margin: auto 0; }
+            #portal-page, #band-news-page { padding: 36px 20px; margin: auto 0; }
             #portal-page h1 { font-size: 1.7rem; }
             #portal-page .portal-sub { font-size: 0.9rem; margin-bottom: 24px; }
             .portal-btn { padding: 14px 16px; font-size: 0.95rem; }
@@ -1151,12 +1151,22 @@
                 <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
             </span>
         </button>
-        <button type="button" class="portal-btn portal-btn-disabled" onclick="showComingSoon()">
+        <button type="button" class="portal-btn portal-btn-primary" onclick="showBandNewsSection()">
             <span class="portal-btn-text">
-                <span class="portal-btn-title">준비 중</span>
-                <span class="portal-btn-desc">곧 오픈 예정입니다</span>
+                <span class="portal-btn-title">어제 하루, 밴드씬에서 생긴 일?!</span>
+                <span class="portal-btn-desc">국내외 밴드씬 이슈를 한 번에 읽어보자</span>
             </span>
         </button>
+    </div>
+
+    <!-- 밴드씬 뉴스 -->
+    <div id="band-news-page" class="hidden">
+        <button type="button" id="themeToggleBtnBandNews" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
+        <button class="portal-back-btn" onclick="showPortal()">← 돌아가기</button>
+        <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.8rem;margin:20px 0 8px">어제 하루, 밴드씬에서 생긴 일?!</h1>
+        <p style="color:var(--wds-gray-700);margin-bottom:24px;font-size:0.95rem">국내외 밴드씬 이슈를 한 번에 읽어보자</p>
+        <div id="band-news-list"></div>
+        <div id="band-news-viewer" class="hidden"></div>
     </div>
 
     <!-- 공지사항 (항상 표시) -->
@@ -1709,6 +1719,7 @@
         const KAKAO_KEY = '9627dd6537f30f1c42b30de51ceea2cf';
         const DRIVE_API_KEY = 'AIzaSyDk7iyY1XU0mepXOOqwY6h5YitbHHg6t40';
         const DRIVE_ROOT_FOLDER_ID = '1owC5gliLIPF124mHr9Ow_2QdvVC0xcQJ';
+        const DRIVE_NEWS_FOLDER_ID = '1Nw3v40dzleo2i3HJyf3WaaFkWWBp1ddO';
         const SUPABASE_URL = 'https://xdcygyvsybsirmaknmpq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
         const ADMIN_ID = '4883868250'; // 관리자 카카오 ID (최경수)
@@ -2923,7 +2934,7 @@
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
-                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen']
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
@@ -5460,8 +5471,80 @@
             document.getElementById('landing-page-band').classList.add('hidden');
             document.getElementById('landing-page-community').classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
+            const bn = document.getElementById('band-news-page');
+            if (bn) bn.classList.add('hidden');
             const ps = document.getElementById('pending-screen');
             if (ps) ps.classList.add('hidden');
+        }
+
+        async function showBandNewsSection() {
+            document.body.classList.add('portal-view');
+            document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('band-news-page').classList.remove('hidden');
+            document.getElementById('band-news-viewer').classList.add('hidden');
+            document.getElementById('band-news-list').classList.remove('hidden');
+            await renderBandNewsList();
+        }
+
+        async function renderBandNewsList() {
+            const listEl = document.getElementById('band-news-list');
+            listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--wds-gray-600)">불러오는 중…</div>`;
+            try {
+                const q = encodeURIComponent(`'${DRIVE_NEWS_FOLDER_ID}' in parents and trashed=false and (mimeType='text/html' or name contains '.html')`);
+                const fields = encodeURIComponent('files(id,name,modifiedTime)');
+                const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${DRIVE_API_KEY}&fields=${fields}&orderBy=modifiedTime desc&pageSize=100`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const files = data.files || [];
+                if (!files.length) {
+                    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--wds-gray-600)">아직 등록된 뉴스가 없습니다.</div>`;
+                    return;
+                }
+                listEl.innerHTML = files.map(f => {
+                    const date = f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString('ko-KR') : '';
+                    const title = f.name.replace(/\.html?$/i, '');
+                    const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    return `<button type="button" class="portal-btn portal-btn-primary" style="margin-bottom:10px" onclick="openBandNewsItem('${f.id}','${safeTitle}')">
+                        <span class="portal-btn-text">
+                            <span class="portal-btn-title">${title}</span>
+                            <span class="portal-btn-desc">${date}</span>
+                        </span>
+                    </button>`;
+                }).join('');
+            } catch (e) {
+                listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--wds-gray-600)">목록을 불러오지 못했습니다.</div>`;
+            }
+        }
+
+        async function openBandNewsItem(fileId, title) {
+            const list = document.getElementById('band-news-list');
+            const viewer = document.getElementById('band-news-viewer');
+            list.classList.add('hidden');
+            viewer.classList.remove('hidden');
+            viewer.innerHTML = `
+                <button class="portal-back-btn" onclick="backToBandNewsList()" style="margin-bottom:12px">← 목록</button>
+                <div style="text-align:center;padding:40px;color:var(--wds-gray-600)">불러오는 중…</div>`;
+            try {
+                const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${DRIVE_API_KEY}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('fetch failed');
+                const html = await res.text();
+                const safeHtml = html.replace(/"/g, '&quot;');
+                viewer.innerHTML = `
+                    <button class="portal-back-btn" onclick="backToBandNewsList()" style="margin-bottom:12px">← 목록</button>
+                    <h2 style="font-family:'KkuBulLim',sans-serif;margin:8px 0 16px">${title}</h2>
+                    <iframe srcdoc="${safeHtml}" style="width:100%;border:none;min-height:70vh;background:var(--wds-white);border-radius:8px" sandbox="allow-same-origin"></iframe>`;
+            } catch (e) {
+                viewer.innerHTML = `
+                    <button class="portal-back-btn" onclick="backToBandNewsList()" style="margin-bottom:12px">← 목록</button>
+                    <h2 style="font-family:'KkuBulLim',sans-serif;margin:8px 0 16px">${title}</h2>
+                    <iframe src="https://drive.google.com/file/d/${fileId}/preview" style="width:100%;border:none;min-height:70vh;border-radius:8px" allowfullscreen></iframe>`;
+            }
+        }
+
+        function backToBandNewsList() {
+            document.getElementById('band-news-viewer').classList.add('hidden');
+            document.getElementById('band-news-list').classList.remove('hidden');
         }
 
         function showPortalLoading() {
