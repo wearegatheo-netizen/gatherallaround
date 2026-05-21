@@ -2952,6 +2952,16 @@
 
             // 공유 링크로 직접 진입 시 — 포털·다른 화면 즉시 숨기고 테스트 목록 페이지로 이동
             const _sp = new URLSearchParams(location.search);
+            const _newsId = _sp.get('news');
+            if (_newsId) {
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen']
+                    .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+                history.replaceState({}, '', location.pathname);
+                showBandNewsSection().then(() => {
+                    openBandNewsItem(_newsId, '');
+                });
+                return;
+            }
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
@@ -5539,6 +5549,17 @@
         }
 
         async function openBandNewsItem(fileId, title) {
+            // 제목 비어있으면 Drive에서 파일명 가져오기
+            if (!title) {
+                try {
+                    const metaUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name&key=${DRIVE_API_KEY}`;
+                    const r = await fetch(metaUrl);
+                    if (r.ok) {
+                        const meta = await r.json();
+                        title = (meta.name || '').replace(/\.html?$/i, '');
+                    }
+                } catch(e) {}
+            }
             // 기존 뷰어 오버레이 제거
             document.getElementById('band-news-fullscreen')?.remove();
             const overlay = document.createElement('div');
@@ -5594,10 +5615,10 @@
         }
 
         async function shareBandNewsItem(fileId, title) {
-            const shareUrl = `https://drive.google.com/file/d/${fileId}/view`;
+            const shareUrl = `${location.origin}${location.pathname}?news=${encodeURIComponent(fileId)}`;
             if (navigator.share) {
                 try {
-                    await navigator.share({ title, url: shareUrl });
+                    await navigator.share({ title: '어제 하루, 밴드씬에서 생긴 일?! - ' + title, url: shareUrl });
                     return;
                 } catch(e) {}
             }
