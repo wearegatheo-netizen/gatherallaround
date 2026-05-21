@@ -5504,9 +5504,10 @@
                     const date = f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString('ko-KR') : '';
                     const title = f.name.replace(/\.html?$/i, '');
                     const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    return `<button type="button" class="portal-btn portal-btn-primary" style="margin-bottom:10px" onclick="openBandNewsItem('${f.id}','${safeTitle}')">
+                    const displayTitle = title.replace(/,\s*/g, ',<br>');
+                    return `<button type="button" class="portal-btn portal-btn-primary" style="margin-bottom:10px;height:auto;min-height:64px" onclick="openBandNewsItem('${f.id}','${safeTitle}')">
                         <span class="portal-btn-text">
-                            <span class="portal-btn-title">${title}</span>
+                            <span class="portal-btn-title" style="white-space:normal;line-height:1.35">${displayTitle}</span>
                             <span class="portal-btn-desc">${date}</span>
                         </span>
                     </button>`;
