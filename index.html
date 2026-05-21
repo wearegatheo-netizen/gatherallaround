@@ -166,10 +166,21 @@
         #band-news-page {
             width: 100%;
             max-width: 480px;
-            padding: 40px 20px 50px;
-            margin: auto 0;
+            padding: 0 20px 50px;
+            margin: 0;
             position: relative;
         }
+        .band-news-header {
+            position: sticky;
+            top: 0;
+            background-color: #fcfcfc;
+            padding: 28px 0 16px;
+            z-index: 10;
+            margin: 0 -20px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        body.dark .band-news-header { background-color: #121212; }
         #portal-page h1 { font-size: 2.2rem; margin-bottom: 10px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
         #portal-page .portal-sub { color: var(--wds-gray-700); margin-bottom: 36px; font-size: 1.05rem; }
         .portal-btn {
@@ -1169,11 +1180,13 @@
 
     <!-- 밴드씬 뉴스 -->
     <div id="band-news-page" class="hidden">
-        <button type="button" id="themeToggleBtnBandNews" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
-        <button class="portal-back-btn" onclick="showPortal()" style="display:block;text-align:left;margin-bottom:16px">← 돌아가기</button>
-        <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.8rem;margin:0 0 8px;line-height:1.4">어제하루,<br>밴드씬에서 생긴 일?!</h1>
-        <p style="color:var(--wds-gray-700);margin-bottom:24px;font-size:0.95rem">국내외 밴드씬 이슈를 한 번에 읽어보자</p>
-        <div id="band-news-list"></div>
+        <div class="band-news-header">
+            <button type="button" id="themeToggleBtnBandNews" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:12px;right:20px">🌙</button>
+            <button class="portal-back-btn" onclick="showPortal()" style="display:block;text-align:left;margin-bottom:12px">← 돌아가기</button>
+            <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.6rem;margin:0 0 6px;line-height:1.35">어제하루,<br>밴드씬에서 생긴 일?!</h1>
+            <p style="color:var(--wds-gray-700);margin:0;font-size:0.9rem">국내외 밴드씬 이슈를 한 번에 읽어보자</p>
+        </div>
+        <div id="band-news-list" style="padding-top:16px"></div>
         <div id="band-news-viewer" class="hidden"></div>
     </div>
 
