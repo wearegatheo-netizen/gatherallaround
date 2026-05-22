@@ -8545,12 +8545,38 @@
 
         async function recordBandPayment(teamId, note) {
             if (!supabaseClient) return;
+            const today = new Date().toISOString().slice(0, 10);
+            const input = prompt('납부일을 입력하세요 (YYYY-MM-DD)', today);
+            if (input === null) return;
+            const dateStr = input.trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { alert('날짜 형식이 올바르지 않습니다. YYYY-MM-DD로 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('band_payments').insert({
                 team_id: teamId,
-                paid_at: new Date().toISOString().slice(0, 10),
+                paid_at: dateStr,
                 note: note || ''
             });
             if (error) { alert('기록 실패: ' + error.message); return; }
+            window.__paymentAlertSent = false;
+            renderBandAdminTab();
+        }
+
+        async function editBandPayment(paymentId, teamId, currentDate) {
+            if (!supabaseClient) return;
+            const input = prompt('납부일을 수정하세요 (YYYY-MM-DD)', currentDate);
+            if (input === null) return;
+            const dateStr = input.trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { alert('날짜 형식이 올바르지 않습니다. YYYY-MM-DD로 입력해주세요.'); return; }
+            const { error } = await supabaseClient.from('band_payments').update({ paid_at: dateStr }).eq('id', paymentId);
+            if (error) { alert('수정 실패: ' + error.message); return; }
+            window.__paymentAlertSent = false;
+            renderBandAdminTab();
+        }
+
+        async function deleteBandPayment(paymentId, teamId) {
+            if (!supabaseClient) return;
+            if (!confirm('이 납부 기록을 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('band_payments').delete().eq('id', paymentId);
+            if (error) { alert('삭제 실패: ' + error.message); return; }
             window.__paymentAlertSent = false;
             renderBandAdminTab();
         }
@@ -8564,13 +8590,13 @@
                 if (wrap.dataset.loaded) return;
                 wrap.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.75rem;padding:6px 0">불러오는 중…</div>';
                 const { data } = await supabaseClient.from('band_payments')
-                    .select('paid_at, note')
+                    .select('id, paid_at, note')
                     .eq('team_id', teamId)
                     .order('paid_at', { ascending: false })
                     .limit(10);
                 const rows = (data || []);
                 wrap.innerHTML = rows.length
-                    ? rows.map(r => `<div style="font-size:0.75rem;color:var(--wds-gray-700);padding:3px 0;border-bottom:1px solid var(--wds-gray-200)">${r.paid_at}${r.note ? ' <span style="color:var(--wds-gray-500)">· '+escHtml(r.note)+'</span>' : ''}</div>`).join('')
+                    ? rows.map(r => `<div style="font-size:0.75rem;color:var(--wds-gray-700);padding:4px 0;border-bottom:1px solid var(--wds-gray-200);display:flex;align-items:center;justify-content:space-between;gap:6px"><span>${r.paid_at}${r.note ? ' <span style="color:var(--wds-gray-500)">· '+escHtml(r.note)+'</span>' : ''}</span><span style="display:flex;gap:4px"><button type="button" onclick="editBandPayment('${r.id}','${teamId}','${r.paid_at}')" style="padding:2px 7px;border-radius:4px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.7rem;font-family:inherit">수정</button><button type="button" onclick="deleteBandPayment('${r.id}','${teamId}')" style="padding:2px 7px;border-radius:4px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-size:0.7rem;font-family:inherit">삭제</button></span></div>`).join('')
                     : '<div style="font-size:0.75rem;color:var(--wds-gray-500)">내역 없음</div>';
                 wrap.dataset.loaded = '1';
             } else {
