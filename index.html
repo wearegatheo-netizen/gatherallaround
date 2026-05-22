@@ -8491,15 +8491,113 @@
             if (state.bandAdminTab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
                 if (!pending.length) { view.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:14px">대기 중인 가입 신청이 없습니다.</div>'; return; }
-                view.innerHTML = pending.map(t => bandAdminTeamCard(t, 'pending')).join('');
+                view.innerHTML = pending.map(t => bandAdminTeamCard(t, 'pending', {})).join('');
             } else {
                 const approved = teams.filter(t => t.status === 'approved');
                 if (!approved.length) { view.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.85rem;text-align:center;padding:14px">승인된 팀이 없습니다.</div>'; return; }
-                view.innerHTML = approved.map(t => bandAdminTeamCard(t, 'approved')).join('');
+                const paymentMap = await fetchBandPayments(approved.map(t => t.id));
+                view.innerHTML = approved.map(t => bandAdminTeamCard(t, 'approved', paymentMap)).join('');
+                if (!window.__paymentAlertSent) {
+                    window.__paymentAlertSent = true;
+                    checkPaymentAlerts(approved, paymentMap);
+                }
             }
         }
 
-        function bandAdminTeamCard(t, kind) {
+        // 납부일 계산 헬퍼
+        function nextPaymentDate(lastPaidAt) {
+            if (!lastPaidAt) return null;
+            const d = new Date(lastPaidAt);
+            d.setDate(d.getDate() + 28);
+            return d;
+        }
+        function paymentStatus(nextDate) {
+            if (!nextDate) return 'unknown';
+            const today = new Date(); today.setHours(0,0,0,0);
+            const diff = Math.round((nextDate - today) / 86400000);
+            if (diff < -7)  return 'overdue';
+            if (diff <= 7)  return 'imminent';
+            return 'normal';
+        }
+        function paymentBadge(nextDate) {
+            const status = paymentStatus(nextDate);
+            if (status === 'unknown') return '<span style="font-size:0.72rem;color:var(--wds-gray-500)">⚪ 이력 없음</span>';
+            const today = new Date(); today.setHours(0,0,0,0);
+            const diff = Math.round((nextDate - today) / 86400000);
+            if (status === 'overdue')  return `<span style="font-size:0.72rem;color:#e74c3c;font-weight:700">🔴 ${-diff}일 초과</span>`;
+            if (status === 'imminent') return diff >= 0
+                ? `<span style="font-size:0.72rem;color:#f39c12;font-weight:700">🟡 ${diff}일 후</span>`
+                : `<span style="font-size:0.72rem;color:#e74c3c;font-weight:700">🔴 ${-diff}일 지남</span>`;
+            return `<span style="font-size:0.72rem;color:#00b894;font-weight:600">🟢 ${diff}일 후</span>`;
+        }
+
+        async function fetchBandPayments(teamIds) {
+            if (!supabaseClient || !teamIds.length) return {};
+            const { data } = await supabaseClient
+                .from('band_payments')
+                .select('team_id, paid_at')
+                .in('team_id', teamIds)
+                .order('paid_at', { ascending: false });
+            const map = {};
+            (data || []).forEach(r => { if (!map[r.team_id]) map[r.team_id] = r.paid_at; });
+            return map;
+        }
+
+        async function recordBandPayment(teamId, note) {
+            if (!supabaseClient) return;
+            const { error } = await supabaseClient.from('band_payments').insert({
+                team_id: teamId,
+                paid_at: new Date().toISOString().slice(0, 10),
+                note: note || ''
+            });
+            if (error) { alert('기록 실패: ' + error.message); return; }
+            window.__paymentAlertSent = false;
+            renderBandAdminTab();
+        }
+
+        async function toggleBandPaymentHistory(teamId, btnEl) {
+            const wrap = document.getElementById('pay-hist-' + teamId);
+            if (!wrap) return;
+            if (wrap.style.display === 'none' || !wrap.style.display) {
+                wrap.style.display = 'block';
+                btnEl.textContent = '납부 내역 ▲';
+                if (wrap.dataset.loaded) return;
+                wrap.innerHTML = '<div style="color:var(--wds-gray-500);font-size:0.75rem;padding:6px 0">불러오는 중…</div>';
+                const { data } = await supabaseClient.from('band_payments')
+                    .select('paid_at, note')
+                    .eq('team_id', teamId)
+                    .order('paid_at', { ascending: false })
+                    .limit(10);
+                const rows = (data || []);
+                wrap.innerHTML = rows.length
+                    ? rows.map(r => `<div style="font-size:0.75rem;color:var(--wds-gray-700);padding:3px 0;border-bottom:1px solid var(--wds-gray-200)">${r.paid_at}${r.note ? ' <span style="color:var(--wds-gray-500)">· '+escHtml(r.note)+'</span>' : ''}</div>`).join('')
+                    : '<div style="font-size:0.75rem;color:var(--wds-gray-500)">내역 없음</div>';
+                wrap.dataset.loaded = '1';
+            } else {
+                wrap.style.display = 'none';
+                btnEl.textContent = '납부 내역 ▼';
+            }
+        }
+
+        function checkPaymentAlerts(teams, paymentMap) {
+            const alerts = teams
+                .map(t => {
+                    const last = paymentMap[t.id];
+                    const next = nextPaymentDate(last);
+                    const status = paymentStatus(next);
+                    const diff = next ? Math.round((next - new Date()) / 86400000) : null;
+                    return { name: t.band_name_kr, status, diff };
+                })
+                .filter(x => x.status === 'overdue' || x.status === 'imminent' || x.status === 'unknown');
+            if (!alerts.length) return;
+            const msg = alerts.map(a => {
+                if (a.status === 'unknown') return `${a.name}: 납부 이력 없음`;
+                return a.diff >= 0 ? `${a.name}: ${a.diff}일 후` : `${a.name}: ${-a.diff}일 지남`;
+            }).join('\n');
+            if (typeof sendAdminPush === 'function') sendAdminPush('💰 월세 납부 알림', msg);
+        }
+
+        function bandAdminTeamCard(t, kind, paymentMap) {
             const days = ['월','화','수','목','금','토','일'];
             const slots = t.timeslots || [];
             const timeslotDisplay = ['주간','야간'].map(time => {
@@ -8511,6 +8609,31 @@
                    <button type="button" onclick="rejectBandProfile('${t.id}')" style="padding:5px 11px;border-radius:var(--wds-radius-s);border:none;background:#e74c3c;color:white;cursor:pointer;font-weight:700;font-size:0.78rem;font-family:inherit">거절</button>`
                 : (t.id === state.bandProfile.id ? '<span style="font-size:0.7rem;color:var(--wds-gray-500)">본인 팀</span>' :
                    `<button type="button" onclick="removeBandProfile('${t.id}')" style="padding:5px 11px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-gray-700);cursor:pointer;font-weight:600;font-size:0.78rem;font-family:inherit">탈퇴 처리</button>`);
+
+            let paymentSection = '';
+            if (kind === 'approved') {
+                const lastPaid = (paymentMap || {})[t.id] || null;
+                const nextDate = nextPaymentDate(lastPaid);
+                const badge = paymentBadge(nextDate);
+                const nextStr = nextDate ? nextDate.toLocaleDateString('ko-KR') : '-';
+                paymentSection = `
+                    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--wds-gray-200)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                            <div>
+                                <span style="font-size:0.72rem;color:var(--wds-gray-500)">💰 다음 납부 예정일</span>
+                                <span style="font-size:0.8rem;font-weight:600;margin-left:6px">${nextStr}</span>
+                                <span style="margin-left:6px">${badge}</span>
+                            </div>
+                            <div style="display:flex;gap:6px">
+                                <button type="button" onclick="recordBandPayment('${t.id}', '')" style="padding:3px 9px;border-radius:var(--wds-radius-s);border:none;background:#00b894;color:white;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:inherit">+ 입금 완료</button>
+                                <button type="button" id="pay-hist-btn-${t.id}" onclick="toggleBandPaymentHistory('${t.id}', this)" style="padding:3px 9px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.72rem;font-family:inherit">납부 내역 ▼</button>
+                            </div>
+                        </div>
+                        ${lastPaid ? `<div style="font-size:0.7rem;color:var(--wds-gray-500);margin-top:2px">마지막 납부: ${lastPaid}</div>` : '<div style="font-size:0.7rem;color:var(--wds-gray-400);margin-top:2px">납부 이력 없음</div>'}
+                        <div id="pay-hist-${t.id}" style="display:none;margin-top:6px"></div>
+                    </div>`;
+            }
+
             return `
                 <div style="padding:10px 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);margin-bottom:8px;background:var(--wds-white)">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
@@ -8521,6 +8644,7 @@
                         </div>
                         <div style="display:flex;gap:6px;flex-shrink:0">${btns}</div>
                     </div>
+                    ${paymentSection}
                 </div>
             `;
         }
