@@ -10016,14 +10016,14 @@
         async function approveReservation(id) {
             const { error } = await supabaseClient.from('reservations').update({ status: 'approved' }).eq('id', id);
             if (error) alert('승인 실패: ' + error.message);
-            else { fetchReservations(); }
+            else { await fetchReservations(); renderGatheOAdmin(); }
         }
 
         async function rejectReservation(id) {
             if (!confirm('이 예약을 거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('reservations').update({ status: 'rejected' }).eq('id', id);
             if (error) alert('거절 실패: ' + error.message);
-            else { fetchReservations(); }
+            else { await fetchReservations(); renderGatheOAdmin(); }
         }
 
         // --- 공지사항 ---
