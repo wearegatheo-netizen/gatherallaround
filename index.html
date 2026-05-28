@@ -5880,6 +5880,12 @@
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('landing-page-band').classList.add('hidden');
+            const lc = document.getElementById('landing-page-community'); if (lc) lc.classList.add('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            const bn = document.getElementById('band-news-page'); if (bn) bn.classList.add('hidden');
+            const ps = document.getElementById('pending-screen'); if (ps) ps.classList.add('hidden');
             document.getElementById('performance-booking-page').classList.remove('hidden');
             const now = new Date();
             _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
