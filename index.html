@@ -1884,10 +1884,19 @@
 
     <!-- Comments -->
     <div id="comments_container" class="hidden">
-        <h2>댓글</h2>
-        <div class="comment-form">
-            <textarea id="commentInput" placeholder="댓글을 입력하세요..."></textarea>
-            <button type="button" class="comment-submit-btn" onclick="postComment()">댓글 등록</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 style="margin:0">📋 자유게시판</h2>
+            <button type="button" id="boardWriteToggleBtn" onclick="toggleBoardWriteForm()" style="padding:7px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:8px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit">✏️ 글쓰기</button>
+        </div>
+        <div id="boardWriteForm" style="display:none;margin-bottom:16px;background:white;border:1px solid var(--wds-gray-300);border-radius:10px;padding:14px">
+            <div class="comment-form" style="margin-bottom:0">
+                <input type="text" id="boardTitleInput" placeholder="제목을 입력하세요" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-family:inherit;outline:none;box-sizing:border-box">
+                <textarea id="commentInput" placeholder="내용을 입력하세요..." style="min-height:80px"></textarea>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button type="button" onclick="toggleBoardWriteForm()" style="padding:8px 16px;border:1px solid var(--wds-gray-300);border-radius:8px;background:none;font-size:0.88rem;cursor:pointer;font-family:inherit">취소</button>
+                    <button type="button" class="comment-submit-btn" onclick="postComment()">등록</button>
+                </div>
+            </div>
         </div>
         <div id="commentList"></div>
     </div>
@@ -2955,6 +2964,7 @@
             paging: {},
             schedules: [],
             scheduleAttendees: {},
+            scheduleGroupAttendees: {},
             scheduleFilter: 'upcoming',
             scheduleEditorDate: new Date().toLocaleDateString('en-CA'),
             scheduleEditorGroups: [],
@@ -3691,16 +3701,21 @@
 
         async function fetchScheduleAttendees(dates) {
             state.scheduleAttendees = {};
-            if (!supabaseClient || !dates || dates.length === 0) return;
-            const { data, error } = await supabaseClient
+            state.scheduleGroupAttendees = {};
+            if (!dates || dates.length === 0) return;
+            const { data } = await supabaseClient
                 .from('schedule_attendees')
-                .select('schedule_date, profile_id')
+                .select('schedule_date, profile_id, group_name')
                 .in('schedule_date', dates);
-            if (error) return;
             (data || []).forEach(r => {
                 const d = r.schedule_date;
                 if (!state.scheduleAttendees[d]) state.scheduleAttendees[d] = [];
-                state.scheduleAttendees[d].push(r.profile_id);
+                if (!r.group_name && !state.scheduleAttendees[d].includes(r.profile_id)) state.scheduleAttendees[d].push(r.profile_id);
+                if (r.group_name) {
+                    if (!state.scheduleGroupAttendees[d]) state.scheduleGroupAttendees[d] = {};
+                    if (!state.scheduleGroupAttendees[d][r.group_name]) state.scheduleGroupAttendees[d][r.group_name] = [];
+                    if (!state.scheduleGroupAttendees[d][r.group_name].includes(r.profile_id)) state.scheduleGroupAttendees[d][r.group_name].push(r.profile_id);
+                }
             });
         }
 
@@ -3725,6 +3740,23 @@
                 }
             }
             renderMemberPanel();
+        };
+
+        window.toggleGroupAttendance = async function(date, groupName) {
+            if (!state.user) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
+            if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            const grpAttendees = ((state.scheduleGroupAttendees || {})[date] || {})[groupName] || [];
+            const isMeIn = grpAttendees.includes(me.id);
+            if (isMeIn) {
+                const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id).eq('group_name', groupName);
+                if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
+                if (!error) { if (!state.scheduleGroupAttendees[date]) state.scheduleGroupAttendees[date] = {}; state.scheduleGroupAttendees[date][groupName] = grpAttendees.filter(id => id !== me.id); renderMemberPanel(); }
+            } else {
+                const { error } = await supabaseClient.from('schedule_attendees').insert({ schedule_date: date, profile_id: me.id, group_name: groupName });
+                if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
+                if (!error) { if (!state.scheduleGroupAttendees[date]) state.scheduleGroupAttendees[date] = {}; if (!state.scheduleGroupAttendees[date][groupName]) state.scheduleGroupAttendees[date][groupName] = []; state.scheduleGroupAttendees[date][groupName].push(me.id); renderMemberPanel(); }
+            }
         };
 
         function schedEditorInit(date) {
@@ -3954,7 +3986,17 @@
                     gMap[gn].push(s);
                 });
                 const groupsHtml = gOrder.map(gn => {
-                    const header = gn ? `<div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin:8px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--wds-gray-100);text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(gn)}</div>` : '';
+                    const grpAttendees = gn ? (((state.scheduleGroupAttendees || {})[date] || {})[gn] || []) : [];
+                    const isMeInGrp = !!(myId && grpAttendees.includes(myId));
+                    const grpAttendeeNames = grpAttendees.map(pid => { const p = memberMap[pid]; return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null; }).filter(Boolean);
+                    const grpAttendBtn = (gn && state.user) ? `<button type="button" onclick="toggleGroupAttendance('${date}','${gn.replace(/'/g,"\\'")}');event.stopPropagation()"
+                        style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeInGrp?'#EF4444':'var(--wds-primary)'};background:${isMeInGrp?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInGrp?'#EF4444':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">
+                        ${isMeInGrp?'✓ 취소':'+ 신청'}</button>` : '';
+                    const grpAttendeePills = grpAttendeeNames.length ? `<span style="font-size:0.66rem;color:var(--wds-primary)">${grpAttendeeNames.map(n=>`<span style="background:var(--wds-primary-light);border-radius:4px;padding:0 5px">${escapeHtml(n)}</span>`).join(' ')}</span>` : '';
+                    const header = gn ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--wds-gray-100)">
+                        <span style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(gn)}</span>
+                        ${grpAttendBtn}${grpAttendeePills}
+                    </div>` : '';
                     const rows = gMap[gn].map(s => {
                         const timeStr = s.start_time + (s.end_time ? ` ~ ${s.end_time}` : '');
                         const members = (s.members||[]).map(m => {
@@ -5123,7 +5165,12 @@
 
             const memberSection = document.createElement('div');
             memberSection.className = 'admin-section';
-            memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 목록</div><div id="memberList"></div>`;
+            memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 목록</div>
+                <div style="margin-bottom:10px">
+                    <input type="text" id="memberSearchInput" placeholder="이름, 세션, 연락처 검색..." oninput="filterAdminMemberList()"
+                        style="width:100%;height:38px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box">
+                </div>
+                <div id="memberList"></div>`;
             container.appendChild(memberSection);
 
             const members = await fetchMembers();
@@ -5239,10 +5286,24 @@
                 </div>`;
             };
 
-            memberList.innerHTML =
-                buildGroup('⏳ 승인 대기', '#f0a050', 'adminMemberPending',  members.filter(m => m.status === 'pending')) +
-                buildGroup('✅ 승인됨',   '#00b894', 'adminMemberApproved', members.filter(m => m.status === 'approved')) +
-                buildGroup('🚫 거절됨',   '#e74c3c', 'adminMemberRejected', members.filter(m => m.status === 'rejected'));
+            const q = (document.getElementById('memberSearchInput') || {}).value || '';
+            const filtered = q.trim() ? members.filter(m => {
+                const s = q.toLowerCase();
+                return (m.name || '').toLowerCase().includes(s)
+                    || (m.phone || '').replace(/-/g,'').includes(s.replace(/-/g,''))
+                    || (m.instruments || '').toLowerCase().includes(s)
+                    || (m.email || '').toLowerCase().includes(s);
+            }) : members;
+            memberList.innerHTML = q.trim()
+                ? (filtered.length ? filtered.map(renderAdminItem).join('') : '<p style="color:var(--wds-gray-500);font-size:0.88rem;padding:12px 0">검색 결과가 없습니다.</p>')
+                : buildGroup('⏳ 승인 대기', '#f0a050', 'adminMemberPending',  members.filter(m => m.status === 'pending')) +
+                  buildGroup('✅ 승인됨',   '#00b894', 'adminMemberApproved', members.filter(m => m.status === 'approved')) +
+                  buildGroup('🚫 거절됨',   '#e74c3c', 'adminMemberRejected', members.filter(m => m.status === 'rejected'));
+        }
+
+        function filterAdminMemberList() {
+            const memberList = document.getElementById('memberList');
+            if (memberList) renderAdminMemberListEl(memberList);
         }
 
         function renderAdminNoticeSection(container) {
@@ -11009,8 +11070,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const groupNames = [...new Set(entries.map(e => e.group_name).filter(Boolean))];
                 const timeRange = entries.length > 0 ? `${entries[0].start_time || ''}${entries[entries.length-1].end_time ? ' ~ ' + entries[entries.length-1].end_time : ''}` : '';
                 const groupsLabel = groupNames.length > 0
-                    ? groupNames.slice(0,3).map(g => escapeHtml(g)).join(' · ') + (groupNames.length > 3 ? ` 외 ${groupNames.length-3}` : '')
-                    : [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,3).map(g => escapeHtml(g)).join(' · ');
+                    ? escapeHtml(groupNames[0]) + (groupNames.length > 1 ? ` 외 ${groupNames.length-1}그룹` : '')
+                    : [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,1).map(g => escapeHtml(g)).join('');
                 return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff;margin-bottom:8px;cursor:pointer" onclick="openScheduleForDate('${date}')">
                     <div style="min-width:0;flex:1">
                         <span style="font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:10px;margin-right:8px">${isToday(date)?'오늘':fmtDate(date)}</span>
@@ -11166,10 +11227,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!error) renderComments(data);
         }
 
+        function toggleBoardWriteForm() {
+            const form = document.getElementById('boardWriteForm');
+            if (form) { const show = form.style.display === 'none'; form.style.display = show ? 'block' : 'none'; }
+        }
+
         function renderComments(comments) {
             const list = document.getElementById('commentList');
             if (!comments || comments.length === 0) {
-                list.innerHTML = '<p class="comment-empty">아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</p>';
+                list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--wds-gray-400);font-size:0.9rem">아직 게시글이 없습니다. 첫 글을 작성해보세요!</div>';
                 return;
             }
             const likedKey = state.user ? 'liked_' + state.user.kakaoId : '';
@@ -11212,15 +11278,30 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     </div>`;
             };
 
-            list.innerHTML = parents.map(p => {
-                let html = renderItem(p, false);
+            // 게시판 형태: 목록 헤더
+            const headerRow = `<div style="display:grid;grid-template-columns:1fr 80px 60px 36px;gap:8px;padding:6px 10px;background:var(--wds-gray-200);border-radius:8px;font-size:0.74rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:6px">
+                <span>내용</span><span style="text-align:center">작성자</span><span style="text-align:center">날짜</span><span style="text-align:center">❤️</span>
+            </div>`;
+            const rows = parents.map(p => {
                 const replies = replyMap[p.id] || [];
-                if (replies.length > 0) {
-                    html += `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div>`;
-                    html += `<div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>`;
-                }
-                return html;
+                const preview = p.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,' ');
+                const shortDate = new Date(p.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
+                const isMine = state.user && state.user.kakaoId === p.kakao_id;
+                const canDel = state.user && (isMine || isSuper());
+                return `<div style="border-bottom:1px solid var(--wds-gray-100)">
+                    <div style="display:grid;grid-template-columns:1fr 80px 60px 36px;gap:8px;padding:8px 10px;cursor:pointer;border-radius:6px" onclick="toggleBoardPost('${p.id}')">
+                        <span style="font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${preview.slice(0,60)}${preview.length>60?'…':''} ${replies.length>0?`<span style="font-size:0.72rem;color:var(--wds-primary);font-weight:700">[${replies.length}]</span>`:''}</span>
+                        <span style="font-size:0.78rem;color:var(--wds-gray-500);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.user_name)}</span>
+                        <span style="font-size:0.78rem;color:var(--wds-gray-400);text-align:center">${shortDate}</span>
+                        <span style="font-size:0.78rem;color:var(--wds-gray-500);text-align:center">${p.likes||0}</span>
+                    </div>
+                    <div id="board-post-${p.id}" class="hidden" style="padding:10px 14px 12px;background:var(--wds-gray-50,#fafafa);border-radius:0 0 8px 8px">
+                        ${renderItem(p, false)}
+                        ${replies.length > 0 ? `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div><div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>` : ''}
+                    </div>
+                </div>`;
             }).join('');
+            list.innerHTML = headerRow + rows;
         }
 
         function toggleReplyForm(parentId) {
@@ -11236,6 +11317,11 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             repliesEl.classList.toggle('hidden');
             const count = repliesEl.querySelectorAll('.comment-reply').length;
             toggleEl.textContent = willHide ? `▼ 답글 ${count}개 보기` : `▲ 답글 ${count}개 숨기기`;
+        }
+
+        function toggleBoardPost(id) {
+            const el = document.getElementById('board-post-' + id);
+            if (el) el.classList.toggle('hidden');
         }
 
         async function postReply(parentId) {
@@ -11257,8 +11343,10 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         async function postComment() {
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const input = document.getElementById('commentInput');
-            const content = input.value.trim();
-            if (!content) { alert('댓글 내용을 입력해주세요.'); return; }
+            const rawContent = input.value.trim();
+            const titleVal = (document.getElementById('boardTitleInput') || {}).value?.trim() || '';
+            const content = titleVal ? `\x1F${titleVal}\x1F\n${rawContent}` : rawContent;
+            if (!rawContent) { alert('내용을 입력해주세요.'); return; }
 
             const { error } = await supabaseClient
                 .from('comments')
@@ -11268,6 +11356,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 alert('댓글 등록 실패: ' + error.message);
             } else {
                 input.value = '';
+                const ti = document.getElementById('boardTitleInput'); if (ti) ti.value = '';
+                const wf = document.getElementById('boardWriteForm'); if (wf) wf.style.display = 'none';
                 fetchComments();
             }
         }
