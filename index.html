@@ -181,6 +181,81 @@
             padding-right: 20px;
         }
         body.dark .band-news-header { background-color: #121212; }
+        /* 공연 대관 페이지 */
+        #performance-booking-page {
+            width: 100%; max-width: 480px;
+            padding: 0 20px 60px; margin: 0; position: relative;
+        }
+        .perf-header {
+            position: sticky; top: 0;
+            background-color: #fcfcfc; padding: 28px 0 16px;
+            z-index: 10; margin: 0 -20px; padding-left: 20px; padding-right: 20px;
+        }
+        body.dark .perf-header { background-color: #121212; }
+        .perf-section { margin-bottom: 24px; }
+        .perf-section-title { font-size: 0.88rem; font-weight: 700; color: var(--wds-gray-700); margin-bottom: 10px; }
+        .perf-photo-gallery { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 4px; }
+        .perf-photo-gallery img { height: 140px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+        .perf-desc-text { font-size: 0.88rem; color: var(--wds-gray-700); line-height: 1.6; white-space: pre-wrap; }
+        .perf-desc-text[contenteditable="true"] { border: 1px dashed var(--wds-primary); padding: 8px; border-radius: 8px; outline: none; }
+        .perf-price-table { font-size: 0.83rem; background: var(--wds-gray-100); border-radius: 10px; padding: 12px 14px; line-height: 1.8; color: var(--wds-gray-700); }
+        /* 달력 */
+        .perf-cal-toggle { display: flex; gap: 0; border: 1px solid var(--wds-gray-300); border-radius: 8px; overflow: hidden; margin-bottom: 12px; width: fit-content; }
+        .perf-cal-toggle button { padding: 6px 16px; border: none; background: none; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--wds-gray-500); font-family: inherit; transition: background 0.1s, color 0.1s; }
+        .perf-cal-toggle button.active { background: var(--wds-primary); color: #fff; }
+        .perf-week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .perf-week-nav button { background: none; border: 1px solid var(--wds-gray-300); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+        .perf-week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+        .perf-day-cell { text-align: center; padding: 8px 2px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; border: 1px solid transparent; transition: all 0.1s; }
+        .perf-day-cell .day-name { font-size: 0.68rem; color: var(--wds-gray-500); margin-bottom: 2px; }
+        .perf-day-cell .day-num { font-weight: 700; font-size: 0.88rem; }
+        .perf-day-cell:hover:not(.disabled):not(.selected) { border-color: var(--wds-primary); background: var(--wds-primary-light); }
+        .perf-day-cell.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
+        .perf-day-cell.selected .day-name { color: rgba(255,255,255,0.8); }
+        .perf-day-cell.disabled { opacity: 0.35; cursor: not-allowed; }
+        .perf-day-cell.today .day-num { color: var(--wds-primary); }
+        .perf-day-cell.selected.today .day-num { color: #fff; }
+        /* 월간 달력 */
+        .perf-month-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .perf-month-header button { background: none; border: 1px solid var(--wds-gray-300); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+        .perf-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .perf-month-day-name { text-align: center; font-size: 0.68rem; color: var(--wds-gray-500); padding: 4px 0 6px; font-weight: 600; }
+        .perf-month-cell { text-align: center; padding: 6px 2px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; border: 1px solid transparent; transition: all 0.1s; }
+        .perf-month-cell:hover:not(.disabled):not(.selected):not(.empty) { border-color: var(--wds-primary); background: var(--wds-primary-light); }
+        .perf-month-cell.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
+        .perf-month-cell.today { color: var(--wds-primary); }
+        .perf-month-cell.selected.today { color: #fff; }
+        .perf-month-cell.disabled { opacity: 0.3; cursor: not-allowed; }
+        .perf-month-cell.empty { cursor: default; }
+        /* 시간 슬롯 */
+        .perf-time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .perf-time-slot { padding: 8px 4px; text-align: center; border: 1px solid var(--wds-gray-300); border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.12s; }
+        .perf-time-slot:hover:not(.unavailable):not(.selected) { border-color: var(--wds-primary); background: var(--wds-primary-light); }
+        .perf-time-slot.unavailable { background: var(--wds-gray-200); color: var(--wds-gray-500); cursor: not-allowed; font-size: 0.72rem; }
+        .perf-time-slot.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
+        .perf-time-slot.in-range { background: var(--wds-primary-light); border-color: var(--wds-primary); color: var(--wds-primary); }
+        .perf-time-slot.end-disabled { opacity: 0.4; cursor: not-allowed; }
+        .perf-fee-summary { background: var(--wds-primary-light); border: 1px solid var(--wds-primary); border-radius: 10px; padding: 12px 14px; margin-top: 10px; font-size: 0.88rem; color: var(--wds-gray-800); }
+        .perf-fee-summary strong { color: var(--wds-primary); font-size: 1.05rem; }
+        /* 신청폼 */
+        .perf-form-group { margin-bottom: 16px; }
+        .perf-form-label { font-size: 0.83rem; font-weight: 700; color: var(--wds-gray-700); margin-bottom: 6px; display: block; }
+        .perf-form-input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-size: 0.9rem; font-family: inherit; outline: none; box-sizing: border-box; background: var(--wds-white); color: var(--wds-black); }
+        .perf-form-input:focus { border-color: var(--wds-primary); }
+        .perf-how-found-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+        .perf-hf-chip { padding: 6px 12px; border: 1px solid var(--wds-gray-300); border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.1s; font-family: inherit; background: var(--wds-white); color: var(--wds-black); }
+        .perf-hf-chip.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
+        .perf-summary-box { background: var(--wds-gray-100); border-radius: 10px; padding: 12px 14px; font-size: 0.84rem; line-height: 1.7; margin-bottom: 16px; color: var(--wds-gray-700); }
+        /* 관리자 대관 카드 */
+        .perf-admin-card { border: 1px solid var(--wds-gray-300); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .perf-admin-card.pending { border-color: #e07b00; background: #fff8f0; }
+        body.dark .perf-admin-card.pending { background: #2a1800; }
+        .perf-admin-card-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+        .perf-admin-card-info { font-size: 0.8rem; color: var(--wds-gray-600); line-height: 1.7; }
+        .perf-approval-msg { background: var(--wds-gray-100); border-radius: 8px; padding: 12px; font-size: 0.78rem; white-space: pre-wrap; line-height: 1.6; color: var(--wds-gray-800); margin-top: 10px; max-height: 200px; overflow-y: auto; }
+        @media (max-width: 540px) {
+            #performance-booking-page { padding: 0 14px 60px; }
+        }
         #portal-page h1 { font-size: 2.2rem; margin-bottom: 10px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
         #portal-page .portal-sub { color: var(--wds-gray-700); margin-bottom: 36px; font-size: 1.05rem; }
         .portal-btn {
@@ -1176,6 +1251,12 @@
                 <span class="portal-btn-desc">국내외 밴드씬 이슈를 한 번에 읽어보자</span>
             </span>
         </button>
+        <button type="button" class="portal-btn portal-btn-primary" onclick="showPerformanceBookingSection()">
+            <span class="portal-btn-text">
+                <span class="portal-btn-title">공연 대관</span>
+                <span class="portal-btn-desc">소규모 공연을 위한 예약 페이지</span>
+            </span>
+        </button>
     </div>
 
     <!-- 밴드씬 뉴스 -->
@@ -1188,6 +1269,17 @@
         </div>
         <div id="band-news-list" style="padding-top:16px"></div>
         <div id="band-news-viewer" class="hidden"></div>
+    </div>
+
+    <!-- 공연 대관 예약 페이지 -->
+    <div id="performance-booking-page" class="hidden">
+        <div class="perf-header">
+            <button type="button" id="themeToggleBtnPerf" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:12px;right:20px">🌙</button>
+            <button class="portal-back-btn" onclick="showPortal()" style="display:block;text-align:left;margin-bottom:10px">← 돌아가기</button>
+            <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.5rem;margin:0 0 4px">공연 대관</h1>
+            <p style="color:var(--wds-gray-700);margin:0;font-size:0.88rem">소규모 공연을 위한 공간 예약</p>
+        </div>
+        <div id="perf-step-container" style="padding-top:16px"></div>
     </div>
 
     <!-- 공지사항 (항상 표시) -->
@@ -2965,7 +3057,7 @@
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
-                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page']
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page','performance-booking-page']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
@@ -4287,7 +4379,7 @@
                 ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
                 ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
-                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }] : [])
+                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }, { key: 'perfbooking', label: '🎭 공연대관' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -4317,6 +4409,8 @@
                 await renderAdminPushSection(content);
             } else if (state.adminTab === 'docs') {
                 renderAdminDocsSection(content);
+            } else if (state.adminTab === 'perfbooking') {
+                await renderPerfAdminTab(content);
             } else {
                 renderAdminNoticeSection(content);
             }
@@ -5504,9 +5598,477 @@
             document.getElementById('main-content').classList.add('hidden');
             const bn = document.getElementById('band-news-page');
             if (bn) bn.classList.add('hidden');
+            const pb = document.getElementById('performance-booking-page');
+            if (pb) pb.classList.add('hidden');
             const ps = document.getElementById('pending-screen');
             if (ps) ps.classList.add('hidden');
         }
+
+        // ===== 공연 대관 예약 =====
+        const PERF_SPACE_PHOTOS = [
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio1.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio2.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio3.jpg',
+        ];
+        const PERF_SPACE_DESC_DEFAULT = `서울시 서대문구 연세로5나길 33 지하 1층에 위치한 게더 올 어라운드 스튜디오입니다.\n\n소규모 공연, 행사, 촬영 등 다양한 용도로 대관 가능합니다.\n드럼, 기타 앰프, PA 시스템, 빔 프로젝터 등 기본 장비가 구비되어 있습니다.`;
+        const PERF_HOW_FOUND_OPTS = ['인스타그램', '유튜브', '지인 추천', '네이버/구글 검색', '직접 방문'];
+
+        let _perfState = {
+            calView: 'week',   // 'week' | 'month'
+            weekOffset: 0,     // 주간 뷰: 오늘 기준 +N주
+            monthYear: null,   // 월간 뷰: { y, m }
+            selectedDate: null,
+            conflicts: [],     // { start_time, end_time }[]
+            startSlot: null,   // index in TIMES
+            endSlot: null,     // index in TIMES (inclusive last slot selected)
+            headcount: 5,
+            step: 1,
+            howFound: '',
+            howFoundOther: '',
+        };
+
+        function showPerformanceBookingSection() {
+            document.body.classList.add('portal-view');
+            document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('performance-booking-page').classList.remove('hidden');
+            _perfState = { calView: 'week', weekOffset: 0, monthYear: null, selectedDate: null, conflicts: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
+            const now = new Date();
+            _perfState.monthYear = { y: now.getFullYear(), m: now.getMonth() };
+            renderPerfStep1();
+        }
+
+        function renderPerfStep1() {
+            const container = document.getElementById('perf-step-container');
+            const savedDesc = localStorage.getItem('perf_space_desc') || PERF_SPACE_DESC_DEFAULT;
+            const canEdit = canApproveRes && canApproveRes();
+            const photos = PERF_SPACE_PHOTOS.map(u => `<img src="${u}" alt="공간 사진" onerror="this.style.display='none'">`).join('');
+            container.innerHTML = `
+                <div class="perf-section">
+                    <div class="perf-photo-gallery">${photos}</div>
+                    <div class="perf-desc-text" id="perfDescText" contenteditable="${canEdit}" spellcheck="false"
+                        style="margin-top:10px">${escapeHtml(savedDesc)}</div>
+                    ${canEdit ? `<button onclick="savePerfDesc()" style="margin-top:6px;padding:4px 12px;border-radius:6px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.78rem;font-family:inherit">저장</button>` : ''}
+                </div>
+                <div class="perf-section">
+                    <div class="perf-section-title">요금 안내</div>
+                    <div class="perf-price-table">
+                        📅 평일 (월~금): 25,000원 / 시간 (5인 기준)<br>
+                        📅 주말 (토·일): 40,000원 / 시간 (5인 기준)<br>
+                        👥 5인 초과 시: 1인당 +5,000원 추가<br>
+                        ⏱️ 최소 예약 3시간
+                    </div>
+                </div>
+                <div class="perf-section">
+                    <div class="perf-section-title">날짜 선택</div>
+                    <div class="perf-cal-toggle">
+                        <button id="perfCalWeekBtn" class="${_perfState.calView==='week'?'active':''}" onclick="setPerfCalView('week')">주간</button>
+                        <button id="perfCalMonthBtn" class="${_perfState.calView==='month'?'active':''}" onclick="setPerfCalView('month')">월간</button>
+                    </div>
+                    <div id="perfCalContainer"></div>
+                </div>
+                <div class="perf-section" id="perfTimeSection" style="display:${_perfState.selectedDate?'block':'none'}">
+                    <div class="perf-section-title">시간 선택 <span style="font-weight:400;color:var(--wds-gray-500);font-size:0.78rem">(최소 3시간, 시작→종료 순으로 선택)</span></div>
+                    <div class="perf-time-grid" id="perfTimeGrid"></div>
+                </div>
+                <div class="perf-section" id="perfHeadcountSection" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
+                    <div class="perf-section-title">인원수</div>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <input type="number" id="perfHeadcount" min="1" max="50" value="${_perfState.headcount}"
+                            oninput="_perfState.headcount=Math.max(1,parseInt(this.value)||1);renderPerfFee()"
+                            style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.95rem;font-family:inherit;outline:none">
+                        <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
+                    </div>
+                    <div id="perfFeeSummary"></div>
+                </div>
+                <div id="perfStep1Next" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
+                    <button onclick="goPerfStep2()" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">예약 신청하기 →</button>
+                </div>`;
+            renderPerfCal();
+            if (_perfState.selectedDate) renderPerfTimeGrid();
+            if (_perfState.startSlot !== null && _perfState.endSlot !== null) renderPerfFee();
+        }
+
+        function savePerfDesc() {
+            const el = document.getElementById('perfDescText');
+            if (el) localStorage.setItem('perf_space_desc', el.innerText);
+            alert('저장되었습니다.');
+        }
+
+        function setPerfCalView(view) {
+            _perfState.calView = view;
+            document.querySelectorAll('.perf-cal-toggle button').forEach(b => b.classList.remove('active'));
+            document.getElementById(view === 'week' ? 'perfCalWeekBtn' : 'perfCalMonthBtn').classList.add('active');
+            renderPerfCal();
+        }
+
+        function renderPerfCal() {
+            const container = document.getElementById('perfCalContainer');
+            if (!container) return;
+            if (_perfState.calView === 'week') renderPerfWeekCal(container);
+            else renderPerfMonthCal(container);
+        }
+
+        function renderPerfWeekCal(container) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() + _perfState.weekOffset * 7);
+            const dayNames = ['일','월','화','수','목','금','토'];
+            let html = `<div class="perf-week-nav">
+                <button onclick="_perfState.weekOffset--;renderPerfCal()">◀</button>
+                <span style="font-size:0.85rem;font-weight:600;color:var(--wds-gray-700)">${weekStart.getFullYear()}.${String(weekStart.getMonth()+1).padStart(2,'0')}</span>
+                <button onclick="_perfState.weekOffset++;renderPerfCal()">▶</button>
+            </div><div class="perf-week-days">`;
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+                const isPast = d < today;
+                const dateStr = d.toLocaleDateString('en-CA');
+                const isSelected = _perfState.selectedDate === dateStr;
+                const isToday = d.getTime() === today.getTime();
+                html += `<div class="perf-day-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}"
+                    onclick="${isPast?'':'selectPerfDate(\''+dateStr+'\')'}" style="cursor:${isPast?'not-allowed':'pointer'}">
+                    <div class="day-name">${dayNames[d.getDay()]}</div>
+                    <div class="day-num">${d.getDate()}</div>
+                </div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderPerfMonthCal(container) {
+            const { y, m } = _perfState.monthYear;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const dayNames = ['일','월','화','수','목','금','토'];
+            const firstDay = new Date(y, m, 1).getDay();
+            const daysInMonth = new Date(y, m+1, 0).getDate();
+            const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+            let html = `<div class="perf-month-header">
+                <button onclick="prevPerfMonth()">◀</button>
+                <span style="font-weight:700;font-size:0.9rem">${y}년 ${monthNames[m]}</span>
+                <button onclick="nextPerfMonth()">▶</button>
+            </div><div class="perf-month-grid">`;
+            dayNames.forEach(n => { html += `<div class="perf-month-day-name">${n}</div>`; });
+            for (let i = 0; i < firstDay; i++) html += `<div class="perf-month-cell empty"></div>`;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(y, m, d);
+                const dateStr = date.toLocaleDateString('en-CA');
+                const isPast = date < today;
+                const isSelected = _perfState.selectedDate === dateStr;
+                const isToday = date.getTime() === today.getTime();
+                html += `<div class="perf-month-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}"
+                    onclick="${isPast?'':'selectPerfDate(\''+dateStr+'\')'}">${d}</div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function prevPerfMonth() {
+            let { y, m } = _perfState.monthYear;
+            m--; if (m < 0) { m = 11; y--; }
+            _perfState.monthYear = { y, m }; renderPerfCal();
+        }
+        function nextPerfMonth() {
+            let { y, m } = _perfState.monthYear;
+            m++; if (m > 11) { m = 0; y++; }
+            _perfState.monthYear = { y, m }; renderPerfCal();
+        }
+
+        async function selectPerfDate(dateStr) {
+            _perfState.selectedDate = dateStr;
+            _perfState.startSlot = null;
+            _perfState.endSlot = null;
+            renderPerfCal();
+            document.getElementById('perfTimeSection').style.display = 'block';
+            document.getElementById('perfHeadcountSection').style.display = 'none';
+            document.getElementById('perfStep1Next').style.display = 'none';
+            document.getElementById('perfTimeGrid').innerHTML = '<div style="text-align:center;padding:16px;color:var(--wds-gray-500);font-size:0.83rem">불러오는 중…</div>';
+            _perfState.conflicts = await getPerformanceConflicts(dateStr);
+            renderPerfTimeGrid();
+        }
+
+        async function getPerformanceConflicts(date) {
+            const [resResult, pbResult] = await Promise.all([
+                supabaseClient.from('reservations').select('start_time,end_time').eq('res_date', date).neq('status','rejected'),
+                supabaseClient.from('performance_bookings').select('start_time,end_time').eq('date', date).neq('status','rejected')
+            ]);
+            return [...(resResult.data||[]), ...(pbResult.data||[])];
+        }
+
+        function isTimeConflicted(timeIndex) {
+            const t = TIMES[timeIndex];
+            for (const c of _perfState.conflicts) {
+                const cStart = TIMES.indexOf(c.start_time);
+                const cEnd = TIMES.indexOf(c.end_time);
+                if (timeIndex >= cStart && timeIndex <= cEnd) return true;
+            }
+            return false;
+        }
+
+        function renderPerfTimeGrid() {
+            const grid = document.getElementById('perfTimeGrid');
+            if (!grid) return;
+            const { startSlot, endSlot } = _perfState;
+            grid.innerHTML = TIMES.map((t, i) => {
+                const conflicted = isTimeConflicted(i);
+                if (conflicted) return `<div class="perf-time-slot unavailable">예약불가</div>`;
+                let cls = 'perf-time-slot';
+                if (startSlot !== null && endSlot !== null) {
+                    if (i === startSlot || i === endSlot) cls += ' selected';
+                    else if (i > startSlot && i < endSlot) cls += ' in-range';
+                } else if (startSlot !== null && i === startSlot) {
+                    cls += ' selected';
+                }
+                // end slot: must be startSlot+3 or more; disable if less
+                if (startSlot !== null && endSlot === null && i !== startSlot) {
+                    if (i < startSlot + 3) cls += ' end-disabled';
+                }
+                return `<div class="${cls}" onclick="selectPerfTimeSlot(${i})">${t}</div>`;
+            }).join('');
+        }
+
+        function selectPerfTimeSlot(i) {
+            if (isTimeConflicted(i)) return;
+            const { startSlot } = _perfState;
+            if (startSlot === null) {
+                _perfState.startSlot = i;
+                _perfState.endSlot = null;
+                renderPerfTimeGrid();
+                return;
+            }
+            if (i === startSlot) {
+                _perfState.startSlot = null; _perfState.endSlot = null;
+                renderPerfTimeGrid(); return;
+            }
+            // selecting end
+            if (i < startSlot + 3) return; // min 3h
+            // check no conflict in range
+            for (let j = startSlot; j <= i; j++) {
+                if (isTimeConflicted(j)) { alert('선택한 시간 범위 내에 예약불가 슬롯이 있습니다.'); return; }
+            }
+            _perfState.endSlot = i;
+            renderPerfTimeGrid();
+            document.getElementById('perfHeadcountSection').style.display = 'block';
+            document.getElementById('perfStep1Next').style.display = 'block';
+            renderPerfFee();
+        }
+
+        function calcPerformanceFee(dateStr, startIdx, endIdx, headcount) {
+            if (startIdx === null || endIdx === null) return 0;
+            const dow = new Date(dateStr).getDay();
+            const isWeekend = dow === 0 || dow === 6;
+            const baseRate = isWeekend ? 40000 : 25000;
+            const extra = headcount > 5 ? (headcount - 5) * 5000 : 0;
+            const hours = endIdx - startIdx + 1;
+            return hours * (baseRate + extra);
+        }
+
+        function renderPerfFee() {
+            const el = document.getElementById('perfFeeSummary');
+            if (!el) return;
+            const { selectedDate, startSlot, endSlot, headcount } = _perfState;
+            if (startSlot === null || endSlot === null) { el.innerHTML = ''; return; }
+            const fee = calcPerformanceFee(selectedDate, startSlot, endSlot, headcount);
+            const hours = endSlot - startSlot + 1;
+            const endDisplay = TIMES[endSlot + 1] || '23:00';
+            el.innerHTML = `<div class="perf-fee-summary">
+                ${selectedDate} ${TIMES[startSlot]} ~ ${endDisplay} (${hours}시간) · ${headcount}명<br>
+                예상 금액: <strong>${fee.toLocaleString()}원</strong>
+            </div>`;
+        }
+
+        function goPerfStep2() {
+            if (_perfState.startSlot === null || _perfState.endSlot === null) return;
+            renderPerfStep2();
+        }
+
+        function renderPerfStep2() {
+            const container = document.getElementById('perf-step-container');
+            const { selectedDate, startSlot, endSlot, headcount } = _perfState;
+            const fee = calcPerformanceFee(selectedDate, startSlot, endSlot, headcount);
+            const hours = endSlot - startSlot + 1;
+            const endDisplay = TIMES[endSlot + 1] || '23:00';
+            const chips = [...PERF_HOW_FOUND_OPTS].map(o =>
+                `<button type="button" class="perf-hf-chip${_perfState.howFound===o?' selected':''}" onclick="selectPerfHowFound('${o}')">${o}</button>`
+            ).join('') + `<button type="button" class="perf-hf-chip${_perfState.howFound==='기타'?' selected':''}" onclick="selectPerfHowFound('기타')">기타</button>`;
+            container.innerHTML = `
+                <div class="perf-summary-box">
+                    📅 ${selectedDate} ${TIMES[startSlot]} ~ ${endDisplay} (${hours}시간)<br>
+                    👥 ${headcount}명 · 예상 금액 <strong>${fee.toLocaleString()}원</strong>
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">이름 *</label>
+                    <input type="text" class="perf-form-input" id="perfName" placeholder="실명 입력">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">연락처 *</label>
+                    <input type="tel" class="perf-form-input" id="perfPhone" placeholder="010-0000-0000">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">사용 목적 *</label>
+                    <input type="text" class="perf-form-input" id="perfPurpose" placeholder="예: 밴드 공연, 행사, 촬영 등">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">공간을 알게 된 경로 *</label>
+                    <div class="perf-how-found-opts" id="perfHowFoundChips">${chips}</div>
+                    <input type="text" class="perf-form-input" id="perfHowFoundOther" placeholder="직접 입력"
+                        style="margin-top:8px;display:${_perfState.howFound==='기타'?'block':'none'}" value="${_perfState.howFoundOther||''}">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">← 돌아가기</button>
+                    <button onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
+                </div>`;
+        }
+
+        function selectPerfHowFound(opt) {
+            _perfState.howFound = opt;
+            document.querySelectorAll('.perf-hf-chip').forEach(b => {
+                b.classList.toggle('selected', b.textContent === opt);
+            });
+            const otherInput = document.getElementById('perfHowFoundOther');
+            if (otherInput) otherInput.style.display = opt === '기타' ? 'block' : 'none';
+        }
+
+        async function submitPerfBooking() {
+            const name = document.getElementById('perfName')?.value.trim();
+            const phone = document.getElementById('perfPhone')?.value.trim();
+            const purpose = document.getElementById('perfPurpose')?.value.trim();
+            let howFound = _perfState.howFound;
+            if (howFound === '기타') howFound = document.getElementById('perfHowFoundOther')?.value.trim() || '기타';
+            if (!name) { alert('이름을 입력해주세요.'); return; }
+            if (!phone) { alert('연락처를 입력해주세요.'); return; }
+            if (!purpose) { alert('사용 목적을 입력해주세요.'); return; }
+            if (!howFound) { alert('공간을 알게 된 경로를 선택해주세요.'); return; }
+            const { selectedDate, startSlot, endSlot, headcount } = _perfState;
+            const { error } = await supabaseClient.from('performance_bookings').insert({
+                name, phone, purpose, how_found: howFound,
+                date: selectedDate,
+                start_time: TIMES[startSlot],
+                end_time: TIMES[endSlot],
+                headcount
+            });
+            if (error) { alert('신청 중 오류가 발생했습니다: ' + error.message); return; }
+            setTimeout(() => sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`), 400);
+            renderPerfStep3();
+        }
+
+        function renderPerfStep3() {
+            const container = document.getElementById('perf-step-container');
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px 20px">
+                    <div style="font-size:2.5rem;margin-bottom:16px">✅</div>
+                    <div style="font-size:1.1rem;font-weight:700;margin-bottom:10px">예약 신청이 완료되었습니다!</div>
+                    <p style="font-size:0.88rem;color:var(--wds-gray-600);line-height:1.6">검토 후 연락처로 안내 드리겠습니다.<br>문의: 010-5109-1042 (최경수)</p>
+                    <button onclick="showPortal()" style="margin-top:24px;padding:12px 32px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">처음으로</button>
+                </div>`;
+        }
+
+        function generateApprovalMessage(b) {
+            const startH = parseInt(b.start_time);
+            const endH = b.end_time ? parseInt(TIMES[TIMES.indexOf(b.end_time)+1] || '23') : startH + (b.hours || 0);
+            const hours = endH - startH;
+            const dateObj = new Date(b.date + 'T00:00:00');
+            const weekdays = ['일','월','화','수','목','금','토'];
+            const dateFormatted = `${dateObj.getMonth()+1}/${dateObj.getDate()}(${weekdays[dateObj.getDay()]})`;
+            const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
+            return `안녕하세요! 신촌 게더 올 어라운드입니다.
+${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인되었습니다.
+아래 안내사항을 꼭 확인해 주시고, 확인 후 답변주시면 감사하겠습니다!! 😊
+
+📍 기본 정보
+주소: 서울시 서대문구 연세로5나길 33 지하 1층
+출입방법: [1층 현관] 0815 [지하 1층] 20251220
+Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
+
+💬 이용 시 주의사항
+장비 보호: 악기, 장비, 물품 파손 시 100% 본인 과실로 변상하셔야 합니다.
+화기 금지 / 음식물 취식 후 정리 철저 / 사용 물품 원상 복구 / 금연 및 매너 유지 / 퇴실 시 소등·문단속 확인
+
+💬 시설 이용법 및 세팅
+🎹 음향 및 장비 상세 매뉴얼: https://docs.google.com/presentation/d/1k9r6Dlt9TKcI1rcwLl3g0ggCvJVaRm7XFf0LLqEbJT0/edit?usp=sharing
+❄️ 냉난방기: 리모컨 사용 (에어컨/히터 모두 구비)
+📽️ 빔프로젝터: HDMI 연결 후 리모컨으로 전원 ON
+
+☎️ 문의처: 010-5109-1042 (최경수) / 010-2357-2040 (장한영)`;
+        }
+
+        async function renderPerfAdminTab(container) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            const { data, error } = await supabaseClient.from('performance_bookings')
+                .select('*').order('created_at', { ascending: false });
+            if (error) { container.innerHTML = `<div style="color:red;padding:16px">오류: ${error.message}</div>`; return; }
+            const items = data || [];
+            const pending = items.filter(b => b.status === 'pending');
+            const others = items.filter(b => b.status !== 'pending');
+            let html = `<div class="admin-section-title">🎭 공연 대관 신청 (${items.length}건)</div>`;
+            if (!items.length) { html += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500)">신청 내역이 없습니다.</p>'; container.innerHTML = html; return; }
+            const renderCard = (b) => {
+                const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
+                const hours = TIMES.indexOf(b.end_time) - TIMES.indexOf(b.start_time) + 1;
+                const fee = calcPerformanceFee(b.date, TIMES.indexOf(b.start_time), TIMES.indexOf(b.end_time), b.headcount);
+                const approvalMsg = b.status === 'approved' ? generateApprovalMessage(b) : '';
+                return `<div class="perf-admin-card${b.status==='pending'?' pending':''}" id="perf-card-${b.id}">
+                    <div class="perf-admin-card-title">
+                        ${b.status==='pending'?'⏳ 대기':''}${b.status==='approved'?'✅ 승인':''}${b.status==='rejected'?'❌ 거절':''} · ${b.name}
+                    </div>
+                    <div class="perf-admin-card-info">
+                        📅 ${b.date} ${b.start_time} ~ ${endDisplay} (${hours}시간)<br>
+                        👥 ${b.headcount}명 · ${fee.toLocaleString()}원<br>
+                        📞 ${escapeHtml(b.phone)}<br>
+                        🎯 ${escapeHtml(b.purpose)}<br>
+                        🔍 경로: ${escapeHtml(b.how_found)}<br>
+                        🕐 ${new Date(b.created_at).toLocaleString('ko-KR')}
+                    </div>
+                    ${b.status==='pending' ? `
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                        <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
+                        <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
+                    </div>` : ''}
+                    ${b.status==='approved' ? `
+                    <div style="margin-top:10px">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:4px">안내 메시지 (자동 생성):</div>
+                        <div class="perf-approval-msg">${escapeHtml(approvalMsg)}</div>
+                        <div style="display:flex;gap:8px;margin-top:8px">
+                            <button onclick="copyPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📋 복사</button>
+                            <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
+                        </div>
+                    </div>` : ''}
+                </div>`;
+            };
+            html += pending.map(renderCard).join('') + others.map(renderCard).join('');
+            container.innerHTML = html;
+            // store messages for copy/share
+            window.__perfApprovalMsgs = {};
+            items.filter(b => b.status === 'approved').forEach(b => {
+                window.__perfApprovalMsgs[b.id] = generateApprovalMessage(b);
+            });
+        }
+
+        async function approvePerfBooking(id) {
+            if (!confirm('승인하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
+            if (error) { alert('오류: ' + error.message); return; }
+            state.adminTab = 'perfbooking'; renderGatheOAdmin();
+        }
+
+        async function rejectPerfBooking(id) {
+            if (!confirm('거절하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
+            if (error) { alert('오류: ' + error.message); return; }
+            state.adminTab = 'perfbooking'; renderGatheOAdmin();
+        }
+
+        function copyPerfMsg(id) {
+            const msg = (window.__perfApprovalMsgs || {})[id];
+            if (!msg) return;
+            if (navigator.clipboard) navigator.clipboard.writeText(msg).then(() => alert('복사되었습니다.'));
+            else { const ta = document.createElement('textarea'); ta.value = msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('복사되었습니다.'); }
+        }
+
+        function kakaoPerfMsg(id) {
+            const msg = (window.__perfApprovalMsgs || {})[id];
+            if (!msg) return;
+            _kakaoLink(msg);
+        }
+        // ===== /공연 대관 예약 =====
 
         async function showBandNewsSection() {
             document.body.classList.add('portal-view');
