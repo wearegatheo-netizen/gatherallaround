@@ -3235,6 +3235,7 @@
             const container = document.getElementById('viewContainer');
             const title = document.getElementById('viewTitle');
             const nav = document.querySelector('.nav-btns');
+            const prevScrolls = Array.from(container.querySelectorAll('.weekly-container')).map(el => ({ left: el.scrollLeft, top: el.scrollTop }));
             container.innerHTML = '';
             const d = state.viewDate;
             const isSpecial = state.currentView === 'my' || state.currentView === 'admin';
@@ -3268,6 +3269,8 @@
                 }
             }
             renderParticipantSelector();
+            const wcs = container.querySelectorAll('.weekly-container');
+            wcs.forEach((el, i) => { if (prevScrolls[i]) { el.scrollLeft = prevScrolls[i].left; el.scrollTop = prevScrolls[i].top; } });
         }
 
         function renderParticipantSelector() {
@@ -5391,9 +5394,16 @@
                         s.style.color = 'var(--wds-gray-700)';
                         const showEtc = canApproveRes() && occupiedRes.participant_etc;
                         if (occupiedRes.__perf) {
-                            s.style.cursor = 'not-allowed';
-                            s.title = '공연 대관 예약';
                             s.style.color = 'var(--wds-gray-600)';
+                            if (isSuper()) {
+                                const realId = occupiedRes.id.replace(/^perf-/, '');
+                                s.style.cursor = 'pointer';
+                                s.title = '공연 대관 예약 — 클릭하여 취소';
+                                s.onclick = () => { if (confirm(`공연 대관 예약(${d.toLocaleDateString('ko-KR')} ${time})을 취소하시겠습니까?`)) cancelPerfReservation(realId); };
+                            } else {
+                                s.style.cursor = 'not-allowed';
+                                s.title = '공연 대관 예약';
+                            }
                             s.textContent = '🎭 공연 대관';
                         } else if (isSuper()) {
                             s.style.cursor = 'pointer';
@@ -5450,7 +5460,9 @@
                     s.classList.add('slot-occupied');
                     s.style.cursor = 'not-allowed';
                     if (occupiedRes.__perf) {
-                        s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>`;
+                        const realId = occupiedRes.id.replace(/^perf-/, '');
+                        const perfCancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('공연 대관 예약을 취소하시겠습니까?'))cancelPerfReservation('${realId}')" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
+                        s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
                     } else {
                         const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
                         const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('${occupiedRes.user_name}의 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
@@ -5953,11 +5965,13 @@
         }
 
         async function renderPerfWeek(container) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500);font-size:0.85rem">불러오는 중…</div>';
+            const prevWc = container.querySelector('.weekly-container');
+            const prevScroll = prevWc ? { left: prevWc.scrollLeft, top: prevWc.scrollTop } : null;
             const base = new Date(_perfState.viewDate);
             base.setDate(base.getDate() - base.getDay());
             const weekStart = base.toLocaleDateString('en-CA');
             const weekEnd = new Date(base); weekEnd.setDate(base.getDate() + 6);
+            if (!prevWc) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500);font-size:0.85rem">불러오는 중…</div>';
             await loadPerfRangeConflicts(weekStart, weekEnd.toLocaleDateString('en-CA'));
             container.innerHTML = '';
             const wrap = document.createElement('div'); wrap.className = 'weekly-container';
@@ -6016,6 +6030,7 @@
             });
             wrap.appendChild(grid);
             container.appendChild(wrap);
+            if (prevScroll) { wrap.scrollLeft = prevScroll.left; wrap.scrollTop = prevScroll.top; }
             const help = document.createElement('div');
             help.style.cssText = 'font-size:0.75rem;color:var(--wds-gray-500);margin-top:8px;text-align:center';
             help.textContent = '시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 3시간)';
@@ -6027,7 +6042,7 @@
                 _perfState.selectedDate = dateStr;
                 _perfState.startSlot = idx;
                 _perfState.endSlot = null;
-                renderPerfCal();
+                const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
                 document.getElementById('perfHeadcountSection').style.display = 'none';
                 document.getElementById('perfStep1Next').style.display = 'none';
                 return;
@@ -6035,7 +6050,7 @@
             const startSlot = _perfState.startSlot;
             if (idx === startSlot) {
                 _perfState.startSlot = null; _perfState.endSlot = null;
-                renderPerfCal();
+                const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
                 document.getElementById('perfHeadcountSection').style.display = 'none';
                 document.getElementById('perfStep1Next').style.display = 'none';
                 return;
@@ -6053,7 +6068,7 @@
                 if (conf) { alert('선택 범위 내에 예약불가 슬롯이 있습니다.'); return; }
             }
             _perfState.endSlot = idx;
-            renderPerfCal();
+            const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
             document.getElementById('perfHeadcountSection').style.display = 'block';
             document.getElementById('perfStep1Next').style.display = 'block';
             renderPerfFee();
@@ -6339,6 +6354,12 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (error) { alert('오류: ' + error.message); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
+        }
+
+        async function cancelPerfReservation(id) {
+            const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
+            if (error) { alert('취소 오류: ' + error.message); return; }
+            await fetchReservations();
         }
 
         async function deletePerfBooking(id) {
