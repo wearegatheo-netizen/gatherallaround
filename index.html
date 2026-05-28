@@ -215,6 +215,10 @@
         .perf-day-cell.disabled { opacity: 0.35; cursor: not-allowed; }
         .perf-day-cell.today .day-num { color: var(--wds-primary); }
         .perf-day-cell.selected.today .day-num { color: #fff; }
+        .perf-day-cell.partial { position: relative; }
+        .perf-day-cell.partial::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: #e07b00; }
+        .perf-day-cell.full { background: var(--wds-gray-200); color: var(--wds-gray-500); cursor: not-allowed; }
+        .perf-day-cell.full .day-num { color: var(--wds-gray-500); }
         /* 월간 달력 */
         .perf-month-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .perf-month-header button { background: none; border: 1px solid var(--wds-gray-300); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
@@ -227,6 +231,9 @@
         .perf-month-cell.selected.today { color: #fff; }
         .perf-month-cell.disabled { opacity: 0.3; cursor: not-allowed; }
         .perf-month-cell.empty { cursor: default; }
+        .perf-month-cell.partial { position: relative; }
+        .perf-month-cell.partial::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: #e07b00; }
+        .perf-month-cell.full { background: var(--wds-gray-200); color: var(--wds-gray-500); cursor: not-allowed; }
         /* 시간 슬롯 */
         .perf-time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
         .perf-time-slot { padding: 8px 4px; text-align: center; border: 1px solid var(--wds-gray-300); border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.12s; }
@@ -5618,7 +5625,8 @@
             weekOffset: 0,     // 주간 뷰: 오늘 기준 +N주
             monthYear: null,   // 월간 뷰: { y, m }
             selectedDate: null,
-            conflicts: [],     // { start_time, end_time }[]
+            conflicts: [],     // { start_time, end_time }[] for selected date
+            rangeConflicts: {},// { 'YYYY-MM-DD': [{start_time,end_time},...] } for visible range
             startSlot: null,   // index in TIMES
             endSlot: null,     // index in TIMES (inclusive last slot selected)
             headcount: 5,
@@ -5626,6 +5634,38 @@
             howFound: '',
             howFoundOther: '',
         };
+
+        async function loadPerfRangeConflicts(startDate, endDate) {
+            const [resResult, pbResult] = await Promise.all([
+                supabaseClient.from('reservations').select('res_date,start_time,end_time')
+                    .gte('res_date', startDate).lte('res_date', endDate).neq('status','rejected'),
+                supabaseClient.from('performance_bookings').select('date,start_time,end_time')
+                    .gte('date', startDate).lte('date', endDate).neq('status','rejected')
+            ]);
+            const map = {};
+            (resResult.data || []).forEach(r => {
+                if (!map[r.res_date]) map[r.res_date] = [];
+                map[r.res_date].push({ start_time: r.start_time, end_time: r.end_time });
+            });
+            (pbResult.data || []).forEach(b => {
+                if (!map[b.date]) map[b.date] = [];
+                map[b.date].push({ start_time: b.start_time, end_time: b.end_time });
+            });
+            _perfState.rangeConflicts = map;
+        }
+
+        function dateConflictStatus(dateStr) {
+            const list = _perfState.rangeConflicts[dateStr] || [];
+            if (!list.length) return 'free';
+            const occupied = new Set();
+            for (const c of list) {
+                const s = TIMES.indexOf(c.start_time);
+                const e = TIMES.indexOf(c.end_time);
+                for (let i = s; i <= e; i++) occupied.add(i);
+            }
+            if (occupied.size >= TIMES.length) return 'full';
+            return 'partial';
+        }
 
         function showPerformanceBookingSection() {
             document.body.classList.add('portal-view');
@@ -5701,17 +5741,19 @@
             renderPerfCal();
         }
 
-        function renderPerfCal() {
+        async function renderPerfCal() {
             const container = document.getElementById('perfCalContainer');
             if (!container) return;
-            if (_perfState.calView === 'week') renderPerfWeekCal(container);
-            else renderPerfMonthCal(container);
+            if (_perfState.calView === 'week') await renderPerfWeekCal(container);
+            else await renderPerfMonthCal(container);
         }
 
-        function renderPerfWeekCal(container) {
+        async function renderPerfWeekCal(container) {
             const today = new Date(); today.setHours(0,0,0,0);
             const weekStart = new Date(today);
             weekStart.setDate(today.getDate() + _perfState.weekOffset * 7);
+            const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+            await loadPerfRangeConflicts(weekStart.toLocaleDateString('en-CA'), weekEnd.toLocaleDateString('en-CA'));
             const dayNames = ['일','월','화','수','목','금','토'];
             let html = `<div class="perf-week-nav">
                 <button onclick="_perfState.weekOffset--;renderPerfCal()">◀</button>
@@ -5724,22 +5766,27 @@
                 const dateStr = d.toLocaleDateString('en-CA');
                 const isSelected = _perfState.selectedDate === dateStr;
                 const isToday = d.getTime() === today.getTime();
-                html += `<div class="perf-day-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}"
-                    onclick="${isPast?'':'selectPerfDate(\''+dateStr+'\')'}" style="cursor:${isPast?'not-allowed':'pointer'}">
+                const cs = isPast ? '' : dateConflictStatus(dateStr);
+                const cls = `perf-day-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}${cs==='partial'?' partial':''}${cs==='full'?' full':''}`;
+                const clickable = !isPast && cs !== 'full';
+                html += `<div class="${cls}" onclick="${clickable?'selectPerfDate(\''+dateStr+'\')':''}" style="cursor:${clickable?'pointer':'not-allowed'}">
                     <div class="day-name">${dayNames[d.getDay()]}</div>
                     <div class="day-num">${d.getDate()}</div>
                 </div>`;
             }
-            html += '</div>';
+            html += '</div><div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:6px">🟠 일부 예약 있음 · ⬜ 전체 예약 (선택 불가)</div>';
             container.innerHTML = html;
         }
 
-        function renderPerfMonthCal(container) {
+        async function renderPerfMonthCal(container) {
             const { y, m } = _perfState.monthYear;
             const today = new Date(); today.setHours(0,0,0,0);
             const dayNames = ['일','월','화','수','목','금','토'];
             const firstDay = new Date(y, m, 1).getDay();
             const daysInMonth = new Date(y, m+1, 0).getDate();
+            const monthStart = new Date(y, m, 1).toLocaleDateString('en-CA');
+            const monthEnd = new Date(y, m, daysInMonth).toLocaleDateString('en-CA');
+            await loadPerfRangeConflicts(monthStart, monthEnd);
             const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
             let html = `<div class="perf-month-header">
                 <button onclick="prevPerfMonth()">◀</button>
@@ -5754,10 +5801,12 @@
                 const isPast = date < today;
                 const isSelected = _perfState.selectedDate === dateStr;
                 const isToday = date.getTime() === today.getTime();
-                html += `<div class="perf-month-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}"
-                    onclick="${isPast?'':'selectPerfDate(\''+dateStr+'\')'}">${d}</div>`;
+                const cs = isPast ? '' : dateConflictStatus(dateStr);
+                const cls = `perf-month-cell${isPast?' disabled':''}${isSelected?' selected':''}${isToday?' today':''}${cs==='partial'?' partial':''}${cs==='full'?' full':''}`;
+                const clickable = !isPast && cs !== 'full';
+                html += `<div class="${cls}" onclick="${clickable?'selectPerfDate(\''+dateStr+'\')':''}">${d}</div>`;
             }
-            html += '</div>';
+            html += '</div><div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:6px">🟠 일부 예약 있음 · ⬜ 전체 예약 (선택 불가)</div>';
             container.innerHTML = html;
         }
 
@@ -6021,6 +6070,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     <div style="display:flex;gap:8px;margin-top:10px">
                         <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
                         <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
+                        <button onclick="deletePerfBooking('${b.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
                     </div>` : ''}
                     ${b.status==='approved' ? `
                     <div style="margin-top:10px">
@@ -6029,7 +6079,12 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                         <div style="display:flex;gap:8px;margin-top:8px">
                             <button onclick="copyPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📋 복사</button>
                             <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
+                            <button onclick="deletePerfBooking('${b.id}')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
                         </div>
+                    </div>` : ''}
+                    ${b.status==='rejected' ? `
+                    <div style="margin-top:10px">
+                        <button onclick="deletePerfBooking('${b.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
                     </div>` : ''}
                 </div>`;
             };
@@ -6053,6 +6108,13 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!confirm('거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
             if (error) { alert('오류: ' + error.message); return; }
+            state.adminTab = 'perfbooking'; renderGatheOAdmin();
+        }
+
+        async function deletePerfBooking(id) {
+            if (!confirm('이 신청 내역을 영구적으로 삭제하시겠습니까?')) return;
+            const { error } = await supabaseClient.from('performance_bookings').delete().eq('id', id);
+            if (error) { alert('삭제 오류: ' + error.message); return; }
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
@@ -10102,7 +10164,19 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 const subs = await getAdminPushSubscriptions();
                 console.log('[push] admin subs found:', subs.length);
-                if (!subs.length) { console.warn('[push] no admin subscriptions - RLS or empty column'); return; }
+                if (!subs.length) {
+                    // 비로그인/RLS 차단 케이스 → 서버 사이드 릴레이 사용
+                    console.log('[push] falling back to /notify-admins');
+                    try {
+                        const r = await fetch('/notify-admins', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title, body })
+                        });
+                        console.log('[push] notify-admins:', await r.json());
+                    } catch (e) { console.warn('[push] notify-admins error', e); }
+                    return;
+                }
                 const results = await Promise.allSettled(subs.map(sub =>
                     fetch('/push', {
                         method: 'POST',
