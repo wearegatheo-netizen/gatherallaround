@@ -3757,6 +3757,7 @@
             } else {
                 const { error } = await supabaseClient.from('schedule_attendees').insert({ schedule_date: date, profile_id: me.id, group_name: groupName });
                 if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
+                if (error && error.code === '23505') { alert('같은 날짜에 여러 그룹을 신청하려면 Supabase SQL Editor에서 아래를 실행해주세요:\n\nALTER TABLE schedule_attendees DROP CONSTRAINT IF EXISTS schedule_attendees_schedule_date_profile_id_key;\nALTER TABLE schedule_attendees ADD CONSTRAINT schedule_attendees_unique UNIQUE(schedule_date, profile_id, group_name);'); return; }
                 if (!error) { if (!state.scheduleGroupAttendees[date]) state.scheduleGroupAttendees[date] = {}; if (!state.scheduleGroupAttendees[date][groupName]) state.scheduleGroupAttendees[date][groupName] = []; state.scheduleGroupAttendees[date][groupName].push(me.id); renderMemberPanel(); }
             }
         };
@@ -4024,18 +4025,7 @@
                     const p = memberMap[pid];
                     return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
                 }).filter(Boolean);
-                const attendeeSection = `
-                    <div style="padding:8px 12px;border-top:1px solid var(--wds-gray-200)">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${attendeeNames.length ? '6px' : '0'}">
-                            <span style="font-size:0.75rem;font-weight:700;color:var(--wds-gray-600)">참여 신청${dateAttendees.length > 0 ? ` (${dateAttendees.length}명)` : ''}</span>
-                            ${state.user ? `<button type="button" onclick="toggleScheduleAttendance('${date}')"
-                                style="padding:3px 10px;font-size:0.72rem;border-radius:4px;border:1.5px solid ${isMeIn ? '#EF4444' : 'var(--wds-primary)'};background:${isMeIn ? '#FEF2F2' : 'var(--wds-primary-light)'};color:${isMeIn ? '#EF4444' : 'var(--wds-primary)'};cursor:pointer;font-weight:700">
-                                ${isMeIn ? '✓ 신청 취소' : '+ 참여 신청'}</button>` : ''}
-                        </div>
-                        ${attendeeNames.length
-                            ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${attendeeNames.map(n => `<span style="background:var(--wds-primary-light);border-radius:5px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}</div>`
-                            : `<p style="font-size:0.75rem;color:var(--wds-gray-400);margin:0">아직 참여 신청한 멤버가 없습니다.</p>`}
-                    </div>`;
+                const attendeeSection = '';
 
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
@@ -11106,7 +11096,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const groupNames = [...new Set(entries.map(e => e.group_name).filter(Boolean))];
                 const timeRange = entries.length > 0 ? `${entries[0].start_time || ''}${entries[entries.length-1].end_time ? ' ~ ' + entries[entries.length-1].end_time : ''}` : '';
                 const groupsLabel = groupNames.length > 0
-                    ? escapeHtml(groupNames[0]) + (groupNames.length > 1 ? ` 외 ${groupNames.length-1}그룹` : '')
+                    ? escapeHtml(groupNames[0])
                     : [...new Set(entries.map(e => e.team_name).filter(Boolean))].slice(0,1).map(g => escapeHtml(g)).join('');
                 return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:var(--wds-radius-m);color:#fff;margin-bottom:8px;cursor:pointer" onclick="openScheduleForDate('${date}')">
                     <div style="min-width:0;flex:1">
@@ -11318,7 +11308,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const replies = replyMap[p.id] || [];
                 const preview = p.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,' ');
                 const shortDate = new Date(p.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
-                return `<div style="border-bottom:1px solid var(--wds-gray-200)">
+                return `<div style="border:1px solid var(--wds-gray-300);border-radius:8px;margin-bottom:6px;overflow:hidden">
                     <div style="padding:10px 12px;cursor:pointer" onclick="toggleBoardPost('${p.id}')">
                         <div style="font-size:0.92rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:5px;color:var(--wds-black)">${preview} ${replies.length>0?`<span style="font-size:0.72rem;color:var(--wds-primary);font-weight:700">[${replies.length}]</span>`:''}</div>
                         <div style="display:flex;gap:10px;align-items:center;font-size:0.74rem;color:var(--wds-gray-500);flex-wrap:wrap">
