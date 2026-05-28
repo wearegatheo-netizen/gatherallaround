@@ -6063,6 +6063,11 @@
             _perfState.selectedDate = dateStr;
             _perfState.startSlot = null;
             _perfState.endSlot = null;
+            _perfState.viewDate = new Date(dateStr + 'T00:00:00');
+            _perfState.calView = 'week';
+            document.querySelectorAll('.perf-cal-toggle button').forEach(b => b.classList.remove('active'));
+            const wBtn = document.getElementById('perfCalWeekBtn');
+            if (wBtn) wBtn.classList.add('active');
             renderPerfCal();
             document.getElementById('perfHeadcountSection').style.display = 'none';
             document.getElementById('perfStep1Next').style.display = 'none';
@@ -6356,39 +6361,46 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!msg) return;
             if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
             const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(msg))));
-            const url = window.location.origin + window.location.pathname + '#perfMsg=' + encoded;
+            const url = window.location.origin + window.location.pathname + '?perfmsg=' + encoded;
             const api = (Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : Kakao.Link;
             api.sendDefault({ objectType: 'text', text: msg, link: { webUrl: url, mobileWebUrl: url } });
         }
 
-        function showPerfMsgFromHash() {
-            const hash = window.location.hash || '';
-            const m = hash.match(/perfMsg=([^&]+)/);
-            if (!m) return;
-            let msg = '';
-            try { msg = decodeURIComponent(escape(atob(decodeURIComponent(m[1])))); } catch (e) { return; }
-            history.replaceState(null, '', window.location.pathname + window.location.search);
+        function _showPerfMsgOverlay(msg) {
+            const safeMsg = msg.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
-            overlay.innerHTML = `
-                <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:20px 22px;box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:inherit;color:#333">
-                    <div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:#222">🎭 공연 대관 예약 안내</div>
-                    <pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:0.9rem;line-height:1.65;margin:0 0 14px;color:#444">${msg.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>
-                    <div style="display:flex;gap:8px">
-                        <button id="perfMsgCopyBtn" style="flex:1;padding:10px;border-radius:8px;border:1px solid #3366ff;background:none;color:#3366ff;cursor:pointer;font-weight:600;font-family:inherit">📋 복사</button>
-                        <button id="perfMsgCloseBtn" style="flex:1;padding:10px;border-radius:8px;border:none;background:#3366ff;color:#fff;cursor:pointer;font-weight:600;font-family:inherit">닫기</button>
-                    </div>
+            const inner = document.createElement('div');
+            inner.style.cssText = 'background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:20px 22px;box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:inherit;color:#333';
+            inner.innerHTML = `
+                <div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:#222">🎭 공연 대관 예약 안내</div>
+                <pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:0.9rem;line-height:1.65;margin:0 0 14px;color:#444">${safeMsg}</pre>
+                <div style="display:flex;gap:8px">
+                    <button class="pm-copy" style="flex:1;padding:10px;border-radius:8px;border:1px solid #3366ff;background:none;color:#3366ff;cursor:pointer;font-weight:600;font-family:inherit">📋 복사</button>
+                    <button class="pm-close" style="flex:1;padding:10px;border-radius:8px;border:none;background:#3366ff;color:#fff;cursor:pointer;font-weight:600;font-family:inherit">닫기</button>
                 </div>`;
+            overlay.appendChild(inner);
             document.body.appendChild(overlay);
-            overlay.querySelector('#perfMsgCloseBtn').onclick = () => overlay.remove();
-            overlay.querySelector('#perfMsgCopyBtn').onclick = () => {
+            inner.querySelector('.pm-close').onclick = () => overlay.remove();
+            inner.querySelector('.pm-copy').onclick = () => {
                 if (navigator.clipboard) navigator.clipboard.writeText(msg).then(() => alert('복사되었습니다.'));
                 else { const ta = document.createElement('textarea'); ta.value = msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('복사되었습니다.'); }
             };
             overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         }
-        document.addEventListener('DOMContentLoaded', showPerfMsgFromHash);
-        if (document.readyState !== 'loading') showPerfMsgFromHash();
+
+        function showPerfMsgFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const raw = params.get('perfmsg');
+            if (!raw) return;
+            let msg = '';
+            try { msg = decodeURIComponent(escape(atob(decodeURIComponent(raw)))); } catch (e) { return; }
+            history.replaceState(null, '', window.location.pathname);
+            // 앱 초기화 후 모달 표시 (약간 지연)
+            setTimeout(() => _showPerfMsgOverlay(msg), 600);
+        }
+        document.addEventListener('DOMContentLoaded', showPerfMsgFromQuery);
+        if (document.readyState !== 'loading') showPerfMsgFromQuery();
         // ===== /공연 대관 예약 =====
 
         async function showBandNewsSection() {
