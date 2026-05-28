@@ -3034,15 +3034,22 @@
                 console.warn("Supabase가 초기화되지 않아 예약을 불러올 수 없습니다.");
                 return;
             }
-            const { data, error } = await supabaseClient
-                .from('reservations')
-                .select('*');
-            
-            if (error) console.error('Fetch error:', error);
-            else {
-                state.reservations = data;
-                render();
-            }
+            const [resResult, perfResult] = await Promise.all([
+                supabaseClient.from('reservations').select('*'),
+                supabaseClient.from('performance_bookings').select('id,date,start_time,end_time,status').eq('status', 'approved'),
+            ]);
+            if (resResult.error) { console.error('Fetch error:', resResult.error); return; }
+            const perfVirtual = (perfResult.data || []).map(b => ({
+                id: 'perf-' + b.id,
+                res_date: b.date,
+                start_time: b.start_time,
+                end_time: b.end_time,
+                user_name: '공연 대관',
+                status: 'approved',
+                __perf: true,
+            }));
+            state.reservations = [...(resResult.data || []), ...perfVirtual];
+            render();
         }
 
         function initApp() {
@@ -5383,7 +5390,12 @@
                         s.style.fontSize = '0.72rem';
                         s.style.color = 'var(--wds-gray-700)';
                         const showEtc = canApproveRes() && occupiedRes.participant_etc;
-                        if (isSuper()) {
+                        if (occupiedRes.__perf) {
+                            s.style.cursor = 'not-allowed';
+                            s.title = '공연 대관 예약';
+                            s.style.color = 'var(--wds-gray-600)';
+                            s.textContent = '🎭 공연 대관';
+                        } else if (isSuper()) {
                             s.style.cursor = 'pointer';
                             s.title = showEtc
                                 ? `${occupiedRes.user_name}\n기타: ${occupiedRes.participant_etc}\n— 클릭하여 예약 취소`
@@ -5393,10 +5405,12 @@
                             s.style.cursor = 'not-allowed';
                             if (showEtc) s.title = `기타: ${occupiedRes.participant_etc}`;
                         }
-                        if (showEtc) {
-                            s.innerHTML = `${escapeHtml(maskName(occupiedRes.user_name))}<span style="color:#e07b00">*</span>`;
-                        } else {
-                            s.textContent = maskName(occupiedRes.user_name);
+                        if (!occupiedRes.__perf) {
+                            if (showEtc) {
+                                s.innerHTML = `${escapeHtml(maskName(occupiedRes.user_name))}<span style="color:#e07b00">*</span>`;
+                            } else {
+                                s.textContent = maskName(occupiedRes.user_name);
+                            }
                         }
                     } else {
                         if (isSlotSelected(d, time)) s.classList.add('selected');
@@ -5434,14 +5448,15 @@
                     s.innerHTML = `🚫 예약 차단됨${block.reason ? ` <span style="color:var(--wds-gray-500);font-size:0.82rem">(${block.reason})</span>` : ''}`;
                 } else if (occupiedRes) {
                     s.classList.add('slot-occupied');
-                    const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
-                    const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('${occupiedRes.user_name}의 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
-                    if (isSuper()) {
-                        s.style.cursor = 'default';
+                    s.style.cursor = 'not-allowed';
+                    if (occupiedRes.__perf) {
+                        s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>`;
                     } else {
-                        s.style.cursor = 'not-allowed';
+                        const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
+                        const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('${occupiedRes.user_name}의 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
+                        if (isSuper()) s.style.cursor = 'default';
+                        s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${etcNote}`;
                     }
-                    s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${etcNote}`;
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
                         s.classList.add('selected');
@@ -6309,6 +6324,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!confirm('승인하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
             if (error) { alert('오류: ' + error.message); return; }
+            await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
@@ -6316,6 +6332,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!confirm('거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
             if (error) { alert('오류: ' + error.message); return; }
+            await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
@@ -6323,6 +6340,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!confirm('이 신청 내역을 영구적으로 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').delete().eq('id', id);
             if (error) { alert('삭제 오류: ' + error.message); return; }
+            await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
