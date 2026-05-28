@@ -5766,8 +5766,8 @@
                         <div class="perf-section" id="perfHeadcountSection" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
                             <div class="perf-section-title">인원수</div>
                             <div style="display:flex;align-items:center;gap:12px">
-                                <input type="number" id="perfHeadcount" min="1" max="50" value="${_perfState.headcount}"
-                                    oninput="_perfState.headcount=Math.max(1,parseInt(this.value)||1);renderPerfFee()"
+                                <input type="number" id="perfHeadcount" min="1" max="15" value="${_perfState.headcount}"
+                                    oninput="_perfState.headcount=Math.max(1,Math.min(15,parseInt(this.value)||1));renderPerfFee()"
                                     style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.95rem;font-family:inherit;outline:none">
                                 <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
                             </div>
@@ -5875,16 +5875,22 @@
                 day.appendChild(numEl);
                 if (!isPast) {
                     const info = document.createElement('div'); info.className = 'cal-day-info';
-                    const conflicts = getDateConflicts(dateStr);
-                    const occupied = new Set();
-                    conflicts.forEach(c => {
-                        const s = TIMES.indexOf(c.start_time), e = TIMES.indexOf(c.end_time);
-                        for (let k = s; k <= e; k++) occupied.add(k);
-                    });
+                    const conflicts = getDateConflicts(dateStr)
+                        .slice()
+                        .sort((a,b) => TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
                     if (cs === 'full') {
-                        info.innerHTML = `<span style="color:var(--wds-gray-500);font-size:0.62rem">전체 예약</span>`;
+                        info.innerHTML = `<span style="color:var(--wds-gray-500)">전체 예약</span>`;
                     } else if (cs === 'partial') {
-                        info.innerHTML = `<span style="color:#e07b00;font-size:0.62rem">${occupied.size}/${TIMES.length} 예약</span>`;
+                        const display = conflicts.slice(0, 3);
+                        display.forEach(c => {
+                            const sh = parseInt(c.start_time.split(':')[0]);
+                            const endStr = TIMES[TIMES.indexOf(c.end_time) + 1] || '23:00';
+                            const eh = parseInt(endStr.split(':')[0]);
+                            info.innerHTML += `<span style="color:#e07b00"><i class="cal-ri">⏱</i>${sh}-${eh}<i class="cal-ru">시</i></span>`;
+                        });
+                        if (conflicts.length > 3) {
+                            info.innerHTML += `<span style="color:var(--wds-gray-500)">+${conflicts.length - 3}<i class="cal-ru">건</i></span>`;
+                        }
                     }
                     day.appendChild(info);
                 }
@@ -5993,7 +5999,7 @@
                 document.getElementById('perfStep1Next').style.display = 'none';
                 return;
             }
-            if (idx < startSlot + 3) {
+            if (idx < startSlot + 2) {
                 alert('최소 3시간 이상 선택해주세요.');
                 return;
             }
