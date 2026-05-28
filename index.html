@@ -5943,30 +5943,70 @@
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500);font-size:0.85rem">불러오는 중…</div>';
             const base = new Date(_perfState.viewDate);
             base.setDate(base.getDate() - base.getDay());
+            const weekStart = base.toLocaleDateString('en-CA');
             const weekEnd = new Date(base); weekEnd.setDate(base.getDate() + 6);
-            await loadPerfRangeConflicts(base.toLocaleDateString('en-CA'), weekEnd.toLocaleDateString('en-CA'));
+            await loadPerfRangeConflicts(weekStart, weekEnd.toLocaleDateString('en-CA'));
             container.innerHTML = '';
+            const wrap = document.createElement('div'); wrap.className = 'weekly-container';
+            const grid = document.createElement('div'); grid.className = 'weekly-grid';
+            grid.appendChild(Object.assign(document.createElement('div'), { className: 'weekly-cell weekly-header-cell' }));
             const today = new Date(); today.setHours(0,0,0,0);
-            const dayNames = ['일','월','화','수','목','금','토'];
-            const dayRow = document.createElement('div');
-            dayRow.className = 'perf-week-days';
+            const days = ['일','월','화','수','목','금','토'];
             for (let i = 0; i < 7; i++) {
                 const d = new Date(base); d.setDate(base.getDate() + i);
-                const dateStr = d.toLocaleDateString('en-CA');
-                const isPast = d < today;
-                const isToday = d.getTime() === today.getTime();
-                const isSelected = _perfState.selectedDate === dateStr;
-                const cs = isPast ? '' : dateConflictStatus(dateStr);
-                const cell = document.createElement('div');
-                cell.className = 'perf-day-cell' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (isPast || cs === 'full' ? ' disabled' : '') + (cs === 'partial' ? ' partial' : '');
-                cell.innerHTML = `<div class="day-name">${dayNames[d.getDay()]}</div><div class="day-num">${d.getDate()}</div>`;
-                if (!isPast && cs !== 'full') {
-                    cell.onclick = () => selectPerfDate(dateStr);
-                }
-                dayRow.appendChild(cell);
+                const h = document.createElement('div'); h.className = 'weekly-cell weekly-header-cell';
+                if (i === 0) h.classList.add('week-sun');
+                if (i === 6) h.classList.add('week-sat');
+                if (d.getTime() === today.getTime()) h.classList.add('week-today');
+                h.innerHTML = `<div style="font-size:0.7rem;opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
+                grid.appendChild(h);
             }
-            container.appendChild(dayRow);
-            renderPerfTimePicker(container);
+            TIMES.forEach((time, idx) => {
+                const endTime = TIMES[idx+1] || '23:00';
+                const tc = document.createElement('div');
+                tc.className = 'weekly-cell weekly-time-cell';
+                tc.style.lineHeight = '1.15';
+                tc.innerHTML = `<div style="font-weight:600;font-size:0.82rem">${time}</div><div style="font-size:0.64rem;color:var(--wds-gray-500)">~${endTime}</div>`;
+                grid.appendChild(tc);
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(base); d.setDate(base.getDate() + i);
+                    const dateStr = d.toLocaleDateString('en-CA');
+                    const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
+                    if (i === 0) s.classList.add('week-sun');
+                    if (i === 6) s.classList.add('week-sat');
+                    if (d.getTime() === today.getTime()) s.classList.add('week-today');
+                    const isPast = d < today;
+                    const conflicts = getDateConflicts(dateStr);
+                    const conflicted = conflicts.some(c => {
+                        const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                        return idx >= cs && idx <= ce;
+                    });
+                    if (isPast) {
+                        s.style.cursor = 'not-allowed'; s.style.opacity = '0.4';
+                    } else if (conflicted) {
+                        s.classList.add('slot-occupied');
+                        s.style.cursor = 'not-allowed';
+                        s.style.fontSize = '0.7rem';
+                        s.style.color = 'var(--wds-gray-500)';
+                        s.textContent = '예약불가';
+                    } else {
+                        s.style.cursor = 'pointer';
+                        if (_perfState.selectedDate === dateStr && _perfState.startSlot !== null) {
+                            const sStart = _perfState.startSlot, sEnd = _perfState.endSlot;
+                            if (sEnd !== null && idx >= sStart && idx <= sEnd) s.classList.add('selected');
+                            else if (sEnd === null && idx === sStart) s.classList.add('selected');
+                        }
+                        s.onclick = () => perfWeekSlotClick(dateStr, idx);
+                    }
+                    grid.appendChild(s);
+                }
+            });
+            wrap.appendChild(grid);
+            container.appendChild(wrap);
+            const help = document.createElement('div');
+            help.style.cssText = 'font-size:0.75rem;color:var(--wds-gray-500);margin-top:8px;text-align:center';
+            help.textContent = '시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 3시간)';
+            container.appendChild(help);
         }
 
         function perfWeekSlotClick(dateStr, idx) {
