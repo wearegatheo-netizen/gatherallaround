@@ -100,6 +100,8 @@
         body.dark .slot-occupied { background: #1a2a4a !important; color: #7aabff !important; border-left-color: #5580ff; }
         body.dark .nav-btn { background: var(--wds-gray-100) !important; color: var(--wds-black); }
         body.dark #comments_container { background: var(--wds-gray-100) !important; }
+        body.dark .board-post-expand { background: #2a2a2a !important; }
+        body.dark .board-post-expand .comment-reply { background: #1f1f1f; }
         body.dark .cancel-btn { background: #2a1010 !important; }
         body.dark .approve-btn { background: #0a2016 !important; }
         body.dark .reject-btn { background: #2a1010 !important; }
@@ -4400,11 +4402,47 @@
                 return;
             }
 
+            const searchWrap = document.createElement('div');
+            searchWrap.style.marginBottom = '10px';
+            const curQ = state.memberPanelSearch || '';
+            searchWrap.innerHTML = `<input type="text" id="memberPanelSearchInput" placeholder="이름, 세션 검색..." value="${escapeHtml(curQ)}" oninput="filterMemberPanelList()" style="width:100%;height:36px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box">`;
+            container.appendChild(searchWrap);
+            const listDiv = document.createElement('div');
+            listDiv.id = 'memberPanelList';
+            container.appendChild(listDiv);
+            window._memberPanelData = { approved, isS };
+            renderMemberPanelList();
+        }
+
+        function filterMemberPanelList() {
+            const inp = document.getElementById('memberPanelSearchInput');
+            state.memberPanelSearch = inp ? inp.value : '';
+            renderMemberPanelList();
+        }
+
+        function renderMemberPanelList() {
+            const listDiv = document.getElementById('memberPanelList');
+            if (!listDiv || !window._memberPanelData) return;
+            const { approved, isS } = window._memberPanelData;
+            const q = (state.memberPanelSearch || '').trim().toLowerCase();
+            const filtered = q ? approved.filter(m => {
+                const nq = q.replace(/-/g,'');
+                return (m.name||'').toLowerCase().includes(q)
+                    || (m.instruments||'').toLowerCase().includes(q)
+                    || (m.phone||'').replace(/-/g,'').includes(nq)
+                    || (m.email||'').toLowerCase().includes(q);
+            }) : approved;
+
+            if (filtered.length === 0) {
+                listDiv.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.88rem;text-align:center;padding:24px">검색 결과가 없습니다.</p>';
+                return;
+            }
+
             // 악기별 그룹화: 주 악기(첫 번째) 기준
             const ORDER = ['보컬', '기타', '베이스', '키보드', '드럼'];
             const groups = {};
             const noneKey = '기타';
-            approved.forEach(m => {
+            filtered.forEach(m => {
                 const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
                 const primary = insts[0] || '미지정';
                 (groups[primary] = groups[primary] || []).push(m);
@@ -4438,8 +4476,7 @@
                 </div>`;
             };
 
-            const wrap = document.createElement('div');
-            wrap.innerHTML = groupKeys.map(gKey => {
+            listDiv.innerHTML = groupKeys.map(gKey => {
                 const list = groups[gKey];
                 const emoji = INST_EMOJI[gKey] || '🎵';
                 const pageKey = 'member_' + gKey;
@@ -4451,7 +4488,6 @@
                         ${pagerHTML(pageKey, page, totalPages, total)}
                     </div>`;
             }).join('');
-            container.appendChild(wrap);
         }
 
         function renderMyPage(container) {
@@ -11278,30 +11314,26 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     </div>`;
             };
 
-            // 게시판 형태: 목록 헤더
-            const headerRow = `<div style="display:grid;grid-template-columns:1fr 80px 60px 36px;gap:8px;padding:6px 10px;background:var(--wds-gray-200);border-radius:8px;font-size:0.74rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:6px">
-                <span>내용</span><span style="text-align:center">작성자</span><span style="text-align:center">날짜</span><span style="text-align:center">❤️</span>
-            </div>`;
             const rows = parents.map(p => {
                 const replies = replyMap[p.id] || [];
                 const preview = p.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,' ');
                 const shortDate = new Date(p.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
-                const isMine = state.user && state.user.kakaoId === p.kakao_id;
-                const canDel = state.user && (isMine || isSuper());
-                return `<div style="border-bottom:1px solid var(--wds-gray-100)">
-                    <div style="display:grid;grid-template-columns:1fr 80px 60px 36px;gap:8px;padding:8px 10px;cursor:pointer;border-radius:6px" onclick="toggleBoardPost('${p.id}')">
-                        <span style="font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${preview.slice(0,60)}${preview.length>60?'…':''} ${replies.length>0?`<span style="font-size:0.72rem;color:var(--wds-primary);font-weight:700">[${replies.length}]</span>`:''}</span>
-                        <span style="font-size:0.78rem;color:var(--wds-gray-500);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.user_name)}</span>
-                        <span style="font-size:0.78rem;color:var(--wds-gray-400);text-align:center">${shortDate}</span>
-                        <span style="font-size:0.78rem;color:var(--wds-gray-500);text-align:center">${p.likes||0}</span>
+                return `<div style="border-bottom:1px solid var(--wds-gray-200)">
+                    <div style="padding:10px 12px;cursor:pointer" onclick="toggleBoardPost('${p.id}')">
+                        <div style="font-size:0.92rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:5px;color:var(--wds-black)">${preview} ${replies.length>0?`<span style="font-size:0.72rem;color:var(--wds-primary);font-weight:700">[${replies.length}]</span>`:''}</div>
+                        <div style="display:flex;gap:10px;align-items:center;font-size:0.74rem;color:var(--wds-gray-500);flex-wrap:wrap">
+                            <span style="font-weight:600">${escapeHtml(p.user_name)}</span>
+                            <span>${shortDate}</span>
+                            <span style="margin-left:auto">❤️ ${p.likes||0}</span>
+                        </div>
                     </div>
-                    <div id="board-post-${p.id}" class="hidden" style="padding:10px 14px 12px;background:var(--wds-gray-50,#fafafa);border-radius:0 0 8px 8px">
+                    <div id="board-post-${p.id}" class="hidden board-post-expand" style="padding:10px 14px 12px;background:var(--wds-gray-100);border-radius:0 0 8px 8px;color:var(--wds-black)">
                         ${renderItem(p, false)}
                         ${replies.length > 0 ? `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div><div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>` : ''}
                     </div>
                 </div>`;
             }).join('');
-            list.innerHTML = headerRow + rows;
+            list.innerHTML = rows;
         }
 
         function toggleReplyForm(parentId) {
