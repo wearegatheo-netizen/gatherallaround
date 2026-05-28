@@ -434,6 +434,10 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            margin-left: calc(-50vw + 50%);
+            margin-right: calc(-50vw + 50%);
+            padding-left: max(20px, calc((100vw - 800px) / 2 + 20px));
+            padding-right: max(20px, calc((100vw - 800px) / 2 + 20px));
         }
         .gatheo-tab-body { padding: 16px 4px 48px; }
 
@@ -6322,6 +6326,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                         <div style="display:flex;gap:8px;margin-top:8px">
                             <button onclick="copyPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📋 복사</button>
                             <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:6px">
+                            <button onclick="cancelPerfReservation('${b.id}')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid #ff4d4f;background:none;color:#ff4d4f;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">❌ 예약 취소</button>
                             <button onclick="deletePerfBooking('${b.id}')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
                         </div>
                     </div>` : ''}
@@ -6357,9 +6364,11 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         async function cancelPerfReservation(id) {
+            if (!confirm('예약을 취소하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
             if (error) { alert('취소 오류: ' + error.message); return; }
             await fetchReservations();
+            if (state.adminTab === 'perfbooking') renderGatheOAdmin();
         }
 
         async function deletePerfBooking(id) {
