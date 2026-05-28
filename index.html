@@ -5211,7 +5211,7 @@
                         <option value="운영 총괄" ${role==='운영 총괄'?'selected':''}>운영 총괄</option>
                     </select>` : '';
                 const contactInfo = isS
-                    ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span><span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
+                    ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span>${m.phone ? `<span style="font-size:0.7rem;color:var(--wds-primary);white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="클릭하여 복사" onclick="(function(el,t){const p='${escapeHtml(m.phone)}';if(navigator.clipboard){navigator.clipboard.writeText(p).then(function(){el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)})}else{const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)}})(this)">${escapeHtml(m.phone)}</span>` : `<span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap">-</span>`}`
                     : '';
                 const editBtn = isS && (m.status === 'pending' || m.status === 'approved')
                     ? `<button type="button" class="edit-btn" onclick="editMemberInfo('${m.id}')">수정</button>`
