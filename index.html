@@ -5658,8 +5658,13 @@
             'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio1.jpg',
             'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio2.jpg',
             'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio3.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio4.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio5.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio6.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio7.jpg',
+            'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/studio8.jpg',
         ];
-        const PERF_SPACE_DESC_DEFAULT = `서울시 서대문구 연세로5나길 33 지하 1층에 위치한 게더 올 어라운드 스튜디오입니다.\n\n소규모 공연, 행사, 촬영 등 다양한 용도로 대관 가능합니다.\n드럼, 기타 앰프, PA 시스템, 빔 프로젝터 등 기본 장비가 구비되어 있습니다.`;
+        const PERF_SPACE_DESC_DEFAULT = `서울시 서대문구 연세로5나길 33 지하 1층에 위치한 게더 올 어라운드 스튜디오입니다.\n\n소규모 공연, 행사, 촬영 등 다양한 용도로 대관 가능합니다.\n\n[구비 장비]\n마이크: Sennheiser e845s (2EA)\n키보드: Yamaha S90\n드럼: Mapex Mars + Yamaha Recording Custom Aluminum 6.5\n믹서: Behringer XR-18\n스피커: Yamaha DBR 15 (2EA)\n앰프: Blackstar Soloist 60 / Fender Champion 100 / Fender Rumble 500\n\n[편의시설]\n캠핑용 테이블 (2EA) 및 의자 (15EA)\n빔스크린 (110인치)\n싱크대 / 내부 화장실\n다양한 보드게임`;
         const PERF_HOW_FOUND_OPTS = ['인스타그램', '유튜브', '지인 추천', '네이버/구글 검색', '직접 방문'];
 
         let _perfState = {
@@ -5897,7 +5902,7 @@
                 const clickable = !isPast && cs !== 'full';
                 if (clickable) {
                     day.style.cursor = 'pointer';
-                    day.onclick = () => selectPerfDate(dateStr, true);
+                    day.onclick = () => selectPerfDate(dateStr);
                 } else if (!isPast) {
                     day.style.cursor = 'not-allowed';
                 }
@@ -5915,70 +5920,30 @@
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500);font-size:0.85rem">불러오는 중…</div>';
             const base = new Date(_perfState.viewDate);
             base.setDate(base.getDate() - base.getDay());
-            const weekStart = base.toLocaleDateString('en-CA');
             const weekEnd = new Date(base); weekEnd.setDate(base.getDate() + 6);
-            await loadPerfRangeConflicts(weekStart, weekEnd.toLocaleDateString('en-CA'));
+            await loadPerfRangeConflicts(base.toLocaleDateString('en-CA'), weekEnd.toLocaleDateString('en-CA'));
             container.innerHTML = '';
-            const wrap = document.createElement('div'); wrap.className = 'weekly-container';
-            const grid = document.createElement('div'); grid.className = 'weekly-grid';
-            grid.appendChild(Object.assign(document.createElement('div'), { className: 'weekly-cell weekly-header-cell' }));
             const today = new Date(); today.setHours(0,0,0,0);
-            const days = ['일','월','화','수','목','금','토'];
+            const dayNames = ['일','월','화','수','목','금','토'];
+            const dayRow = document.createElement('div');
+            dayRow.className = 'perf-week-days';
             for (let i = 0; i < 7; i++) {
                 const d = new Date(base); d.setDate(base.getDate() + i);
-                const h = document.createElement('div'); h.className = 'weekly-cell weekly-header-cell';
-                if (i === 0) h.classList.add('week-sun');
-                if (i === 6) h.classList.add('week-sat');
-                if (d.getTime() === today.getTime()) h.classList.add('week-today');
-                h.innerHTML = `<div style="font-size:0.7rem;opacity:0.75">${days[d.getDay()]}</div><div>${d.getDate()}</div>`;
-                grid.appendChild(h);
-            }
-            TIMES.forEach((time, idx) => {
-                const endTime = TIMES[idx+1] || '23:00';
-                const tc = document.createElement('div');
-                tc.className = 'weekly-cell weekly-time-cell';
-                tc.style.lineHeight = '1.15';
-                tc.innerHTML = `<div style="font-weight:600;font-size:0.82rem">${time}</div><div style="font-size:0.64rem;color:var(--wds-gray-500)">~${endTime}</div>`;
-                grid.appendChild(tc);
-                for (let i = 0; i < 7; i++) {
-                    const d = new Date(base); d.setDate(base.getDate() + i);
-                    const dateStr = d.toLocaleDateString('en-CA');
-                    const s = document.createElement('div'); s.className = 'weekly-cell weekly-slot';
-                    if (i === 0) s.classList.add('week-sun');
-                    if (i === 6) s.classList.add('week-sat');
-                    if (d.getTime() === today.getTime()) s.classList.add('week-today');
-                    const isPast = d < today;
-                    const conflicts = getDateConflicts(dateStr);
-                    const conflicted = conflicts.some(c => {
-                        const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
-                        return idx >= cs && idx <= ce;
-                    });
-                    if (isPast) {
-                        s.style.cursor = 'not-allowed'; s.style.opacity = '0.4';
-                    } else if (conflicted) {
-                        s.classList.add('slot-occupied');
-                        s.style.cursor = 'not-allowed';
-                        s.style.fontSize = '0.7rem';
-                        s.style.color = 'var(--wds-gray-500)';
-                        s.textContent = '예약불가';
-                    } else {
-                        s.style.cursor = 'pointer';
-                        if (_perfState.selectedDate === dateStr && _perfState.startSlot !== null) {
-                            const sStart = _perfState.startSlot, sEnd = _perfState.endSlot;
-                            if (sEnd !== null && idx >= sStart && idx <= sEnd) s.classList.add('selected');
-                            else if (sEnd === null && idx === sStart) s.classList.add('selected');
-                        }
-                        s.onclick = () => perfWeekSlotClick(dateStr, idx);
-                    }
-                    grid.appendChild(s);
+                const dateStr = d.toLocaleDateString('en-CA');
+                const isPast = d < today;
+                const isToday = d.getTime() === today.getTime();
+                const isSelected = _perfState.selectedDate === dateStr;
+                const cs = isPast ? '' : dateConflictStatus(dateStr);
+                const cell = document.createElement('div');
+                cell.className = 'perf-day-cell' + (isToday ? ' today' : '') + (isSelected ? ' selected' : '') + (isPast || cs === 'full' ? ' disabled' : '') + (cs === 'partial' ? ' partial' : '');
+                cell.innerHTML = `<div class="day-name">${dayNames[d.getDay()]}</div><div class="day-num">${d.getDate()}</div>`;
+                if (!isPast && cs !== 'full') {
+                    cell.onclick = () => selectPerfDate(dateStr);
                 }
-            });
-            wrap.appendChild(grid);
-            container.appendChild(wrap);
-            const help = document.createElement('div');
-            help.style.cssText = 'font-size:0.75rem;color:var(--wds-gray-500);margin-top:8px;text-align:center';
-            help.textContent = '시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 3시간)';
-            container.appendChild(help);
+                dayRow.appendChild(cell);
+            }
+            container.appendChild(dayRow);
+            renderPerfTimePicker(container);
         }
 
         function perfWeekSlotClick(dateStr, idx) {
@@ -6018,23 +5983,66 @@
             renderPerfFee();
         }
 
-        function selectPerfDate(dateStr, switchToWeek) {
+        function selectPerfDate(dateStr) {
             _perfState.selectedDate = dateStr;
             _perfState.startSlot = null;
             _perfState.endSlot = null;
-            if (switchToWeek) {
-                _perfState.viewDate = new Date(dateStr + 'T00:00:00');
-                _perfState.calView = 'week';
-                document.querySelectorAll('.perf-cal-toggle button').forEach(b => b.classList.remove('active'));
-                document.getElementById('perfCalWeekBtn').classList.add('active');
-            }
             renderPerfCal();
             document.getElementById('perfHeadcountSection').style.display = 'none';
             document.getElementById('perfStep1Next').style.display = 'none';
         }
 
         function renderPerfWeekTimePicker(container) {
-            // unused stub (week view handles time picking inline)
+            renderPerfTimePicker(container);
+        }
+
+        function renderPerfTimePicker(container) {
+            if (!_perfState.selectedDate) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:0.8rem;color:var(--wds-gray-500);text-align:center;padding:16px 0';
+                hint.textContent = '날짜를 선택하면 시간 슬롯이 표시됩니다';
+                container.appendChild(hint);
+                return;
+            }
+            const dateStr = _perfState.selectedDate;
+            const conflicts = getDateConflicts(dateStr);
+            const titleEl = document.createElement('div');
+            titleEl.style.cssText = 'font-size:0.82rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 4px';
+            titleEl.textContent = `${dateStr} 시간 선택`;
+            container.appendChild(titleEl);
+            const hintEl = document.createElement('div');
+            hintEl.style.cssText = 'font-size:0.74rem;color:var(--wds-gray-500);margin-bottom:10px';
+            hintEl.textContent = '시작 → 종료 순서로 클릭 (최소 3시간)';
+            container.appendChild(hintEl);
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
+            TIMES.forEach((time, idx) => {
+                const endTime = TIMES[idx+1] || '23:00';
+                const slot = document.createElement('div');
+                slot.className = 'perf-time-slot';
+                const isConflict = conflicts.some(c => {
+                    const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                    return idx >= cs && idx <= ce;
+                });
+                const { startSlot, endSlot } = _perfState;
+                if (isConflict) {
+                    slot.classList.add('unavailable');
+                    slot.innerHTML = `<div style="font-size:0.78rem">${time}</div><div style="font-size:0.64rem">예약불가</div>`;
+                } else if (startSlot !== null && endSlot === null && idx !== startSlot && idx < startSlot + 2) {
+                    slot.classList.add('end-disabled');
+                    slot.innerHTML = `<div style="font-size:0.82rem;font-weight:700">${time}</div><div style="font-size:0.64rem;opacity:0.6">~${endTime}</div>`;
+                } else {
+                    if (startSlot !== null && endSlot !== null && idx >= startSlot && idx <= endSlot) {
+                        slot.classList.add('selected');
+                    } else if (startSlot !== null && endSlot === null && idx === startSlot) {
+                        slot.classList.add('selected');
+                    }
+                    slot.innerHTML = `<div style="font-size:0.82rem;font-weight:700">${time}</div><div style="font-size:0.64rem;opacity:0.7">~${endTime}</div>`;
+                    slot.onclick = () => perfWeekSlotClick(dateStr, idx);
+                }
+                grid.appendChild(slot);
+            });
+            container.appendChild(grid);
         }
 
         function calcPerformanceFee(dateStr, startIdx, endIdx, headcount) {
