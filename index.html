@@ -5686,6 +5686,9 @@
         async function onReserve(e) {
             e.preventDefault();
             if (_resBusy) return;
+            _resBusy = true;
+            let reserveBtn = null, origLabel = '';
+            try {
             if (!state.selectedDate || !state.startTime) { alert("날짜와 시간을 선택해주세요."); return; }
             if (isPastSlot(state.selectedDate, state.startTime)) { alert("지나간 날짜/시간에는 예약할 수 없습니다."); return; }
             if (!supabaseClient) { alert("Supabase 설정이 필요합니다."); return; }
@@ -5733,11 +5736,9 @@
                 }
             }
 
-            _resBusy = true;
-            const reserveBtn = document.querySelector('button[type="submit"]');
-            const origLabel = reserveBtn ? reserveBtn.textContent : '';
+            reserveBtn = document.querySelector('button[type="submit"]');
+            origLabel = reserveBtn ? reserveBtn.textContent : '';
             if (reserveBtn) { reserveBtn.disabled = true; reserveBtn.textContent = '처리 중...'; }
-            try {
             const { data, error } = await supabaseClient
                 .from('reservations')
                 .insert([{
@@ -5773,11 +5774,11 @@
                 if (cntEl) cntEl.value = '0';
                 fetchReservations();
                 const pushTitle = isApproved ? '🎸 예약 확정' : '🎸 새 예약 신청';
-                setTimeout(() => sendAdminPush(pushTitle, `${name} · ${dateStr} ${timeStr}`), 600);
+                sendAdminPush(pushTitle, `${name} · ${dateStr} ${timeStr}`).catch(() => {});
             }
             } finally {
                 _resBusy = false;
-                if (reserveBtn) { reserveBtn.disabled = false; reserveBtn.textContent = origLabel; }
+                if (reserveBtn) { reserveBtn.disabled = false; if (origLabel) reserveBtn.textContent = origLabel; }
             }
         }
 
@@ -11057,7 +11058,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
 
         async function updateMemberRole(id, role) {
             const { error } = await supabaseClient.from('profiles').update({ role }).eq('id', id);
-            if (error) alert('권한 변경 실패: ' + error.message);
+            if (error) { alert('권한 변경 실패: ' + error.message); return; }
+            const m = (state.allMembers || []).find(x => x.id === id); if (m) m.role = role;
         }
 
         // --- 예약 승인/거절 ---
