@@ -6152,16 +6152,16 @@
                 _perfState.startSlot = idx;
                 _perfState.endSlot = null;
                 const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-                document.getElementById('perfHeadcountSection').style.display = 'none';
-                document.getElementById('perfStep1Next').style.display = 'none';
+                const _phs = document.getElementById('perfHeadcountSection'); if (_phs) _phs.style.display = 'none';
+                const _ps1 = document.getElementById('perfStep1Next'); if (_ps1) _ps1.style.display = 'none';
                 return;
             }
             const startSlot = _perfState.startSlot;
             if (idx === startSlot) {
                 _perfState.startSlot = null; _perfState.endSlot = null;
                 const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-                document.getElementById('perfHeadcountSection').style.display = 'none';
-                document.getElementById('perfStep1Next').style.display = 'none';
+                const _phs = document.getElementById('perfHeadcountSection'); if (_phs) _phs.style.display = 'none';
+                const _ps1 = document.getElementById('perfStep1Next'); if (_ps1) _ps1.style.display = 'none';
                 return;
             }
             if (idx < startSlot + 2) {
@@ -6178,8 +6178,8 @@
             }
             _perfState.endSlot = idx;
             const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-            document.getElementById('perfHeadcountSection').style.display = 'block';
-            document.getElementById('perfStep1Next').style.display = 'block';
+            const _phsB = document.getElementById('perfHeadcountSection'); if (_phsB) _phsB.style.display = 'block';
+            const _ps1B = document.getElementById('perfStep1Next'); if (_ps1B) _ps1B.style.display = 'block';
             renderPerfFee();
         }
 
@@ -6347,7 +6347,7 @@
                 headcount
             });
             if (error) { alert('신청 중 오류가 발생했습니다: ' + error.message); return; }
-            setTimeout(() => sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`), 400);
+            sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
             renderPerfStep3();
         }
 
@@ -11283,7 +11283,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 return;
             }
             const likedKey = state.user ? 'liked_' + state.user.kakaoId : '';
-            const liked = likedKey ? JSON.parse(localStorage.getItem(likedKey) || '[]') : [];
+            const liked = likedKey ? (() => { try { return JSON.parse(localStorage.getItem(likedKey) || '[]'); } catch(e) { return []; } })() : [];
 
             const parents = comments.filter(c => !c.parent_id).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
             const replyMap = {};
@@ -11307,7 +11307,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}">
                         <div style="flex:1">
-                            <div class="comment-meta"><strong>${c.user_name}</strong>${date}</div>
+                            <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong>${date}</div>
                             <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                             <div class="comment-actions">
                                 <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
@@ -11405,7 +11405,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         async function likeComment(id) {
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const likedKey = 'liked_' + state.user.kakaoId;
-            const liked = JSON.parse(localStorage.getItem(likedKey) || '[]');
+            const liked = (() => { try { return JSON.parse(localStorage.getItem(likedKey) || '[]'); } catch(e) { return []; } })();
             const sid = String(id);
             const alreadyLiked = liked.includes(sid);
 
