@@ -11012,7 +11012,11 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 </div>`;
         }
 
-        function cancelMemberEdit() { render(); }
+        function cancelMemberEdit() {
+            const memberList = document.getElementById('memberList');
+            if (memberList) renderAdminMemberListEl(memberList);
+            else render();
+        }
 
         async function saveMemberEdit(id) {
             const name = document.getElementById(`em-name-${id}`)?.value.trim();
@@ -11022,7 +11026,11 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!name) { alert('이름을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('profiles').update({ name, phone, email, instruments }).eq('id', id);
             if (error) { alert('저장 실패: ' + error.message); return; }
-            render();
+            const m = (state.allMembers || []).find(x => x.id === id);
+            if (m) { m.name = name; m.phone = phone || ''; m.email = email || ''; m.instruments = instruments || ''; }
+            const memberList = document.getElementById('memberList');
+            if (memberList) renderAdminMemberListEl(memberList);
+            else render();
         }
 
         async function approveMember(id) {
