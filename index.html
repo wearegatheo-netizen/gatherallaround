@@ -1434,6 +1434,14 @@
                     </div>
                 </div>
 
+                <!-- 음악 취향 -->
+                <div class="instrument-section" style="margin-top:8px">
+                    <div class="form-label-text">음악 취향 <span style="color:#e74c3c">*</span></div>
+                    <input type="text" id="signupGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&amp;B)" style="margin-bottom:6px">
+                    <input type="text" id="signupArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)">
+                    <input type="text" id="signupSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)" style="margin-top:6px">
+                </div>
+
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
                     • 수집 항목: 이름, 전화번호, 이메일 주소, 메인 세션<br>
@@ -1669,6 +1677,12 @@
                             <button type="button" class="inst-btn" data-inst="드럼" onclick="toggleInstrument(this)">🥁 드럼</button>
                         </div>
                         <input type="text" id="ksCustomInst" placeholder='","로 구분하여 추가 세션 작성' style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:8px">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">음악 취향 <span style="color:#e74c3c">*</span></label>
+                        <input type="text" id="ksMusicGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&B)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                        <input type="text" id="ksMusicArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:6px">
+                        <input type="text" id="ksMusicSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:6px">
                     </div>
                 </div>
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-top:14px;font-size:0.75rem;color:var(--wds-gray-600);line-height:1.6">
@@ -2156,6 +2170,12 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
+            const ksMusicGenre = document.getElementById('ksMusicGenre').value.trim();
+            const ksMusicArtists = document.getElementById('ksMusicArtists').value.trim();
+            const ksMusicSongs = document.getElementById('ksMusicSongs').value.trim();
+            if (!ksMusicGenre || !ksMusicArtists || !ksMusicSongs) { alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return; }
+            const music_taste = JSON.stringify({ genre: ksMusicGenre, artists: ksMusicArtists, songs: ksMusicSongs });
+
             _kakaoSignupBusy = true;
             const submitBtn = document.querySelector('button[onclick="submitKakaoSignup()"]');
             const origLabel = submitBtn ? submitBtn.textContent : '';
@@ -2164,7 +2184,7 @@
                 const { error } = await supabaseClient.from('profiles').insert([{
                     id: genUUID(),
                     kakao_id: state.user.kakaoId,
-                    name, email, phone, instruments,
+                    name, email, phone, instruments, music_taste,
                     status: 'pending',
                     role: '일반'
                 }]);
@@ -2732,6 +2752,7 @@
                     <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value">${escapeHtml(profile.email || '')}</span></div>
                     <div class="mypage-info-row"><span class="mypage-info-label">전화번호</span><span class="mypage-info-value">${escapeHtml(profile.phone || '')}</span></div>
                     <div class="mypage-info-row"><span class="mypage-info-label">세션</span><span class="mypage-info-value" style="color:var(--wds-primary)">${escapeHtml(profile.instruments || '')}</span></div>
+                    ${profile.music_taste ? `<div class="mypage-info-row"><span class="mypage-info-label">음악 취향</span><span class="mypage-info-value">${musicTasteHTML(profile.music_taste)}</span></div>` : ''}
                 </div>
                 <div id="mypageEditForm" class="hidden" style="margin-top:12px">
                     <div style="display:flex;flex-direction:column;gap:8px">
@@ -2751,6 +2772,15 @@
                         <input type="text" id="mypageCustomInst" placeholder='","로 구분하여 추가 세션 작성'
                             value="${escapeHtml((profile.instruments || '').split(',').map(s=>s.trim()).filter(s=>s && !['보컬','기타','베이스','키보드','드럼'].includes(s)).join(', '))}"
                             style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700);margin-top:4px">음악 취향</label>
+                        ${(() => { const mt = parseMusicTaste(profile.music_taste); return `
+                        <input type="text" id="mypageMusicGenre" value="${escapeHtml(mt ? mt.genre || '' : '')}" placeholder="좋아하는 장르 (예: 록, 팝, R&B)"
+                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
+                        <input type="text" id="mypageMusicArtists" value="${escapeHtml(mt ? mt.artists || '' : '')}" placeholder="좋아하는 아티스트 (예: 아이유, BTS)"
+                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;margin-top:6px">
+                        <input type="text" id="mypageMusicSongs" value="${escapeHtml(mt ? mt.songs || '' : '')}" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)"
+                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;margin-top:6px">
+                        `; })()}
                         <div style="display:flex;gap:8px;margin-top:4px">
                             <button type="button" onclick="hideMypageEditForm()"
                                 style="flex:1;padding:10px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
@@ -2806,6 +2836,15 @@
                             </div>
                             <input type="text" id="regCustomInst" placeholder='","로 구분하여 추가 세션 작성'
                                 style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:8px">
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">음악 취향 <span style="color:#e74c3c">*</span></label>
+                            <input type="text" id="regMusicGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&B)"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:4px">
+                            <input type="text" id="regMusicArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:6px">
+                            <input type="text" id="regMusicSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)"
+                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:6px">
                         </div>
                         <div style="display:flex;gap:8px;margin-top:4px">
                             <button type="button" onclick="hideMypageRegisterForm()"
@@ -2907,6 +2946,19 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
+            const musicGenreId = isNew ? 'regMusicGenre' : 'mypageMusicGenre';
+            const musicArtistsId = isNew ? 'regMusicArtists' : 'mypageMusicArtists';
+            const musicSongsId = isNew ? 'regMusicSongs' : 'mypageMusicSongs';
+            const musicGenre = document.getElementById(musicGenreId)?.value.trim() || '';
+            const musicArtists = document.getElementById(musicArtistsId)?.value.trim() || '';
+            const musicSongs = document.getElementById(musicSongsId)?.value.trim() || '';
+            if (isNew && (!musicGenre || !musicArtists || !musicSongs)) {
+                alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return;
+            }
+            const music_taste = (musicGenre || musicArtists || musicSongs)
+                ? JSON.stringify({ genre: musicGenre, artists: musicArtists, songs: musicSongs })
+                : null;
+
             let result;
             if (isNew) {
                 const name = document.getElementById('regName').value.trim();
@@ -2915,12 +2967,12 @@
                 result = await supabaseClient.from('profiles').insert([{
                     id: genUUID(),
                     kakao_id: state.user.kakaoId,
-                    name, email, phone, instruments,
+                    name, email, phone, instruments, music_taste,
                     status: 'pending',
                     role: '일반'
                 }]);
             } else {
-                result = await supabaseClient.from('profiles').update({ phone, instruments }).eq('id', profileId);
+                result = await supabaseClient.from('profiles').update({ phone, instruments, music_taste }).eq('id', profileId);
             }
             if (result.error) { alert('저장 실패: ' + result.error.message); return; }
             showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
@@ -4217,6 +4269,20 @@
             return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
+        function parseMusicTaste(raw) {
+            if (!raw) return null;
+            try { return JSON.parse(raw); } catch { return { genre: '', artists: raw, songs: '' }; }
+        }
+        function musicTasteHTML(raw) {
+            const mt = parseMusicTaste(raw);
+            if (!mt || (!mt.genre && !mt.artists && !mt.songs)) return '';
+            return `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;font-size:0.75rem">
+                ${mt.genre ? `<span style="background:#f0f4ff;color:#3366FF;padding:2px 8px;border-radius:10px">🎵 ${escapeHtml(mt.genre)}</span>` : ''}
+                ${mt.artists ? `<span style="background:#f0fff4;color:#00b894;padding:2px 8px;border-radius:10px">🎤 ${escapeHtml(mt.artists)}</span>` : ''}
+                ${mt.songs ? `<span style="background:#fff8f0;color:#e07000;padding:2px 8px;border-radius:10px">🎶 ${escapeHtml(mt.songs)}</span>` : ''}
+            </div>`;
+        }
+
         function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function escAttr(s) { return String(s||'').replace(/"/g,'&quot;').replace(/'/g,"&#39;"); }
 
@@ -4432,7 +4498,8 @@
                 return (m.name||'').toLowerCase().includes(q)
                     || (m.instruments||'').toLowerCase().includes(q)
                     || (m.phone||'').replace(/-/g,'').includes(nq)
-                    || (m.email||'').toLowerCase().includes(q);
+                    || (m.email||'').toLowerCase().includes(q)
+                    || (m.music_taste||'').toLowerCase().includes(q);
             }) : approved;
 
             if (filtered.length === 0) {
@@ -4475,6 +4542,7 @@
                     <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
                         <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${memberDisplayName(m)}</span>${roleTag}${instBadges(subInsts)}${adminMeta}
                     </div>
+                    ${musicTasteHTML(m.music_taste)}
                 </div>`;
             };
 
@@ -10229,6 +10297,12 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const instruments = [...selectedInsts, ...customInsts].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
+            const signupGenre = document.getElementById('signupGenre').value.trim();
+            const signupArtists = document.getElementById('signupArtists').value.trim();
+            const signupSongs = document.getElementById('signupSongs').value.trim();
+            if (!signupGenre || !signupArtists || !signupSongs) { alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return; }
+            const music_taste = JSON.stringify({ genre: signupGenre, artists: signupArtists, songs: signupSongs });
+
             _signupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleEmailSignup()"]');
             const origLabel = submitBtn ? submitBtn.textContent : '';
@@ -10239,7 +10313,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
 
                 const { error: pErr } = await supabaseClient.from('profiles').insert([{
-                    id: data.user.id, name, phone, email, instruments, status: 'pending'
+                    id: data.user.id, name, phone, email, instruments, music_taste, status: 'pending'
                 }]);
                 if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
 
