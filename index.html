@@ -809,7 +809,7 @@
         .mlist {
             display: grid; grid-template-columns: 1fr; gap: 8px;
         }
-        @media (min-width: 540px) { .mlist { grid-template-columns: 1fr 1fr; } }
+        @media (min-width: 620px) { .mlist { grid-template-columns: 1fr 1fr; } }
         .mlist-card {
             display: flex; align-items: flex-start; gap: 10px;
             padding: 11px 13px; background: var(--wds-white);
@@ -848,6 +848,35 @@
             font-size: 0.74rem; font-weight: 800; letter-spacing: 0.02em;
             color: var(--wds-gray-500); text-transform: uppercase; margin: 14px 2px 8px;
         }
+
+        /* ===== 모바일 전용 튜닝 (마이페이지·멤버목록·자유게시판) ===== */
+        @media (max-width: 480px) {
+            /* 마이페이지: 활동 요약 카드 2x2 배치 */
+            #mypagePanelContent .stat-grid-compact { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+            #mypagePanelContent .stat-card { padding: 10px 12px !important; }
+            #mypagePanelContent .stat-label { font-size: 0.72rem !important; }
+            #mypagePanelContent .stat-value { font-size: 1.2rem !important; }
+            .mypage-profile-card { padding: 14px; gap: 10px; }
+            .mypage-profile-name { font-size: 1rem; }
+            .mypage-edit-btn { padding: 7px 12px; }
+            .mypage-info-row { padding: 9px 0; font-size: 0.88rem; }
+
+            /* 멤버 목록: 카드 여백·터치 영역 확대 */
+            .mlist { gap: 9px; }
+            .mlist-card { padding: 12px 14px; gap: 11px; border-radius: 13px; }
+            .ga-avatar { width: 38px; height: 38px; font-size: 0.9rem; }
+            .mlist-name { font-size: 0.95rem; }
+            .mt-tag { font-size: 0.72rem; padding: 3px 9px; }
+            .member-group-header { font-size: 0.82rem; }
+
+            /* 자유게시판: 작성자/액션 버튼 터치 영역 확대 */
+            .comment-author .ga-avatar { width: 32px; height: 32px; }
+            .comment-author-name { font-size: 0.9rem; }
+            .board-row-title { font-size: 0.92rem; }
+            .like-btn, .reply-btn { padding: 6px 13px; font-size: 0.82rem; }
+            .board-post-title { font-size: 1rem; }
+        }
+
         /* 관리자 멤버 목록 */
         .admin-member-group { margin-bottom: 14px; }
         .admin-member-group-header {
@@ -2827,7 +2856,6 @@
             const profileHtml = profile ? `
                 <div id="mypageInfoView">
                     <div class="mypage-profile-card">
-                        ${gaAvatar(profile.name)}
                         <div style="flex:1;min-width:0">
                             <div class="mypage-profile-name">${escapeHtml(profile.name)}</div>
                             ${profile.instruments ? `<div class="mypage-profile-session">${escapeHtml(profile.instruments)}</div>` : ''}
