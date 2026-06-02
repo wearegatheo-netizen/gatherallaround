@@ -549,7 +549,28 @@
         .comment-item:last-child { border-bottom: none; }
         .comment-meta { font-size: 0.85rem; color: var(--wds-gray-500); margin-bottom: 6px; }
         .comment-meta strong { color: var(--wds-black); font-weight: 700; margin-right: 8px; }
-        .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; }
+        .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+        .board-post-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-black); margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
+
+        /* 자유게시판 목록 (접힌 행) */
+        .board-row-wrap { border: 1px solid var(--wds-gray-300); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: var(--wds-white); transition: border-color 0.15s; }
+        .board-row-wrap:has(.board-row.active) { border-color: var(--wds-primary); }
+        .board-row { padding: 13px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: background 0.12s; }
+        .board-row:hover { background: var(--wds-gray-100); }
+        .board-row.active { background: var(--wds-gray-100); }
+        .board-row-head { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+        .board-row-chevron { color: var(--wds-gray-400); font-size: 0.78rem; flex-shrink: 0; transition: transform 0.18s; display: inline-block; }
+        .board-row-chevron.open { transform: rotate(180deg); color: var(--wds-primary); }
+        .board-row-title { font-size: 0.95rem; font-weight: 600; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .board-row-replies { flex-shrink: 0; font-size: 0.72rem; color: var(--wds-primary); font-weight: 700; }
+        .board-row-meta { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: var(--wds-gray-500); flex-shrink: 0; white-space: nowrap; }
+        .board-row-author { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+        .board-post-expand { padding: 6px 14px 12px; background: var(--wds-gray-100); color: var(--wds-black); }
+        @media (max-width: 480px) {
+            .board-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .board-row-meta { font-size: 0.72rem; }
+            .board-row-author { max-width: 120px; }
+        }
         .comment-delete-btn {
             flex-shrink: 0; border: none; background: none; color: var(--wds-gray-500);
             font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0;
@@ -1906,8 +1927,8 @@
         </div>
         <div id="boardWriteForm" style="display:none;margin-bottom:16px;background:white;border:1px solid var(--wds-gray-300);border-radius:10px;padding:14px">
             <div class="comment-form" style="margin-bottom:0">
-                <input type="text" id="boardTitleInput" placeholder="제목을 입력하세요" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-family:inherit;outline:none;box-sizing:border-box">
-                <textarea id="commentInput" placeholder="내용을 입력하세요..." style="min-height:80px"></textarea>
+                <input type="text" id="boardTitleInput" placeholder="제목을 입력하세요" maxlength="100" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box">
+                <textarea id="commentInput" placeholder="내용을 입력하세요..." style="min-height:100px"></textarea>
                 <div style="display:flex;gap:8px;justify-content:flex-end">
                     <button type="button" onclick="toggleBoardWriteForm()" style="padding:8px 16px;border:1px solid var(--wds-gray-300);border-radius:8px;background:none;font-size:0.88rem;cursor:pointer;font-family:inherit">취소</button>
                     <button type="button" class="comment-submit-btn" onclick="postComment()">등록</button>
@@ -4285,6 +4306,15 @@
 
         function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function escAttr(s) { return String(s||'').replace(/"/g,'&quot;').replace(/'/g,"&#39;"); }
+
+        // 자유게시판 글: "\x1F제목\x1F\n본문" 형태로 저장된 제목/본문을 분리
+        function parseBoardPost(raw) {
+            const s = String(raw || '');
+            const m = s.match(/^\x1F([\s\S]*?)\x1F\n?([\s\S]*)$/);
+            if (m) return { title: m[1].trim(), body: m[2] };
+            // 구분자가 깨진 글 방어: 남은 \x1F 제거
+            return { title: '', body: s.replace(/\x1F/g, '') };
+        }
 
         // 멤버 목록에서 숨길 계정 (중복/구 계정)
         function isHiddenMember(m) {
@@ -11388,11 +11418,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     else if (isReply && parentComment && state.user.kakaoId === parentComment.kakao_id) canDelete = true;
                     else if (isReply && isSuper()) canDelete = true;
                 }
+                // 답글은 제목 없음. 게시글은 제목/본문 분리
+                const { title, body } = isReply ? { title: '', body: String(c.content || '').replace(/\x1F/g, '') } : parseBoardPost(c.content);
+                const titleHtml = (!isReply && title) ? `<div class="board-post-title">${escapeHtml(title)}</div>` : '';
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}">
-                        <div style="flex:1">
+                        <div style="flex:1;min-width:0">
                             <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong>${date}</div>
-                            <div class="comment-content">${c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                            ${titleHtml}
+                            <div class="comment-content">${escapeHtml(body)}</div>
                             <div class="comment-actions">
                                 <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
                                 ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">💬 답글</button>` : ''}
@@ -11408,18 +11442,24 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
 
             const rows = parents.map(p => {
                 const replies = replyMap[p.id] || [];
-                const preview = p.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,' ');
+                const { title, body } = parseBoardPost(p.content);
+                const bodyOneLine = body.replace(/\s+/g, ' ').trim();
+                const displayTitle = title || bodyOneLine.slice(0, 40) || '(제목 없음)';
                 const shortDate = new Date(p.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
-                return `<div style="border:1px solid var(--wds-gray-300);border-radius:8px;margin-bottom:6px;overflow:hidden">
-                    <div style="padding:10px 12px;cursor:pointer" onclick="toggleBoardPost('${p.id}')">
-                        <div style="font-size:0.92rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:5px;color:var(--wds-black)">${preview} ${replies.length>0?`<span style="font-size:0.72rem;color:var(--wds-primary);font-weight:700">[${replies.length}]</span>`:''}</div>
-                        <div style="display:flex;gap:10px;align-items:center;font-size:0.74rem;color:var(--wds-gray-500);flex-wrap:wrap">
-                            <span style="font-weight:600">${escapeHtml(p.user_name)}</span>
+                return `<div class="board-row-wrap">
+                    <div class="board-row" onclick="toggleBoardPost('${p.id}')">
+                        <div class="board-row-head">
+                            <span class="board-row-chevron" id="board-chevron-${p.id}">▾</span>
+                            <span class="board-row-title">${escapeHtml(displayTitle)}</span>
+                            ${replies.length>0?`<span class="board-row-replies">💬 ${replies.length}</span>`:''}
+                        </div>
+                        <div class="board-row-meta">
+                            <span class="board-row-author">${escapeHtml(p.user_name)}</span>
                             <span>${shortDate}</span>
-                            <span style="margin-left:auto">❤️ ${p.likes||0}</span>
+                            <span class="board-row-likes">❤️ ${p.likes||0}</span>
                         </div>
                     </div>
-                    <div id="board-post-${p.id}" class="hidden board-post-expand" style="padding:10px 14px 12px;background:var(--wds-gray-100);border-radius:0 0 8px 8px;color:var(--wds-black)">
+                    <div id="board-post-${p.id}" class="hidden board-post-expand">
                         ${renderItem(p, false)}
                         ${replies.length > 0 ? `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div><div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>` : ''}
                     </div>
@@ -11445,7 +11485,13 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
 
         function toggleBoardPost(id) {
             const el = document.getElementById('board-post-' + id);
-            if (el) el.classList.toggle('hidden');
+            if (el) {
+                const opened = el.classList.toggle('hidden') === false;
+                const chevron = document.getElementById('board-chevron-' + id);
+                if (chevron) chevron.classList.toggle('open', opened);
+                const row = el.previousElementSibling;
+                if (row && row.classList.contains('board-row')) row.classList.toggle('active', opened);
+            }
         }
 
         async function postReply(parentId) {
@@ -11469,8 +11515,10 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const input = document.getElementById('commentInput');
             const rawContent = input.value.trim();
             const titleVal = (document.getElementById('boardTitleInput') || {}).value?.trim() || '';
-            const content = titleVal ? `\x1F${titleVal}\x1F\n${rawContent}` : rawContent;
+            if (!titleVal) { alert('제목을 입력해주세요.'); return; }
             if (!rawContent) { alert('내용을 입력해주세요.'); return; }
+            // 본문에 구분자(\x1F)가 섞여 글이 깨지는 것 방지
+            const content = `\x1F${titleVal.replace(/\x1F/g, '')}\x1F\n${rawContent.replace(/\x1F/g, '')}`;
 
             const { error } = await supabaseClient
                 .from('comments')
