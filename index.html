@@ -549,6 +549,10 @@
         .comment-item:last-child { border-bottom: none; }
         .comment-meta { font-size: 0.85rem; color: var(--wds-gray-500); margin-bottom: 6px; }
         .comment-meta strong { color: var(--wds-black); font-weight: 700; margin-right: 8px; }
+        .comment-author { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .comment-author .ga-avatar { width: 30px; height: 30px; font-size: 0.78rem; }
+        .comment-author-name { font-size: 0.88rem; font-weight: 700; color: var(--wds-black); line-height: 1.2; }
+        .comment-author-date { font-size: 0.72rem; color: var(--wds-gray-500); margin-top: 1px; }
         .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
         .board-post-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-black); margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
 
@@ -787,6 +791,62 @@
             background: var(--wds-primary-light); color: var(--wds-primary);
             font-size: 0.68rem; font-weight: 700;
             padding: 1px 6px; border-radius: 10px;
+        }
+
+        /* ===== 공유: 아바타 ===== */
+        .ga-avatar {
+            flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 50%; color: #fff; font-weight: 700; line-height: 1;
+            font-size: 0.82rem; width: 34px; height: 34px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        }
+
+        /* ===== 멤버 목록: 카드 리디자인 ===== */
+        #memberPanelView .member-group { margin-bottom: 18px; }
+        .member-group-header {
+            border-bottom: none; padding: 0 2px 8px; margin-bottom: 8px;
+        }
+        .mlist {
+            display: grid; grid-template-columns: 1fr; gap: 8px;
+        }
+        @media (min-width: 540px) { .mlist { grid-template-columns: 1fr 1fr; } }
+        .mlist-card {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 11px 13px; background: var(--wds-white);
+            border: 1px solid var(--wds-gray-300); border-radius: 12px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .mlist-card:hover { border-color: var(--wds-primary); box-shadow: 0 2px 8px rgba(51,102,255,0.08); }
+        .mlist-body { flex: 1; min-width: 0; }
+        .mlist-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .mlist-name { font-size: 0.92rem; font-weight: 700; color: var(--wds-black); }
+        .mlist-role {
+            font-size: 0.66rem; font-weight: 700; padding: 1px 7px;
+            border-radius: 8px; white-space: nowrap;
+        }
+        .mlist-sub { font-size: 0.74rem; color: var(--wds-gray-500); margin-top: 2px; }
+        .mlist-meta { font-size: 0.7rem; color: var(--wds-gray-500); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .mt-tag {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 9px;
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        /* ===== 마이페이지: 프로필 헤더 카드 ===== */
+        .mypage-profile-card {
+            display: flex; align-items: center; gap: 13px;
+            padding: 16px; border-radius: 14px; margin-bottom: 14px;
+            background: linear-gradient(135deg, var(--wds-primary-light), color-mix(in srgb, var(--wds-primary-light) 55%, transparent));
+            border: 1px solid color-mix(in srgb, var(--wds-primary) 18%, transparent);
+        }
+        .mypage-profile-card .ga-avatar { width: 52px; height: 52px; font-size: 1.25rem; }
+        .mypage-profile-name { font-size: 1.08rem; font-weight: 800; color: var(--wds-black); }
+        .mypage-profile-session { font-size: 0.8rem; color: var(--wds-primary); font-weight: 700; margin-top: 2px; }
+        .mypage-detail-list { display: flex; flex-direction: column; gap: 0; margin-bottom: 4px; }
+        .mypage-section-label {
+            font-size: 0.74rem; font-weight: 800; letter-spacing: 0.02em;
+            color: var(--wds-gray-500); text-transform: uppercase; margin: 14px 2px 8px;
         }
         /* 관리자 멤버 목록 */
         .admin-member-group { margin-bottom: 14px; }
@@ -2765,16 +2825,20 @@
                 : [];
 
             const profileHtml = profile ? `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                    <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700)">개인 정보</div>
-                    <button class="mypage-edit-btn" onclick="showMypageEditForm()">✏️ 수정</button>
-                </div>
                 <div id="mypageInfoView">
-                    <div class="mypage-info-row"><span class="mypage-info-label">이름</span><span class="mypage-info-value">${escapeHtml(profile.name)}</span></div>
-                    <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value">${escapeHtml(profile.email || '')}</span></div>
-                    <div class="mypage-info-row"><span class="mypage-info-label">전화번호</span><span class="mypage-info-value">${escapeHtml(profile.phone || '')}</span></div>
-                    <div class="mypage-info-row"><span class="mypage-info-label">세션</span><span class="mypage-info-value" style="color:var(--wds-primary)">${escapeHtml(profile.instruments || '')}</span></div>
-                    ${profile.music_taste ? `<div class="mypage-info-row"><span class="mypage-info-label">음악 취향</span><span class="mypage-info-value">${musicTasteHTML(profile.music_taste)}</span></div>` : ''}
+                    <div class="mypage-profile-card">
+                        ${gaAvatar(profile.name)}
+                        <div style="flex:1;min-width:0">
+                            <div class="mypage-profile-name">${escapeHtml(profile.name)}</div>
+                            ${profile.instruments ? `<div class="mypage-profile-session">${escapeHtml(profile.instruments)}</div>` : ''}
+                        </div>
+                        <button class="mypage-edit-btn" onclick="showMypageEditForm()" style="flex-shrink:0">✏️ 수정</button>
+                    </div>
+                    <div class="mypage-detail-list">
+                        <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value">${escapeHtml(profile.email || '-')}</span></div>
+                        <div class="mypage-info-row"><span class="mypage-info-label">전화번호</span><span class="mypage-info-value">${escapeHtml(profile.phone || '-')}</span></div>
+                    </div>
+                    ${profile.music_taste ? `<div class="mypage-section-label">🎧 음악 취향</div>${musicTasteTags(profile.music_taste)}` : ''}
                 </div>
                 <div id="mypageEditForm" class="hidden" style="margin-top:12px">
                     <div style="display:flex;flex-direction:column;gap:8px">
@@ -2867,14 +2931,14 @@
             `);
 
             const teamsHtml = myTeams.length > 0 ? `
-                <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 8px">소속 팀</div>
+                <div class="mypage-section-label">🎸 소속 팀</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
                     ${myTeams.map(t => `<span style="background:var(--wds-primary-light);color:var(--wds-primary);padding:4px 12px;border-radius:16px;font-size:0.82rem;font-weight:600">${escapeHtml(t.name)}</span>`).join('')}
                 </div>` : '';
 
             content.innerHTML = `
                 ${profileHtml}
-                <div style="font-size:0.85rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:8px">활동 요약</div>
+                <div class="mypage-section-label">📊 활동 요약</div>
                 <div class="stat-grid stat-grid-compact" style="grid-template-columns:repeat(4,1fr);gap:5px">
                     <div class="stat-card" style="border-left:3px solid var(--wds-primary);padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">전체 예약</div><div class="stat-value" style="font-size:0.98rem">${myRes.length}</div></div>
                     <div class="stat-card" style="border-left:3px solid #00b894;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">승인됨</div><div class="stat-value" style="font-size:0.98rem">${approvedCount}</div></div>
@@ -4470,6 +4534,32 @@
             return m.name === '최경수(세션장)' || m.name === '최경수(일반)';
         }
 
+        // 이름 기반 결정적 아바타 (색상 + 이니셜)
+        const GA_AVATAR_COLORS = ['#3366FF','#00b894','#e07000','#6c5ce7','#e0407a','#0091a8','#c0392b','#2d7d46'];
+        function gaAvatar(name, opts) {
+            const n = String(name || '').replace(/\(.*?\)/g, '').trim() || '?';
+            let h = 0;
+            for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+            const color = GA_AVATAR_COLORS[h % GA_AVATAR_COLORS.length];
+            const initial = escapeHtml(n.charAt(0).toUpperCase());
+            const cls = (opts && opts.cls) ? ' ' + opts.cls : '';
+            return `<span class="ga-avatar${cls}" style="background:${color}">${initial}</span>`;
+        }
+
+        // 음악취향을 컴팩트 태그로 (멤버 카드용)
+        function musicTasteTags(raw) {
+            const mt = parseMusicTaste(raw);
+            if (!mt || (!mt.genre && !mt.genres && !mt.artists && !mt.songs)) return '';
+            const genreLabel = Array.isArray(mt.genres) && mt.genres.length ? mt.genres.join(', ') : (mt.genre || '');
+            const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '' }] : []);
+            const songLabel = songsArr.map(s => s.title + (s.artist ? ' · ' + s.artist : '')).join(', ');
+            const tags = [];
+            if (genreLabel) tags.push(`<span class="mt-tag" style="background:#f0f4ff;color:#3366ff" title="${escapeHtml(genreLabel)}">🎵 ${escapeHtml(genreLabel)}</span>`);
+            if (mt.artists) tags.push(`<span class="mt-tag" style="background:#f0fff4;color:#00b894" title="${escapeHtml(mt.artists)}">🎤 ${escapeHtml(mt.artists)}</span>`);
+            if (songLabel) tags.push(`<span class="mt-tag" style="background:#fff8f0;color:#e07000" title="${escapeHtml(songLabel)}">🎶 ${escapeHtml(songLabel)}</span>`);
+            return tags.length ? `<div class="mt-tags">${tags.join('')}</div>` : '';
+        }
+
         // 본인 외에는 이름 뒤 '(관리자)' 등 괄호 뱃지 숨김
         function memberDisplayName(m) {
             const name = m.name || '';
@@ -4703,25 +4793,31 @@
                 return ai - bi;
             });
 
-            const roleColors = { '운영 총괄': '#e04000', '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
-            const roleEmoji = (r) => r === '총괄' ? '👑' : r === '세션장' ? '⭐' : '';
+            const roleStyles = {
+                '운영 총괄': { bg:'#fdeee6', fg:'#e04000', label:'운영총괄' },
+                '총괄':     { bg:'#ebf0ff', fg:'#3366FF', label:'👑 총괄' },
+                '세션장':   { bg:'#e6f9f2', fg:'#00b894', label:'⭐ 세션장' }
+            };
             const renderItem = (m) => {
                 const role = m.role || '일반';
-                const roleColor = roleColors[role] || '#999';
-                const emailDisplay = m.email ? escapeHtml(m.email) : '<span style="color:var(--kakao-yellow);background:#3C1E1E;border-radius:3px;padding:1px 5px;font-size:0.72rem">카카오</span>';
-                const adminMeta = isS
-                    ? `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:8px;white-space:nowrap">${emailDisplay}</span>`
-                    + `<span style="font-size:0.72rem;color:var(--wds-gray-500);margin-left:6px;white-space:nowrap">${escapeHtml(m.phone || '')}</span>`
-                    : '';
-                const roleTag = '';
-                // 부 악기만 뱃지로
+                const rs = roleStyles[role];
+                const roleTag = rs ? `<span class="mlist-role" style="background:${rs.bg};color:${rs.fg}">${rs.label}</span>` : '';
+                // 부 악기만 서브 라인으로
                 const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
-                const subInsts = insts.slice(1).join(',');
-                return `<div class="my-res-item" style="margin-bottom:4px">
-                    <div class="my-res-info" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:100%">
-                        <span style="font-size:0.85rem;font-weight:700;white-space:nowrap">${memberDisplayName(m)}</span>${roleTag}${instBadges(subInsts)}${adminMeta}
+                const subInsts = insts.slice(1).join(', ');
+                const subLine = subInsts ? `<div class="mlist-sub">+ ${escapeHtml(subInsts)}</div>` : '';
+                const adminMeta = isS ? `<div class="mlist-meta">
+                    <span>${m.email ? escapeHtml(m.email) : '카카오 로그인'}</span>
+                    ${m.phone ? `<span>${escapeHtml(m.phone)}</span>` : ''}
+                </div>` : '';
+                return `<div class="mlist-card">
+                    ${gaAvatar(m.name)}
+                    <div class="mlist-body">
+                        <div class="mlist-name-row"><span class="mlist-name">${memberDisplayName(m)}</span>${roleTag}</div>
+                        ${subLine}
+                        ${adminMeta}
+                        ${musicTasteTags(m.music_taste)}
                     </div>
-                    ${musicTasteHTML(m.music_taste)}
                 </div>`;
             };
 
@@ -4733,7 +4829,7 @@
                 return `
                     <div class="member-group">
                         <div class="member-group-header">${emoji} ${escapeHtml(gKey)} <span class="member-group-count">${list.length}</span></div>
-                        <div class="my-res-list">${items.map(renderItem).join('')}</div>
+                        <div class="mlist">${items.map(renderItem).join('')}</div>
                         ${pagerHTML(pageKey, page, totalPages, total)}
                     </div>`;
             }).join('');
@@ -11571,7 +11667,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}">
                         <div style="flex:1;min-width:0">
-                            <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong>${date}</div>
+                            <div class="comment-author">${gaAvatar(c.user_name)}<div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>
                             ${titleHtml}
                             <div class="comment-content">${escapeHtml(body)}</div>
                             <div class="comment-actions">
