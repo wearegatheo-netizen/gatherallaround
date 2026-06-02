@@ -553,6 +553,13 @@
         .board-post-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-black); margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
 
         /* 자유게시판 목록 (접힌 행) */
+        .mt-genre-chip { padding: 4px 10px; border: 1px solid var(--wds-gray-300); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-gray-700); transition: all 0.12s; }
+        .mt-genre-chip:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .mt-genre-chip.selected { background: var(--wds-primary); color: white; border-color: var(--wds-primary); font-weight: 700; }
+        .mt-sel-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--wds-primary-light); color: var(--wds-primary); padding: 3px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+        .mt-sel-chip button { background: none; border: none; cursor: pointer; color: var(--wds-primary); font-size: 1rem; line-height: 1; padding: 0; font-weight: 700; }
+        .mt-result-chip { padding: 4px 10px; border: 1px solid var(--wds-primary); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-primary); transition: all 0.12s; }
+        .mt-result-chip:hover { background: var(--wds-primary); color: white; }
         .board-row-wrap { border: 1px solid var(--wds-gray-300); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: var(--wds-white); transition: border-color 0.15s; }
         .board-row-wrap:has(.board-row.active) { border-color: var(--wds-primary); }
         .board-row { padding: 13px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: background 0.12s; }
@@ -1458,9 +1465,7 @@
                 <!-- 음악 취향 -->
                 <div class="instrument-section" style="margin-top:8px">
                     <div class="form-label-text">음악 취향 <span style="color:#e74c3c">*</span></div>
-                    <input type="text" id="signupGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&amp;B)" style="margin-bottom:6px">
-                    <input type="text" id="signupArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)">
-                    <input type="text" id="signupSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)" style="margin-top:6px">
+                    <div id="mtEdit_signup"></div>
                 </div>
 
                 <div class="privacy-box">
@@ -1701,9 +1706,7 @@
                     </div>
                     <div>
                         <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">음악 취향 <span style="color:#e74c3c">*</span></label>
-                        <input type="text" id="ksMusicGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&B)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
-                        <input type="text" id="ksMusicArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:6px">
-                        <input type="text" id="ksMusicSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:6px">
+                        <div id="mtEdit_ks" style="margin-top:6px"></div>
                     </div>
                 </div>
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-top:14px;font-size:0.75rem;color:var(--wds-gray-600);line-height:1.6">
@@ -2113,6 +2116,7 @@
             showKakaoSignupView();
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            setTimeout(() => renderMtEditUI('mtEdit_ks', null), 0);
         }
 
         function hideKakaoSignupModal() {
@@ -2191,11 +2195,8 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const ksMusicGenre = document.getElementById('ksMusicGenre').value.trim();
-            const ksMusicArtists = document.getElementById('ksMusicArtists').value.trim();
-            const ksMusicSongs = document.getElementById('ksMusicSongs').value.trim();
-            if (!ksMusicGenre || !ksMusicArtists || !ksMusicSongs) { alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return; }
-            const music_taste = JSON.stringify({ genre: ksMusicGenre, artists: ksMusicArtists, songs: ksMusicSongs });
+            const music_taste = getMtEditValue();
+            if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _kakaoSignupBusy = true;
             const submitBtn = document.querySelector('button[onclick="submitKakaoSignup()"]');
@@ -2794,14 +2795,7 @@
                             value="${escapeHtml((profile.instruments || '').split(',').map(s=>s.trim()).filter(s=>s && !['보컬','기타','베이스','키보드','드럼'].includes(s)).join(', '))}"
                             style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
                         <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700);margin-top:4px">음악 취향</label>
-                        ${(() => { const mt = parseMusicTaste(profile.music_taste); return `
-                        <input type="text" id="mypageMusicGenre" value="${escapeHtml(mt ? mt.genre || '' : '')}" placeholder="좋아하는 장르 (예: 록, 팝, R&B)"
-                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
-                        <input type="text" id="mypageMusicArtists" value="${escapeHtml(mt ? mt.artists || '' : '')}" placeholder="좋아하는 아티스트 (예: 아이유, BTS)"
-                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;margin-top:6px">
-                        <input type="text" id="mypageMusicSongs" value="${escapeHtml(mt ? mt.songs || '' : '')}" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)"
-                            style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;margin-top:6px">
-                        `; })()}
+                        <div id="mtEdit_mypage" style="margin-top:6px"></div>
                         <div style="display:flex;gap:8px;margin-top:4px">
                             <button type="button" onclick="hideMypageEditForm()"
                                 style="flex:1;padding:10px;border-radius:var(--wds-radius-s);border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">취소</button>
@@ -2860,12 +2854,7 @@
                         </div>
                         <div>
                             <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">음악 취향 <span style="color:#e74c3c">*</span></label>
-                            <input type="text" id="regMusicGenre" placeholder="좋아하는 장르 (예: 록, 팝, R&B)"
-                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:4px">
-                            <input type="text" id="regMusicArtists" placeholder="좋아하는 아티스트 (예: 아이유, BTS)"
-                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:6px">
-                            <input type="text" id="regMusicSongs" placeholder="좋아하는 곡 (예: 좋은날, Dynamite)"
-                                style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-top:6px">
+                            <div id="mtEdit_reg" style="margin-top:6px"></div>
                         </div>
                         <div style="display:flex;gap:8px;margin-top:4px">
                             <button type="button" onclick="hideMypageRegisterForm()"
@@ -2895,6 +2884,7 @@
                 <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 예약·일정표에 이름이 올라간 날짜 수 (같은 날 중복 1회)</div>
                 ${teamsHtml}
             `;
+            if (profile) setTimeout(() => renderMtEditUI('mtEdit_mypage', profile.music_taste), 0);
         }
 
         async function handleChangePassword() {
@@ -2937,6 +2927,7 @@
         function showMypageRegisterForm() {
             const rf = document.getElementById('mypageRegisterForm');
             if (rf) rf.classList.remove('hidden');
+            setTimeout(() => renderMtEditUI('mtEdit_reg', null), 0);
         }
 
         function hideMypageRegisterForm() {
@@ -2967,18 +2958,8 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const musicGenreId = isNew ? 'regMusicGenre' : 'mypageMusicGenre';
-            const musicArtistsId = isNew ? 'regMusicArtists' : 'mypageMusicArtists';
-            const musicSongsId = isNew ? 'regMusicSongs' : 'mypageMusicSongs';
-            const musicGenre = document.getElementById(musicGenreId)?.value.trim() || '';
-            const musicArtists = document.getElementById(musicArtistsId)?.value.trim() || '';
-            const musicSongs = document.getElementById(musicSongsId)?.value.trim() || '';
-            if (isNew && (!musicGenre || !musicArtists || !musicSongs)) {
-                alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return;
-            }
-            const music_taste = (musicGenre || musicArtists || musicSongs)
-                ? JSON.stringify({ genre: musicGenre, artists: musicArtists, songs: musicSongs })
-                : null;
+            const music_taste = getMtEditValue();
+            if (isNew && !music_taste) { alert('음악 취향을 입력해주세요.'); return; }
 
             let result;
             if (isNew) {
@@ -3027,6 +3008,7 @@
             editingSongs: [],
             cachedMembers: [],
             allMembers: [],
+            mtEdit: { genre: null, artists: [], songs: [] },
             bgmTracks: [],
             participantIds: [],
             participantEtc: '',
@@ -4294,13 +4276,148 @@
             if (!raw) return null;
             try { return JSON.parse(raw); } catch { return { genre: '', artists: raw, songs: '' }; }
         }
+
+        const BUGS_GENRES = [
+            { group: '국내', items: ['발라드', '댄스', '랩/힙합', 'R&B/소울', '인디음악', '포크/블루스', '록/메탈', '트로트', '성인가요', 'CCM'] },
+            { group: '해외', items: ['팝', '일렉트로닉', '록', '메탈', '재즈', '클래식'] },
+            { group: '기타', items: ['OST', '뉴에이지', 'J-POP', '국악', '어린이/태교', '애니메이션'] }
+        ];
+
+        function initMtEdit(raw) {
+            const mt = parseMusicTaste(raw);
+            if (!mt) { state.mtEdit = { genre: null, artists: [], songs: [] }; return; }
+            const songs = Array.isArray(mt.songs) ? mt.songs
+                : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
+            state.mtEdit = {
+                genre: mt.genre || null,
+                artists: mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [],
+                songs
+            };
+        }
+
+        function getMtEditValue() {
+            const { genre, artists, songs } = state.mtEdit;
+            if (!genre && !artists.length && !songs.length) return null;
+            return JSON.stringify({ genre: genre || '', artists: artists.join(', '), songs });
+        }
+
+        function renderMtEditUI(containerId, raw) {
+            initMtEdit(raw !== undefined ? raw : null);
+            _refreshMtEdit(containerId);
+        }
+
+        function _refreshMtEdit(cid) {
+            const c = document.getElementById(cid);
+            if (!c) return;
+            const { genre, artists, songs } = state.mtEdit;
+
+            const genreChips = BUGS_GENRES.map(g => `
+                <div style="margin-bottom:8px">
+                    <div style="font-size:0.7rem;color:var(--wds-gray-500);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em">${g.group}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px">
+                        ${g.items.map(item => `<button type="button" class="mt-genre-chip${genre === item ? ' selected' : ''}" onclick="selectMtGenre(this,'${item}','${cid}')">${escapeHtml(item)}</button>`).join('')}
+                    </div>
+                </div>`).join('');
+
+            const artistChips = artists.map((a, i) => `<span class="mt-sel-chip">${escapeHtml(a)} <button type="button" onclick="removeMtItem('artist',${i},'${cid}')">×</button></span>`).join('');
+            const songChips = songs.map((s, i) => `<span class="mt-sel-chip">🎵 ${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''} <button type="button" onclick="removeMtItem('song',${i},'${cid}')">×</button></span>`).join('');
+
+            c.innerHTML = `
+                <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택</div>
+                    ${genreChips}
+                </div>
+                <div style="margin-bottom:8px">
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎤 좋아하는 가수</div>
+                    ${artistChips ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${artistChips}</div>` : ''}
+                    <div style="display:flex;gap:6px">
+                        <input type="text" id="${cid}_as" placeholder="가수 이름 검색..."
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtArtist('${cid}');}"
+                            style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
+                        <button type="button" onclick="searchMtArtist('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
+                    </div>
+                    <div id="${cid}_ar"></div>
+                </div>
+                <div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎶 좋아하는 곡</div>
+                    ${songChips ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${songChips}</div>` : ''}
+                    <div style="display:flex;gap:6px">
+                        <input type="text" id="${cid}_ss" placeholder="곡 또는 아티스트 검색..."
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtSong('${cid}');}"
+                            style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
+                        <button type="button" onclick="searchMtSong('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
+                    </div>
+                    <div id="${cid}_sr"></div>
+                </div>`;
+        }
+
+        function selectMtGenre(el, genre, cid) {
+            state.mtEdit.genre = state.mtEdit.genre === genre ? null : genre;
+            _refreshMtEdit(cid);
+        }
+
+        async function searchMtArtist(cid) {
+            const inp = document.getElementById(cid + '_as');
+            const res = document.getElementById(cid + '_ar');
+            if (!inp || !res) return;
+            const q = inp.value.trim(); if (!q) return;
+            res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">검색 중...</p>';
+            try {
+                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=musicArtist&limit=6&country=KR`);
+                const d = await r.json();
+                if (!d.results || !d.results.length) { res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">결과 없음</p>'; return; }
+                res.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${d.results.map(a => `<button type="button" class="mt-result-chip" data-name="${escapeHtml(a.artistName||'')}" onclick="addMtArtist(this,'${cid}')">${escapeHtml(a.artistName||'')}</button>`).join('')}</div>`;
+            } catch(e) { res.innerHTML = '<p style="font-size:0.8rem;color:#e74c3c;padding:4px">검색 실패</p>'; }
+        }
+
+        function addMtArtist(el, cid) {
+            const name = el.dataset.name;
+            if (name && !state.mtEdit.artists.includes(name)) { state.mtEdit.artists.push(name); _refreshMtEdit(cid); }
+        }
+
+        async function searchMtSong(cid) {
+            const inp = document.getElementById(cid + '_ss');
+            const res = document.getElementById(cid + '_sr');
+            if (!inp || !res) return;
+            const q = inp.value.trim(); if (!q) return;
+            res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">검색 중...</p>';
+            try {
+                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=6&country=KR`);
+                const d = await r.json();
+                if (!d.results || !d.results.length) { res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">결과 없음</p>'; return; }
+                res.innerHTML = d.results.map(r => {
+                    const t = escapeHtml(r.trackName||''), a = escapeHtml(r.artistName||''), aw = escapeHtml(r.artworkUrl60||r.artworkUrl100||'');
+                    return `<div class="music-result" data-title="${t}" data-artist="${a}" data-artwork="${aw}" onclick="addMtSong(this,'${cid}')">
+                        ${aw ? `<img src="${aw}" alt="">` : ''}
+                        <div class="music-result-info"><div class="music-result-title">${t}</div><div class="music-result-artist">${a}</div></div>
+                    </div>`;
+                }).join('');
+            } catch(e) { res.innerHTML = '<p style="font-size:0.8rem;color:#e74c3c;padding:4px">검색 실패</p>'; }
+        }
+
+        function addMtSong(el, cid) {
+            const { title: t, artist: a, artwork: aw } = el.dataset;
+            if (t && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
+                state.mtEdit.songs.push({ title: t, artist: a, artwork: aw || '' });
+                _refreshMtEdit(cid);
+            }
+        }
+
+        function removeMtItem(type, idx, cid) {
+            if (type === 'artist') state.mtEdit.artists.splice(idx, 1);
+            else state.mtEdit.songs.splice(idx, 1);
+            _refreshMtEdit(cid);
+        }
+
         function musicTasteHTML(raw) {
             const mt = parseMusicTaste(raw);
             if (!mt || (!mt.genre && !mt.artists && !mt.songs)) return '';
+            const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '' }] : []);
+            const songLabel = songsArr.map(s => escapeHtml(s.title) + (s.artist ? ' — ' + escapeHtml(s.artist) : '')).join(', ');
             return `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;font-size:0.75rem">
                 ${mt.genre ? `<span style="background:#f0f4ff;color:#3366FF;padding:2px 8px;border-radius:10px">🎵 ${escapeHtml(mt.genre)}</span>` : ''}
                 ${mt.artists ? `<span style="background:#f0fff4;color:#00b894;padding:2px 8px;border-radius:10px">🎤 ${escapeHtml(mt.artists)}</span>` : ''}
-                ${mt.songs ? `<span style="background:#fff8f0;color:#e07000;padding:2px 8px;border-radius:10px">🎶 ${escapeHtml(mt.songs)}</span>` : ''}
+                ${songLabel ? `<span style="background:#fff8f0;color:#e07000;padding:2px 8px;border-radius:10px">🎶 ${songLabel}</span>` : ''}
             </div>`;
         }
 
@@ -10206,6 +10323,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             hideFindForms();
             document.getElementById('email-login-form').classList.add('hidden');
             document.getElementById('email-signup-form').classList.remove('hidden');
+            setTimeout(() => renderMtEditUI('mtEdit_signup', null), 0);
         }
 
         function showLoginForm() {
@@ -10327,11 +10445,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const instruments = [...selectedInsts, ...customInsts].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const signupGenre = document.getElementById('signupGenre').value.trim();
-            const signupArtists = document.getElementById('signupArtists').value.trim();
-            const signupSongs = document.getElementById('signupSongs').value.trim();
-            if (!signupGenre || !signupArtists || !signupSongs) { alert('음악 취향(장르, 아티스트, 곡)을 모두 입력해주세요.'); return; }
-            const music_taste = JSON.stringify({ genre: signupGenre, artists: signupArtists, songs: signupSongs });
+            const music_taste = getMtEditValue();
+            if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _signupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleEmailSignup()"]');
