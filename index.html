@@ -572,13 +572,14 @@
         .board-row-head { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
         .board-row-chevron { color: var(--wds-gray-400); font-size: 0.78rem; flex-shrink: 0; transition: transform 0.18s; display: inline-block; }
         .board-row-chevron.open { transform: rotate(180deg); color: var(--wds-primary); }
-        .board-row-title { font-size: 0.95rem; font-weight: 600; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .board-row-title { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 600; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .board-row-replies { flex-shrink: 0; font-size: 0.72rem; color: var(--wds-primary); font-weight: 700; }
         .board-row-meta { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: var(--wds-gray-500); flex-shrink: 0; white-space: nowrap; }
         .board-row-author { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
         .board-post-expand { padding: 6px 14px 12px; background: var(--wds-gray-100); color: var(--wds-black); }
         @media (max-width: 480px) {
-            .board-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .board-row { flex-direction: column; align-items: stretch; gap: 6px; }
+            .board-row-head { width: 100%; }
             .board-row-meta { font-size: 0.72rem; }
             .board-row-author { max-width: 120px; }
         }
@@ -826,12 +827,14 @@
         }
         .mlist-sub { font-size: 0.74rem; color: var(--wds-gray-500); margin-top: 2px; }
         .mlist-meta { font-size: 0.7rem; color: var(--wds-gray-500); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
-        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-width: 0; max-width: 100%; }
         .mt-tag {
             display: inline-flex; align-items: center; gap: 3px;
             font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 9px;
-            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 100%; min-width: 0; overflow: hidden;
         }
+        .mt-tag-ic { flex-shrink: 0; }
+        .mt-tag-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
         /* ===== 마이페이지: 프로필 헤더 카드 ===== */
         .mypage-profile-card {
@@ -864,13 +867,14 @@
             /* 멤버 목록: 카드 여백·터치 영역 확대 */
             .mlist { gap: 9px; }
             .mlist-card { padding: 12px 14px; gap: 11px; border-radius: 13px; }
-            .ga-avatar { width: 38px; height: 38px; font-size: 0.9rem; }
             .mlist-name { font-size: 0.95rem; }
-            .mt-tag { font-size: 0.72rem; padding: 3px 9px; }
+            .mlist-meta { font-size: 0.72rem; }
             .member-group-header { font-size: 0.82rem; }
+            /* 음악취향: 한 줄씩 전체 폭 사용 + 말줄임 */
+            .mt-tags { flex-direction: column; align-items: stretch; gap: 5px; }
+            .mt-tag { font-size: 0.74rem; padding: 4px 10px; width: 100%; box-sizing: border-box; }
 
             /* 자유게시판: 작성자/액션 버튼 터치 영역 확대 */
-            .comment-author .ga-avatar { width: 32px; height: 32px; }
             .comment-author-name { font-size: 0.9rem; }
             .board-row-title { font-size: 0.92rem; }
             .like-btn, .reply-btn { padding: 6px 13px; font-size: 0.82rem; }
@@ -4581,10 +4585,11 @@
             const genreLabel = Array.isArray(mt.genres) && mt.genres.length ? mt.genres.join(', ') : (mt.genre || '');
             const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '' }] : []);
             const songLabel = songsArr.map(s => s.title + (s.artist ? ' · ' + s.artist : '')).join(', ');
+            const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}"><span class="mt-tag-ic">${ic}</span><span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
             const tags = [];
-            if (genreLabel) tags.push(`<span class="mt-tag" style="background:#f0f4ff;color:#3366ff" title="${escapeHtml(genreLabel)}">🎵 ${escapeHtml(genreLabel)}</span>`);
-            if (mt.artists) tags.push(`<span class="mt-tag" style="background:#f0fff4;color:#00b894" title="${escapeHtml(mt.artists)}">🎤 ${escapeHtml(mt.artists)}</span>`);
-            if (songLabel) tags.push(`<span class="mt-tag" style="background:#fff8f0;color:#e07000" title="${escapeHtml(songLabel)}">🎶 ${escapeHtml(songLabel)}</span>`);
+            if (genreLabel) tags.push(tag('#f0f4ff', '#3366ff', '🎵', genreLabel));
+            if (mt.artists) tags.push(tag('#f0fff4', '#00b894', '🎤', mt.artists));
+            if (songLabel) tags.push(tag('#fff8f0', '#e07000', '🎶', songLabel));
             return tags.length ? `<div class="mt-tags">${tags.join('')}</div>` : '';
         }
 
@@ -4839,7 +4844,6 @@
                     ${m.phone ? `<span>${escapeHtml(m.phone)}</span>` : ''}
                 </div>` : '';
                 return `<div class="mlist-card">
-                    ${gaAvatar(m.name)}
                     <div class="mlist-body">
                         <div class="mlist-name-row"><span class="mlist-name">${memberDisplayName(m)}</span>${roleTag}</div>
                         ${subLine}
@@ -11695,7 +11699,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}">
                         <div style="flex:1;min-width:0">
-                            <div class="comment-author">${gaAvatar(c.user_name)}<div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>
+                            <div class="comment-author"><div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>
                             ${titleHtml}
                             <div class="comment-content">${escapeHtml(body)}</div>
                             <div class="comment-actions">
