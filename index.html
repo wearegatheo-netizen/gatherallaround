@@ -777,6 +777,8 @@
         .team-slot { background: var(--wds-gray-100); border: 1px solid var(--wds-gray-300); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; display: flex; align-items: center; gap: 3px; }
         .team-slot strong { color: var(--wds-primary); font-size: 0.7rem; font-weight: 700; }
         /* 멤버 목록 탭 — 마이페이지 항목과 분리해서 크기 축소 */
+        #memberPanelView { width: 100%; box-sizing: border-box; overflow: hidden; }
+        #memberPanelList { width: 100%; box-sizing: border-box; }
         #memberPanelView .my-res-list { gap: 6px; }
         #memberPanelView .my-res-item { padding: 8px 12px; }
         #memberPanelView .my-res-date { font-size: 0.85rem; }
@@ -809,6 +811,7 @@
         }
         .mlist {
             display: grid; grid-template-columns: 1fr; gap: 8px;
+            width: 100%; box-sizing: border-box; min-width: 0;
         }
         @media (min-width: 620px) { .mlist { grid-template-columns: 1fr 1fr; } }
         .mlist-card {
@@ -816,6 +819,7 @@
             padding: 11px 13px; background: var(--wds-white);
             border: 1px solid var(--wds-gray-300); border-radius: 12px;
             transition: border-color 0.15s, box-shadow 0.15s;
+            box-sizing: border-box; width: 100%; min-width: 0; overflow: hidden;
         }
         .mlist-card:hover { border-color: var(--wds-primary); box-shadow: 0 2px 8px rgba(51,102,255,0.08); }
         .mlist-body { flex: 1; min-width: 0; }
@@ -827,7 +831,7 @@
         }
         .mlist-sub { font-size: 0.74rem; color: var(--wds-gray-500); margin-top: 2px; }
         .mlist-meta { font-size: 0.7rem; color: var(--wds-gray-500); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
-        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-width: 0; max-width: 100%; }
+        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
         .mt-tag {
             display: inline-flex; align-items: center; gap: 3px;
             font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 9px;
