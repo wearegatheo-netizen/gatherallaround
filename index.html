@@ -3897,12 +3897,29 @@
             });
         }
 
+        function checkSignupPeriod(date) {
+            const entries = (state.schedules || []).filter(s => s.date === date);
+            const first = entries[0];
+            if (!first) return { ok: true };
+            const now = new Date();
+            if (first.signup_open && now < new Date(first.signup_open)) {
+                const fmt = new Date(first.signup_open).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+                return { ok: false, msg: `신청 기간이 아직 시작되지 않았습니다.\n시작: ${fmt}` };
+            }
+            if (first.signup_close && now > new Date(first.signup_close)) {
+                const fmt = new Date(first.signup_close).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+                return { ok: false, msg: `신청 기간이 마감되었습니다.\n마감: ${fmt}` };
+            }
+            return { ok: true };
+        }
+
         window.toggleScheduleAttendance = async function(date) {
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
             if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
             const attendees = (state.scheduleAttendees || {})[date] || [];
             const already = attendees.includes(me.id);
+            if (!already) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
             if (already) {
                 const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id);
                 if (error) { alert('취소 실패: ' + error.message); return; }
@@ -3926,6 +3943,7 @@
             if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
             const grpAttendees = ((state.scheduleGroupAttendees || {})[date] || {})[groupName] || [];
             const isMeIn = grpAttendees.includes(me.id);
+            if (!isMeIn) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
             if (isMeIn) {
                 const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id).eq('group_name', groupName);
                 if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
@@ -3959,6 +3977,9 @@
                 ? [{ name: '', entries: [{ startTime: '', endTime: '', teamId: '', customName: '', note: '' }] }]
                 : groupOrder.map(gn => ({ name: gn, entries: groupMap[gn] }));
             state.scheduleEditorShowBanner = entries.some(s => s.show_banner);
+            const first = entries[0] || {};
+            state.scheduleEditorSignupOpen  = first.signup_open  ? first.signup_open.slice(0,16)  : '';
+            state.scheduleEditorSignupClose = first.signup_close ? first.signup_close.slice(0,16) : '';
             renderScheduleEditor();
         }
 
@@ -4039,6 +4060,26 @@
                             style="width:15px;height:15px;accent-color:var(--wds-primary);cursor:pointer">
                         공지 위 배너에 표시
                     </label>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">참여 신청 기간</div>
+                    <div style="background:var(--wds-primary-light);border:1px solid color-mix(in srgb,var(--wds-primary) 25%,transparent);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span style="font-size:0.78rem;font-weight:700;color:var(--wds-primary);min-width:36px">시작</span>
+                            <input type="datetime-local" id="schedSignupOpen" value="${state.scheduleEditorSignupOpen||''}"
+                                oninput="state.scheduleEditorSignupOpen=this.value"
+                                style="flex:1;min-width:0;height:34px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.82rem;font-family:inherit;box-sizing:border-box">
+                            <button type="button" onclick="document.getElementById('schedSignupOpen').value='';state.scheduleEditorSignupOpen=''"
+                                style="padding:2px 7px;font-size:0.72rem;border:1px solid var(--wds-gray-300);border-radius:5px;background:white;cursor:pointer;color:var(--wds-gray-500);flex-shrink:0">✕</button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span style="font-size:0.78rem;font-weight:700;color:#e07000;min-width:36px">마감</span>
+                            <input type="datetime-local" id="schedSignupClose" value="${state.scheduleEditorSignupClose||''}"
+                                oninput="state.scheduleEditorSignupClose=this.value"
+                                style="flex:1;min-width:0;height:34px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.82rem;font-family:inherit;box-sizing:border-box">
+                            <button type="button" onclick="document.getElementById('schedSignupClose').value='';state.scheduleEditorSignupClose=''"
+                                style="padding:2px 7px;font-size:0.72rem;border:1px solid var(--wds-gray-300);border-radius:5px;background:white;cursor:pointer;color:var(--wds-gray-500);flex-shrink:0">✕</button>
+                        </div>
+                        <div style="font-size:0.72rem;color:var(--wds-primary);opacity:0.8">비워두면 항상 신청 가능</div>
+                    </div>
                     <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">그룹 & 시간표</div>
                     ${groupsHtml}
                     <button type="button" onclick="schedEditorAddGroup()"
@@ -4087,6 +4128,8 @@
             if (!date) { alert('날짜를 선택해주세요.'); return; }
             const showBanner = !!(document.getElementById('schedBannerToggle')?.checked ?? state.scheduleEditorShowBanner);
             state.scheduleEditorShowBanner = showBanner;
+            const signupOpen  = (document.getElementById('schedSignupOpen')?.value  || state.scheduleEditorSignupOpen  || '').trim() || null;
+            const signupClose = (document.getElementById('schedSignupClose')?.value || state.scheduleEditorSignupClose || '').trim() || null;
             const memberMap = {};
             (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
             const records = [];
@@ -4104,6 +4147,7 @@
                         members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
                         show_banner: showBanner,
+                        signup_open: signupOpen, signup_close: signupClose,
                         created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
                     });
                 }
@@ -4156,8 +4200,27 @@
             const myId = myMember ? myMember.id : null;
             await fetchScheduleAttendees(sortedDates);
 
+            const fmtDT = (iso) => {
+                if (!iso) return '';
+                const d = new Date(iso);
+                return d.toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(/ /g,'');
+            };
             const timetableDay = (date, entries) => {
                 const isToday = date === today;
+                const first = entries[0] || {};
+                const sigOpen  = first.signup_open  || null;
+                const sigClose = first.signup_close || null;
+                const now = new Date();
+                let sigStatus = null; // 'before' | 'open' | 'closed' | null
+                if (sigOpen || sigClose) {
+                    if (sigOpen && now < new Date(sigOpen)) sigStatus = 'before';
+                    else if (sigClose && now > new Date(sigClose)) sigStatus = 'closed';
+                    else sigStatus = 'open';
+                }
+                const sigBadge = sigStatus === null ? '' :
+                    sigStatus === 'open'   ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#e6f9f0;color:#00b894">✅ 신청 가능${sigClose?' · 마감 '+fmtDT(sigClose):''}</span>` :
+                    sigStatus === 'before' ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff8e6;color:#e07000">🕐 신청 시작 ${fmtDT(sigOpen)}</span>` :
+                                            `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdf2f2;color:#e74c3c">🔒 신청 마감 ${fmtDT(sigClose)}</span>`;
                 const gMap = {}, gOrder = [];
                 [...entries].sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||'')).forEach(s => {
                     const gn = s.group_name || '';
@@ -4169,9 +4232,12 @@
                     const isMeInGrp = !!(myId && grpAttendees.includes(myId));
                     const grpAttendeeNames = grpAttendees.map(pid => { const p = memberMap[pid]; return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null; }).filter(Boolean);
                     const gnId = 'grp-att-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_');
-                    const grpAttendBtn = (gn && state.user) ? `<button type="button" onclick="toggleGroupAttendance('${date}','${gn.replace(/'/g,"\\'")}');event.stopPropagation()"
-                        style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeInGrp?'#EF4444':'var(--wds-primary)'};background:${isMeInGrp?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInGrp?'#EF4444':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">
-                        ${isMeInGrp?'✓ 취소':'+ 신청'}</button>` : '';
+                    const signupBlocked = !isMeInGrp && sigStatus !== null && sigStatus !== 'open';
+                    const grpAttendBtn = (gn && state.user) ? (signupBlocked
+                        ? `<span style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-gray-500);font-weight:700;white-space:nowrap;display:inline-block">${sigStatus==='before'?'🕐 신청 전':'🔒 마감'}</span>`
+                        : `<button type="button" onclick="toggleGroupAttendance('${date}','${gn.replace(/'/g,"\\'")}');event.stopPropagation()"
+                            style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeInGrp?'#EF4444':'var(--wds-primary)'};background:${isMeInGrp?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInGrp?'#EF4444':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">
+                            ${isMeInGrp?'✓ 취소':'+ 신청'}</button>`) : '';
                     const countBadge = grpAttendees.length > 0
                         ? `<button type="button" onclick="document.getElementById('${gnId}').classList.toggle('hidden');event.stopPropagation()"
                             style="padding:1px 8px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:var(--wds-primary-light);color:var(--wds-primary);cursor:pointer;font-weight:700">👥 ${grpAttendees.length}명</button>`
@@ -4229,6 +4295,7 @@
                                 style="padding:3px 8px;font-size:0.72rem;border:1px solid ${isToday?'rgba(255,100,100,0.5)':'#fca5a5'};border-radius:5px;background:${isToday?'rgba(255,100,100,0.15)':'white'};cursor:pointer;color:${isToday?'#ffb3b3':'#e74c3c'}">삭제</button>
                         </div>` : ''}
                     </div>
+                    ${sigBadge ? `<div style="padding:6px 12px;border-bottom:1px solid var(--wds-gray-100)">${sigBadge}</div>` : ''}
                     <div style="padding:8px 12px">${groupsHtml}</div>
                     ${attendeeSection}
                 </div>`;
