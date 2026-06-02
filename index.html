@@ -114,6 +114,12 @@
         body.dark .add-slot-btn { background: var(--wds-gray-100) !important; color: var(--wds-gray-700); }
         body.dark .song-chip { background: var(--wds-gray-100) !important; }
         body.dark .result-card { background: #1a2040 !important; border-color: #2a3868 !important; }
+        body.dark .mt-tag[style*="background:#f0f4ff"] { background: #1a2240 !important; color: #7aabff !important; }
+        body.dark .mt-tag[style*="background:#f0fff4"] { background: #0f2d20 !important; color: #5de8b0 !important; }
+        body.dark .mt-tag[style*="background:#fff8f0"] { background: #2d1a00 !important; color: #ffb366 !important; }
+        body.dark .mt-song-chip { background: #232323 !important; border-color: var(--wds-gray-300) !important; }
+        body.dark .mlist-card { background: var(--wds-gray-100) !important; }
+        body.dark .mypage-profile-card { background: linear-gradient(135deg, var(--wds-primary-light), rgba(51,102,255,0.08)) !important; }
         body.dark .notice-card { background: #2a2510 !important; border-color: #4a3d1a !important; }
         body.dark .like-btn.liked { background: #2a1515 !important; }
         body.dark [style*="background:linear-gradient(135deg,#667eea"] { background: linear-gradient(135deg, #3a4a8a, #4a3070) !important; }
@@ -839,6 +845,18 @@
         }
         .mt-tag-ic { flex-shrink: 0; }
         .mt-tag-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .mt-song-list { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 2px; }
+        .mt-song-chip {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 8px; border-radius: 8px;
+            background: var(--wds-gray-100); border: 1px solid var(--wds-gray-300);
+            width: 100%; box-sizing: border-box; min-width: 0;
+        }
+        .mt-song-art { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; object-fit: cover; }
+        .mt-song-art-placeholder { background: var(--wds-gray-300); }
+        .mt-song-info { flex: 1; min-width: 0; }
+        .mt-song-title { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wds-black); }
+        .mt-song-artist { font-size: 0.72rem; color: var(--wds-gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 
         /* ===== 마이페이지: 프로필 헤더 카드 ===== */
         .mypage-profile-card {
@@ -877,6 +895,9 @@
             /* 음악취향: 한 줄씩 전체 폭 사용 + 말줄임 */
             .mt-tags { flex-direction: column; align-items: stretch; gap: 5px; }
             .mt-tag { font-size: 0.74rem; padding: 4px 10px; width: 100%; box-sizing: border-box; }
+            .mt-song-art { width: 28px; height: 28px; }
+            .mt-song-title { font-size: 0.78rem; }
+            .mt-song-artist { font-size: 0.7rem; }
 
             /* 자유게시판: 작성자/액션 버튼 터치 영역 확대 */
             .comment-author-name { font-size: 0.9rem; }
@@ -4587,14 +4608,22 @@
             const mt = parseMusicTaste(raw);
             if (!mt || (!mt.genre && !mt.genres && !mt.artists && !mt.songs)) return '';
             const genreLabel = Array.isArray(mt.genres) && mt.genres.length ? mt.genres.join(', ') : (mt.genre || '');
-            const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '' }] : []);
-            const songLabel = songsArr.map(s => s.title + (s.artist ? ' · ' + s.artist : '')).join(', ');
+            const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
             const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}"><span class="mt-tag-ic">${ic}</span><span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
-            const tags = [];
-            if (genreLabel) tags.push(tag('#f0f4ff', '#3366ff', '🎵', genreLabel));
-            if (mt.artists) tags.push(tag('#f0fff4', '#00b894', '🎤', mt.artists));
-            if (songLabel) tags.push(tag('#fff8f0', '#e07000', '🎶', songLabel));
-            return tags.length ? `<div class="mt-tags">${tags.join('')}</div>` : '';
+            const parts = [];
+            if (genreLabel) parts.push(tag('#f0f4ff', '#3366ff', '🎵', genreLabel));
+            if (mt.artists) parts.push(tag('#f0fff4', '#00b894', '🎤', mt.artists));
+            const songChips = songsArr.map(s =>
+                `<div class="mt-song-chip">
+                    ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="" class="mt-song-art">` : '<div class="mt-song-art mt-song-art-placeholder"></div>'}
+                    <div class="mt-song-info">
+                        <div class="mt-song-title">${escapeHtml(s.title)}</div>
+                        ${s.artist ? `<div class="mt-song-artist">${escapeHtml(s.artist)}</div>` : ''}
+                    </div>
+                </div>`
+            );
+            if (songChips.length) parts.push(`<div class="mt-song-list">${songChips.join('')}</div>`);
+            return parts.length ? `<div class="mt-tags">${parts.join('')}</div>` : '';
         }
 
         // 본인 외에는 이름 뒤 '(관리자)' 등 괄호 뱃지 숨김
@@ -11700,15 +11729,28 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 // 답글은 제목 없음. 게시글은 제목/본문 분리
                 const { title, body } = isReply ? { title: '', body: String(c.content || '').replace(/\x1F/g, '') } : parseBoardPost(c.content);
                 const titleHtml = (!isReply && title) ? `<div class="board-post-title">${escapeHtml(title)}</div>` : '';
+                const canEdit = isMine && !isReply;
                 return `
-                    <div class="comment-item${isReply ? ' comment-reply' : ''}">
+                    <div class="comment-item${isReply ? ' comment-reply' : ''}" id="comment-wrap-${c.id}">
                         <div style="flex:1;min-width:0">
                             <div class="comment-author"><div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>
-                            ${titleHtml}
-                            <div class="comment-content">${escapeHtml(body)}</div>
+                            <div id="comment-view-${c.id}">
+                                ${titleHtml}
+                                <div class="comment-content">${escapeHtml(body)}</div>
+                            </div>
+                            <div id="comment-edit-${c.id}" class="hidden" style="margin-top:6px">
+                                <input type="text" id="edit-title-${c.id}" value="${escapeHtml(title)}" placeholder="제목"
+                                    style="width:100%;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+                                <textarea id="edit-body-${c.id}" style="width:100%;min-height:80px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box">${escapeHtml(body)}</textarea>
+                                <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+                                    <button type="button" onclick="cancelEditComment('${c.id}')" style="padding:6px 13px;border:1px solid var(--wds-gray-300);border-radius:6px;background:none;font-size:0.83rem;cursor:pointer;font-family:inherit">취소</button>
+                                    <button type="button" onclick="saveEditComment('${c.id}')" style="padding:6px 13px;border:none;border-radius:6px;background:var(--wds-primary);color:#fff;font-size:0.83rem;font-weight:700;cursor:pointer;font-family:inherit">저장</button>
+                                </div>
+                            </div>
                             <div class="comment-actions">
                                 <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
                                 ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">💬 답글</button>` : ''}
+                                ${canEdit ? `<button class="reply-btn" onclick="startEditComment('${c.id}')">✏️ 수정</button>` : ''}
                             </div>
                             ${!isReply ? `<div id="reply-form-${c.id}" class="reply-form hidden">
                                 <textarea id="replyInput-${c.id}" placeholder="답글을 입력하세요..."></textarea>
@@ -11891,6 +11933,27 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
                 return;
             }
+            fetchComments();
+        }
+
+        function startEditComment(id) {
+            document.getElementById('comment-view-' + id)?.classList.add('hidden');
+            document.getElementById('comment-edit-' + id)?.classList.remove('hidden');
+        }
+        function cancelEditComment(id) {
+            document.getElementById('comment-edit-' + id)?.classList.add('hidden');
+            document.getElementById('comment-view-' + id)?.classList.remove('hidden');
+        }
+        async function saveEditComment(id) {
+            const titleEl = document.getElementById('edit-title-' + id);
+            const bodyEl = document.getElementById('edit-body-' + id);
+            const titleVal = (titleEl?.value || '').trim();
+            const bodyVal = (bodyEl?.value || '').trim();
+            if (!titleVal) { alert('제목을 입력해주세요.'); return; }
+            if (!bodyVal) { alert('내용을 입력해주세요.'); return; }
+            const content = `\x1F${titleVal.replace(/\x1F/g, '')}\x1F\n${bodyVal.replace(/\x1F/g, '')}`;
+            const { error } = await supabaseClient.from('comments').update({ content }).eq('id', id);
+            if (error) { alert('수정 실패: ' + error.message); return; }
             fetchComments();
         }
 
