@@ -4310,6 +4310,7 @@
             const c = document.getElementById(cid);
             if (!c) return;
             const { genre, artists, songs } = state.mtEdit;
+            const MAX = 3;
 
             const genreChips = BUGS_GENRES.map(g => `
                 <div style="margin-bottom:8px">
@@ -4322,33 +4323,41 @@
             const artistChips = artists.map((a, i) => `<span class="mt-sel-chip">${escapeHtml(a)} <button type="button" onclick="removeMtItem('artist',${i},'${cid}')">×</button></span>`).join('');
             const songChips = songs.map((s, i) => `<span class="mt-sel-chip">🎵 ${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''} <button type="button" onclick="removeMtItem('song',${i},'${cid}')">×</button></span>`).join('');
 
+            const artistMaxed = artists.length >= MAX;
+            const songMaxed = songs.length >= MAX;
+
             c.innerHTML = `
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span style="font-weight:400;color:var(--wds-gray-400)">(1개)</span></div>
                     ${genreChips}
                 </div>
                 <div style="margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎤 좋아하는 가수</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎤 좋아하는 가수 <span style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}명)</span></div>
                     ${artistChips ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${artistChips}</div>` : ''}
-                    <div style="display:flex;gap:6px">
-                        <input type="text" id="${cid}_as" placeholder="가수 이름 검색..."
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtArtist('${cid}');}"
-                            style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
-                        <button type="button" onclick="searchMtArtist('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
-                    </div>
-                    <div id="${cid}_ar"></div>
+                    ${artistMaxed
+                        ? `<p style="font-size:0.78rem;color:var(--wds-gray-400);margin:0">최대 ${MAX}명까지 선택할 수 있습니다.</p>`
+                        : `<div style="display:flex;gap:6px">
+                            <input type="text" id="${cid}_as" placeholder="가수 이름 검색..."
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtArtist('${cid}');}"
+                                style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
+                            <button type="button" onclick="searchMtArtist('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
+                          </div>
+                          <div id="${cid}_ar"></div>`}
                 </div>
                 <div>
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎶 좋아하는 곡</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎶 좋아하는 곡 <span style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}곡)</span></div>
                     ${songChips ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${songChips}</div>` : ''}
-                    <div style="display:flex;gap:6px">
-                        <input type="text" id="${cid}_ss" placeholder="곡 또는 아티스트 검색..."
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtSong('${cid}');}"
-                            style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
-                        <button type="button" onclick="searchMtSong('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
-                    </div>
-                    <div id="${cid}_sr"></div>
+                    ${songMaxed
+                        ? `<p style="font-size:0.78rem;color:var(--wds-gray-400);margin:0">최대 ${MAX}곡까지 선택할 수 있습니다.</p>`
+                        : `<div style="display:flex;gap:6px">
+                            <input type="text" id="${cid}_ss" placeholder="곡 또는 아티스트 검색..."
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtSong('${cid}');}"
+                                style="flex:1;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;outline:none;background:var(--wds-white);color:var(--wds-black)">
+                            <button type="button" onclick="searchMtSong('${cid}')" style="padding:0 12px;height:36px;background:var(--wds-primary);color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0">🔍</button>
+                          </div>
+                          <div id="${cid}_sr"></div>`}
                 </div>`;
+        }
         }
 
         function selectMtGenre(el, genre, cid) {
@@ -4363,16 +4372,26 @@
             const q = inp.value.trim(); if (!q) return;
             res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">검색 중...</p>';
             try {
-                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=musicArtist&limit=6&country=KR`);
+                // entity=song으로 검색해야 artistName이 한국어로 반환됨
+                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12&country=KR&lang=ko_kr`);
                 const d = await r.json();
                 if (!d.results || !d.results.length) { res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">결과 없음</p>'; return; }
-                res.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${d.results.map(a => `<button type="button" class="mt-result-chip" data-name="${escapeHtml(a.artistName||'')}" onclick="addMtArtist(this,'${cid}')">${escapeHtml(a.artistName||'')}</button>`).join('')}</div>`;
+                // song 결과에서 아티스트명 중복 제거
+                const seen = new Set();
+                const uniq = d.results.filter(s => {
+                    const n = s.artistName || '';
+                    if (!n || seen.has(n)) return false;
+                    seen.add(n); return true;
+                }).slice(0, 6);
+                res.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${uniq.map(a => `<button type="button" class="mt-result-chip" data-name="${escapeHtml(a.artistName||'')}" onclick="addMtArtist(this,'${cid}')">${escapeHtml(a.artistName||'')}</button>`).join('')}</div>`;
             } catch(e) { res.innerHTML = '<p style="font-size:0.8rem;color:#e74c3c;padding:4px">검색 실패</p>'; }
         }
 
         function addMtArtist(el, cid) {
             const name = el.dataset.name;
-            if (name && !state.mtEdit.artists.includes(name)) { state.mtEdit.artists.push(name); _refreshMtEdit(cid); }
+            if (name && state.mtEdit.artists.length < 3 && !state.mtEdit.artists.includes(name)) {
+                state.mtEdit.artists.push(name); _refreshMtEdit(cid);
+            }
         }
 
         async function searchMtSong(cid) {
@@ -4397,7 +4416,7 @@
 
         function addMtSong(el, cid) {
             const { title: t, artist: a, artwork: aw } = el.dataset;
-            if (t && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
+            if (t && state.mtEdit.songs.length < 3 && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
                 state.mtEdit.songs.push({ title: t, artist: a, artwork: aw || '' });
                 _refreshMtEdit(cid);
             }
