@@ -4519,8 +4519,9 @@
             const artistChips = artists.map((a, i) => `<span class="mt-sel-chip">${escapeHtml(a)} <button type="button" onclick="removeMtItem('artist',${i},'${cid}')">×</button></span>`).join('');
             const songChips = songs.map((s, i) => `<span class="mt-sel-chip">🎵 ${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''} <button type="button" onclick="removeMtItem('song',${i},'${cid}')">×</button></span>`).join('');
 
+            const SONG_MAX = 1;
             const artistMaxed = artists.length >= MAX;
-            const songMaxed = songs.length >= MAX;
+            const songMaxed = songs.length >= SONG_MAX;
 
             c.innerHTML = `
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
@@ -4541,10 +4542,10 @@
                           <div id="${cid}_ar"></div>`}
                 </div>
                 <div>
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎶 좋아하는 곡 <span style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}곡)</span></div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:5px">🎶 좋아하는 곡 <span style="font-weight:400;color:var(--wds-gray-400)">(1곡)</span></div>
                     ${songChips ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${songChips}</div>` : ''}
                     ${songMaxed
-                        ? `<p style="font-size:0.78rem;color:var(--wds-gray-400);margin:0">최대 ${MAX}곡까지 선택할 수 있습니다.</p>`
+                        ? `<p style="font-size:0.78rem;color:var(--wds-gray-400);margin:0">곡은 1곡만 선택할 수 있습니다.</p>`
                         : `<div style="display:flex;gap:6px">
                             <input type="text" id="${cid}_ss" placeholder="곡 또는 아티스트 검색..."
                                 onkeydown="if(event.key==='Enter'){event.preventDefault();searchMtSong('${cid}');}"
@@ -4613,7 +4614,7 @@
 
         function addMtSong(el, cid) {
             const { title: t, artist: a, artwork: aw } = el.dataset;
-            if (t && state.mtEdit.songs.length < 3 && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
+            if (t && state.mtEdit.songs.length < 1 && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
                 state.mtEdit.songs.push({ title: t, artist: a, artwork: aw || '' });
                 _refreshMtEdit(cid);
             }
