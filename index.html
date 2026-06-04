@@ -4320,7 +4320,19 @@
                         const slotKey = slotAttKey(gn, s.start_time);
                         const slotAttendees = ((state.scheduleSlotAttendees || {})[date] || {})[slotKey] || [];
                         const isMeInSlot = !!(myId && slotAttendees.includes(myId));
-                        const slotNames = slotAttendees.map(pid => { const p = memberMap[pid]; return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null; }).filter(Boolean);
+                        const slotChipData = slotAttendees.map(pid => { const p = memberMap[pid]; return p ? { name: p.name.replace(/\s*\(.*?\)\s*$/, ''), me: pid === myId } : null; }).filter(Boolean);
+                        // 본인을 맨 앞으로 정렬 (긴 명단에서 내 신청 여부 즉시 확인)
+                        slotChipData.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0));
+                        const attCount = slotChipData.length;
+                        const SLOT_PREVIEW = 5;
+                        const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
+                        const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'}">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
+                        const slotAttDisplay = attCount ? `
+                            <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                                <button type="button" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()"
+                                    style="padding:1px 8px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:${isMeInSlot?'var(--wds-primary)':'var(--wds-primary-light)'};color:${isMeInSlot?'#fff':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">🙋 ${attCount}명${attCount>SLOT_PREVIEW?' ▾':''}</button>
+                            </div>
+                            <div id="${slotListId}" class="${attCount>SLOT_PREVIEW?'hidden':''}" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
                         const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}
@@ -4329,9 +4341,9 @@
                             <div style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;min-width:88px">${escapeHtml(timeStr)}</div>
                             <div style="flex:1;min-width:0">
                                 ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">${escapeHtml(s.team_name)}</div>`:''}
-                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length||slotNames.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);margin-bottom:${slotNames.length?'3px':'0'}">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
-                                ${slotNames.length?`<div style="font-size:0.7rem;color:var(--wds-primary);font-weight:600">🙋 ${slotNames.map(n=>escapeHtml(n)).join(', ')}</div>`:''}
+                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                                ${slotAttDisplay}
                             </div>
                             ${slotBtn}
                         </div>`;
