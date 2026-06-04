@@ -103,38 +103,6 @@ def build(draw):
     x = PAD
     inner = W - PAD * 2
 
-    # header band
-    brand_f = fonts["brand"]
-    title_f = fonts["title"]
-    tag_f = fonts["tagline"]
-
-    # small primary pill "GatheO"
-    pill_txt = "Gather all around · GatheO"
-    if draw:
-        pw = _meas.textlength(pill_txt, font=brand_f)
-        ph = line_h(brand_f, 1.0) + 16 * S
-        draw.rounded_rectangle([x, y, x + pw + 44 * S, y + ph], radius=ph // 2, fill=PRIMARY_LT)
-        draw.text((x + 22 * S, y + 8 * S), pill_txt, font=brand_f, fill=PRIMARY_DARK)
-    y += line_h(brand_f, 1.0) + 16 * S + 28 * S
-
-    # main title (2 lines)
-    for ln in ["게더링 멤버", "합주팀 활동 안내"]:
-        if draw:
-            draw.text((x, y), ln, font=title_f, fill=BLACK)
-        y += line_h(title_f, 1.18)
-    y += 6 * S
-
-    tag = "아래 3단계로 합주를 시작해요!"
-    if draw:
-        draw.text((x, y), tag, font=tag_f, fill=GRAY7)
-    y += line_h(tag_f, 1.2)
-
-    y += 30 * S
-    # divider
-    if draw:
-        draw.line([x, y, W - PAD, y], fill=GRAY3, width=2 * S)
-    y += 44 * S
-
     # step cards
     step_f = fonts["step"]; body_f = fonts["body"]; sub_f = fonts["sub"]; num_f = fonts["num"]
     badge = 70 * S
@@ -205,16 +173,7 @@ def build(draw):
 
         y = card_top + card_h + 30 * S
 
-    y += 8 * S
-    # footer
-    foot_f = fonts["footer"]
-    foot = "문의: 세션장 · gatherallaround.co.kr"
-    if draw:
-        draw.line([x, y, W - PAD, y], fill=GRAY3, width=2 * S)
-        draw.text((x, y + 26 * S), foot, font=foot_f, fill=GRAY7)
-    y += 26 * S + line_h(foot_f, 1.2)
-
-    return y + PAD
+    return y - 30 * S + PAD
 
 # pass 1: measure
 H = build(None)
