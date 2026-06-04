@@ -3114,7 +3114,7 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
-        const APP_VERSION = '2026.06.04-v5-pointer';
+        const APP_VERSION = '2026.06.04-v6-ptrdbg';
         console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
@@ -4522,24 +4522,36 @@
         // pointerdown/up으로 터치를 직접 처리 — click 합성에 의존하지 않음
         function _bindMtGenreDelegation(cid) {
             const c = document.getElementById(cid);
-            if (!c || c.dataset.gbound === '1') return;
-            c.dataset.gbound = '1';
+            if (!c) return;
+            // 항상 새로 바인딩 (innerHTML 교체 후 재호출 대비)
+            if (c._mtBound) { c.removeEventListener('pointerdown', c._mtBound[0]); c.removeEventListener('pointerup', c._mtBound[1]); }
             let downX = 0, downY = 0, downBtn = null;
-            c.addEventListener('pointerdown', (e) => {
+            const onDown = (e) => {
                 const btn = e.target.closest('.mt-genre-chip');
                 downBtn = (btn && c.contains(btn)) ? btn : null;
                 downX = e.clientX; downY = e.clientY;
-            });
-            c.addEventListener('pointerup', (e) => {
+                const dbg = document.getElementById(cid + '_gdbg');
+                if (dbg) dbg.textContent = `POINTERDOWN: ${btn ? (btn.dataset.genre || 'no-genre') : 'no-btn'}`;
+            };
+            const onUp = (e) => {
                 const btn = e.target.closest('.mt-genre-chip');
-                if (!btn || btn !== downBtn || !c.contains(btn)) { downBtn = null; return; }
-                // 스크롤/드래그면 무시 (탭만 처리)
-                if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10) { downBtn = null; return; }
+                const dbg = document.getElementById(cid + '_gdbg');
+                if (!btn || btn !== downBtn || !c.contains(btn)) {
+                    if (dbg) dbg.textContent += ` | UP:miss btn=${!!btn} match=${btn===downBtn}`;
+                    downBtn = null; return;
+                }
+                if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10) {
+                    if (dbg) dbg.textContent += ' | UP:drag';
+                    downBtn = null; return;
+                }
                 downBtn = null;
-                if (btn.classList.contains('disabled') || btn.disabled) return;
+                if (btn.classList.contains('disabled') || btn.disabled) { if (dbg) dbg.textContent += ' | UP:disabled'; return; }
                 e.preventDefault();
                 selectMtGenre(btn, cid);
-            });
+            };
+            c.addEventListener('pointerdown', onDown);
+            c.addEventListener('pointerup', onUp);
+            c._mtBound = [onDown, onUp];
         }
 
         function _refreshMtEdit(cid) {
