@@ -1374,6 +1374,7 @@
             <div id="email-login-form" class="email-form">
                 <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
                 <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <div id="loginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
                 <div style="display:flex;justify-content:center;gap:16px;margin-top:2px">
                     <button type="button" class="find-link-btn" onclick="showFindId()">아이디 찾기</button>
@@ -1449,6 +1450,7 @@
                     위 개인정보 수집·이용에 동의합니다.
                 </label>
 
+                <div id="signupResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleEmailSignup()">회원가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showLoginForm()">로그인으로 돌아가기</button>
             </div>
@@ -1478,6 +1480,7 @@
             <div id="band-login-form" class="email-form">
                 <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30">
                 <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <div id="bandLoginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
             </div>
@@ -1557,6 +1560,7 @@
                     위 개인정보 수집·이용에 동의합니다.
                 </label>
 
+                <div id="bandSignupResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailSignup()">가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandLoginForm()">로그인으로 돌아가기</button>
             </div>
@@ -6313,7 +6317,8 @@
                     <input type="text" class="perf-form-input" id="perfHowFoundOther" placeholder="직접 입력"
                         style="margin-top:8px;display:${_perfState.howFound==='기타'?'block':'none'}" value="${_perfState.howFoundOther||''}">
                 </div>
-                <div style="display:flex;gap:8px;margin-top:8px">
+                <div id="perfSubmitResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <div style="display:flex;gap:8px;margin-top:4px">
                     <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">← 돌아가기</button>
                     <button onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
                 </div>
@@ -6335,10 +6340,12 @@
             const purpose = document.getElementById('perfPurpose')?.value.trim();
             let howFound = _perfState.howFound;
             if (howFound === '기타') howFound = document.getElementById('perfHowFoundOther')?.value.trim() || '기타';
-            if (!name) { alert('이름을 입력해주세요.'); return; }
-            if (!phone) { alert('연락처를 입력해주세요.'); return; }
-            if (!purpose) { alert('사용 목적을 입력해주세요.'); return; }
-            if (!howFound) { alert('공간을 알게 된 경로를 선택해주세요.'); return; }
+            const res = document.getElementById('perfSubmitResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (!name) { showErr('이름을 입력해주세요.'); return; }
+            if (!phone) { showErr('연락처를 입력해주세요.'); return; }
+            if (!purpose) { showErr('사용 목적을 입력해주세요.'); return; }
+            if (!howFound) { showErr('공간을 알게 된 경로를 선택해주세요.'); return; }
             const { selectedDate, startSlot, endSlot, headcount } = _perfState;
             const { error } = await supabaseClient.from('performance_bookings').insert({
                 name, phone, purpose, how_found: howFound,
@@ -6347,7 +6354,7 @@
                 end_time: TIMES[endSlot],
                 headcount
             });
-            if (error) { alert('신청 중 오류가 발생했습니다: ' + error.message); return; }
+            if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
             sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
             renderPerfStep3();
         }
@@ -9385,11 +9392,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         function showBandLoginForm() {
             document.getElementById('band-login-form').classList.remove('hidden');
             document.getElementById('band-signup-form').classList.add('hidden');
+            const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
         }
 
         function showBandSignupForm() {
             document.getElementById('band-login-form').classList.add('hidden');
             document.getElementById('band-signup-form').classList.remove('hidden');
+            const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -9398,12 +9409,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         async function handleBandEmailLogin() {
             const rawId = document.getElementById('bandLoginId').value.trim();
             const password = document.getElementById('bandLoginPassword').value;
-            if (!rawId || !password) { alert('아이디와 비밀번호를 입력해주세요.'); return; }
-            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
-            if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
+            const res = document.getElementById('bandLoginResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (!rawId || !password) { showErr('아이디와 비밀번호를 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
+            if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
             const email = bandIdToEmail(rawId);
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { alert('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
+            if (error) { showErr('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
             if (data?.user) {
                 await checkEmailUserApproval(data.user);
             }
@@ -9421,15 +9435,18 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const confirm = document.getElementById('bandSignupPasswordConfirm').value;
             const consent = document.getElementById('bandPrivacyConsent').checked;
             const timeslots = Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
+            const res = document.getElementById('bandSignupResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
 
-            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { alert('모든 항목을 입력해주세요.'); return; }
-            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
-            if (rawId.length < 4 || rawId.length > 20) { alert('아이디는 4~20자 사이여야 합니다.'); return; }
-            if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { alert('올바른 전화번호를 입력해주세요.'); return; }
-            if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
-            if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
-            if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
-            if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
+            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { showErr('모든 항목을 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
+            if (rawId.length < 4 || rawId.length > 20) { showErr('아이디는 4~20자 사이여야 합니다.'); return; }
+            if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { showErr('올바른 전화번호를 입력해주세요.'); return; }
+            if (password.length < 6) { showErr('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (password !== confirm) { showErr('비밀번호가 일치하지 않습니다.'); return; }
+            if (!consent) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
+            if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
 
             _bandSignupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleBandEmailSignup()"]');
@@ -9438,7 +9455,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 const email = bandIdToEmail(rawId);
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { alert('가입 신청 실패: ' + error.message); return; }
+                if (error) { showErr('가입 신청 실패: ' + error.message); return; }
                 if (data?.user) {
                     const meta = {
                         id: data.user.id,
@@ -9457,7 +9474,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
                 }
-                alert('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
+                showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
             } finally {
                 _bandSignupBusy = false;
@@ -10108,12 +10125,16 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             hideFindForms();
             document.getElementById('email-login-form').classList.add('hidden');
             document.getElementById('email-signup-form').classList.remove('hidden');
+            const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
         }
 
         function showLoginForm() {
             hideFindForms();
             document.getElementById('email-signup-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
+            const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
         }
 
         function showFindId() {
@@ -10135,6 +10156,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('find-id-form').classList.add('hidden');
             document.getElementById('find-pw-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
+            const r = document.getElementById('loginResult'); if (r) r.textContent = '';
         }
 
         function formatPhoneNumber(value) {
@@ -10215,19 +10237,22 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const password = document.getElementById('signupPassword').value;
             const confirm = document.getElementById('signupPasswordConfirm').value;
             const consent = document.getElementById('privacyConsent').checked;
+            const res = document.getElementById('signupResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
 
-            if (!name || !phone || !email || !password) { alert('모든 항목을 입력해주세요.'); return; }
-            if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
-            if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
-            if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
-            if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
+            if (!name || !phone || !email || !password) { showErr('모든 항목을 입력해주세요.'); return; }
+            if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { showErr('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
+            if (password.length < 6) { showErr('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (password !== confirm) { showErr('비밀번호가 일치하지 않습니다.'); return; }
+            if (!consent) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
 
             const selectedInsts = Array.from(document.querySelectorAll('.inst-btn.selected')).map(b => b.dataset.inst);
             const customInsts = ['customInst1']
                 .map(id => document.getElementById(id).value.trim())
                 .filter(v => v);
             const instruments = [...selectedInsts, ...customInsts].join(', ');
-            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
+            if (!instruments) { showErr('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             _signupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleEmailSignup()"]');
@@ -10235,15 +10260,14 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
             try {
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { alert('회원가입 실패: ' + error.message); return; }
-                if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
+                if (error) { showErr('회원가입 실패: ' + error.message); return; }
+                if (!data.user) { showErr('회원가입 처리에 문제가 발생했습니다.'); return; }
 
                 const { error: pErr } = await supabaseClient.from('profiles').insert([{
                     id: data.user.id, name, phone, email, instruments, status: 'pending'
                 }]);
-                if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
+                if (pErr) { showErr('프로필 저장 실패: ' + pErr.message); return; }
 
-                alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
                 sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
                 showPendingScreen(name);
             } finally {
@@ -10255,10 +10279,13 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         async function handleEmailLogin() {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
-            if (!email || !password) { alert('이메일과 비밀번호를 입력해주세요.'); return; }
+            const res = document.getElementById('loginResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (!email || !password) { showErr('이메일과 비밀번호를 입력해주세요.'); return; }
 
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { alert('로그인 실패: ' + error.message); return; }
+            if (error) { showErr('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.'); return; }
             await checkEmailUserApproval(data.user);
         }
 
