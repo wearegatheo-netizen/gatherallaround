@@ -2048,6 +2048,8 @@
             startInactivityWatcher();
             if (canPostNotice()) applyAdminDataFixes();
             checkKakaoUserProfile();
+            _authResolved = true;
+            applyPendingRoute();
         }
 
         async function checkKakaoUserProfile() {
@@ -2232,6 +2234,8 @@
             if (mypc) { mypc.classList.add('hidden'); mypc.innerHTML = ''; }
             if (mypa) mypa.textContent = '▼ 펼치기';
             stopInactivityWatcher();
+            _authResolved = true;
+            applyPendingRoute();
         }
 
         // --- GatheO tab navigation ---
@@ -3167,6 +3171,24 @@
                     window.__shareEntryMode = false;
                 });
                 return; // initSession 호출 안 함 — 테스트 목록만 표시
+            }
+
+            // ── 새로고침/딥링크 복원: 현재 URL hash가 가리키는 섹션을 기억해 둔다.
+            // 인증 상태가 정해진 뒤(loginUI/logoutUI) applyPendingRoute로 이동.
+            const _initialPage = _pageFromHash();
+            history.replaceState({ page: _initialPage }, '',
+                _initialPage === 'portal' ? location.pathname : '#' + _initialPage);
+            if (_initialPage !== 'portal') {
+                _pendingRoute = _initialPage;
+                // 공개 섹션(커뮤니티/밴드소식/공연대관)은 인증과 무관하므로 즉시
+                // 표시해 포털 깜빡임을 방지. 로그인 콜백이 main-content로 덮어써도
+                // applyPendingRoute가 다시 복원한다.
+                if (['community', 'band-news', 'perf'].includes(_initialPage)) {
+                    _routeToPage(_initialPage);
+                }
+                // 로그인/로그아웃 콜백이 끝내 호출되지 않는 경우(로그아웃 상태 등)
+                // 대비한 fallback — 인증 미해결 시에만 복원.
+                setTimeout(() => { if (!_authResolved) applyPendingRoute(); }, 1500);
             }
 
             initSession();
@@ -5795,18 +5817,31 @@
 
         // Portal navigation
         // ── History API navigation ──────────────────────────────────────────────
-        let _navFromPop = false;
+        // 포털을 허브로 하는 단일파일 SPA. 각 섹션 진입 시 history에 항목을 쌓아
+        // 브라우저 뒤로가기로 이전 섹션/포털로 돌아갈 수 있게 하고, 새로고침 시
+        // location.hash를 읽어 현재 섹션을 복원한다.
+        const _NAV_PAGES = ['gatheo', 'band', 'community', 'band-news', 'perf'];
+        let _navFromPop = false;       // popstate/복원 중에는 pushState 억제
+        let _pendingRoute = null;      // 로드 시 hash로부터 복원할 섹션
+        let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
 
-        function _pushNav(page) {
-            if (!_navFromPop) history.pushState({ page }, '', '#' + page);
+        function _pageFromHash() {
+            const h = (location.hash || '').replace(/^#/, '');
+            return _NAV_PAGES.includes(h) ? h : 'portal';
         }
 
-        window.addEventListener('popstate', (e) => {
-            const page = (e.state && e.state.page) || 'portal';
-            _navFromPop = true;
+        function _pushNav(page) {
+            if (_navFromPop) return;
+            // 같은 섹션을 다시 누르면 항목 중복 방지
+            if (history.state && history.state.page === page) return;
+            history.pushState({ page }, '', '#' + page);
+        }
+
+        function _routeToPage(page) {
+            _navFromPop = true; // 복원이므로 pushState 하지 않음 (항목은 이미 존재)
             try {
-                if (page === 'gatheo') showGatheoSection();
-                else if (page === 'band') showBandSection();
+                if (page === 'gatheo') { if (!state.user) showGatheoSection(); }
+                else if (page === 'band') { if (!state.bandProfile) showBandSection(); }
                 else if (page === 'community') showCommunitySection();
                 else if (page === 'band-news') showBandNewsSection();
                 else if (page === 'perf') showPerformanceBookingSection();
@@ -5814,6 +5849,19 @@
             } finally {
                 _navFromPop = false;
             }
+        }
+
+        // 인증 상태가 정해진 뒤(login/logout UI 실행 후, 또는 타임아웃) 한 번 호출.
+        function applyPendingRoute() {
+            if (!_pendingRoute) return;
+            const page = _pendingRoute;
+            _pendingRoute = null;
+            _routeToPage(page);
+        }
+
+        window.addEventListener('popstate', (e) => {
+            const page = (e.state && e.state.page) || _pageFromHash();
+            _routeToPage(page);
         });
         // ────────────────────────────────────────────────────────────────────────
 
@@ -11570,13 +11618,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         initTheme();
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme(); initApp(); initPullToRefresh();
-            // Seed history with portal state so the very first back press returns here
-            if (!history.state || !history.state.page) {
-                history.replaceState({ page: 'portal' }, '', location.href.replace(/#.*$/, ''));
-            }
-        });
+        document.addEventListener('DOMContentLoaded', () => { initTheme(); initApp(); initPullToRefresh(); });
 
         // Pull-to-refresh (PWA standalone 모드에서도 동작)
         function initPullToRefresh() {
