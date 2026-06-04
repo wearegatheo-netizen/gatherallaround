@@ -3114,7 +3114,7 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
-        const APP_VERSION = '2026.06.04-v7-validfilter';
+        const APP_VERSION = '2026.06.04';
         console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
@@ -4521,7 +4521,7 @@
             _bindMtGenreDelegation(containerId);
         }
 
-        // 인라인 onclick 대신 컨테이너에 위임 리스너를 1회 바인딩 (모바일 click 미발화 대비)
+        // 인라인 onclick 대신 컨테이너에 위임 리스너를 바인딩 (모바일 click 미발화 대비)
         // pointerdown/up으로 터치를 직접 처리 — click 합성에 의존하지 않음
         function _bindMtGenreDelegation(cid) {
             const c = document.getElementById(cid);
@@ -4533,23 +4533,14 @@
                 const btn = e.target.closest('.mt-genre-chip');
                 downBtn = (btn && c.contains(btn)) ? btn : null;
                 downX = e.clientX; downY = e.clientY;
-                const dbg = document.getElementById(cid + '_gdbg');
-                const mt0 = _getMtState(cid);
-                if (dbg) dbg.textContent = `PD: ${btn ? (btn.dataset.genre||'?') : 'no-btn'} | state:[${mt0.genres.join(',')}] | dis:${btn?btn.disabled:'?'}`;
             };
             const onUp = (e) => {
                 const btn = e.target.closest('.mt-genre-chip');
-                const dbg = document.getElementById(cid + '_gdbg');
-                if (!btn || btn !== downBtn || !c.contains(btn)) {
-                    if (dbg) dbg.textContent += ` | UP:miss btn=${!!btn} match=${btn===downBtn}`;
-                    downBtn = null; return;
-                }
-                if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10) {
-                    if (dbg) dbg.textContent += ' | UP:drag';
-                    downBtn = null; return;
-                }
+                if (!btn || btn !== downBtn || !c.contains(btn)) { downBtn = null; return; }
+                // 스크롤/드래그면 무시 (탭만 처리)
+                if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10) { downBtn = null; return; }
                 downBtn = null;
-                if (btn.classList.contains('disabled') || btn.disabled) { if (dbg) dbg.textContent += ' | UP:disabled'; return; }
+                if (btn.classList.contains('disabled') || btn.disabled) return;
                 e.preventDefault();
                 selectMtGenre(btn, cid);
             };
@@ -4586,8 +4577,7 @@
 
             c.innerHTML = `
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span id="${cid}_gcount" style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span> <span style="font-weight:400;font-size:0.62rem;color:var(--wds-gray-300)">${APP_VERSION}</span></div>
-                    <div id="${cid}_gdbg" style="font-size:0.6rem;color:#e17055;margin-bottom:6px;word-break:break-all">debug: 탭하면 표시됩니다</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span id="${cid}_gcount" style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span></div>
                     ${genreChips}
                 </div>
                 <div style="margin-bottom:8px">
@@ -4618,17 +4608,14 @@
                 </div>`;
         }
 
-        let _mtTapLog = 0;
         function selectMtGenre(el, cid) {
-            _mtTapLog++;
             const MAX = 3;
             const genre = el.dataset.genre;
             const mt = _getMtState(cid);
-            const before = mt.genres.slice();
             const idx = mt.genres.indexOf(genre);
             if (idx >= 0) mt.genres.splice(idx, 1);
             else if (mt.genres.length < MAX) mt.genres.push(genre);
-            // else: 최대치 — 변화 없지만 디버그는 갱신
+            else return; // 최대치, 변화 없음
             // DOM을 새로 그리지 않고 현재 버튼들의 상태만 갱신 (모바일 ghost-click 방지)
             const c = document.getElementById(cid);
             if (!c) return;
@@ -4642,8 +4629,6 @@
             });
             const cnt = document.getElementById(cid + '_gcount');
             if (cnt) cnt.textContent = `(최대 ${MAX}개${maxed ? ' · 최대 선택됨' : ''})`;
-            const dbg = document.getElementById(cid + '_gdbg');
-            if (dbg) dbg.textContent = `tap#${_mtTapLog} "${genre}" | 전:[${before.join(',')}] → 후:[${mt.genres.join(',')}]`;
         }
 
         async function searchMtArtist(cid) {
