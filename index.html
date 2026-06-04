@@ -4281,7 +4281,15 @@
                     const p = memberMap[pid];
                     return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
                 }).filter(Boolean);
-                const attendeeSection = '';
+                const signupBlocked = !isMeIn && sigStatus !== null && sigStatus !== 'open';
+                const attendeeSection = (dateAttendees.length > 0 || myId) ? `
+                    <div style="padding:6px 12px 10px;border-top:1px solid var(--wds-gray-100);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        ${myId ? `<button type="button" onclick="toggleScheduleAttendance('${date}')"
+                            ${signupBlocked ? 'disabled' : ''}
+                            style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeIn?'#EF4444':'var(--wds-primary)'};background:${isMeIn?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeIn?'#EF4444':'var(--wds-primary)'};cursor:${signupBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap">
+                            ${isMeIn?'✓ 취소':'+ 신청'}</button>` : ''}
+                        ${attendeeNames.length ? `<span style="font-size:0.72rem;color:var(--wds-gray-500)">${attendeeNames.join(', ')}</span>` : ''}
+                    </div>` : '';
 
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
