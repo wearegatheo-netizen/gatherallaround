@@ -6844,6 +6844,19 @@
             if (!purpose) { alert('사용 목적을 입력해주세요.'); return; }
             if (!howFound) { alert('공간을 알게 된 경로를 선택해주세요.'); return; }
             const { selectedDate, startSlot, endSlot, headcount } = _perfState;
+            // Re-validate conflicts at submit time to prevent TOCTOU race
+            const [resCheck, pbCheck] = await Promise.all([
+                supabaseClient.from('reservations').select('start_time,end_time')
+                    .eq('res_date', selectedDate).neq('status','rejected').neq('status','cancelled'),
+                supabaseClient.from('performance_bookings').select('start_time,end_time')
+                    .eq('date', selectedDate).neq('status','rejected')
+            ]);
+            const allConflicts = [...(resCheck.data||[]), ...(pbCheck.data||[])];
+            const hasConflict = allConflicts.some(c => {
+                const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                return startSlot <= ce && endSlot >= cs;
+            });
+            if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
             const { error } = await supabaseClient.from('performance_bookings').insert({
                 name, phone, purpose, how_found: howFound,
                 date: selectedDate,
