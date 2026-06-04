@@ -1522,7 +1522,7 @@
             <!-- 로그인 폼 -->
             <div id="email-login-form" class="email-form">
                 <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
-                <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleEmailLogin();}">
                 <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
                 <div style="display:flex;justify-content:center;gap:16px;margin-top:2px">
                     <button type="button" class="find-link-btn" onclick="showFindId()">아이디 찾기</button>
@@ -1632,7 +1632,7 @@
             <!-- 로그인 폼 -->
             <div id="band-login-form" class="email-form">
                 <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30">
-                <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
             </div>
@@ -3985,8 +3985,8 @@
                 : groupOrder.map(gn => ({ name: gn, entries: groupMap[gn] }));
             state.scheduleEditorShowBanner = entries.some(s => s.show_banner);
             const first = entries[0] || {};
-            state.scheduleEditorSignupOpen  = first.signup_open  ? first.signup_open.slice(0,16)  : '';
-            state.scheduleEditorSignupClose = first.signup_close ? first.signup_close.slice(0,16) : '';
+            state.scheduleEditorSignupOpen  = isoToLocalInput(first.signup_open);
+            state.scheduleEditorSignupClose = isoToLocalInput(first.signup_close);
             renderScheduleEditor();
         }
 
@@ -4129,14 +4129,29 @@
             const inp = document.getElementById('schedEditorDateInput'); if (inp) inp.value = state.scheduleEditorDate;
         }
 
+        // datetime-local(로컬 시각) → 저장용 ISO(UTC). timestamptz 컬럼에 올바른 순간 저장
+        function localInputToIso(v) {
+            if (!v) return null;
+            const d = new Date(v); // datetime-local은 브라우저 로컬 시간으로 파싱됨
+            return isNaN(d.getTime()) ? null : d.toISOString();
+        }
+        // 저장된 ISO(timestamptz) → datetime-local 입력값(로컬 시각 "YYYY-MM-DDTHH:mm")
+        function isoToLocalInput(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            const off = d.getTimezoneOffset() * 60000;
+            return new Date(d.getTime() - off).toISOString().slice(0, 16);
+        }
+
         async function saveScheduleForDate() {
             if (!canApproveRes()) { alert('세션장 이상 권한이 필요합니다.'); return; }
             const date = state.scheduleEditorDate;
             if (!date) { alert('날짜를 선택해주세요.'); return; }
             const showBanner = !!(document.getElementById('schedBannerToggle')?.checked ?? state.scheduleEditorShowBanner);
             state.scheduleEditorShowBanner = showBanner;
-            const signupOpen  = (document.getElementById('schedSignupOpen')?.value  || state.scheduleEditorSignupOpen  || '').trim() || null;
-            const signupClose = (document.getElementById('schedSignupClose')?.value || state.scheduleEditorSignupClose || '').trim() || null;
+            const signupOpen  = localInputToIso((document.getElementById('schedSignupOpen')?.value  || state.scheduleEditorSignupOpen  || '').trim());
+            const signupClose = localInputToIso((document.getElementById('schedSignupClose')?.value || state.scheduleEditorSignupClose || '').trim());
             const memberMap = {};
             (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
             const records = [];
@@ -4236,15 +4251,8 @@
                 });
                 const groupsHtml = gOrder.map(gn => {
                     const grpAttendees = gn ? (((state.scheduleGroupAttendees || {})[date] || {})[gn] || []) : [];
-                    const isMeInGrp = !!(myId && grpAttendees.includes(myId));
                     const grpAttendeeNames = grpAttendees.map(pid => { const p = memberMap[pid]; return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null; }).filter(Boolean);
                     const gnId = 'grp-att-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_');
-                    const signupBlocked = !isMeInGrp && sigStatus !== null && sigStatus !== 'open';
-                    const grpAttendBtn = (gn && state.user) ? (signupBlocked
-                        ? `<span style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-gray-500);font-weight:700;white-space:nowrap;display:inline-block">${sigStatus==='before'?'🕐 신청 전':'🔒 마감'}</span>`
-                        : `<button type="button" onclick="toggleGroupAttendance('${date}','${gn.replace(/'/g,"\\'")}');event.stopPropagation()"
-                            style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeInGrp?'#EF4444':'var(--wds-primary)'};background:${isMeInGrp?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInGrp?'#EF4444':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">
-                            ${isMeInGrp?'✓ 취소':'+ 신청'}</button>`) : '';
                     const countBadge = grpAttendees.length > 0
                         ? `<button type="button" onclick="document.getElementById('${gnId}').classList.toggle('hidden');event.stopPropagation()"
                             style="padding:1px 8px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:var(--wds-primary-light);color:var(--wds-primary);cursor:pointer;font-weight:700">👥 ${grpAttendees.length}명</button>`
@@ -4257,7 +4265,7 @@
                     const header = gn ? `<div style="margin:8px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--wds-gray-100)">
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                             <span style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(gn)}</span>
-                            ${grpAttendBtn}${countBadge}
+                            ${countBadge}
                         </div>
                         ${attendeeList}
                     </div>` : '';
