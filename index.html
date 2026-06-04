@@ -2840,7 +2840,7 @@
                     <div class="stat-card" style="border-left:3px solid #f0a050;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">대기중</div><div class="stat-value" style="font-size:0.98rem">${pendingCount}</div></div>
                     <div class="stat-card" style="border-left:3px solid #6c5ce7;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">참여횟수</div><div class="stat-value" style="font-size:0.98rem">${participationCount}</div></div>
                 </div>
-                <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 예약·일정표에 이름이 올라간 날짜 수 (같은 날 중복 1회)</div>
+                <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 실제 참여한 날짜 수 (오늘 이전 기준, 같은 날 중복 1회)</div>
                 ${teamsHtml}
             `;
         }
@@ -4059,11 +4059,27 @@
                 }).join('');
                 const dateAttendees = state.scheduleAttendees[date] || [];
                 const isMeIn = !!(myId && dateAttendees.includes(myId));
-                const attendeeNames = dateAttendees.map(pid => {
+
+                // 전체 참여 멤버: 그룹별 신청자 + 비그룹 신청자 합산 (중복 제거)
+                const allAttendeeIds = new Set(dateAttendees);
+                gOrder.forEach(gn => {
+                    if (gn) (((state.scheduleGroupAttendees || {})[date] || {})[gn] || []).forEach(id => allAttendeeIds.add(id));
+                });
+                const allAttendeeNames = [...allAttendeeIds].map(pid => {
                     const p = memberMap[pid];
                     return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
                 }).filter(Boolean);
-                const attendeeSection = '';
+                const dateAttId = 'date-att-' + date;
+                const attendeeSection = allAttendeeIds.size > 0
+                    ? `<div style="padding:0 12px 8px">
+                        <button type="button" onclick="const el=document.getElementById('${dateAttId}');el.classList.toggle('hidden');this.querySelector('.att-arrow').textContent=el.classList.contains('hidden')?'▾':'▴'" style="width:100%;padding:5px 10px;font-size:0.75rem;font-weight:700;border:1px solid var(--wds-gray-200);border-radius:6px;background:var(--wds-gray-50);cursor:pointer;color:var(--wds-gray-600);text-align:left;display:flex;justify-content:space-between;align-items:center">
+                            <span>👥 전체 참여 멤버 <strong style="color:var(--wds-primary)">${allAttendeeIds.size}명</strong></span><span class="att-arrow">▾</span>
+                        </button>
+                        <div id="${dateAttId}" class="hidden" style="padding:6px 8px 4px;background:var(--wds-primary-light);border-radius:0 0 6px 6px;margin-top:2px;display:flex;flex-wrap:wrap;gap:3px">
+                            ${allAttendeeNames.map(n=>`<span style="background:white;border-radius:4px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}
+                        </div>
+                      </div>`
+                    : '';
 
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
@@ -10459,14 +10475,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         // 같은 날에 여러 번 올라가도 1회로 카운트 — 예약 + 일정표 distinct 날짜 합집합
         function countParticipationDates(profileId, reservations, schedules) {
             if (!profileId) return 0;
+            const today = new Date().toLocaleDateString('en-CA');
             const dates = new Set();
             (reservations || []).forEach(r => {
-                if (Array.isArray(r.participant_ids) && r.participant_ids.includes(profileId) && r.res_date) {
+                if (Array.isArray(r.participant_ids) && r.participant_ids.includes(profileId) && r.res_date && r.res_date <= today) {
                     dates.add(r.res_date);
                 }
             });
             (schedules || []).forEach(s => {
-                if (Array.isArray(s.members) && s.members.some(m => m.memberId === profileId) && s.date) {
+                if (Array.isArray(s.members) && s.members.some(m => m.memberId === profileId) && s.date && s.date <= today) {
                     dates.add(s.date);
                 }
             });
