@@ -4531,7 +4531,7 @@
                         ${g.items.map(item => {
                             const sel = genres.includes(item);
                             const disabled = !sel && genreMaxed;
-                            return `<button type="button" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}" ontouchend="selectMtGenre(this,'${item}','${cid}');event.preventDefault()" onclick="selectMtGenre(this,'${item}','${cid}')"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
+                            return `<button type="button" data-genre="${escapeHtml(item)}" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}" onclick="selectMtGenre(this,'${cid}')"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
                         }).join('')}
                     </div>
                 </div>`).join('');
@@ -4545,7 +4545,7 @@
 
             c.innerHTML = `
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span></div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span id="${cid}_gcount" style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span></div>
                     ${genreChips}
                 </div>
                 <div style="margin-bottom:8px">
@@ -4576,17 +4576,27 @@
                 </div>`;
         }
 
-        let _mtLastTap = 0;
-        function selectMtGenre(el, genre, cid) {
-            // guard against mobile ghost-click (touchend → synthetic click ~300ms later)
-            const now = Date.now();
-            if (now - _mtLastTap < 450) return;
-            _mtLastTap = now;
+        function selectMtGenre(el, cid) {
+            const MAX = 3;
+            const genre = el.dataset.genre;
             const mt = _getMtState(cid);
             const idx = mt.genres.indexOf(genre);
             if (idx >= 0) mt.genres.splice(idx, 1);
-            else if (mt.genres.length < 3) mt.genres.push(genre);
-            _refreshMtEdit(cid);
+            else if (mt.genres.length < MAX) mt.genres.push(genre);
+            else return; // 최대치, 변화 없음
+            // DOM을 새로 그리지 않고 현재 버튼들의 상태만 갱신 (모바일 ghost-click 방지)
+            const c = document.getElementById(cid);
+            if (!c) return;
+            const maxed = mt.genres.length >= MAX;
+            c.querySelectorAll('.mt-genre-chip').forEach(btn => {
+                const sel = mt.genres.includes(btn.dataset.genre);
+                btn.classList.toggle('selected', sel);
+                const disabled = !sel && maxed;
+                btn.classList.toggle('disabled', disabled);
+                btn.disabled = disabled;
+            });
+            const cnt = document.getElementById(cid + '_gcount');
+            if (cnt) cnt.textContent = `(최대 ${MAX}개${maxed ? ' · 최대 선택됨' : ''})`;
         }
 
         async function searchMtArtist(cid) {
