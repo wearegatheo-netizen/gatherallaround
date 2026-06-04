@@ -2897,7 +2897,7 @@
                     </div>
                     ${profile.music_taste ? `<div class="mypage-section-label">🎧 음악 취향</div>${musicTasteTags(profile.music_taste)}` : ''}
                 </div>
-                <div id="mypageEditForm" class="hidden" style="margin-top:12px">
+                <div id="mypageEditForm" class="hidden" style="margin-top:12px" data-music-taste="${escapeHtml(profile.music_taste || '')}">
                     <div style="display:flex;flex-direction:column;gap:8px">
                         <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호</label>
                         <input type="tel" id="mypagePhone" value="${escapeHtml(profile.phone || '')}" placeholder="010-0000-0000"
@@ -3036,6 +3036,8 @@
             const ef = document.getElementById('mypageEditForm');
             if (iv) iv.classList.add('hidden');
             if (ef) ef.classList.remove('hidden');
+            const raw = ef ? (ef.dataset.musicTaste || null) : null;
+            renderMtEditUI('mtEdit_mypage', raw);
         }
 
         function hideMypageEditForm() {
