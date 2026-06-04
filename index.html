@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-GTNNQQ0W43"></script>
     <script>
@@ -3111,6 +3114,8 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
+        const APP_VERSION = '2026.06.04-genre-multiselect';
+        console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
             currentView: 'month',
