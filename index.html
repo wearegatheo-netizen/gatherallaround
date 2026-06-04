@@ -4531,7 +4531,7 @@
                         ${g.items.map(item => {
                             const sel = genres.includes(item);
                             const disabled = !sel && genreMaxed;
-                            return `<button type="button" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}" onclick="selectMtGenre(this,'${item}','${cid}')"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
+                            return `<button type="button" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}" ontouchend="selectMtGenre(this,'${item}','${cid}');event.preventDefault()" onclick="selectMtGenre(this,'${item}','${cid}')"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
                         }).join('')}
                     </div>
                 </div>`).join('');
@@ -4576,7 +4576,12 @@
                 </div>`;
         }
 
+        let _mtLastTap = 0;
         function selectMtGenre(el, genre, cid) {
+            // guard against mobile ghost-click (touchend → synthetic click ~300ms later)
+            const now = Date.now();
+            if (now - _mtLastTap < 450) return;
+            _mtLastTap = now;
             const mt = _getMtState(cid);
             const idx = mt.genres.indexOf(genre);
             if (idx >= 0) mt.genres.splice(idx, 1);
