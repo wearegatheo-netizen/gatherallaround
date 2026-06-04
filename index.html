@@ -3114,7 +3114,7 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
-        const APP_VERSION = '2026.06.04-v6-ptrdbg';
+        const APP_VERSION = '2026.06.04-v7-validfilter';
         console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
@@ -4497,8 +4497,11 @@
             const songs = Array.isArray(mt.songs) ? mt.songs
                 : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
             // 기존 genre(string) → genres(array) 마이그레이션
-            const genres = Array.isArray(mt.genres) ? mt.genres
+            const rawGenres = Array.isArray(mt.genres) ? mt.genres
                 : (mt.genre ? mt.genre.split(',').map(s => s.trim()).filter(Boolean) : []);
+            // BUGS_GENRES 목록에 없는 값은 버림 (오염된 프로필 데이터 방어)
+            const validSet = new Set(BUGS_GENRES.flatMap(g => g.items));
+            const genres = rawGenres.filter(g => validSet.has(g));
             state.mtEdits[cid] = {
                 genres,
                 artists: mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [],
@@ -4531,7 +4534,8 @@
                 downBtn = (btn && c.contains(btn)) ? btn : null;
                 downX = e.clientX; downY = e.clientY;
                 const dbg = document.getElementById(cid + '_gdbg');
-                if (dbg) dbg.textContent = `POINTERDOWN: ${btn ? (btn.dataset.genre || 'no-genre') : 'no-btn'}`;
+                const mt0 = _getMtState(cid);
+                if (dbg) dbg.textContent = `PD: ${btn ? (btn.dataset.genre||'?') : 'no-btn'} | state:[${mt0.genres.join(',')}] | dis:${btn?btn.disabled:'?'}`;
             };
             const onUp = (e) => {
                 const btn = e.target.closest('.mt-genre-chip');
