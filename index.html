@@ -3114,7 +3114,7 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
-        const APP_VERSION = '2026.06.04-v4-debug';
+        const APP_VERSION = '2026.06.04-v5-pointer';
         console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
@@ -4515,6 +4515,31 @@
         function renderMtEditUI(containerId, raw) {
             initMtEdit(containerId, raw !== undefined ? raw : null);
             _refreshMtEdit(containerId);
+            _bindMtGenreDelegation(containerId);
+        }
+
+        // 인라인 onclick 대신 컨테이너에 위임 리스너를 1회 바인딩 (모바일 click 미발화 대비)
+        // pointerdown/up으로 터치를 직접 처리 — click 합성에 의존하지 않음
+        function _bindMtGenreDelegation(cid) {
+            const c = document.getElementById(cid);
+            if (!c || c.dataset.gbound === '1') return;
+            c.dataset.gbound = '1';
+            let downX = 0, downY = 0, downBtn = null;
+            c.addEventListener('pointerdown', (e) => {
+                const btn = e.target.closest('.mt-genre-chip');
+                downBtn = (btn && c.contains(btn)) ? btn : null;
+                downX = e.clientX; downY = e.clientY;
+            });
+            c.addEventListener('pointerup', (e) => {
+                const btn = e.target.closest('.mt-genre-chip');
+                if (!btn || btn !== downBtn || !c.contains(btn)) { downBtn = null; return; }
+                // 스크롤/드래그면 무시 (탭만 처리)
+                if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10) { downBtn = null; return; }
+                downBtn = null;
+                if (btn.classList.contains('disabled') || btn.disabled) return;
+                e.preventDefault();
+                selectMtGenre(btn, cid);
+            });
         }
 
         function _refreshMtEdit(cid) {
@@ -4531,7 +4556,7 @@
                         ${g.items.map(item => {
                             const sel = genres.includes(item);
                             const disabled = !sel && genreMaxed;
-                            return `<button type="button" data-genre="${escapeHtml(item)}" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}" onclick="selectMtGenre(this,'${cid}')"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
+                            return `<button type="button" data-genre="${escapeHtml(item)}" class="mt-genre-chip${sel ? ' selected' : ''}${disabled ? ' disabled' : ''}"${disabled ? ' disabled' : ''}>${escapeHtml(item)}</button>`;
                         }).join('')}
                     </div>
                 </div>`).join('');
