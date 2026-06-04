@@ -2313,7 +2313,7 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const music_taste = getMtEditValue();
+            const music_taste = getMtEditValue('mtEdit_ks');
             if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _kakaoSignupBusy = true;
@@ -3079,7 +3079,7 @@
             const instruments = [...selectedInsts, ...customs].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const music_taste = getMtEditValue();
+            const music_taste = getMtEditValue(isNew ? 'mtEdit_reg' : 'mtEdit_mypage');
             if (isNew && !music_taste) { alert('음악 취향을 입력해주세요.'); return; }
 
             let result;
@@ -3129,7 +3129,7 @@
             editingSongs: [],
             cachedMembers: [],
             allMembers: [],
-            mtEdit: { genre: null, artists: [], songs: [] },
+            mtEdits: {},
             bgmTracks: [],
             participantIds: [],
             participantEtc: '',
@@ -4471,36 +4471,41 @@
             { group: '기타', items: ['OST', '뉴에이지', 'J-POP', '국악', '어린이/태교', '애니메이션'] }
         ];
 
-        function initMtEdit(raw) {
+        function _getMtState(cid) {
+            if (!state.mtEdits[cid]) state.mtEdits[cid] = { genres: [], artists: [], songs: [] };
+            return state.mtEdits[cid];
+        }
+
+        function initMtEdit(cid, raw) {
             const mt = parseMusicTaste(raw);
-            if (!mt) { state.mtEdit = { genres: [], artists: [], songs: [] }; return; }
+            if (!mt) { state.mtEdits[cid] = { genres: [], artists: [], songs: [] }; return; }
             const songs = Array.isArray(mt.songs) ? mt.songs
                 : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
             // 기존 genre(string) → genres(array) 마이그레이션
             const genres = Array.isArray(mt.genres) ? mt.genres
                 : (mt.genre ? mt.genre.split(',').map(s => s.trim()).filter(Boolean) : []);
-            state.mtEdit = {
+            state.mtEdits[cid] = {
                 genres,
                 artists: mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [],
                 songs
             };
         }
 
-        function getMtEditValue() {
-            const { genres, artists, songs } = state.mtEdit;
+        function getMtEditValue(cid) {
+            const { genres, artists, songs } = _getMtState(cid);
             if (!genres.length && !artists.length && !songs.length) return null;
             return JSON.stringify({ genre: genres.join(', '), genres, artists: artists.join(', '), songs });
         }
 
         function renderMtEditUI(containerId, raw) {
-            initMtEdit(raw !== undefined ? raw : null);
+            initMtEdit(containerId, raw !== undefined ? raw : null);
             _refreshMtEdit(containerId);
         }
 
         function _refreshMtEdit(cid) {
             const c = document.getElementById(cid);
             if (!c) return;
-            const { genres, artists, songs } = state.mtEdit;
+            const { genres, artists, songs } = _getMtState(cid);
             const MAX = 3;
 
             const genreMaxed = genres.length >= MAX;
@@ -4557,9 +4562,10 @@
         }
 
         function selectMtGenre(el, genre, cid) {
-            const idx = state.mtEdit.genres.indexOf(genre);
-            if (idx >= 0) state.mtEdit.genres.splice(idx, 1);
-            else if (state.mtEdit.genres.length < 3) state.mtEdit.genres.push(genre);
+            const mt = _getMtState(cid);
+            const idx = mt.genres.indexOf(genre);
+            if (idx >= 0) mt.genres.splice(idx, 1);
+            else if (mt.genres.length < 3) mt.genres.push(genre);
             _refreshMtEdit(cid);
         }
 
@@ -4587,8 +4593,9 @@
 
         function addMtArtist(el, cid) {
             const name = el.dataset.name;
-            if (name && state.mtEdit.artists.length < 3 && !state.mtEdit.artists.includes(name)) {
-                state.mtEdit.artists.push(name); _refreshMtEdit(cid);
+            const mt = _getMtState(cid);
+            if (name && mt.artists.length < 3 && !mt.artists.includes(name)) {
+                mt.artists.push(name); _refreshMtEdit(cid);
             }
         }
 
@@ -4614,16 +4621,18 @@
 
         function addMtSong(el, cid) {
             const { title: t, artist: a, artwork: aw } = el.dataset;
-            if (t && state.mtEdit.songs.length < 1 && !state.mtEdit.songs.find(s => s.title === t && s.artist === a)) {
-                state.mtEdit.songs.push({ title: t, artist: a, artwork: aw || '' });
+            const mt = _getMtState(cid);
+            if (t && mt.songs.length < 1 && !mt.songs.find(s => s.title === t && s.artist === a)) {
+                mt.songs.push({ title: t, artist: a, artwork: aw || '' });
                 _refreshMtEdit(cid);
             }
         }
 
         function removeMtItem(type, idx, cid) {
-            if (type === 'artist') state.mtEdit.artists.splice(idx, 1);
-            else if (type === 'genre') state.mtEdit.genres.splice(idx, 1);
-            else state.mtEdit.songs.splice(idx, 1);
+            const mt = _getMtState(cid);
+            if (type === 'artist') mt.artists.splice(idx, 1);
+            else if (type === 'genre') mt.genres.splice(idx, 1);
+            else mt.songs.splice(idx, 1);
             _refreshMtEdit(cid);
         }
 
@@ -10706,7 +10715,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const instruments = [...selectedInsts, ...customInsts].join(', ');
             if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
-            const music_taste = getMtEditValue();
+            const music_taste = getMtEditValue('mtEdit_signup');
             if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _signupBusy = true;
