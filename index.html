@@ -6094,6 +6094,7 @@
 
         function getOccupiedReservation(date, time) {
             return state.reservations.find(r => {
+                if (r.status === 'rejected' || r.status === 'cancelled') return false;
                 if (!isSameDay(new Date(r.res_date), date)) return false;
                 const startIdx = TIMES.indexOf(r.start_time);
                 const endIdx = TIMES.indexOf(r.end_time);
@@ -6187,6 +6188,14 @@
                 const blk = getBlock(state.selectedDate, TIMES[i]);
                 if (blk) { alert('차단된 시간이 포함되어 있습니다.' + (blk.reason ? `\n사유: ${blk.reason}` : '')); return; }
             }
+            // 기존 예약과 겹치는지 확인 (거절/취소 제외)
+            const overlap = state.reservations.some(r => {
+                if (r.status === 'rejected' || r.status === 'cancelled') return false;
+                if (!isSameDay(new Date(r.res_date), state.selectedDate)) return false;
+                const rs = TIMES.indexOf(r.start_time), re = TIMES.indexOf(r.end_time);
+                return startIdx <= re && endIdx >= rs;
+            });
+            if (overlap) { alert('이미 예약된 시간대가 포함되어 있습니다. 다른 시간을 선택해주세요.'); return; }
             const name = (state.user && state.user.nickname) || document.getElementById('userNameInput').value || '';
             if (!name) { alert('사용자 정보를 불러오지 못했습니다. 다시 로그인해주세요.'); return; }
             const etcTrimmed = (state.participantEtc || '').trim();
@@ -6896,7 +6905,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const approvalMsg = b.status === 'approved' ? generateApprovalMessage(b) : '';
                 return `<div class="perf-admin-card${b.status==='pending'?' pending':''}" id="perf-card-${b.id}">
                     <div class="perf-admin-card-title">
-                        ${b.status==='pending'?'⏳ 대기':''}${b.status==='approved'?'✅ 승인':''}${b.status==='rejected'?'❌ 거절':''} · ${b.name}
+                        ${b.status==='pending'?'⏳ 대기':''}${b.status==='approved'?'✅ 승인':''}${b.status==='rejected'?'❌ 거절':''} · ${escapeHtml(b.name)}
                     </div>
                     <div class="perf-admin-card-info">
                         📅 ${b.date} ${b.start_time} ~ ${endDisplay} (${hours}시간)<br>
@@ -10857,6 +10866,13 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 if (Array.isArray(s.members) && s.members.some(m => m.memberId === profileId) && s.date) {
                     dates.add(s.date);
                 }
+            });
+            // 일정표 직접 신청 출석 (schedule_attendees) 합산
+            Object.entries(state.scheduleAttendees || {}).forEach(([d, ids]) => {
+                if (Array.isArray(ids) && ids.includes(profileId)) dates.add(d);
+            });
+            Object.entries(state.scheduleGroupAttendees || {}).forEach(([d, groups]) => {
+                if (groups && Object.values(groups).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
             });
             return dates.size;
         }
