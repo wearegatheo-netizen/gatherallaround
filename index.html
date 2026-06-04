@@ -3114,7 +3114,7 @@
         let recoveryMode = false;
 
         // --- Reservation Logic ---
-        const APP_VERSION = '2026.06.04-genre-multiselect';
+        const APP_VERSION = '2026.06.04-v3-inplace';
         console.log('%cGatheO build: ' + APP_VERSION, 'color:#6c5ce7;font-weight:700');
         let state = {
             user: null,
@@ -4545,7 +4545,7 @@
 
             c.innerHTML = `
                 <div style="background:var(--wds-gray-100);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span id="${cid}_gcount" style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span></div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);margin-bottom:8px">🎵 장르 선택 <span id="${cid}_gcount" style="font-weight:400;color:var(--wds-gray-400)">(최대 ${MAX}개${genreMaxed ? ' · 최대 선택됨' : ''})</span> <span style="font-weight:400;font-size:0.62rem;color:var(--wds-gray-300)">${APP_VERSION}</span></div>
                     ${genreChips}
                 </div>
                 <div style="margin-bottom:8px">
