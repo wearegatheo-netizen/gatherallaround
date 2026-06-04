@@ -897,9 +897,9 @@
             .mlist-name { font-size: 0.95rem; }
             .mlist-meta { font-size: 0.72rem; }
             .member-group-header { font-size: 0.82rem; }
-            /* 음악취향: 한 줄씩 전체 폭 사용 + 말줄임 */
-            .mt-tags { flex-direction: column; align-items: stretch; gap: 5px; }
-            .mt-tag { font-size: 0.74rem; padding: 4px 10px; width: 100%; box-sizing: border-box; }
+            /* 음악취향: 장르·가수를 개별 칩으로 가로 wrap */
+            .mt-tags { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 5px; }
+            .mt-tag { font-size: 0.74rem; padding: 4px 10px; width: auto; max-width: 100%; box-sizing: border-box; }
             .mt-song-art { width: 28px; height: 28px; }
             .mt-song-title { font-size: 0.78rem; }
             .mt-song-artist { font-size: 0.7rem; }
@@ -4821,12 +4821,16 @@
         function musicTasteTags(raw) {
             const mt = parseMusicTaste(raw);
             if (!mt || (!mt.genre && !mt.genres && !mt.artists && !mt.songs)) return '';
-            const genreLabel = Array.isArray(mt.genres) && mt.genres.length ? mt.genres.join(', ') : (mt.genre || '');
+            const genreList = Array.isArray(mt.genres) && mt.genres.length
+                ? mt.genres
+                : (mt.genre ? mt.genre.split(',').map(s => s.trim()).filter(Boolean) : []);
+            const artistList = mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [];
             const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
             const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}"><span class="mt-tag-ic">${ic}</span><span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
             const parts = [];
-            if (genreLabel) parts.push(tag('#f0f4ff', '#3366ff', '🎵', genreLabel));
-            if (mt.artists) parts.push(tag('#f0fff4', '#00b894', '🎤', mt.artists));
+            // 장르·가수를 각각 개별 칩(버튼식)으로 표시
+            genreList.forEach(g => parts.push(tag('#f0f4ff', '#3366ff', '🎵', g)));
+            artistList.forEach(a => parts.push(tag('#f0fff4', '#00b894', '🎤', a)));
             const songChips = songsArr.map(s =>
                 `<div class="mt-song-chip">
                     ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="" class="mt-song-art">` : '<div class="mt-song-art mt-song-art-placeholder"></div>'}
