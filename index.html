@@ -3150,6 +3150,7 @@
             schedules: [],
             scheduleAttendees: {},
             scheduleGroupAttendees: {},
+            scheduleSlotAttendees: {},
             scheduleFilter: 'upcoming',
             scheduleEditorDate: new Date().toLocaleDateString('en-CA'),
             scheduleEditorGroups: [],
@@ -3887,6 +3888,7 @@
         async function fetchScheduleAttendees(dates) {
             state.scheduleAttendees = {};
             state.scheduleGroupAttendees = {};
+            state.scheduleSlotAttendees = {};
             if (!dates || dates.length === 0) return;
             const { data } = await supabaseClient
                 .from('schedule_attendees')
@@ -3894,12 +3896,21 @@
                 .in('schedule_date', dates);
             (data || []).forEach(r => {
                 const d = r.schedule_date;
-                if (!state.scheduleAttendees[d]) state.scheduleAttendees[d] = [];
-                if (!r.group_name && !state.scheduleAttendees[d].includes(r.profile_id)) state.scheduleAttendees[d].push(r.profile_id);
-                if (r.group_name) {
+                const gn = r.group_name;
+                if (gn && gn.startsWith('slot|')) {
+                    // 슬롯별 신청 (group_name 컬럼을 슬롯 키로 재사용)
+                    if (!state.scheduleSlotAttendees[d]) state.scheduleSlotAttendees[d] = {};
+                    if (!state.scheduleSlotAttendees[d][gn]) state.scheduleSlotAttendees[d][gn] = [];
+                    if (!state.scheduleSlotAttendees[d][gn].includes(r.profile_id)) state.scheduleSlotAttendees[d][gn].push(r.profile_id);
+                    return;
+                }
+                if (!gn) {
+                    if (!state.scheduleAttendees[d]) state.scheduleAttendees[d] = [];
+                    if (!state.scheduleAttendees[d].includes(r.profile_id)) state.scheduleAttendees[d].push(r.profile_id);
+                } else {
                     if (!state.scheduleGroupAttendees[d]) state.scheduleGroupAttendees[d] = {};
-                    if (!state.scheduleGroupAttendees[d][r.group_name]) state.scheduleGroupAttendees[d][r.group_name] = [];
-                    if (!state.scheduleGroupAttendees[d][r.group_name].includes(r.profile_id)) state.scheduleGroupAttendees[d][r.group_name].push(r.profile_id);
+                    if (!state.scheduleGroupAttendees[d][gn]) state.scheduleGroupAttendees[d][gn] = [];
+                    if (!state.scheduleGroupAttendees[d][gn].includes(r.profile_id)) state.scheduleGroupAttendees[d][gn].push(r.profile_id);
                 }
             });
         }
@@ -3961,6 +3972,34 @@
                 if (error && error.code === '23505') { alert('같은 날짜에 여러 그룹을 신청하려면 Supabase SQL Editor에서 아래를 실행해주세요:\n\nALTER TABLE schedule_attendees DROP CONSTRAINT IF EXISTS schedule_attendees_schedule_date_profile_id_key;\nALTER TABLE schedule_attendees ADD CONSTRAINT schedule_attendees_unique UNIQUE(schedule_date, profile_id, group_name);'); return; }
                 if (!error) { if (!state.scheduleGroupAttendees[date]) state.scheduleGroupAttendees[date] = {}; if (!state.scheduleGroupAttendees[date][groupName]) state.scheduleGroupAttendees[date][groupName] = []; state.scheduleGroupAttendees[date][groupName].push(me.id); renderMemberPanel(); }
             }
+        };
+
+        function slotAttKey(gn, startTime) { return 'slot|' + (gn || '') + '|' + (startTime || ''); }
+
+        window.toggleSlotAttendance = async function(date, gn, startTime) {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
+            if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            const key = slotAttKey(gn, startTime);
+            const cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
+            const isMeIn = cur.includes(me.id);
+            if (!isMeIn) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
+            if (isMeIn) {
+                const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id).eq('group_name', key);
+                if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
+                if (error) { alert('취소 실패: ' + error.message); return; }
+                if (!state.scheduleSlotAttendees[date]) state.scheduleSlotAttendees[date] = {};
+                state.scheduleSlotAttendees[date][key] = cur.filter(id => id !== me.id);
+            } else {
+                const { error } = await supabaseClient.from('schedule_attendees').insert({ schedule_date: date, profile_id: me.id, group_name: key });
+                if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
+                if (error && error.code === '23505') { alert('같은 날짜에 여러 슬롯을 신청하려면 Supabase SQL Editor에서 아래를 실행해주세요:\n\nALTER TABLE schedule_attendees DROP CONSTRAINT IF EXISTS schedule_attendees_schedule_date_profile_id_key;\nALTER TABLE schedule_attendees ADD CONSTRAINT schedule_attendees_unique UNIQUE(schedule_date, profile_id, group_name);'); return; }
+                if (error) { alert('신청 실패: ' + error.message); return; }
+                if (!state.scheduleSlotAttendees[date]) state.scheduleSlotAttendees[date] = {};
+                if (!state.scheduleSlotAttendees[date][key]) state.scheduleSlotAttendees[date][key] = [];
+                state.scheduleSlotAttendees[date][key].push(me.id);
+            }
+            renderMemberPanel();
         };
 
         function schedEditorInit(date) {
@@ -4277,32 +4316,30 @@
                             return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
                         }).join('');
                         const songs = (s.songs||[]).map(sg=>sg.title||sg).filter(Boolean);
+                        // 슬롯별 참여 신청
+                        const slotKey = slotAttKey(gn, s.start_time);
+                        const slotAttendees = ((state.scheduleSlotAttendees || {})[date] || {})[slotKey] || [];
+                        const isMeInSlot = !!(myId && slotAttendees.includes(myId));
+                        const slotNames = slotAttendees.map(pid => { const p = memberMap[pid]; return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null; }).filter(Boolean);
+                        const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
+                        const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
+                            ${slotBlocked ? 'disabled' : ''}
+                            style="padding:2px 8px;font-size:0.66rem;border-radius:4px;border:1.5px solid ${isMeInSlot?'#EF4444':'var(--wds-primary)'};background:${isMeInSlot?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInSlot?'#EF4444':'var(--wds-primary)'};cursor:${slotBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap;flex-shrink:0">${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
                         return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--wds-gray-100)">
                             <div style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;min-width:88px">${escapeHtml(timeStr)}</div>
                             <div style="flex:1;min-width:0">
                                 ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">${escapeHtml(s.team_name)}</div>`:''}
-                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length||slotNames.length?'3px':'0'}">${members}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);margin-bottom:${slotNames.length?'3px':'0'}">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                                ${slotNames.length?`<div style="font-size:0.7rem;color:var(--wds-primary);font-weight:600">🙋 ${slotNames.map(n=>escapeHtml(n)).join(', ')}</div>`:''}
                             </div>
+                            ${slotBtn}
                         </div>`;
                     }).join('');
                     return `<div>${header}${rows}</div>`;
                 }).join('');
-                const dateAttendees = state.scheduleAttendees[date] || [];
-                const isMeIn = !!(myId && dateAttendees.includes(myId));
-                const attendeeNames = dateAttendees.map(pid => {
-                    const p = memberMap[pid];
-                    return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
-                }).filter(Boolean);
-                const signupBlocked = !isMeIn && sigStatus !== null && sigStatus !== 'open';
-                const attendeeSection = (dateAttendees.length > 0 || myId) ? `
-                    <div style="padding:6px 12px 10px;border-top:1px solid var(--wds-gray-100);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        ${myId ? `<button type="button" onclick="toggleScheduleAttendance('${date}')"
-                            ${signupBlocked ? 'disabled' : ''}
-                            style="padding:2px 8px;font-size:0.68rem;border-radius:4px;border:1.5px solid ${isMeIn?'#EF4444':'var(--wds-primary)'};background:${isMeIn?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeIn?'#EF4444':'var(--wds-primary)'};cursor:${signupBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap">
-                            ${isMeIn?'✓ 취소':'+ 신청'}</button>` : ''}
-                        ${attendeeNames.length ? `<span style="font-size:0.72rem;color:var(--wds-gray-500)">${attendeeNames.join(', ')}</span>` : ''}
-                    </div>` : '';
+                // 날짜 단위 통합 신청은 슬롯별 신청으로 대체 (제거)
+                const attendeeSection = '';
 
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
@@ -10954,6 +10991,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             });
             Object.entries(state.scheduleGroupAttendees || {}).forEach(([d, groups]) => {
                 if (groups && Object.values(groups).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
+            });
+            Object.entries(state.scheduleSlotAttendees || {}).forEach(([d, slots]) => {
+                if (slots && Object.values(slots).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
             });
             return dates.size;
         }
