@@ -566,6 +566,8 @@
         .board-post-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-black); margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
 
         /* 자유게시판 목록 (접힌 행) */
+        @keyframes sigPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.45); } 50% { box-shadow: 0 0 0 5px rgba(231,76,60,0); } }
+        .sig-urgent { animation: sigPulse 1.4s ease-in-out infinite; }
         .mt-genre-chip { padding: 4px 10px; border: 1px solid var(--wds-gray-300); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-gray-700); transition: all 0.12s; }
         .mt-genre-chip:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
         .mt-genre-chip.selected { background: var(--wds-primary); color: white; border-color: var(--wds-primary); font-weight: 700; }
@@ -4278,8 +4280,24 @@
                     else if (sigClose && now > new Date(sigClose)) sigStatus = 'closed';
                     else sigStatus = 'open';
                 }
+                // 신청 가능 상태에서 마감 임박도(D-day/카운트다운) 계산
+                let openBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#e6f9f0;color:#00b894">✅ 신청 가능${sigClose?' · 마감 '+fmtDT(sigClose):''}</span>`;
+                if (sigStatus === 'open' && sigClose) {
+                    const closeD = new Date(sigClose);
+                    const ms = closeD - now;
+                    const dDay = Math.ceil((new Date(closeD.getFullYear(),closeD.getMonth(),closeD.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate())) / 86400000);
+                    if (ms > 0 && dDay <= 0) {
+                        // 오늘 마감 — 남은 시간 카운트다운 + 펄스 강조
+                        const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+                        const left = h >= 1 ? `${h}시간 ${m}분 남음` : `${m}분 남음`;
+                        openBadge = `<span class="sig-urgent" style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdecea;color:#e74c3c;border:1px solid #f5b7b1">⏰ 오늘 마감 · ${left}</span>`;
+                    } else if (ms > 0 && dDay <= 3) {
+                        // 마감 임박 (D-1~D-3)
+                        openBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff3e0;color:#e07000;border:1px solid #ffd9a0">🔥 마감 D-${dDay} · ${fmtDT(sigClose)}</span>`;
+                    }
+                }
                 const sigBadge = sigStatus === null ? '' :
-                    sigStatus === 'open'   ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#e6f9f0;color:#00b894">✅ 신청 가능${sigClose?' · 마감 '+fmtDT(sigClose):''}</span>` :
+                    sigStatus === 'open'   ? openBadge :
                     sigStatus === 'before' ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff8e6;color:#e07000">🕐 신청 시작 ${fmtDT(sigOpen)}</span>` :
                                             `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdf2f2;color:#e74c3c">🔒 신청 마감 ${fmtDT(sigClose)}</span>`;
                 const gMap = {}, gOrder = [];
