@@ -5794,9 +5794,32 @@
         }
 
         // Portal navigation
+        // ── History API navigation ──────────────────────────────────────────────
+        let _navFromPop = false;
+
+        function _pushNav(page) {
+            if (!_navFromPop) history.pushState({ page }, '', '#' + page);
+        }
+
+        window.addEventListener('popstate', (e) => {
+            const page = (e.state && e.state.page) || 'portal';
+            _navFromPop = true;
+            try {
+                if (page === 'gatheo') showGatheoSection();
+                else if (page === 'band') showBandSection();
+                else if (page === 'community') showCommunitySection();
+                else if (page === 'band-news') showBandNewsSection();
+                else if (page === 'perf') showPerformanceBookingSection();
+                else showPortal();
+            } finally {
+                _navFromPop = false;
+            }
+        });
+        // ────────────────────────────────────────────────────────────────────────
+
         function showPortal() {
             // Clean any test result URL params so refresh doesn't re-trigger share entry
-            if (location.search) history.replaceState({}, '', location.pathname);
+            if (location.search || location.hash) history.replaceState({ page: 'portal' }, '', location.pathname);
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
             document.getElementById('portal-page').classList.remove('hidden');
@@ -5894,6 +5917,7 @@
         }
 
         function showPerformanceBookingSection() {
+            _pushNav('perf');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
@@ -6554,6 +6578,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         // ===== /공연 대관 예약 =====
 
         async function showBandNewsSection() {
+            _pushNav('band-news');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
@@ -6700,6 +6725,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function showGatheoSection() {
+            _pushNav('gatheo');
             document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.remove('hidden');
@@ -6709,6 +6735,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function showBandSection() {
+            _pushNav('band');
             document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
@@ -6756,6 +6783,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         async function showCommunitySection() {
+            _pushNav('community');
             document.body.classList.remove('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
@@ -11542,7 +11570,13 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         initTheme();
-        document.addEventListener('DOMContentLoaded', () => { initTheme(); initApp(); initPullToRefresh(); });
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme(); initApp(); initPullToRefresh();
+            // Seed history with portal state so the very first back press returns here
+            if (!history.state || !history.state.page) {
+                history.replaceState({ page: 'portal' }, '', location.href.replace(/#.*$/, ''));
+            }
+        });
 
         // Pull-to-refresh (PWA standalone 모드에서도 동작)
         function initPullToRefresh() {
