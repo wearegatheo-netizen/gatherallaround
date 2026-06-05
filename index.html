@@ -1297,7 +1297,7 @@
         <div style="display:flex;align-items:center;gap:11px">
             <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
             <div style="flex:1;min-width:0">
-                <div style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-800)">앱으로 설치하기</div>
+                <div id="installBannerTitle" style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-800)">앱으로 설치하기</div>
                 <div id="installBannerDesc" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:1px">홈 화면에 추가해 앱처럼 빠르게 이용하세요.</div>
             </div>
             <button type="button" onclick="dismissInstallBanner()" aria-label="닫기" style="flex:none;width:26px;height:26px;border:none;background:var(--wds-gray-100);border-radius:50%;cursor:pointer;color:var(--wds-gray-500);font-size:0.95rem;line-height:1">✕</button>
@@ -1308,6 +1308,13 @@
         <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
             <div>① 하단 <strong>공유</strong> 버튼 <span style="display:inline-block;border:1px solid var(--wds-gray-300);border-radius:5px;padding:0 5px;font-size:0.72rem">􀈂</span> 을 누르세요.</div>
             <div style="margin-top:4px">② <strong>홈 화면에 추가</strong>를 선택하세요.</div>
+        </div>
+        <div id="installBannerInappBtn" style="display:none;margin-top:11px">
+            <button type="button" onclick="openInExternalBrowser()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">기본 브라우저로 열기</button>
+        </div>
+        <div id="installBannerInappGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+            앱 설치는 <strong>Safari/Chrome 등 기본 브라우저</strong>에서만 가능해요.<br>
+            우측 하단(또는 우측 상단) <strong>⋯ 메뉴</strong>를 눌러 <strong>‘다른 브라우저로 열기’</strong>를 선택해 주세요.
         </div>
     </div>
 
@@ -10714,6 +10721,14 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         function _isIOS() {
             return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
         }
+        function _isAndroid() {
+            return /android/i.test(navigator.userAgent);
+        }
+        // 카카오톡/인스타/페북/네이버/라인 등 인앱 브라우저(WebView) 감지 — PWA 설치 불가
+        function _isInAppBrowser() {
+            const ua = (navigator.userAgent || '').toLowerCase();
+            return /kakaotalk|instagram|fban|fbav|fb_iab|line\/|naver|whale|daumapps|everytimeapp|band\//.test(ua);
+        }
 
         // Android/Chrome: 설치 가능 시점에 이벤트 발생
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -10733,19 +10748,50 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try { if (localStorage.getItem(INSTALL_DISMISS_KEY)) return; } catch (_) {}
             const banner = document.getElementById('installBanner');
             if (!banner) return;
+            const title = document.getElementById('installBannerTitle');
+            const desc = document.getElementById('installBannerDesc');
             const iosGuide = document.getElementById('installBannerIosGuide');
             const actions = document.getElementById('installBannerActions');
+            const inappBtn = document.getElementById('installBannerInappBtn');
+            const inappGuide = document.getElementById('installBannerInappGuide');
+            // 모든 보조 섹션 초기화
+            [iosGuide, actions, inappBtn, inappGuide].forEach(el => { if (el) el.style.display = 'none'; });
 
-            if (_isIOS()) {
-                // iOS는 beforeinstallprompt 미지원 → 수동 안내
-                if (actions) actions.style.display = 'none';
+            if (_isInAppBrowser()) {
+                // 카카오톡 등 인앱 브라우저 → 설치 불가, 기본 브라우저로 유도
+                if (title) title.textContent = '기본 브라우저에서 열어주세요';
+                if (desc) desc.textContent = '카카오톡 등 앱 안에서는 설치할 수 없어요.';
+                // Android는 외부 브라우저 강제 호출 가능, iOS는 수동 안내
+                if (_isAndroid()) { if (inappBtn) inappBtn.style.display = 'block'; }
+                else { if (inappGuide) inappGuide.style.display = 'block'; }
+                banner.style.display = 'block';
+            } else if (_isIOS()) {
+                // iOS Safari: beforeinstallprompt 미지원 → 홈 화면 추가 수동 안내
                 if (iosGuide) iosGuide.style.display = 'block';
                 banner.style.display = 'block';
             } else if (_deferredInstallPrompt) {
-                if (iosGuide) iosGuide.style.display = 'none';
                 if (actions) actions.style.display = 'block';
                 banner.style.display = 'block';
             }
+        }
+
+        function openInExternalBrowser() {
+            const url = location.href;
+            const ua = (navigator.userAgent || '').toLowerCase();
+            if (_isAndroid()) {
+                if (ua.includes('kakaotalk')) {
+                    // 카카오톡 전용 스킴 — 외부(기본) 브라우저로 열기
+                    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+                    return;
+                }
+                // 그 외 안드로이드 인앱 → Chrome intent로 열기
+                const noScheme = url.replace(/^https?:\/\//, '');
+                location.href = 'intent://' + noScheme + '#Intent;scheme=https;package=com.android.chrome;end';
+                return;
+            }
+            // iOS 등은 프로그래밍 방식 강제 불가 → 안내 노출
+            const inappGuide = document.getElementById('installBannerInappGuide');
+            if (inappGuide) inappGuide.style.display = 'block';
         }
 
         async function triggerInstall() {
@@ -10764,8 +10810,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function initInstallBanner() {
-            // iOS는 이벤트가 없으므로 로드 시 직접 판단(약간 지연 — 첫 화면 안정화 후)
-            if (_isIOS()) setTimeout(maybeShowInstallBanner, 1200);
+            // iOS·인앱 브라우저는 beforeinstallprompt 이벤트가 없으므로
+            // 로드 시 직접 판단(약간 지연 — 첫 화면 안정화 후)
+            if (_isIOS() || _isInAppBrowser()) setTimeout(maybeShowInstallBanner, 1200);
         }
 
         async function getAdminPushSubscriptions() {
