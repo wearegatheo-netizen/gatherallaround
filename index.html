@@ -13,7 +13,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gather all around | Premium Studio</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon.jpg">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <meta name="theme-color" content="#3366FF">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1290,6 +1291,25 @@
 <body class="portal-view">
 
     <div id="auto-toast"></div>
+
+    <!-- 앱 설치 안내 배너 (PWA) -->
+    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:9000;background:#fff;border:1px solid var(--wds-gray-200);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:11px">
+            <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-800)">앱으로 설치하기</div>
+                <div id="installBannerDesc" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:1px">홈 화면에 추가해 앱처럼 빠르게 이용하세요.</div>
+            </div>
+            <button type="button" onclick="dismissInstallBanner()" aria-label="닫기" style="flex:none;width:26px;height:26px;border:none;background:var(--wds-gray-100);border-radius:50%;cursor:pointer;color:var(--wds-gray-500);font-size:0.95rem;line-height:1">✕</button>
+        </div>
+        <div id="installBannerActions" style="margin-top:11px">
+            <button type="button" id="installBannerBtn" onclick="triggerInstall()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">설치하기</button>
+        </div>
+        <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+            <div>① 하단 <strong>공유</strong> 버튼 <span style="display:inline-block;border:1px solid var(--wds-gray-300);border-radius:5px;padding:0 5px;font-size:0.72rem">􀈂</span> 을 누르세요.</div>
+            <div style="margin-top:4px">② <strong>홈 화면에 추가</strong>를 선택하세요.</div>
+        </div>
+    </div>
 
     <!-- Portal Selection Page -->
     <div id="portal-page">
@@ -3097,6 +3117,7 @@
                 }, 600);
             })();
             initServiceWorker();
+            initInstallBanner();
 
             // Supabase 안전한 초기화
             try {
@@ -10681,6 +10702,70 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 _swReg = await navigator.serviceWorker.register('/sw.js');
             } catch (e) { console.warn('SW registration failed', e); }
+        }
+
+        // ── PWA 앱 설치 안내 배너 ────────────────────────────────────────────
+        let _deferredInstallPrompt = null;
+        const INSTALL_DISMISS_KEY = 'gaa_install_dismissed';
+
+        function _isStandalone() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+        function _isIOS() {
+            return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+        }
+
+        // Android/Chrome: 설치 가능 시점에 이벤트 발생
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            _deferredInstallPrompt = e;
+            maybeShowInstallBanner();
+        });
+        window.addEventListener('appinstalled', () => {
+            _deferredInstallPrompt = null;
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+            try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (_) {}
+        });
+
+        function maybeShowInstallBanner() {
+            if (_isStandalone()) return;                 // 이미 설치/실행 중
+            try { if (localStorage.getItem(INSTALL_DISMISS_KEY)) return; } catch (_) {}
+            const banner = document.getElementById('installBanner');
+            if (!banner) return;
+            const iosGuide = document.getElementById('installBannerIosGuide');
+            const actions = document.getElementById('installBannerActions');
+
+            if (_isIOS()) {
+                // iOS는 beforeinstallprompt 미지원 → 수동 안내
+                if (actions) actions.style.display = 'none';
+                if (iosGuide) iosGuide.style.display = 'block';
+                banner.style.display = 'block';
+            } else if (_deferredInstallPrompt) {
+                if (iosGuide) iosGuide.style.display = 'none';
+                if (actions) actions.style.display = 'block';
+                banner.style.display = 'block';
+            }
+        }
+
+        async function triggerInstall() {
+            if (!_deferredInstallPrompt) return;
+            _deferredInstallPrompt.prompt();
+            try { await _deferredInstallPrompt.userChoice; } catch (_) {}
+            _deferredInstallPrompt = null;
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+        }
+
+        function dismissInstallBanner() {
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+            try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (_) {}
+        }
+
+        function initInstallBanner() {
+            // iOS는 이벤트가 없으므로 로드 시 직접 판단(약간 지연 — 첫 화면 안정화 후)
+            if (_isIOS()) setTimeout(maybeShowInstallBanner, 1200);
         }
 
         async function getAdminPushSubscriptions() {
