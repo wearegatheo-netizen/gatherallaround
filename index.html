@@ -1444,7 +1444,7 @@
     <div id="auto-toast"></div>
 
     <!-- 앱 설치 안내 배너 (PWA) -->
-    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:9000;background:#fff;border:1px solid var(--wds-gray-200);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
+    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:10000;background:#fff;border:1px solid var(--wds-gray-200);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
         <div style="display:flex;align-items:center;gap:11px">
             <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
             <div style="flex:1;min-width:0">
@@ -4373,9 +4373,9 @@
                             ${grpAttendeeNames.map(n=>`<span style="background:white;border-radius:4px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}
                           </div>`
                         : '';
-                    const header = gn ? `<div style="margin:8px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--wds-gray-100)">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                            <span style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-600);text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(gn)}</span>
+                    const header = gn ? `<div style="margin:10px 0 7px">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 10px;background:rgba(51,102,255,0.07);border-radius:7px;border-left:3px solid var(--wds-primary)">
+                            <span style="font-size:0.78rem;font-weight:800;color:var(--wds-primary);text-transform:uppercase;letter-spacing:0.06em">${escapeHtml(gn)}</span>
                             ${countBadge}
                         </div>
                         ${attendeeList}
@@ -4407,17 +4407,17 @@
                         const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}
                             style="padding:2px 8px;font-size:0.66rem;border-radius:4px;border:1.5px solid ${isMeInSlot?'#EF4444':'var(--wds-primary)'};background:${isMeInSlot?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInSlot?'#EF4444':'var(--wds-primary)'};cursor:${slotBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap;flex-shrink:0">${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
-                        return `<div style="padding:7px 0;border-bottom:1px dashed var(--wds-gray-100)">
+                        return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
                             <div style="display:flex;align-items:center;gap:6px">
-                                <span style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;letter-spacing:0.02em">${escapeHtml(timeStr)}</span>
+                                <span style="font-size:0.81rem;font-weight:800;color:var(--wds-primary);white-space:nowrap;background:rgba(51,102,255,0.1);padding:2px 8px;border-radius:6px;letter-spacing:0.03em">${escapeHtml(timeStr)}</span>
                                 ${slotCountBtn}
                                 <span style="flex:1"></span>
                                 ${slotBtn}
                             </div>
-                            ${(s.team_name||members||songs.length) ? `<div style="margin-top:4px">
-                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:2px;letter-spacing:0.01em">${escapeHtml(s.team_name)}</div>`:''}
-                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);letter-spacing:0.03em">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                            ${(s.team_name||members||songs.length) ? `<div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--wds-gray-200)">
+                                ${s.team_name?`<div style="font-size:0.84rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:4px">${escapeHtml(s.team_name)}</div>`:''}
+                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:${songs.length?'5px':'0'}">${members}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);line-height:1.5">🎵 ${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
                             </div>` : ''}
                             ${slotChipDiv}
                         </div>`;
@@ -4447,12 +4447,12 @@
                       </div>`
                     : '';
 
-                return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
+                return `<div style="margin-bottom:14px;background:var(--wds-white);border:1.5px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.07)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-50)'}">
                         <div style="display:flex;align-items:center;gap:7px">
-                            ${isToday?'<span style="font-size:0.65rem;background:rgba(255,255,255,0.3);color:#fff;padding:2px 6px;border-radius:8px;font-weight:700">오늘</span>':''}
-                            <span style="font-size:0.9rem;font-weight:700;color:${isToday?'#fff':'var(--wds-gray-800)'}">${fmtDate(date)}</span>
-                            <span style="font-size:0.72rem;color:${isToday?'rgba(255,255,255,0.75)':'var(--wds-gray-500)'}">${gOrder.length}그룹 · ${entries.length}슬롯</span>
+                            ${isToday?'<span style="font-size:0.65rem;background:rgba(255,255,255,0.3);color:#fff;padding:2px 7px;border-radius:8px;font-weight:700">오늘</span>':''}
+                            <span style="font-size:0.93rem;font-weight:800;color:${isToday?'#fff':'var(--wds-gray-800)'}">${fmtDate(date)}</span>
+                            <span style="font-size:0.72rem;color:${isToday?'rgba(255,255,255,0.7)':'var(--wds-gray-400)'}">${gOrder.length}그룹 · ${entries.length}슬롯</span>
                         </div>
                         ${canEdit ? `<div style="display:flex;gap:4px">
                             <button type="button" onclick="schedEditorInit('${date}');document.getElementById('schedEditor')?.scrollIntoView({behavior:'smooth',block:'start'})"
@@ -4461,8 +4461,8 @@
                                 style="padding:3px 8px;font-size:0.72rem;border:1px solid ${isToday?'rgba(255,100,100,0.5)':'#fca5a5'};border-radius:5px;background:${isToday?'rgba(255,100,100,0.15)':'white'};cursor:pointer;color:${isToday?'#ffb3b3':'#e74c3c'}">삭제</button>
                         </div>` : ''}
                     </div>
-                    ${sigBadge ? `<div style="padding:6px 12px;border-bottom:1px solid var(--wds-gray-100)">${sigBadge}</div>` : ''}
-                    <div style="padding:8px 12px">${groupsHtml}</div>
+                    ${sigBadge ? `<div style="padding:7px 14px;border-bottom:1px solid var(--wds-gray-100)">${sigBadge}</div>` : ''}
+                    <div style="padding:10px 12px">${groupsHtml}</div>
                     ${attendeeSection}
                 </div>`;
             };
