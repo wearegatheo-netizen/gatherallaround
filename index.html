@@ -4071,16 +4071,41 @@
                         const members = (s.members||[]).map(m => {
                             const prof = memberMap[m.memberId];
                             const name = prof ? prof.name.replace(/\s*\(.*?\)\s*$/,'') : (m.memberName||'?');
-                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
+                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem;letter-spacing:0.02em">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
                         }).join('');
                         const songs = (s.songs||[]).map(sg=>sg.title||sg).filter(Boolean);
-                        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--wds-gray-100)">
-                            <div style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;min-width:88px">${escapeHtml(timeStr)}</div>
-                            <div style="flex:1;min-width:0">
-                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">${escapeHtml(s.team_name)}</div>`:''}
-                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                        // 슬롯별 참여 신청
+                        const slotKey = slotAttKey(gn, s.start_time);
+                        const slotAttendees = ((state.scheduleSlotAttendees || {})[date] || {})[slotKey] || [];
+                        const isMeInSlot = !!(myId && slotAttendees.includes(myId));
+                        const slotChipData = slotAttendees.map(pid => { const p = memberMap[pid]; return p ? { name: p.name.replace(/\s*\(.*?\)\s*$/, ''), me: pid === myId } : null; }).filter(Boolean);
+                        // 본인을 맨 앞으로 정렬 (긴 명단에서 내 신청 여부 즉시 확인)
+                        slotChipData.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0));
+                        const attCount = slotChipData.length;
+                        const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
+                        const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'};letter-spacing:0.02em">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
+                        // 참여자수 버튼 — 시간과 같은 라인에 배치
+                        const slotCountBtn = attCount ? `<button type="button" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()"
+                            style="padding:1px 7px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:${isMeInSlot?'var(--wds-primary)':'var(--wds-primary-light)'};color:${isMeInSlot?'#fff':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:0.01em">🙋 ${attCount}명</button>` : '';
+                        // 참여자 명단 — 기본 항상 닫힘
+                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
+                        const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
+                        const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
+                            ${slotBlocked ? 'disabled' : ''}
+                            style="padding:2px 8px;font-size:0.66rem;border-radius:4px;border:1.5px solid ${isMeInSlot?'#EF4444':'var(--wds-primary)'};background:${isMeInSlot?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInSlot?'#EF4444':'var(--wds-primary)'};cursor:${slotBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap;flex-shrink:0">${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
+                        return `<div style="padding:7px 0;border-bottom:1px dashed var(--wds-gray-100)">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <span style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;letter-spacing:0.02em">${escapeHtml(timeStr)}</span>
+                                ${slotCountBtn}
+                                <span style="flex:1"></span>
+                                ${slotBtn}
                             </div>
+                            ${(s.team_name||members||songs.length) ? `<div style="margin-top:4px">
+                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:2px;letter-spacing:0.01em">${escapeHtml(s.team_name)}</div>`:''}
+                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);letter-spacing:0.03em">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                            </div>` : ''}
+                            ${slotChipDiv}
                         </div>`;
                     }).join('');
                     return `<div>${header}${rows}</div>`;
