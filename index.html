@@ -1539,8 +1539,8 @@
         <div id="email-section">
             <!-- 로그인 폼 -->
             <div id="email-login-form" class="email-form">
-                <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email">
-                <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email" onkeydown="if(event.key==='Enter'){event.preventDefault();handleEmailLogin();}">
+                <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleEmailLogin();}">
                 <div id="loginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
                 <div style="display:flex;justify-content:center;gap:16px;margin-top:2px">
@@ -1645,8 +1645,8 @@
         <div id="band-email-section">
             <!-- 로그인 폼 -->
             <div id="band-login-form" class="email-form">
-                <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30">
-                <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password">
+                <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
+                <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <div id="bandLoginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
@@ -4511,11 +4511,11 @@
                 : (mt.genre ? mt.genre.split(',').map(s => s.trim()).filter(Boolean) : []);
             const artistList = mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [];
             const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
-            const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}"><span class="mt-tag-ic">${ic}</span><span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
+            const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}">${ic ? `<span class="mt-tag-ic">${ic}</span>` : ''}<span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
             const parts = [];
             // 장르·가수를 각각 개별 칩(버튼식)으로 표시
-            genreList.forEach(g => parts.push(tag('#f0f4ff', '#3366ff', '🎵', g)));
-            artistList.forEach(a => parts.push(tag('#f0fff4', '#00b894', '🎤', a)));
+            genreList.forEach(g => parts.push(tag('#f0f4ff', '#3366ff', '', g)));
+            artistList.forEach(a => parts.push(tag('#f0fff4', '#00b894', '', a)));
             const songChips = songsArr.map(s =>
                 `<div class="mt-song-chip">
                     ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="" class="mt-song-art">` : '<div class="mt-song-art mt-song-art-placeholder"></div>'}
@@ -9760,7 +9760,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
         function bandIdToEmail(id) { return id.toLowerCase() + BAND_ID_DOMAIN; }
 
+        let _bandLoginBusy = false;
         async function handleBandEmailLogin() {
+            if (_bandLoginBusy) return;
             const rawId = document.getElementById('bandLoginId').value.trim();
             const password = document.getElementById('bandLoginPassword').value;
             const res = document.getElementById('bandLoginResult');
@@ -9769,11 +9771,18 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!rawId || !password) { showErr('아이디와 비밀번호를 입력해주세요.'); return; }
             if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
             if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
-            const email = bandIdToEmail(rawId);
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { showErr('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
-            if (data?.user) {
-                await checkEmailUserApproval(data.user);
+            _bandLoginBusy = true;
+            const btn = document.querySelector('#band-login-form .email-primary-btn');
+            const orig = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
+            try {
+                const email = bandIdToEmail(rawId);
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) { showErr('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
+                if (data?.user) { await checkEmailUserApproval(data.user); }
+            } finally {
+                _bandLoginBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = orig; }
             }
         }
 
@@ -10630,7 +10639,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             }
         }
 
+        let _loginBusy = false;
         async function handleEmailLogin() {
+            if (_loginBusy) return;
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const res = document.getElementById('loginResult');
@@ -10638,9 +10649,18 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (res) res.textContent = '';
             if (!email || !password) { showErr('이메일과 비밀번호를 입력해주세요.'); return; }
 
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) { showErr('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.'); return; }
-            await checkEmailUserApproval(data.user);
+            _loginBusy = true;
+            const btn = document.querySelector('#email-login-form .email-primary-btn');
+            const orig = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) { showErr('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.'); return; }
+                await checkEmailUserApproval(data.user);
+            } finally {
+                _loginBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = orig; }
+            }
         }
 
         async function checkEmailUserApproval(user) {
