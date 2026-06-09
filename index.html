@@ -16,7 +16,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gather all around | Premium Studio</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon.jpg">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <meta name="theme-color" content="#3366FF">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1442,6 +1443,32 @@
 
     <div id="auto-toast"></div>
 
+    <!-- 앱 설치 안내 배너 (PWA) -->
+    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:9000;background:#fff;border:1px solid var(--wds-gray-200);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:11px">
+            <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
+            <div style="flex:1;min-width:0">
+                <div id="installBannerTitle" style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-800)">앱으로 설치하기</div>
+                <div id="installBannerDesc" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:1px">홈 화면에 추가해 앱처럼 빠르게 이용하세요.</div>
+            </div>
+            <button type="button" onclick="dismissInstallBanner()" aria-label="닫기" style="flex:none;width:26px;height:26px;border:none;background:var(--wds-gray-100);border-radius:50%;cursor:pointer;color:var(--wds-gray-500);font-size:0.95rem;line-height:1">✕</button>
+        </div>
+        <div id="installBannerActions" style="margin-top:11px">
+            <button type="button" id="installBannerBtn" onclick="triggerInstall()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">설치하기</button>
+        </div>
+        <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+            <div>① 하단 <strong>공유</strong> 버튼 <span style="display:inline-block;border:1px solid var(--wds-gray-300);border-radius:5px;padding:0 5px;font-size:0.72rem">􀈂</span> 을 누르세요.</div>
+            <div style="margin-top:4px">② <strong>홈 화면에 추가</strong>를 선택하세요.</div>
+        </div>
+        <div id="installBannerInappBtn" style="display:none;margin-top:11px">
+            <button type="button" onclick="openInExternalBrowser()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">기본 브라우저로 열기</button>
+        </div>
+        <div id="installBannerInappGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+            앱 설치는 <strong>Safari/Chrome 등 기본 브라우저</strong>에서만 가능해요.<br>
+            우측 하단(또는 우측 상단) <strong>⋯ 메뉴</strong>를 눌러 <strong>‘다른 브라우저로 열기’</strong>를 선택해 주세요.
+        </div>
+    </div>
+
     <!-- Portal Selection Page -->
     <div id="portal-page">
         <button type="button" id="themeToggleBtnPortal" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
@@ -1525,6 +1552,7 @@
             <div id="email-login-form" class="email-form">
                 <input type="email" id="loginEmail" placeholder="이메일" autocomplete="email" onkeydown="if(event.key==='Enter'){event.preventDefault();handleEmailLogin();}">
                 <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleEmailLogin();}">
+                <div id="loginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleEmailLogin()">로그인</button>
                 <div style="display:flex;justify-content:center;gap:16px;margin-top:2px">
                     <button type="button" class="find-link-btn" onclick="showFindId()">아이디 찾기</button>
@@ -1606,6 +1634,7 @@
                     위 개인정보 수집·이용에 동의합니다.
                 </label>
 
+                <div id="signupResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleEmailSignup()">회원가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showLoginForm()">로그인으로 돌아가기</button>
             </div>
@@ -1635,6 +1664,7 @@
             <div id="band-login-form" class="email-form">
                 <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
+                <div id="bandLoginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
             </div>
@@ -1714,6 +1744,7 @@
                     위 개인정보 수집·이용에 동의합니다.
                 </label>
 
+                <div id="bandSignupResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailSignup()">가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandLoginForm()">로그인으로 돌아가기</button>
             </div>
@@ -2205,6 +2236,8 @@
             startInactivityWatcher();
             if (canPostNotice()) applyAdminDataFixes();
             checkKakaoUserProfile();
+            _authResolved = true;
+            applyPendingRoute();
         }
 
         async function checkKakaoUserProfile() {
@@ -2393,6 +2426,8 @@
             if (mypc) { mypc.classList.add('hidden'); mypc.innerHTML = ''; }
             if (mypa) mypa.textContent = '▼ 펼치기';
             stopInactivityWatcher();
+            _authResolved = true;
+            applyPendingRoute();
         }
 
         // --- GatheO tab navigation ---
@@ -3007,7 +3042,7 @@
                     <div class="stat-card" style="border-left:3px solid #f0a050;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">대기중</div><div class="stat-value" style="font-size:0.98rem">${pendingCount}</div></div>
                     <div class="stat-card" style="border-left:3px solid #6c5ce7;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">참여횟수</div><div class="stat-value" style="font-size:0.98rem">${participationCount}</div></div>
                 </div>
-                <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 예약·일정표에 이름이 올라간 날짜 수 (같은 날 중복 1회)</div>
+                <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 실제 참여한 날짜 수 (오늘 이전 기준, 같은 날 중복 1회)</div>
                 ${teamsHtml}
             `;
             if (profile) setTimeout(() => renderMtEditUI('mtEdit_mypage', profile.music_taste), 0);
@@ -3275,6 +3310,7 @@
                 }, 600);
             })();
             initServiceWorker();
+            initInstallBanner();
 
             // Supabase 안전한 초기화
             try {
@@ -3349,6 +3385,24 @@
                     window.__shareEntryMode = false;
                 });
                 return; // initSession 호출 안 함 — 테스트 목록만 표시
+            }
+
+            // ── 새로고침/딥링크 복원: 현재 URL hash가 가리키는 섹션을 기억해 둔다.
+            // 인증 상태가 정해진 뒤(loginUI/logoutUI) applyPendingRoute로 이동.
+            const _initialPage = _pageFromHash();
+            history.replaceState({ page: _initialPage }, '',
+                _initialPage === 'portal' ? location.pathname : '#' + _initialPage);
+            if (_initialPage !== 'portal') {
+                _pendingRoute = _initialPage;
+                // 공개 섹션(커뮤니티/밴드소식/공연대관)은 인증과 무관하므로 즉시
+                // 표시해 포털 깜빡임을 방지. 로그인 콜백이 main-content로 덮어써도
+                // applyPendingRoute가 다시 복원한다.
+                if (['community', 'band-news', 'perf'].includes(_initialPage)) {
+                    _routeToPage(_initialPage);
+                }
+                // 로그인/로그아웃 콜백이 끝내 호출되지 않는 경우(로그아웃 상태 등)
+                // 대비한 fallback — 인증 미해결 시에만 복원.
+                setTimeout(() => { if (!_authResolved) applyPendingRoute(); }, 1500);
             }
 
             initSession();
@@ -4331,7 +4385,7 @@
                         const members = (s.members||[]).map(m => {
                             const prof = memberMap[m.memberId];
                             const name = prof ? prof.name.replace(/\s*\(.*?\)\s*$/,'') : (m.memberName||'?');
-                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
+                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem;letter-spacing:0.02em">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
                         }).join('');
                         const songs = (s.songs||[]).map(sg=>sg.title||sg).filter(Boolean);
                         // 슬롯별 참여 신청
@@ -4342,34 +4396,56 @@
                         // 본인을 맨 앞으로 정렬 (긴 명단에서 내 신청 여부 즉시 확인)
                         slotChipData.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0));
                         const attCount = slotChipData.length;
-                        const SLOT_PREVIEW = 5;
                         const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
-                        const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'}">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
-                        const slotAttDisplay = attCount ? `
-                            <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                                <button type="button" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()"
-                                    style="padding:1px 8px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:${isMeInSlot?'var(--wds-primary)':'var(--wds-primary-light)'};color:${isMeInSlot?'#fff':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap">🙋 ${attCount}명${attCount>SLOT_PREVIEW?' ▾':''}</button>
-                            </div>
-                            <div id="${slotListId}" class="${attCount>SLOT_PREVIEW?'hidden':''}" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
+                        const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'};letter-spacing:0.02em">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
+                        // 참여자수 버튼 — 시간과 같은 라인에 배치
+                        const slotCountBtn = attCount ? `<button type="button" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()"
+                            style="padding:1px 7px;font-size:0.68rem;border-radius:10px;border:1px solid var(--wds-primary);background:${isMeInSlot?'var(--wds-primary)':'var(--wds-primary-light)'};color:${isMeInSlot?'#fff':'var(--wds-primary)'};cursor:pointer;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:0.01em">🙋 ${attCount}명</button>` : '';
+                        // 참여자 명단 — 기본 항상 닫힘
+                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
                         const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}
                             style="padding:2px 8px;font-size:0.66rem;border-radius:4px;border:1.5px solid ${isMeInSlot?'#EF4444':'var(--wds-primary)'};background:${isMeInSlot?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInSlot?'#EF4444':'var(--wds-primary)'};cursor:${slotBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap;flex-shrink:0">${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
-                        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--wds-gray-100)">
-                            <div style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;min-width:88px">${escapeHtml(timeStr)}</div>
-                            <div style="flex:1;min-width:0">
-                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:3px">${escapeHtml(s.team_name)}</div>`:''}
-                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
-                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500)">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
-                                ${slotAttDisplay}
+                        return `<div style="padding:7px 0;border-bottom:1px dashed var(--wds-gray-100)">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <span style="font-size:0.85rem;font-weight:700;color:var(--wds-primary);white-space:nowrap;letter-spacing:0.02em">${escapeHtml(timeStr)}</span>
+                                ${slotCountBtn}
+                                <span style="flex:1"></span>
+                                ${slotBtn}
                             </div>
-                            ${slotBtn}
+                            ${(s.team_name||members||songs.length) ? `<div style="margin-top:4px">
+                                ${s.team_name?`<div style="font-size:0.82rem;font-weight:700;color:var(--wds-gray-800);margin-bottom:2px;letter-spacing:0.01em">${escapeHtml(s.team_name)}</div>`:''}
+                                ${members?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:${songs.length?'3px':'0'}">${members}</div>`:''}
+                                ${songs.length?`<div style="font-size:0.72rem;color:var(--wds-gray-500);letter-spacing:0.03em">${songs.slice(0,3).map(sg=>escapeHtml(sg)).join(' · ')}${songs.length>3?` 외 ${songs.length-3}곡`:''}</div>`:''}
+                            </div>` : ''}
+                            ${slotChipDiv}
                         </div>`;
                     }).join('');
                     return `<div>${header}${rows}</div>`;
                 }).join('');
-                // 날짜 단위 통합 신청은 슬롯별 신청으로 대체 (제거)
-                const attendeeSection = '';
+                // 전체 참여 멤버: 슬롯별 신청자 + 그룹별 + 날짜 단위 합산 (중복 제거)
+                const allAttendeeIds = new Set(state.scheduleAttendees[date] || []);
+                const slotMap = (state.scheduleSlotAttendees || {})[date] || {};
+                Object.values(slotMap).forEach(arr => (arr || []).forEach(id => allAttendeeIds.add(id)));
+                gOrder.forEach(gn => {
+                    if (gn) (((state.scheduleGroupAttendees || {})[date] || {})[gn] || []).forEach(id => allAttendeeIds.add(id));
+                });
+                const allAttendeeNames = [...allAttendeeIds].map(pid => {
+                    const p = memberMap[pid];
+                    return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
+                }).filter(Boolean);
+                const dateAttId = 'date-att-' + date;
+                const attendeeSection = allAttendeeIds.size > 0
+                    ? `<div style="padding:0 12px 8px">
+                        <button type="button" onclick="const el=document.getElementById('${dateAttId}');el.classList.toggle('hidden');this.querySelector('.att-arrow').textContent=el.classList.contains('hidden')?'▾':'▴'" style="width:100%;padding:5px 10px;font-size:0.75rem;font-weight:700;border:1px solid var(--wds-gray-200);border-radius:6px;background:var(--wds-gray-50);cursor:pointer;color:var(--wds-gray-600);text-align:left;display:flex;justify-content:space-between;align-items:center">
+                            <span>👥 전체 참여 멤버 <strong style="color:var(--wds-primary)">${allAttendeeIds.size}명</strong></span><span class="att-arrow">▾</span>
+                        </button>
+                        <div id="${dateAttId}" class="hidden" style="padding:6px 8px 4px;background:var(--wds-primary-light);border-radius:0 0 6px 6px;margin-top:2px;display:flex;flex-wrap:wrap;gap:3px">
+                            ${allAttendeeNames.map(n=>`<span style="background:white;border-radius:4px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}
+                        </div>
+                      </div>`
+                    : '';
 
                 return `<div style="margin-bottom:12px;background:white;border:1px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:10px;overflow:hidden">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-100)'}">
@@ -6425,9 +6501,58 @@
         }
 
         // Portal navigation
+        // ── History API navigation ──────────────────────────────────────────────
+        // 포털을 허브로 하는 단일파일 SPA. 각 섹션 진입 시 history에 항목을 쌓아
+        // 브라우저 뒤로가기로 이전 섹션/포털로 돌아갈 수 있게 하고, 새로고침 시
+        // location.hash를 읽어 현재 섹션을 복원한다.
+        const _NAV_PAGES = ['gatheo', 'band', 'community', 'band-news', 'perf'];
+        let _navFromPop = false;       // popstate/복원 중에는 pushState 억제
+        let _pendingRoute = null;      // 로드 시 hash로부터 복원할 섹션
+        let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
+
+        function _pageFromHash() {
+            const h = (location.hash || '').replace(/^#/, '');
+            return _NAV_PAGES.includes(h) ? h : 'portal';
+        }
+
+        function _pushNav(page) {
+            if (_navFromPop) return;
+            // 같은 섹션을 다시 누르면 항목 중복 방지
+            if (history.state && history.state.page === page) return;
+            history.pushState({ page }, '', '#' + page);
+        }
+
+        function _routeToPage(page) {
+            _navFromPop = true; // 복원이므로 pushState 하지 않음 (항목은 이미 존재)
+            try {
+                if (page === 'gatheo') { if (!state.user) showGatheoSection(); }
+                else if (page === 'band') { if (!state.bandProfile) showBandSection(); }
+                else if (page === 'community') showCommunitySection();
+                else if (page === 'band-news') showBandNewsSection();
+                else if (page === 'perf') showPerformanceBookingSection();
+                else showPortal();
+            } finally {
+                _navFromPop = false;
+            }
+        }
+
+        // 인증 상태가 정해진 뒤(login/logout UI 실행 후, 또는 타임아웃) 한 번 호출.
+        function applyPendingRoute() {
+            if (!_pendingRoute) return;
+            const page = _pendingRoute;
+            _pendingRoute = null;
+            _routeToPage(page);
+        }
+
+        window.addEventListener('popstate', (e) => {
+            const page = (e.state && e.state.page) || _pageFromHash();
+            _routeToPage(page);
+        });
+        // ────────────────────────────────────────────────────────────────────────
+
         function showPortal() {
             // Clean any test result URL params so refresh doesn't re-trigger share entry
-            if (location.search) history.replaceState({}, '', location.pathname);
+            if (location.search || location.hash) history.replaceState({ page: 'portal' }, '', location.pathname);
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
             document.getElementById('portal-page').classList.remove('hidden');
@@ -6525,6 +6650,7 @@
         }
 
         function showPerformanceBookingSection() {
+            _pushNav('perf');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
@@ -6948,7 +7074,8 @@
                     <input type="text" class="perf-form-input" id="perfHowFoundOther" placeholder="직접 입력"
                         style="margin-top:8px;display:${_perfState.howFound==='기타'?'block':'none'}" value="${_perfState.howFoundOther||''}">
                 </div>
-                <div style="display:flex;gap:8px;margin-top:8px">
+                <div id="perfSubmitResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <div style="display:flex;gap:8px;margin-top:4px">
                     <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">← 돌아가기</button>
                     <button onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
                 </div>
@@ -6970,10 +7097,12 @@
             const purpose = document.getElementById('perfPurpose')?.value.trim();
             let howFound = _perfState.howFound;
             if (howFound === '기타') howFound = document.getElementById('perfHowFoundOther')?.value.trim() || '기타';
-            if (!name) { alert('이름을 입력해주세요.'); return; }
-            if (!phone) { alert('연락처를 입력해주세요.'); return; }
-            if (!purpose) { alert('사용 목적을 입력해주세요.'); return; }
-            if (!howFound) { alert('공간을 알게 된 경로를 선택해주세요.'); return; }
+            const res = document.getElementById('perfSubmitResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (!name) { showErr('이름을 입력해주세요.'); return; }
+            if (!phone) { showErr('연락처를 입력해주세요.'); return; }
+            if (!purpose) { showErr('사용 목적을 입력해주세요.'); return; }
+            if (!howFound) { showErr('공간을 알게 된 경로를 선택해주세요.'); return; }
             const { selectedDate, startSlot, endSlot, headcount } = _perfState;
             // Re-validate conflicts at submit time to prevent TOCTOU race
             const [resCheck, pbCheck] = await Promise.all([
@@ -6995,7 +7124,7 @@
                 end_time: TIMES[endSlot],
                 headcount
             });
-            if (error) { alert('신청 중 오류가 발생했습니다: ' + error.message); return; }
+            if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
             sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
             renderPerfStep3();
         }
@@ -7195,6 +7324,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         // ===== /공연 대관 예약 =====
 
         async function showBandNewsSection() {
+            _pushNav('band-news');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
@@ -7341,6 +7471,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function showGatheoSection() {
+            _pushNav('gatheo');
             document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.remove('hidden');
@@ -7350,6 +7481,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function showBandSection() {
+            _pushNav('band');
             document.body.classList.add('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
@@ -7397,6 +7529,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         async function showCommunitySection() {
+            _pushNav('community');
             document.body.classList.remove('portal-view');
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
@@ -10033,11 +10166,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         function showBandLoginForm() {
             document.getElementById('band-login-form').classList.remove('hidden');
             document.getElementById('band-signup-form').classList.add('hidden');
+            const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
         }
 
         function showBandSignupForm() {
             document.getElementById('band-login-form').classList.add('hidden');
             document.getElementById('band-signup-form').classList.remove('hidden');
+            const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -10048,9 +10185,12 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (_bandLoginBusy) return;
             const rawId = document.getElementById('bandLoginId').value.trim();
             const password = document.getElementById('bandLoginPassword').value;
-            if (!rawId || !password) { alert('아이디와 비밀번호를 입력해주세요.'); return; }
-            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
-            if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
+            const res = document.getElementById('bandLoginResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (!rawId || !password) { showErr('아이디와 비밀번호를 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
+            if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
             _bandLoginBusy = true;
             const btn = document.querySelector('#band-login-form .email-primary-btn');
             const orig = btn ? btn.textContent : '';
@@ -10058,10 +10198,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 const email = bandIdToEmail(rawId);
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) { alert('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
-                if (data?.user) {
-                    await checkEmailUserApproval(data.user);
-                }
+                if (error) { showErr('로그인 실패: 아이디 또는 비밀번호를 확인해주세요.'); return; }
+                if (data?.user) { await checkEmailUserApproval(data.user); }
             } finally {
                 _bandLoginBusy = false;
                 if (btn) { btn.disabled = false; btn.textContent = orig; }
@@ -10080,15 +10218,18 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const confirm = document.getElementById('bandSignupPasswordConfirm').value;
             const consent = document.getElementById('bandPrivacyConsent').checked;
             const timeslots = Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
+            const res = document.getElementById('bandSignupResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
 
-            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { alert('모든 항목을 입력해주세요.'); return; }
-            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { alert('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
-            if (rawId.length < 4 || rawId.length > 20) { alert('아이디는 4~20자 사이여야 합니다.'); return; }
-            if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { alert('올바른 전화번호를 입력해주세요.'); return; }
-            if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
-            if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
-            if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
-            if (!supabaseClient) { alert('서비스 연결 오류입니다.'); return; }
+            if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { showErr('모든 항목을 입력해주세요.'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
+            if (rawId.length < 4 || rawId.length > 20) { showErr('아이디는 4~20자 사이여야 합니다.'); return; }
+            if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { showErr('올바른 전화번호를 입력해주세요.'); return; }
+            if (password.length < 6) { showErr('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (password !== confirm) { showErr('비밀번호가 일치하지 않습니다.'); return; }
+            if (!consent) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
+            if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
 
             _bandSignupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleBandEmailSignup()"]');
@@ -10097,7 +10238,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 const email = bandIdToEmail(rawId);
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { alert('가입 신청 실패: ' + error.message); return; }
+                if (error) { showErr('가입 신청 실패: ' + error.message); return; }
                 if (data?.user) {
                     const meta = {
                         id: data.user.id,
@@ -10116,7 +10257,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
                 }
-                alert('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
+                showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
             } finally {
                 _bandSignupBusy = false;
@@ -10767,6 +10908,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             hideFindForms();
             document.getElementById('email-login-form').classList.add('hidden');
             document.getElementById('email-signup-form').classList.remove('hidden');
+            const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
             setTimeout(() => renderMtEditUI('mtEdit_signup', null), 0);
         }
 
@@ -10774,6 +10917,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             hideFindForms();
             document.getElementById('email-signup-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
+            const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
+            const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
         }
 
         function showFindId() {
@@ -10795,6 +10940,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('find-id-form').classList.add('hidden');
             document.getElementById('find-pw-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
+            const r = document.getElementById('loginResult'); if (r) r.textContent = '';
         }
 
         function formatPhoneNumber(value) {
@@ -10875,19 +11021,22 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const password = document.getElementById('signupPassword').value;
             const confirm = document.getElementById('signupPasswordConfirm').value;
             const consent = document.getElementById('privacyConsent').checked;
+            const res = document.getElementById('signupResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
 
-            if (!name || !phone || !email || !password) { alert('모든 항목을 입력해주세요.'); return; }
-            if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
-            if (password.length < 6) { alert('비밀번호는 6자 이상이어야 합니다.'); return; }
-            if (password !== confirm) { alert('비밀번호가 일치하지 않습니다.'); return; }
-            if (!consent) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
+            if (!name || !phone || !email || !password) { showErr('모든 항목을 입력해주세요.'); return; }
+            if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { showErr('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
+            if (password.length < 6) { showErr('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (password !== confirm) { showErr('비밀번호가 일치하지 않습니다.'); return; }
+            if (!consent) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
 
             const selectedInsts = Array.from(document.querySelectorAll('#emailSignupInstBtns .inst-btn.selected')).map(b => b.dataset.inst);
             const customInsts = ['customInst1']
                 .map(id => document.getElementById(id).value.trim())
                 .filter(v => v);
             const instruments = [...selectedInsts, ...customInsts].join(', ');
-            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
+            if (!instruments) { showErr('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             const music_taste = getMtEditValue('mtEdit_signup');
             if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
@@ -10898,15 +11047,14 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
             try {
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { alert('회원가입 실패: ' + error.message); return; }
-                if (!data.user) { alert('회원가입 처리에 문제가 발생했습니다.'); return; }
+                if (error) { showErr('회원가입 실패: ' + error.message); return; }
+                if (!data.user) { showErr('회원가입 처리에 문제가 발생했습니다.'); return; }
 
                 const { error: pErr } = await supabaseClient.from('profiles').insert([{
                     id: data.user.id, name, phone, email, instruments, music_taste, status: 'pending'
                 }]);
-                if (pErr) { alert('프로필 저장 실패: ' + pErr.message); return; }
+                if (pErr) { showErr('프로필 저장 실패: ' + pErr.message); return; }
 
-                alert('회원가입 신청이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.');
                 sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`);
                 showPendingScreen(name);
             } finally {
@@ -10920,7 +11068,10 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (_loginBusy) return;
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
-            if (!email || !password) { alert('이메일과 비밀번호를 입력해주세요.'); return; }
+            const res = document.getElementById('loginResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (!email || !password) { showErr('이메일과 비밀번호를 입력해주세요.'); return; }
 
             _loginBusy = true;
             const btn = document.querySelector('#email-login-form .email-primary-btn');
@@ -10928,7 +11079,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
             try {
                 const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) { alert('로그인 실패: ' + error.message); return; }
+                if (error) { showErr('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.'); return; }
                 await checkEmailUserApproval(data.user);
             } finally {
                 _loginBusy = false;
@@ -11030,14 +11181,15 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         // 같은 날에 여러 번 올라가도 1회로 카운트 — 예약 + 일정표 distinct 날짜 합집합
         function countParticipationDates(profileId, reservations, schedules) {
             if (!profileId) return 0;
+            const today = new Date().toLocaleDateString('en-CA');
             const dates = new Set();
             (reservations || []).forEach(r => {
-                if (Array.isArray(r.participant_ids) && r.participant_ids.includes(profileId) && r.res_date) {
+                if (Array.isArray(r.participant_ids) && r.participant_ids.includes(profileId) && r.res_date && r.res_date <= today) {
                     dates.add(r.res_date);
                 }
             });
             (schedules || []).forEach(s => {
-                if (Array.isArray(s.members) && s.members.some(m => m.memberId === profileId) && s.date) {
+                if (Array.isArray(s.members) && s.members.some(m => m.memberId === profileId) && s.date && s.date <= today) {
                     dates.add(s.date);
                 }
             });
@@ -11245,6 +11397,110 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             try {
                 _swReg = await navigator.serviceWorker.register('/sw.js');
             } catch (e) { console.warn('SW registration failed', e); }
+        }
+
+        // ── PWA 앱 설치 안내 배너 ────────────────────────────────────────────
+        let _deferredInstallPrompt = null;
+        const INSTALL_DISMISS_KEY = 'gaa_install_dismissed';
+
+        function _isStandalone() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+        function _isIOS() {
+            return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+        }
+        function _isAndroid() {
+            return /android/i.test(navigator.userAgent);
+        }
+        // 카카오톡/인스타/페북/네이버/라인 등 인앱 브라우저(WebView) 감지 — PWA 설치 불가
+        function _isInAppBrowser() {
+            const ua = (navigator.userAgent || '').toLowerCase();
+            return /kakaotalk|instagram|fban|fbav|fb_iab|line\/|naver|whale|daumapps|everytimeapp|band\//.test(ua);
+        }
+
+        // Android/Chrome: 설치 가능 시점에 이벤트 발생
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            _deferredInstallPrompt = e;
+            maybeShowInstallBanner();
+        });
+        window.addEventListener('appinstalled', () => {
+            _deferredInstallPrompt = null;
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+            try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (_) {}
+        });
+
+        function maybeShowInstallBanner() {
+            if (_isStandalone()) return;                 // 이미 설치/실행 중
+            try { if (localStorage.getItem(INSTALL_DISMISS_KEY)) return; } catch (_) {}
+            const banner = document.getElementById('installBanner');
+            if (!banner) return;
+            const title = document.getElementById('installBannerTitle');
+            const desc = document.getElementById('installBannerDesc');
+            const iosGuide = document.getElementById('installBannerIosGuide');
+            const actions = document.getElementById('installBannerActions');
+            const inappBtn = document.getElementById('installBannerInappBtn');
+            const inappGuide = document.getElementById('installBannerInappGuide');
+            // 모든 보조 섹션 초기화
+            [iosGuide, actions, inappBtn, inappGuide].forEach(el => { if (el) el.style.display = 'none'; });
+
+            if (_isInAppBrowser()) {
+                // 카카오톡 등 인앱 브라우저 → 설치 불가, 기본 브라우저로 유도
+                if (title) title.textContent = '기본 브라우저에서 열어주세요';
+                if (desc) desc.textContent = '카카오톡 등 앱 안에서는 설치할 수 없어요.';
+                // Android는 외부 브라우저 강제 호출 가능, iOS는 수동 안내
+                if (_isAndroid()) { if (inappBtn) inappBtn.style.display = 'block'; }
+                else { if (inappGuide) inappGuide.style.display = 'block'; }
+                banner.style.display = 'block';
+            } else if (_isIOS()) {
+                // iOS Safari: beforeinstallprompt 미지원 → 홈 화면 추가 수동 안내
+                if (iosGuide) iosGuide.style.display = 'block';
+                banner.style.display = 'block';
+            } else if (_deferredInstallPrompt) {
+                if (actions) actions.style.display = 'block';
+                banner.style.display = 'block';
+            }
+        }
+
+        function openInExternalBrowser() {
+            const url = location.href;
+            const ua = (navigator.userAgent || '').toLowerCase();
+            if (_isAndroid()) {
+                if (ua.includes('kakaotalk')) {
+                    // 카카오톡 전용 스킴 — 외부(기본) 브라우저로 열기
+                    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+                    return;
+                }
+                // 그 외 안드로이드 인앱 → Chrome intent로 열기
+                const noScheme = url.replace(/^https?:\/\//, '');
+                location.href = 'intent://' + noScheme + '#Intent;scheme=https;package=com.android.chrome;end';
+                return;
+            }
+            // iOS 등은 프로그래밍 방식 강제 불가 → 안내 노출
+            const inappGuide = document.getElementById('installBannerInappGuide');
+            if (inappGuide) inappGuide.style.display = 'block';
+        }
+
+        async function triggerInstall() {
+            if (!_deferredInstallPrompt) return;
+            _deferredInstallPrompt.prompt();
+            try { await _deferredInstallPrompt.userChoice; } catch (_) {}
+            _deferredInstallPrompt = null;
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+        }
+
+        function dismissInstallBanner() {
+            const b = document.getElementById('installBanner');
+            if (b) b.style.display = 'none';
+            try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (_) {}
+        }
+
+        function initInstallBanner() {
+            // iOS·인앱 브라우저는 beforeinstallprompt 이벤트가 없으므로
+            // 로드 시 직접 판단(약간 지연 — 첫 화면 안정화 후)
+            if (_isIOS() || _isInAppBrowser()) setTimeout(maybeShowInstallBanner, 1200);
         }
 
         async function getAdminPushSubscriptions() {
