@@ -796,6 +796,111 @@
             font-size: 0.68rem; font-weight: 700;
             padding: 1px 6px; border-radius: 10px;
         }
+
+        /* ===== 공유: 아바타 ===== */
+        .ga-avatar {
+            flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 50%; color: #fff; font-weight: 700; line-height: 1;
+            font-size: 0.82rem; width: 34px; height: 34px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        }
+
+        /* ===== 멤버 목록: 카드 리디자인 ===== */
+        #memberPanelView .member-group { margin-bottom: 18px; }
+        .member-group-header {
+            border-bottom: none; padding: 0 2px 8px; margin-bottom: 8px;
+        }
+        .mlist {
+            display: grid; grid-template-columns: 1fr; gap: 8px;
+            width: 100%; box-sizing: border-box; min-width: 0;
+        }
+        @media (min-width: 620px) { .mlist { grid-template-columns: 1fr 1fr; } }
+        .mlist-card {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 11px 13px; background: var(--wds-white);
+            border: 1px solid var(--wds-gray-300); border-radius: 12px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            box-sizing: border-box; width: 100%; min-width: 0; overflow: hidden;
+        }
+        .mlist-card:hover { border-color: var(--wds-primary); box-shadow: 0 2px 8px rgba(51,102,255,0.08); }
+        .mlist-body { flex: 1; min-width: 0; }
+        .mlist-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .mlist-name { font-size: 0.92rem; font-weight: 700; color: var(--wds-black); }
+        .mlist-role {
+            font-size: 0.66rem; font-weight: 700; padding: 1px 7px;
+            border-radius: 8px; white-space: nowrap;
+        }
+        .mlist-sub { font-size: 0.74rem; color: var(--wds-gray-500); margin-top: 2px; }
+        .mlist-meta { font-size: 0.7rem; color: var(--wds-gray-500); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+        .mt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
+        .mt-tag {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 9px;
+            max-width: 100%; min-width: 0; overflow: hidden;
+        }
+        .mt-tag-ic { flex-shrink: 0; }
+        .mt-tag-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .mt-song-list { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 2px; }
+        .mt-song-chip {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 8px; border-radius: 8px;
+            background: var(--wds-gray-100); border: 1px solid var(--wds-gray-300);
+            width: 100%; box-sizing: border-box; min-width: 0;
+        }
+        .mt-song-art { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; object-fit: cover; }
+        .mt-song-art-placeholder { background: var(--wds-gray-300); }
+        .mt-song-info { flex: 1; min-width: 0; }
+        .mt-song-title { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wds-black); }
+        .mt-song-artist { font-size: 0.72rem; color: var(--wds-gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+        /* ===== 마이페이지: 프로필 헤더 카드 ===== */
+        .mypage-profile-card {
+            display: flex; align-items: center; gap: 13px;
+            padding: 16px; border-radius: 14px; margin-bottom: 14px;
+            background: linear-gradient(135deg, var(--wds-primary-light), color-mix(in srgb, var(--wds-primary-light) 55%, transparent));
+            border: 1px solid color-mix(in srgb, var(--wds-primary) 18%, transparent);
+        }
+        .mypage-profile-card .ga-avatar { width: 52px; height: 52px; font-size: 1.25rem; }
+        .mypage-profile-name { font-size: 1.08rem; font-weight: 800; color: var(--wds-black); }
+        .mypage-profile-session { font-size: 0.8rem; color: var(--wds-primary); font-weight: 700; margin-top: 2px; }
+        .mypage-detail-list { display: flex; flex-direction: column; gap: 0; margin-bottom: 4px; }
+        .mypage-section-label {
+            font-size: 0.74rem; font-weight: 800; letter-spacing: 0.02em;
+            color: var(--wds-gray-500); text-transform: uppercase; margin: 14px 2px 8px;
+        }
+
+        /* ===== 모바일 전용 튜닝 (마이페이지·멤버목록·자유게시판) ===== */
+        @media (max-width: 480px) {
+            /* 마이페이지: 활동 요약 카드 2x2 배치 */
+            #mypagePanelContent .stat-grid-compact { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+            #mypagePanelContent .stat-card { padding: 10px 12px !important; }
+            #mypagePanelContent .stat-label { font-size: 0.72rem !important; }
+            #mypagePanelContent .stat-value { font-size: 1.2rem !important; }
+            .mypage-profile-card { padding: 14px; gap: 10px; }
+            .mypage-profile-name { font-size: 1rem; }
+            .mypage-edit-btn { padding: 7px 12px; }
+            .mypage-info-row { padding: 9px 0; font-size: 0.88rem; }
+
+            /* 멤버 목록: 카드 여백·터치 영역 확대 */
+            .mlist { gap: 9px; }
+            .mlist-card { padding: 12px 14px; gap: 11px; border-radius: 13px; }
+            .mlist-name { font-size: 0.95rem; }
+            .mlist-meta { font-size: 0.72rem; }
+            .member-group-header { font-size: 0.82rem; }
+            /* 음악취향: 장르·가수를 개별 칩으로 가로 wrap */
+            .mt-tags { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 5px; }
+            .mt-tag { font-size: 0.74rem; padding: 4px 10px; width: auto; max-width: 100%; box-sizing: border-box; }
+            .mt-song-art { width: 28px; height: 28px; }
+            .mt-song-title { font-size: 0.78rem; }
+            .mt-song-artist { font-size: 0.7rem; }
+
+            /* 자유게시판: 작성자/액션 버튼 터치 영역 확대 */
+            .comment-author-name { font-size: 0.9rem; }
+            .board-row-title { font-size: 0.92rem; }
+            .like-btn, .reply-btn { padding: 6px 13px; font-size: 0.82rem; }
+            .board-post-title { font-size: 1rem; }
+        }
+
         /* 관리자 멤버 목록 */
         .admin-member-group { margin-bottom: 14px; }
         .admin-member-group-header {
@@ -4383,6 +4488,45 @@
         // 멤버 목록에서 숨길 계정 (중복/구 계정)
         function isHiddenMember(m) {
             return m.name === '최경수(세션장)' || m.name === '최경수(일반)';
+        }
+
+        // 이름 기반 결정적 아바타 (색상 + 이니셜)
+        const GA_AVATAR_COLORS = ['#3366FF','#00b894','#e07000','#6c5ce7','#e0407a','#0091a8','#c0392b','#2d7d46'];
+        function gaAvatar(name, opts) {
+            const n = String(name || '').replace(/\(.*?\)/g, '').trim() || '?';
+            let h = 0;
+            for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+            const color = GA_AVATAR_COLORS[h % GA_AVATAR_COLORS.length];
+            const initial = escapeHtml(n.charAt(0).toUpperCase());
+            const cls = (opts && opts.cls) ? ' ' + opts.cls : '';
+            return `<span class="ga-avatar${cls}" style="background:${color}">${initial}</span>`;
+        }
+
+        // 음악취향을 컴팩트 태그로 (멤버 카드용)
+        function musicTasteTags(raw) {
+            const mt = parseMusicTaste(raw);
+            if (!mt || (!mt.genre && !mt.genres && !mt.artists && !mt.songs)) return '';
+            const genreList = Array.isArray(mt.genres) && mt.genres.length
+                ? mt.genres
+                : (mt.genre ? mt.genre.split(',').map(s => s.trim()).filter(Boolean) : []);
+            const artistList = mt.artists ? mt.artists.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const songsArr = Array.isArray(mt.songs) ? mt.songs : (mt.songs ? [{ title: mt.songs, artist: '', artwork: '' }] : []);
+            const tag = (bg, fg, ic, label) => `<span class="mt-tag" style="background:${bg};color:${fg}" title="${escapeHtml(label)}"><span class="mt-tag-ic">${ic}</span><span class="mt-tag-label">${escapeHtml(label)}</span></span>`;
+            const parts = [];
+            // 장르·가수를 각각 개별 칩(버튼식)으로 표시
+            genreList.forEach(g => parts.push(tag('#f0f4ff', '#3366ff', '🎵', g)));
+            artistList.forEach(a => parts.push(tag('#f0fff4', '#00b894', '🎤', a)));
+            const songChips = songsArr.map(s =>
+                `<div class="mt-song-chip">
+                    ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="" class="mt-song-art">` : '<div class="mt-song-art mt-song-art-placeholder"></div>'}
+                    <div class="mt-song-info">
+                        <div class="mt-song-title">${escapeHtml(s.title)}</div>
+                        ${s.artist ? `<div class="mt-song-artist">${escapeHtml(s.artist)}</div>` : ''}
+                    </div>
+                </div>`
+            );
+            if (songChips.length) parts.push(`<div class="mt-song-list">${songChips.join('')}</div>`);
+            return parts.length ? `<div class="mt-tags">${parts.join('')}</div>` : '';
         }
 
         // 본인 외에는 이름 뒤 '(관리자)' 등 괄호 뱃지 숨김
