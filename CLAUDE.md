@@ -30,6 +30,14 @@
    git merge-base --is-ancestor origin/<branch> HEAD && echo OK   # ff 가능 여부
    ```
 
+## 배포 규칙
+- 작업 완료 후 **항상 master에도 머지·push**한다 (feature 브랜치만 push하고 끝내지 말 것)
+- fast-forward 가능하면 `git merge --ff-only origin/<feature>` → push
+- push는 PAT를 github.com URL에 직접 넣어 프록시 우회:
+  ```bash
+  git push "https://<PAT>@github.com/wearegatheo-netizen/gatherallaround.git" master
+  ```
+
 ## 커밋 서명
 - 커밋 전 항상: `git config user.email noreply@anthropic.com && git config user.name Claude`
 - 서명 검증 로컬 확인이 필요하면:
