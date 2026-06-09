@@ -550,7 +550,42 @@
         .comment-item:last-child { border-bottom: none; }
         .comment-meta { font-size: 0.85rem; color: var(--wds-gray-500); margin-bottom: 6px; }
         .comment-meta strong { color: var(--wds-black); font-weight: 700; margin-right: 8px; }
-        .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; }
+        .comment-author { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .comment-author .ga-avatar { width: 30px; height: 30px; font-size: 0.78rem; }
+        .comment-author-name { font-size: 0.88rem; font-weight: 700; color: var(--wds-black); line-height: 1.2; }
+        .comment-author-date { font-size: 0.72rem; color: var(--wds-gray-500); margin-top: 1px; }
+        .comment-content { font-size: 0.97rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+        .board-post-title { font-size: 1.05rem; font-weight: 700; color: var(--wds-black); margin-bottom: 8px; line-height: 1.4; word-break: break-word; }
+
+        /* 자유게시판 목록 (접힌 행) */
+        @keyframes sigPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.45); } 50% { box-shadow: 0 0 0 5px rgba(231,76,60,0); } }
+        .sig-urgent { animation: sigPulse 1.4s ease-in-out infinite; }
+        .mt-genre-chip { padding: 4px 10px; border: 1px solid var(--wds-gray-300); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-gray-700); transition: all 0.12s; }
+        .mt-genre-chip:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .mt-genre-chip.selected { background: var(--wds-primary); color: white; border-color: var(--wds-primary); font-weight: 700; }
+        .mt-sel-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--wds-primary-light); color: var(--wds-primary); padding: 3px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+        .mt-sel-chip button { background: none; border: none; cursor: pointer; color: var(--wds-primary); font-size: 1rem; line-height: 1; padding: 0; font-weight: 700; }
+        .mt-result-chip { padding: 4px 10px; border: 1px solid var(--wds-primary); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-primary); transition: all 0.12s; }
+        .mt-result-chip:hover { background: var(--wds-primary); color: white; }
+        .board-row-wrap { border: 1px solid var(--wds-gray-300); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: var(--wds-white); transition: border-color 0.15s; }
+        .board-row-wrap:has(.board-row.active) { border-color: var(--wds-primary); }
+        .board-row { padding: 13px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: background 0.12s; }
+        .board-row:hover { background: var(--wds-gray-100); }
+        .board-row.active { background: var(--wds-gray-100); }
+        .board-row-head { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+        .board-row-chevron { color: var(--wds-gray-400); font-size: 0.78rem; flex-shrink: 0; transition: transform 0.18s; display: inline-block; }
+        .board-row-chevron.open { transform: rotate(180deg); color: var(--wds-primary); }
+        .board-row-title { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 600; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .board-row-replies { flex-shrink: 0; font-size: 0.72rem; color: var(--wds-primary); font-weight: 700; }
+        .board-row-meta { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: var(--wds-gray-500); flex-shrink: 0; white-space: nowrap; }
+        .board-row-author { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+        .board-post-expand { padding: 6px 14px 12px; background: var(--wds-gray-100); color: var(--wds-black); }
+        @media (max-width: 480px) {
+            .board-row { flex-direction: column; align-items: stretch; gap: 6px; }
+            .board-row-head { width: 100%; }
+            .board-row-meta { font-size: 0.72rem; }
+            .board-row-author { max-width: 120px; }
+        }
         .comment-delete-btn {
             flex-shrink: 0; border: none; background: none; color: var(--wds-gray-500);
             font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0;
@@ -4036,6 +4071,36 @@
 
             const timetableDay = (date, entries) => {
                 const isToday = date === today;
+                const first = entries[0] || {};
+                const sigOpen  = first.signup_open  || null;
+                const sigClose = first.signup_close || null;
+                const now = new Date();
+                let sigStatus = null; // 'before' | 'open' | 'closed' | null
+                if (sigOpen || sigClose) {
+                    if (sigOpen && now < new Date(sigOpen)) sigStatus = 'before';
+                    else if (sigClose && now > new Date(sigClose)) sigStatus = 'closed';
+                    else sigStatus = 'open';
+                }
+                // 신청 가능 상태에서 마감 임박도(D-day/카운트다운) 계산
+                let openBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#e6f9f0;color:#00b894">✅ 신청 가능${sigClose?' · 마감 '+fmtDT(sigClose):''}</span>`;
+                if (sigStatus === 'open' && sigClose) {
+                    const closeD = new Date(sigClose);
+                    const ms = closeD - now;
+                    const dDay = Math.ceil((new Date(closeD.getFullYear(),closeD.getMonth(),closeD.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate())) / 86400000);
+                    if (ms > 0 && dDay <= 0) {
+                        // 오늘 마감 — 남은 시간 카운트다운 + 펄스 강조
+                        const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+                        const left = h >= 1 ? `${h}시간 ${m}분 남음` : `${m}분 남음`;
+                        openBadge = `<span class="sig-urgent" style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdecea;color:#e74c3c;border:1px solid #f5b7b1">⏰ 오늘 마감 · ${left}</span>`;
+                    } else if (ms > 0 && dDay <= 3) {
+                        // 마감 임박 (D-1~D-3)
+                        openBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff3e0;color:#e07000;border:1px solid #ffd9a0">🔥 마감 D-${dDay} · ${fmtDT(sigClose)}</span>`;
+                    }
+                }
+                const sigBadge = sigStatus === null ? '' :
+                    sigStatus === 'open'   ? openBadge :
+                    sigStatus === 'before' ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff8e6;color:#e07000">🕐 신청 시작 ${fmtDT(sigOpen)}</span>` :
+                                            `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdf2f2;color:#e74c3c">🔒 신청 마감 ${fmtDT(sigClose)}</span>`;
                 const gMap = {}, gOrder = [];
                 [...entries].sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||'')).forEach(s => {
                     const gn = s.group_name || '';
