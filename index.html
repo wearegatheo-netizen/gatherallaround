@@ -5183,13 +5183,10 @@
             listDiv.innerHTML = groupKeys.map(gKey => {
                 const list = groups[gKey];
                 const emoji = INST_EMOJI[gKey] || '🎵';
-                const pageKey = 'member_' + gKey;
-                const { items, page, totalPages, total } = getPaged(list, pageKey);
                 return `
                     <div class="member-group">
                         <div class="member-group-header">${emoji} ${escapeHtml(gKey)} <span class="member-group-count">${list.length}</span></div>
-                        <div class="mlist">${items.map(renderItem).join('')}</div>
-                        ${pagerHTML(pageKey, page, totalPages, total)}
+                        <div class="mlist">${list.map(renderItem).join('')}</div>
                     </div>`;
             }).join('');
         }
