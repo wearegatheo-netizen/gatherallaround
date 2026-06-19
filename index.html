@@ -2197,9 +2197,9 @@
             if (location.search) history.replaceState({}, '', location.pathname);
             const _ils = document.getElementById('portalLoadingScreen');
             if (_ils) { _ils.classList.add('fade-out'); setTimeout(()=>_ils.remove(), 380); }
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
+            document.body.classList.add('portal-view');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('comments_container').classList.remove('hidden');
             document.getElementById('userNameDisplay').textContent = nickname;
@@ -2391,13 +2391,8 @@
         function logoutUI() {
             document.getElementById('portalLoadingScreen')?.remove();
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 포털 재노출 차단
+            _hideAllScreens();
             document.getElementById('portal-page').classList.remove('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            document.getElementById('pending-screen').classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('band-main-content').classList.add('hidden');
             document.getElementById('userNameInput').value = '';
             const ksModal = document.getElementById('kakaoSignupModal');
             if (ksModal) ksModal.classList.add('hidden');
@@ -6507,6 +6502,22 @@
         let _pendingRoute = null;      // 로드 시 hash로부터 복원할 섹션
         let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
 
+        // 모든 최상위 화면 컨테이너 — 화면 전환 시 이전 화면이 남는(누수) 버그 방지용 일괄 숨김
+        const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','comments_container','notice_container','band-news-page','performance-booking-page','pending-screen'];
+        function _hideAllScreens() {
+            _ALL_SCREEN_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+        }
+
+        // 로그인된 GatheO 메인 뷰를 (재-fetch 없이) 다시 표시 — 뒤로/앞으로 복원용
+        function _showGatheoMain() {
+            document.body.classList.add('portal-view');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('comments_container').classList.remove('hidden');
+            document.getElementById('notice_container').classList.remove('hidden');
+        }
+
         function _pageFromHash() {
             const h = (location.hash || '').replace(/^#/, '');
             return _NAV_PAGES.includes(h) ? h : 'portal';
@@ -6522,8 +6533,8 @@
         function _routeToPage(page) {
             _navFromPop = true; // 복원이므로 pushState 하지 않음 (항목은 이미 존재)
             try {
-                if (page === 'gatheo') { if (!state.user) showGatheoSection(); }
-                else if (page === 'band') { if (!state.bandProfile) showBandSection(); }
+                if (page === 'gatheo') { if (state.user) _showGatheoMain(); else showGatheoSection(); }
+                else if (page === 'band') { if (state.bandProfile) loginBandUI(state.bandProfile); else showBandSection(); }
                 else if (page === 'community') showCommunitySection();
                 else if (page === 'band-news') showBandNewsSection();
                 else if (page === 'perf') showPerformanceBookingSection();
@@ -6552,19 +6563,8 @@
             if (location.search || location.hash) history.replaceState({ page: 'portal' }, '', location.pathname);
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('portal-page').classList.remove('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            document.getElementById('landing-page-community').classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
-            const bn = document.getElementById('band-news-page');
-            if (bn) bn.classList.add('hidden');
-            const pb = document.getElementById('performance-booking-page');
-            if (pb) pb.classList.add('hidden');
-            const ps = document.getElementById('pending-screen');
-            if (ps) ps.classList.add('hidden');
         }
 
         // ===== 공연 대관 예약 =====
@@ -6652,15 +6652,7 @@
             _pushNav('perf');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            const lc = document.getElementById('landing-page-community'); if (lc) lc.classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
-            const bn = document.getElementById('band-news-page'); if (bn) bn.classList.add('hidden');
-            const ps = document.getElementById('pending-screen'); if (ps) ps.classList.add('hidden');
+            _hideAllScreens();
             document.getElementById('performance-booking-page').classList.remove('hidden');
             const now = new Date();
             _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
@@ -7078,7 +7070,7 @@
                 <div id="perfSubmitResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <div style="display:flex;gap:8px;margin-top:4px">
                     <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">← 돌아가기</button>
-                    <button onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
+                    <button id="perfSubmitBtn" onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
                 </div>
                 </div>`;
         }
@@ -7092,42 +7084,53 @@
             if (otherInput) otherInput.style.display = opt === '기타' ? 'block' : 'none';
         }
 
+        let _perfSubmitBusy = false;
         async function submitPerfBooking() {
+            const res = document.getElementById('perfSubmitResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = ''; // 진입 시 stale 메시지 초기화
+            if (_perfSubmitBusy) return;   // 중복 제출 방지
             const name = document.getElementById('perfName')?.value.trim();
             const phone = document.getElementById('perfPhone')?.value.trim();
             const purpose = document.getElementById('perfPurpose')?.value.trim();
             let howFound = _perfState.howFound;
             if (howFound === '기타') howFound = document.getElementById('perfHowFoundOther')?.value.trim() || '기타';
-            const res = document.getElementById('perfSubmitResult');
-            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (!name) { showErr('이름을 입력해주세요.'); return; }
             if (!phone) { showErr('연락처를 입력해주세요.'); return; }
             if (!purpose) { showErr('사용 목적을 입력해주세요.'); return; }
             if (!howFound) { showErr('공간을 알게 된 경로를 선택해주세요.'); return; }
             const { selectedDate, startSlot, endSlot, headcount } = _perfState;
-            // Re-validate conflicts at submit time to prevent TOCTOU race
-            const [resCheck, pbCheck] = await Promise.all([
-                supabaseClient.from('reservations').select('start_time,end_time')
-                    .eq('res_date', selectedDate).neq('status','rejected').neq('status','cancelled'),
-                supabaseClient.from('performance_bookings').select('start_time,end_time')
-                    .eq('date', selectedDate).neq('status','rejected')
-            ]);
-            const allConflicts = [...(resCheck.data||[]), ...(pbCheck.data||[])];
-            const hasConflict = allConflicts.some(c => {
-                const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
-                return startSlot <= ce && endSlot >= cs;
-            });
-            if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
-            const { error } = await supabaseClient.from('performance_bookings').insert({
-                name, phone, purpose, how_found: howFound,
-                date: selectedDate,
-                start_time: TIMES[startSlot],
-                end_time: TIMES[endSlot],
-                headcount
-            });
-            if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
-            sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
-            renderPerfStep3();
+            const submitBtn = document.getElementById('perfSubmitBtn');
+            _perfSubmitBusy = true;
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; }
+            try {
+                // Re-validate conflicts at submit time to prevent TOCTOU race
+                const [resCheck, pbCheck] = await Promise.all([
+                    supabaseClient.from('reservations').select('start_time,end_time')
+                        .eq('res_date', selectedDate).neq('status','rejected').neq('status','cancelled'),
+                    supabaseClient.from('performance_bookings').select('start_time,end_time')
+                        .eq('date', selectedDate).neq('status','rejected')
+                ]);
+                const allConflicts = [...(resCheck.data||[]), ...(pbCheck.data||[])];
+                const hasConflict = allConflicts.some(c => {
+                    const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                    return startSlot <= ce && endSlot >= cs;
+                });
+                if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
+                const { error } = await supabaseClient.from('performance_bookings').insert({
+                    name, phone, purpose, how_found: howFound,
+                    date: selectedDate,
+                    start_time: TIMES[startSlot],
+                    end_time: TIMES[endSlot],
+                    headcount
+                });
+                if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
+                sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
+                renderPerfStep3();
+            } finally {
+                _perfSubmitBusy = false;
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; }
+            }
         }
 
         function renderPerfStep3() {
@@ -7328,10 +7331,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             _pushNav('band-news');
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
+            _hideAllScreens();
             document.getElementById('band-news-page').classList.remove('hidden');
             document.getElementById('band-news-viewer').classList.add('hidden');
             document.getElementById('band-news-list').classList.remove('hidden');
@@ -7477,13 +7477,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         function showGatheoSection() {
             _pushNav('gatheo');
             document.body.classList.add('portal-view');
-            document.getElementById('portal-page').classList.add('hidden');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('landing-page').classList.remove('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            // 로그인 화면 진입 시 로그인된 GatheO 뷰(자유게시판·공지·본문)가 남지 않도록 숨김
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
             showLoginForm();
             showPortalLoading();
         }
@@ -7491,12 +7487,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         function showBandSection() {
             _pushNav('band');
             document.body.classList.add('portal-view');
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('landing-page-band').classList.remove('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
             showBandLoginForm();
             showPortalLoading();
         }
@@ -7542,13 +7535,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         async function showCommunitySection() {
             _pushNav('community');
             document.body.classList.remove('portal-view');
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
-            document.getElementById('band-main-content').classList.add('hidden');
-            document.getElementById('comments_container').classList.add('hidden');
-            document.getElementById('notice_container').classList.add('hidden');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('landing-page-community').classList.remove('hidden');
             state.communityView = 'list';
             state.communityCurrentId = null;
@@ -7596,7 +7584,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const bSIdx = TIMES.indexOf(b.start_time);
                 const bEIdx = TIMES.indexOf(b.end_time);
                 if (sIdx <= bEIdx && eIdx >= bSIdx) {
-                    return `해당 시간대는 차단되어 있습니다 (${b.start_time}~${b.end_time}${b.reason ? ' · ' + b.reason : ''}).`;
+                    return `해당 시간대는 차단되어 있습니다 (${b.start_time}~${TIMES[bEIdx + 1] || '23:00'}${b.reason ? ' · ' + b.reason : ''}).`;
                 }
             }
             // Check reservations (approved + pending)
@@ -7606,7 +7594,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 const rSIdx = TIMES.indexOf(r.start_time);
                 const rEIdx = TIMES.indexOf(r.end_time);
                 if (sIdx <= rEIdx && eIdx >= rSIdx) {
-                    return `해당 시간대에 이미 예약이 있습니다 (${r.start_time}~${r.end_time}).`;
+                    return `해당 시간대에 이미 예약이 있습니다 (${r.start_time}~${TIMES[rEIdx + 1] || '23:00'}).`;
                 }
             }
             return null;
@@ -10284,13 +10272,14 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         function loginBandUI(profile) {
-            document.getElementById('portal-page').classList.add('hidden');
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('landing-page-band').classList.add('hidden');
-            document.getElementById('main-content').classList.add('hidden');
+            document.body.classList.add('portal-view');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
             document.getElementById('band-main-content').classList.remove('hidden');
             state.bandProfile = profile;
             renderBandPage();
+            _authResolved = true;
+            applyPendingRoute();
         }
 
         async function handleBandLogout() {
@@ -11207,14 +11196,18 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                 }
             });
             // 일정표 직접 신청 출석 (schedule_attendees) 합산
+            // 전역 상태에서 읽되, (1) 과거 날짜만(<= today) (2) 호출자가 넘긴 schedules의
+            // 날짜 범위 내(월/년 필터 반영)로 제한 — 미래 신청/타월 집계 inflation 방지
+            const scopeDates = new Set((schedules || []).map(s => s.date).filter(Boolean));
+            const inScope = (d) => d && d <= today && scopeDates.has(d);
             Object.entries(state.scheduleAttendees || {}).forEach(([d, ids]) => {
-                if (Array.isArray(ids) && ids.includes(profileId)) dates.add(d);
+                if (inScope(d) && Array.isArray(ids) && ids.includes(profileId)) dates.add(d);
             });
             Object.entries(state.scheduleGroupAttendees || {}).forEach(([d, groups]) => {
-                if (groups && Object.values(groups).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
+                if (inScope(d) && groups && Object.values(groups).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
             });
             Object.entries(state.scheduleSlotAttendees || {}).forEach(([d, slots]) => {
-                if (slots && Object.values(slots).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
+                if (inScope(d) && slots && Object.values(slots).some(ids => Array.isArray(ids) && ids.includes(profileId))) dates.add(d);
             });
             return dates.size;
         }
