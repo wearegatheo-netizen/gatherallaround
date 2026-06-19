@@ -6557,6 +6557,8 @@
             document.getElementById('landing-page-band').classList.add('hidden');
             document.getElementById('landing-page-community').classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             const bn = document.getElementById('band-news-page');
             if (bn) bn.classList.add('hidden');
             const pb = document.getElementById('performance-booking-page');
@@ -6655,6 +6657,8 @@
             document.getElementById('landing-page-band').classList.add('hidden');
             const lc = document.getElementById('landing-page-community'); if (lc) lc.classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             const bn = document.getElementById('band-news-page'); if (bn) bn.classList.add('hidden');
             const ps = document.getElementById('pending-screen'); if (ps) ps.classList.add('hidden');
             document.getElementById('performance-booking-page').classList.remove('hidden');
@@ -7325,6 +7329,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             document.getElementById('portal-page').classList.add('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             document.getElementById('band-news-page').classList.remove('hidden');
             document.getElementById('band-news-viewer').classList.add('hidden');
             document.getElementById('band-news-list').classList.remove('hidden');
@@ -7473,6 +7480,10 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
+            // 로그인 화면 진입 시 로그인된 GatheO 뷰(자유게시판·공지·본문)가 남지 않도록 숨김
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             showLoginForm();
             showPortalLoading();
         }
@@ -7483,6 +7494,9 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.remove('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             showBandLoginForm();
             showPortalLoading();
         }
@@ -7533,6 +7547,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('landing-page-band').classList.add('hidden');
             document.getElementById('main-content').classList.add('hidden');
             document.getElementById('band-main-content').classList.add('hidden');
+            document.getElementById('comments_container').classList.add('hidden');
+            document.getElementById('notice_container').classList.add('hidden');
             document.getElementById('landing-page-community').classList.remove('hidden');
             state.communityView = 'list';
             state.communityCurrentId = null;
