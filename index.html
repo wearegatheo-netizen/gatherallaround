@@ -12043,8 +12043,10 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const banner = document.getElementById('schedule_banner');
             if (!banner) return;
             const today = new Date().toLocaleDateString('en-CA');
+            const now = new Date();
             const upcoming = (state.schedules || [])
-                .filter(s => s.date >= today && s.show_banner)
+                .filter(s => s.date >= today && s.show_banner
+                    && !(s.signup_close && now > new Date(s.signup_close))) // 신청 마감 지나면 배너 제외
                 .sort((a, b) => a.date.localeCompare(b.date) || (a.start_time||'').localeCompare(b.start_time||''));
             // Group by date
             const dateMap = {};
@@ -12083,6 +12085,14 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             }).join('');
             banner.innerHTML = items;
             banner.classList.remove('hidden');
+            // 신청 마감 시각이 지나면 새로고침 없이도 자동으로 배너가 내려가도록 주기적 재렌더
+            if (!window._scheduleBannerTimer) {
+                window._scheduleBannerTimer = setInterval(() => {
+                    const b = document.getElementById('schedule_banner');
+                    if (!b) return;
+                    renderScheduleBanner();
+                }, 60000);
+            }
         }
 
         function openScheduleForDate(date) {
