@@ -5702,6 +5702,18 @@
             if (type === 'multi') renderMultiDateList();
         }
 
+        // 두 시간차단이 같은 요일·시간대·기간에서 겹치는지 검사
+        function timeBlocksConflict(a, b) {
+            if (a.day_of_week !== b.day_of_week) return false;
+            const aS = TIMES.indexOf(a.start_time), aE = TIMES.indexOf(a.end_time);
+            const bS = TIMES.indexOf(b.start_time), bE = TIMES.indexOf(b.end_time);
+            if (!(aS <= bE && aE >= bS)) return false; // 시간대 미겹침
+            // 적용 기간 겹침 (null = 무기한). 한쪽이 다른 쪽보다 완전히 앞/뒤면 미겹침
+            if (a.end_date && b.start_date && a.end_date < b.start_date) return false;
+            if (b.end_date && a.start_date && b.end_date < a.start_date) return false;
+            return true;
+        }
+
         async function addTimeBlock() {
             const type = document.getElementById('blockRepeat').value;
             const startTime = document.getElementById('blockStart').value;
@@ -5736,6 +5748,19 @@
                 }
                 inserts.push({ day_of_week: dow, start_time: startTime, end_time: endTime,
                               reason: reason || null, start_date: startDate, end_date: endDate });
+            }
+
+            // 기존 차단과 겹치면 중복 추가 방지 (최신 데이터로 검사)
+            await fetchBlocks();
+            const dayNames = ['일','월','화','수','목','금','토'];
+            const labelOf = (ins) => (ins.start_date && ins.start_date === ins.end_date)
+                ? `${ins.start_date}(${dayNames[ins.day_of_week]})`
+                : `매주 ${dayNames[ins.day_of_week]}요일`;
+            const conflicts = inserts.filter(ins => (state.blocks || []).some(b => timeBlocksConflict(ins, b)));
+            if (conflicts.length > 0) {
+                const uniq = [...new Set(conflicts.map(labelOf))];
+                alert('이미 차단된 시간과 겹쳐 추가할 수 없습니다:\n' + uniq.join('\n'));
+                return;
             }
 
             const { error } = await supabaseClient.from('time_blocks').insert(inserts);
