@@ -5690,6 +5690,7 @@
             if (error) { alert('수정 실패: ' + error.message); return; }
             Object.assign(b, updateData);
             renderBlockList();
+            render();   // 예약 달력 그리드에도 차단 변경 반영
         };
 
         function onBlockRepeatChange() {
@@ -5741,7 +5742,9 @@
             if (error) { alert('차단 추가 실패: ' + error.message + '\n\nstart_date/end_date 컬럼이 없다면 다음 SQL 실행 필요:\nALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS start_date date;\nALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS end_date date;'); return; }
             multiDates = [];
             await fetchBlocks();
-            render();
+            renderBlockList();   // 관리자 탭의 차단 목록 즉시 갱신
+            render();            // 예약 달력 그리드에도 차단 반영
+            showToast('시간 차단을 추가했습니다.');
         }
 
         async function deleteTimeBlock(id) {
@@ -5749,7 +5752,9 @@
             const { error } = await supabaseClient.from('time_blocks').delete().eq('id', id);
             if (error) { alert('삭제 실패: ' + error.message); return; }
             await fetchBlocks();
-            render();
+            renderBlockList();   // 관리자 탭의 차단 목록 즉시 갱신
+            render();            // 예약 달력 그리드에도 차단 반영
+            showToast('시간 차단을 해제했습니다.');
         }
 
         function renderAdminApprovalSection(container) {
