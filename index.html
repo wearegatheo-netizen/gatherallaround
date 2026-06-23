@@ -6391,6 +6391,21 @@
             const startIdx = TIMES.indexOf(state.startTime);
             const endIdx = state.endTime ? TIMES.indexOf(state.endTime) : startIdx;
             const effectiveEndTime = state.endTime || state.startTime;
+            const dateStr = state.selectedDate.toLocaleDateString('en-CA');
+
+            // 충돌 체크 직전 서버 최신 데이터 갱신 (stale 캐시로 인한 중복예약 방지)
+            await fetchBlocks();
+            const { data: _freshDayRes } = await supabaseClient
+                .from('reservations')
+                .select('id, res_date, start_time, end_time, status')
+                .eq('res_date', dateStr);
+            if (_freshDayRes) {
+                state.reservations = [
+                    ...state.reservations.filter(r => r.res_date !== dateStr || r.__perf),
+                    ..._freshDayRes,
+                ];
+            }
+
             for (let i = startIdx; i <= endIdx; i++) {
                 const blk = getBlock(state.selectedDate, TIMES[i]);
                 if (blk) { alert('차단된 시간이 포함되어 있습니다.' + (blk.reason ? `\n사유: ${blk.reason}` : '')); return; }
@@ -6410,8 +6425,6 @@
             const etcFinal = etcCount > 0 ? (etcTrimmed ? `${etcTrimmed} (${etcCount}명)` : `(${etcCount}명)`) : etcTrimmed;
             const hasMembers = state.participantIds && state.participantIds.length > 0;
             if (!hasMembers && !etcFinal) { alert('참여 멤버를 1명 이상 추가하거나 기타란에 이름을 적어주세요.'); return; }
-            // 로컬 시간 기준으로 날짜 문자열 생성 (YYYY-MM-DD)
-            const dateStr = state.selectedDate.toLocaleDateString('en-CA');
 
             // 일반 멤버: 오늘로부터 2개월 이내만 예약 가능
             if (!canApproveRes()) {
