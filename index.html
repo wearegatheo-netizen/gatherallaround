@@ -8770,36 +8770,49 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
-        // 음악취향(JSON) → 사람이 읽을 수 있는 한 줄로
-        function musicTasteToText(raw) {
+        // 음악취향(JSON) → {genre, artists, songs} 개별 필드로
+        function musicTasteFields(raw) {
             const mt = parseMusicTaste(raw);
-            if (!mt) return '';
-            const genres = Array.isArray(mt.genres) && mt.genres.length
+            if (!mt) return { genre: '', artists: '', songs: '' };
+            const genre = Array.isArray(mt.genres) && mt.genres.length
                 ? mt.genres.join(', ')
                 : (mt.genre || '');
-            const parts = [];
-            if (genres) parts.push(`장르: ${genres}`);
-            if (mt.artists) parts.push(`가수: ${mt.artists}`);
-            if (mt.songs) parts.push(`곡: ${mt.songs}`);
-            return parts.join(' / ');
+            return { genre, artists: mt.artists || '', songs: mt.songs || '' };
+        }
+
+        const MAIN_INSTS = ['보컬', '기타', '베이스', '키보드', '드럼'];
+        // 세션 문자열 → {main, extra} (메인 세션 / 추가 세션 분리)
+        function splitInstruments(raw) {
+            const list = (raw || '').split(',').map(s => s.trim()).filter(Boolean);
+            const main = list.filter(s => MAIN_INSTS.includes(s));
+            const extra = list.filter(s => !MAIN_INSTS.includes(s));
+            return { main: main.join(', '), extra: extra.join(', ') };
         }
 
         // GatheO 멤버 목록 CSV 다운로드 (개인정보 포함 — 관리자 전용)
         window.downloadMembersCsv = async function() {
             if (!canApproveRes()) { alert('권한이 없습니다.'); return; }
-            const members = await fetchMembers();
-            const statusLabel = { approved: '승인', pending: '대기', rejected: '거절', blocked: '차단' };
-            const headers = ['이름', '이메일', '연락처', '세션', '음악취향', '역할', '상태', '가입일'];
-            const rows = (members || []).map(m => [
-                m.name || '',
-                m.email || '',
-                m.phone || '',
-                m.instruments || '',
-                musicTasteToText(m.music_taste),
-                m.role || '일반',
-                statusLabel[m.status] || m.status || '',
-                m.created_at ? new Date(m.created_at).toLocaleString('ko-KR') : ''
-            ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+            const all = await fetchMembers();
+            const members = (all || []).filter(m => m.status !== 'rejected'); // 거절 멤버 제외
+            const statusLabel = { approved: '승인', pending: '대기', blocked: '차단' };
+            const headers = ['이름', '이메일', '연락처', '메인세션', '추가세션', '장르', '가수', '곡', '역할', '상태', '가입일'];
+            const rows = members.map(m => {
+                const inst = splitInstruments(m.instruments);
+                const mt = musicTasteFields(m.music_taste);
+                return [
+                    m.name || '',
+                    m.email || '',
+                    m.phone || '',
+                    inst.main,
+                    inst.extra,
+                    mt.genre,
+                    mt.artists,
+                    mt.songs,
+                    m.role || '일반',
+                    statusLabel[m.status] || m.status || '',
+                    m.created_at ? new Date(m.created_at).toLocaleString('ko-KR') : ''
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
 
             const csv = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -8809,7 +8822,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             a.href = url; a.download = `GatheO_멤버목록_${today}.csv`;
             document.body.appendChild(a); a.click();
             document.body.removeChild(a); URL.revokeObjectURL(url);
-            showToast(`멤버 ${(members || []).length}명 목록을 다운로드했습니다.`);
+            showToast(`멤버 ${members.length}명 목록을 다운로드했습니다.`);
         };
 
         function communityBackToList() {
