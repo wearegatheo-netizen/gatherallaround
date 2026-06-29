@@ -5928,6 +5928,9 @@
             const memberSection = document.createElement('div');
             memberSection.className = 'admin-section';
             memberSection.innerHTML = `<div class="admin-section-title">👥 멤버 목록</div>
+                ${canApproveRes() ? `<div style="margin-bottom:10px;display:flex;justify-content:flex-end">
+                    <button class="edit-btn" style="padding:8px 14px;font-size:0.84rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary)" onclick="downloadMembersCsv()">⬇️ 멤버 목록 엑셀(CSV) 다운로드</button>
+                </div>` : ''}
                 <div style="margin-bottom:10px">
                     <input type="text" id="memberSearchInput" placeholder="이름, 세션, 연락처 검색..." oninput="filterAdminMemberList()"
                         style="width:100%;height:38px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box">
@@ -8766,6 +8769,48 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.body.appendChild(a); a.click();
             document.body.removeChild(a); URL.revokeObjectURL(url);
         }
+
+        // 음악취향(JSON) → 사람이 읽을 수 있는 한 줄로
+        function musicTasteToText(raw) {
+            const mt = parseMusicTaste(raw);
+            if (!mt) return '';
+            const genres = Array.isArray(mt.genres) && mt.genres.length
+                ? mt.genres.join(', ')
+                : (mt.genre || '');
+            const parts = [];
+            if (genres) parts.push(`장르: ${genres}`);
+            if (mt.artists) parts.push(`가수: ${mt.artists}`);
+            if (mt.songs) parts.push(`곡: ${mt.songs}`);
+            return parts.join(' / ');
+        }
+
+        // GatheO 멤버 목록 CSV 다운로드 (개인정보 포함 — 관리자 전용)
+        window.downloadMembersCsv = async function() {
+            if (!canApproveRes()) { alert('권한이 없습니다.'); return; }
+            const members = await fetchMembers();
+            const statusLabel = { approved: '승인', pending: '대기', rejected: '거절', blocked: '차단' };
+            const headers = ['이름', '이메일', '연락처', '세션', '음악취향', '역할', '상태', '가입일'];
+            const rows = (members || []).map(m => [
+                m.name || '',
+                m.email || '',
+                m.phone || '',
+                m.instruments || '',
+                musicTasteToText(m.music_taste),
+                m.role || '일반',
+                statusLabel[m.status] || m.status || '',
+                m.created_at ? new Date(m.created_at).toLocaleString('ko-KR') : ''
+            ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+            const csv = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
+            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const today = new Date().toLocaleDateString('en-CA');
+            a.href = url; a.download = `GatheO_멤버목록_${today}.csv`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            showToast(`멤버 ${(members || []).length}명 목록을 다운로드했습니다.`);
+        };
 
         function communityBackToList() {
             state.communityView = 'list';
