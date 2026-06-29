@@ -8790,31 +8790,56 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         // GatheO 멤버 목록 CSV 다운로드 (개인정보 포함 — 관리자 전용)
+        // 공개 멤버&팀 목록과 동일하게 주 세션(첫 번째 악기) 기준으로 그룹화
         window.downloadMembersCsv = async function() {
             if (!canApproveRes()) { alert('권한이 없습니다.'); return; }
             const all = await fetchMembers();
             const members = (all || []).filter(m => m.status !== 'rejected'); // 거절 멤버 제외
             const statusLabel = { approved: '승인', pending: '대기', blocked: '차단' };
-            const headers = ['이름', '이메일', '연락처', '메인세션', '추가세션', '장르', '가수', '곡', '역할', '상태', '가입일'];
-            const rows = members.map(m => {
-                const inst = splitInstruments(m.instruments);
-                const mt = musicTasteFields(m.music_taste);
-                return [
-                    m.name || '',
-                    m.email || '',
-                    m.phone || '',
-                    inst.main,
-                    inst.extra,
-                    mt.genre,
-                    mt.artists,
-                    mt.songs,
-                    m.role || '일반',
-                    statusLabel[m.status] || m.status || '',
-                    m.created_at ? new Date(m.created_at).toLocaleString('ko-KR') : ''
-                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+
+            // 주 세션(첫 번째 악기)으로 그룹화 — 공개 목록과 동일 순서
+            const groups = {};
+            members.forEach(m => {
+                const insts = (m.instruments || '').split(',').map(s => s.trim()).filter(Boolean);
+                const primary = insts[0] || '미지정';
+                (groups[primary] = groups[primary] || []).push(m);
+            });
+            const groupKeys = Object.keys(groups).sort((a, b) => {
+                const ai = MAIN_INSTS.indexOf(a), bi = MAIN_INSTS.indexOf(b);
+                if (ai === -1 && bi === -1) return a.localeCompare(b, 'ko');
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
+                return ai - bi;
             });
 
-            const csv = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
+            const headers = ['세션그룹', '이름', '이메일', '연락처', '메인세션', '추가세션', '장르', '가수', '곡', '역할', '상태', '가입일'];
+            const esc = v => `"${String(v).replace(/"/g, '""')}"`;
+            const blank = headers.slice(1).map(() => '');
+            const lines = [headers.map(esc).join(',')];
+            groupKeys.forEach(gKey => {
+                const list = groups[gKey].slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+                lines.push([`▶ ${gKey} (${list.length}명)`, ...blank].map(esc).join(',')); // 그룹 구분 행
+                list.forEach(m => {
+                    const inst = splitInstruments(m.instruments);
+                    const mt = musicTasteFields(m.music_taste);
+                    lines.push([
+                        gKey,
+                        m.name || '',
+                        m.email || '',
+                        m.phone || '',
+                        inst.main,
+                        inst.extra,
+                        mt.genre,
+                        mt.artists,
+                        mt.songs,
+                        m.role || '일반',
+                        statusLabel[m.status] || m.status || '',
+                        m.created_at ? new Date(m.created_at).toLocaleString('ko-KR') : ''
+                    ].map(esc).join(','));
+                });
+            });
+
+            const csv = lines.join('\n');
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
