@@ -7236,6 +7236,19 @@
                 </div>`;
         }
 
+        // 승인 안내문 템플릿(도어락 코드·Wi-Fi 위치·연락처 포함)은 소스에 두지 않고
+        // 관리자 전용 RLS로 보호되는 documents(key='perf_approval_template')에서 로드한다.
+        // 미로드(비관리자/RLS 차단/미설정) 시 민감정보 없는 폴백을 반환한다.
+        let _perfApprovalTemplate = null;
+        async function loadPerfApprovalTemplate() {
+            if (_perfApprovalTemplate !== null) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('documents').select('content').eq('key', 'perf_approval_template').maybeSingle();
+                _perfApprovalTemplate = (!error && data && typeof data.content === 'string') ? data.content : '';
+            } catch (_) { _perfApprovalTemplate = ''; }
+        }
+
         function generateApprovalMessage(b) {
             const startH = parseInt(b.start_time);
             const endH = b.end_time ? parseInt(TIMES[TIMES.indexOf(b.end_time)+1] || '23') : startH + (b.hours || 0);
@@ -7244,29 +7257,20 @@
             const weekdays = ['일','월','화','수','목','금','토'];
             const dateFormatted = `${dateObj.getMonth()+1}/${dateObj.getDate()}(${weekdays[dateObj.getDay()]})`;
             const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
+            const vars = { DATE: dateFormatted, START: b.start_time, END: endDisplay, HOURS: String(hours) };
+            const fill = (tpl) => tpl.replace(/\{(DATE|START|END|HOURS)\}/g, (_, k) => vars[k]);
+            if (_perfApprovalTemplate) return fill(_perfApprovalTemplate);
+            // 폴백: 민감정보(도어락/Wi-Fi/연락처) 미포함
             return `안녕하세요! 신촌 게더 올 어라운드입니다.
 ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인되었습니다.
-아래 안내사항을 꼭 확인해 주시고, 확인 후 답변주시면 감사하겠습니다!! 😊
 
-📍 기본 정보
-주소: 서울시 서대문구 연세로5나길 33 지하 1층
-출입방법: [1층 현관] 0815 [지하 1층] 20251220
-Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
-
-💬 이용 시 주의사항
-장비 보호: 악기, 장비, 물품 파손 시 100% 본인 과실로 변상하셔야 합니다.
-화기 금지 / 음식물 취식 후 정리 철저 / 사용 물품 원상 복구 / 금연 및 매너 유지 / 퇴실 시 소등·문단속 확인
-
-💬 시설 이용법 및 세팅
-🎹 음향 및 장비 상세 매뉴얼: https://docs.google.com/presentation/d/1k9r6Dlt9TKcI1rcwLl3g0ggCvJVaRm7XFf0LLqEbJT0/edit?usp=sharing
-❄️ 냉난방기: 리모컨 사용 (에어컨/히터 모두 구비)
-📽️ 빔프로젝터: HDMI 연결 후 리모컨으로 전원 ON
-
-☎️ 문의처: 010-5109-1042 (최경수) / 010-2357-2040 (장한영)`;
+⚠️ 출입/Wi-Fi/연락처 등 상세 안내 템플릿을 불러오지 못했습니다.
+관리자 설정(documents.key='perf_approval_template')을 확인해 주세요.`;
         }
 
         async function renderPerfAdminTab(container) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            await loadPerfApprovalTemplate(); // 도어락 등 안내문 템플릿(관리자 전용) 로드
             const { data, error } = await supabaseClient.from('performance_bookings')
                 .select('*').order('created_at', { ascending: false });
             if (error) { container.innerHTML = `<div style="color:red;padding:16px">오류: ${error.message}</div>`; return; }
@@ -8500,14 +8504,34 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             } catch (_) { return false; }
         }
 
+        // 모임별 주최자 비밀번호를 서버(verify-meeting-password)에서 검증.
+        // 함수 미배포/오류 시 null 반환 → 호출부에서 기존 클라 해시 비교로 폴백(하위호환).
+        async function verifyMeetingPassword(meetingId, pw) {
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('verify-meeting-password', { body: { meetingId, password: pw } });
+                if (error) return null;
+                return !!(data && data.ok);
+            } catch (_) { return null; }
+        }
+
+        // 주최자 인증 공통: 서버 모임별 검증 → 실패 시 클라 해시 폴백 → 마스터 비밀번호
+        async function checkCommunityOrganizer(meeting, pw) {
+            const server = await verifyMeetingPassword(meeting.id, pw);
+            if (server === true) return true;
+            if (server === null && meeting.password_salt && meeting.password_hash) {
+                // verify-meeting-password 미배포 환경 폴백
+                const hash = await hashPw(pw, meeting.password_salt);
+                if (hash === meeting.password_hash) return true;
+            }
+            return await verifyCommunityAdminPw(pw);
+        }
+
         async function communityOrganizerAuthModal(id) {
             const pw = document.getElementById('commAuthModalPw')?.value || '';
             if (!pw) return alert('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
-            const hash = await hashPw(pw, meeting.password_salt);
-            let ok = hash === meeting.password_hash;
-            if (!ok) ok = await verifyCommunityAdminPw(pw);
+            const ok = await checkCommunityOrganizer(meeting, pw);
             if (!ok) return alert('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
             state.communityEditView = id;
@@ -8576,9 +8600,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (!pw) return alert('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
-            const hash = await hashPw(pw, meeting.password_salt);
-            let ok = hash === meeting.password_hash;
-            if (!ok) ok = await verifyCommunityAdminPw(pw);
+            const ok = await checkCommunityOrganizer(meeting, pw);
             if (!ok) return alert('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
             renderCommunityDetail(id);
@@ -10439,8 +10461,16 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
         }
 
         // --- 고정 합주팀 메인 ---
+        // 게더링(관리자) 계정의 로그인 아이디. 밴드 계정은 로그인 id(rawId)가 auth 이메일 접두사이자
+        // 프로필 instruments 에 저장되며 편집 불가 → 표시명(band_name_kr) 대신 이 값으로 관리자 판정.
+        // (비워두면 아직 미설정 → 임시로 기존 이름 기반 폴백)
+        const GATHEO_ADMIN_BAND_ID = '';
         function isBandAdmin() {
-            return state.bandProfile && state.bandProfile.band_name_kr === '게더링';
+            if (!state.bandProfile) return false;
+            const loginId = String(state.bandProfile.instruments || '').trim().toLowerCase();
+            if (GATHEO_ADMIN_BAND_ID) return loginId === GATHEO_ADMIN_BAND_ID.trim().toLowerCase();
+            // TODO: 게더링 로그인 아이디 확정 후 위 상수 설정 → 이 폴백 제거
+            return state.bandProfile.band_name_kr === '게더링';
         }
 
         function loginBandUI(profile) {
@@ -10777,6 +10807,12 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const leaderName = document.getElementById('bandEditLeaderName').value.trim();
             const leaderPhone = document.getElementById('bandEditLeaderPhone').value.trim();
             if (!nameKr) { alert('밴드명(국문)을 입력해주세요.'); return; }
+            // 예약어(관리자 팀명)로의 변경 차단 — 표시명 혼동/사칭 방지(관리자 판정은 로그인 아이디로 하지만
+            // 다른 팀이 표시명을 '게더링'으로 바꾸는 것은 막는다). 관리자 계정이 자기 이름 유지 시는 허용.
+            const RESERVED_BAND_NAMES = ['게더링'];
+            if (RESERVED_BAND_NAMES.includes(nameKr) && !isBandAdmin() && state.bandProfile.band_name_kr !== nameKr) {
+                alert('사용할 수 없는 밴드명입니다.'); return;
+            }
             const { error } = await supabaseClient.from('profiles').update({
                 band_name_kr: nameKr, band_name_en: nameEn,
                 leader_name: leaderName, leader_phone: leaderPhone,

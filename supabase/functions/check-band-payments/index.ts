@@ -46,6 +46,15 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // 호출 인증: CRON_SECRET 이 설정돼 있으면 X-Cron-Secret 헤더가 일치해야 실행
+  // (pg_cron http_post 의 headers 에 동일 값을 넣는다). 미설정 시 하위호환 통과.
+  const CRON_SECRET = Deno.env.get("CRON_SECRET");
+  if (CRON_SECRET && req.headers.get("x-cron-secret") !== CRON_SECRET) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -124,8 +133,9 @@ Deno.serve(async (req) => {
       )
     );
 
+    // 응답에 팀명/납부상태(alertTeams)를 노출하지 않는다 — 개수만 반환.
     return new Response(
-      JSON.stringify({ ok: true, alertTeams, pushResults: results.length }),
+      JSON.stringify({ ok: true, alerts: alertTeams.length, pushResults: results.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
