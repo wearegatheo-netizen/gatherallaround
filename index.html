@@ -2234,7 +2234,6 @@
             fetchTeams();
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
-            if (canPostNotice()) applyAdminDataFixes();
             checkKakaoUserProfile();
             _authResolved = true;
             applyPendingRoute();
@@ -2515,8 +2514,8 @@
                 : `https://drive.google.com/thumbnail?id=${f.id}&sz=w320`;
 
             const folderCards = folders.map(f => {
-                const safeName = f.name.replace(/'/g, "\\'");
-                return `<div onclick="drivePushFolder('${f.id}','${safeName}')"
+                const safeName = jsStr(f.name);
+                return `<div onclick="drivePushFolder('${jsStr(f.id)}','${safeName}')"
                      style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--wds-gray-100);border-radius:12px;cursor:pointer;transition:background 0.15s"
                      onmouseenter="this.style.background='var(--wds-gray-200)'" onmouseleave="this.style.background='var(--wds-gray-100)'">
                     <span style="font-size:1.6rem">📁</span>
@@ -4621,6 +4620,12 @@
             return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
+        // 인라인 이벤트 핸들러(onclick 등) 안 작은따옴표 JS 문자열에 값을 넣을 때 사용.
+        // \, ' 를 이스케이프하고 " 는 &quot; 로 바꿔 큰따옴표 속성 밖으로 새지 않게 한다.
+        function jsStr(s) {
+            return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
         function parseMusicTaste(raw) {
             if (!raw) return null;
             try { return JSON.parse(raw); } catch { return { genre: '', artists: raw, songs: '' }; }
@@ -5080,7 +5085,7 @@
             if (!instruments) return '';
             const insts = instruments.split(',').map(s => s.trim()).filter(Boolean);
             if (insts.length === 0) return '';
-            return `<span style="font-size:0.78rem;color:var(--wds-gray-500);margin-left:4px;white-space:nowrap">(+${insts.join(', ')})</span>`;
+            return `<span style="font-size:0.78rem;color:var(--wds-gray-500);margin-left:4px;white-space:nowrap">(+${insts.map(escapeHtml).join(', ')})</span>`;
         }
 
         async function renderMembersTab(container) {
@@ -5678,13 +5683,26 @@
                 if (!newDate) { alert('날짜를 입력해주세요.'); return; }
                 updateData.start_date = newDate;
                 updateData.end_date = newDate;
-                updateData.day_of_week = new Date(newDate).getDay();
+                updateData.day_of_week = new Date(newDate + 'T00:00:00').getDay(); // 로컬 자정 파싱
             } else {
                 const sd = document.getElementById(`blk-sd-${id}`)?.value || null;
                 const ed = document.getElementById(`blk-ed-${id}`)?.value || null;
                 if (sd && ed && sd > ed) { alert('시작일이 종료일보다 늦을 수 없습니다.'); return; }
                 updateData.start_date = sd;
                 updateData.end_date = ed;
+            }
+            // 수정 시에도 다른 차단과 겹치면 중복 방지 (addTimeBlock과 동일 로직, 자기 자신 제외)
+            await fetchBlocks();
+            const cur = (state.blocks || []).find(x => x.id === id) || b;
+            const candidate = {
+                day_of_week: updateData.day_of_week != null ? updateData.day_of_week : cur.day_of_week,
+                start_time: updateData.start_time,
+                end_time: updateData.end_time,
+                start_date: updateData.start_date,
+                end_date: updateData.end_date,
+            };
+            if ((state.blocks || []).some(x => x.id !== id && timeBlocksConflict(candidate, x))) {
+                alert('이미 차단된 시간과 겹쳐 수정할 수 없습니다.'); return;
             }
             const { error } = await supabaseClient.from('time_blocks').update(updateData).eq('id', id);
             if (error) { alert('수정 실패: ' + error.message); return; }
@@ -5803,7 +5821,7 @@
                         : '';
                     item.innerHTML = `
                         <div class="my-res-info">
-                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${r.user_name})</span></div>
+                            <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${escapeHtml(r.user_name)})</span></div>
                             <div class="my-res-time">${r.start_time} ~ ${endTimeDisplay}</div>
                         </div>
                         <div>
@@ -6023,7 +6041,7 @@
                         <option value="운영 총괄" ${role==='운영 총괄'?'selected':''}>운영 총괄</option>
                     </select>` : '';
                 const contactInfo = isS
-                    ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span>${m.phone ? `<span style="font-size:0.7rem;color:var(--wds-primary);white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="클릭하여 복사" onclick="(function(el,t){const p='${escapeHtml(m.phone)}';if(navigator.clipboard){navigator.clipboard.writeText(p).then(function(){el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)})}else{const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)}})(this)">${escapeHtml(m.phone)}</span>` : `<span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap">-</span>`}`
+                    ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span>${m.phone ? `<span style="font-size:0.7rem;color:var(--wds-primary);white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="클릭하여 복사" onclick="(function(el,t){const p='${jsStr(m.phone)}';if(navigator.clipboard){navigator.clipboard.writeText(p).then(function(){el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)})}else{const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)}})(this)">${escapeHtml(m.phone)}</span>` : `<span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap">-</span>`}`
                     : '';
                 const editBtn = isS && (m.status === 'pending' || m.status === 'approved')
                     ? `<button type="button" class="edit-btn" onclick="editMemberInfo('${m.id}')">수정</button>`
@@ -6295,7 +6313,7 @@
                         s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
                     } else {
                         const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
-                        const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('${occupiedRes.user_name}의 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
+                        const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('이 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
                         if (isSuper()) s.style.cursor = 'default';
                         s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${etcNote}`;
                     }
@@ -6685,9 +6703,11 @@
             if (!_perfState.blocks.length) await loadPerfBlocks();
             const [resResult, pbResult] = await Promise.all([
                 supabaseClient.from('reservations').select('res_date,start_time,end_time')
-                    .gte('res_date', startDate).lte('res_date', endDate).neq('status','rejected'),
+                    .gte('res_date', startDate).lte('res_date', endDate)
+                    .not('status','in','("rejected","cancelled")'),
                 supabaseClient.from('performance_bookings').select('date,start_time,end_time')
-                    .gte('date', startDate).lte('date', endDate).neq('status','rejected')
+                    .gte('date', startDate).lte('date', endDate)
+                    .not('status','in','("rejected","cancelled")')
             ]);
             const map = {};
             (resResult.data || []).forEach(r => {
@@ -7079,7 +7099,7 @@
 
         function calcPerformanceFee(dateStr, startIdx, endIdx, headcount) {
             if (startIdx === null || endIdx === null) return 0;
-            const dow = new Date(dateStr).getDay();
+            const dow = new Date(dateStr + 'T00:00:00').getDay(); // 로컬 자정 파싱(UTC 밀림 방지)
             const isWeekend = dow === 0 || dow === 6;
             const baseRate = isWeekend ? 40000 : 25000;
             const extra = headcount > 5 ? (headcount - 5) * 5000 : 0;
@@ -7459,8 +7479,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             overlay.innerHTML = `
                 <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--wds-gray-200);background:var(--wds-white);flex-shrink:0;gap:12px">
                     <button class="portal-back-btn" onclick="closeBandNewsFullscreen()" style="margin:0;flex-shrink:0;line-height:1">← 목록</button>
-                    <span style="font-family:'KkuBulLim',sans-serif;font-size:1rem;font-weight:700;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1">${title}</span>
-                    <button onclick="shareBandNewsItem('${fileId.replace(/'/g,"\\'")}','${title.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:2px 0;line-height:1;flex-shrink:0" title="공유">🔗</button>
+                    <span style="font-family:'KkuBulLim',sans-serif;font-size:1rem;font-weight:700;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1">${escapeHtml(title)}</span>
+                    <button onclick="shareBandNewsItem('${jsStr(fileId)}','${jsStr(title)}')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:2px 0;line-height:1;flex-shrink:0" title="공유">🔗</button>
                 </div>
                 <div id="band-news-iframe-wrap" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--wds-white)">
                     <div style="text-align:center;padding:40px;color:var(--wds-gray-600)">불러오는 중…</div>
@@ -7883,7 +7903,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
                     const dateStr = m.meeting_date ? m.meeting_date.replace(/-/g, '.') : '';
                     const isFree = communityIsFreeMeeting(m.fee);
                     const thumb = m.cover_image_url
-                        ? `<img src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.parentNode.innerHTML='<div class=\\'community-card-thumb-placeholder\\'>${escapeHtml((m.title||'?')[0])}</div>'">`
+                        ? `<img src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.parentNode.innerHTML='<div class=\\'community-card-thumb-placeholder\\'>${jsStr(escapeHtml((m.title||'?')[0]))}</div>'">`
                         : `<div class="community-card-thumb-placeholder">${escapeHtml((m.title||'?')[0])}</div>`;
                     html += `<div class="community-card" onclick="renderCommunityDetail('${m.id}')">
                         <div class="community-card-thumb">
@@ -8105,7 +8125,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const isFree = communityIsFreeMeeting(meeting.fee);
             const firstChar = (meeting.title || '?')[0];
             const heroImg = meeting.cover_image_url
-                ? `<img src="${escapeHtml(meeting.cover_image_url)}" alt="${escapeHtml(meeting.title)}" onerror="this.parentNode.innerHTML='<div class=\\'community-detail-hero-placeholder\\'>${escapeHtml(firstChar)}</div>'">`
+                ? `<img src="${escapeHtml(meeting.cover_image_url)}" alt="${escapeHtml(meeting.title)}" onerror="this.parentNode.innerHTML='<div class=\\'community-detail-hero-placeholder\\'>${jsStr(escapeHtml(firstChar))}</div>'">`
                 : `<div class="community-detail-hero-placeholder">${escapeHtml(firstChar)}</div>`;
 
             html += `<div class="community-detail-hero">
@@ -10536,7 +10556,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
 
         async function recordBandPayment(teamId, note) {
             if (!supabaseClient) return;
-            const today = new Date().toISOString().slice(0, 10);
+            const today = new Date().toLocaleDateString('en-CA'); // 로컬(KST) 기준 YYYY-MM-DD
             const input = prompt('납부일을 입력하세요 (YYYY-MM-DD)', today);
             if (input === null) return;
             const dateStr = input.trim();
@@ -11306,7 +11326,7 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             if (badge) badge.style.display = open.length > 0 ? 'inline-flex' : 'none';
             if (banner) {
                 if (open.length > 0) {
-                    const titles = open.map(p => `"${p.title}"`).join(', ');
+                    const titles = open.map(p => `"${escapeHtml(p.title)}"`).join(', ');
                     banner.innerHTML = `<div class="live-poll-banner-inner" onclick="goToVotesTab()"><span class="live-poll-banner-icon">🗳️</span><span class="live-poll-banner-text">투표 진행 중 (${open.length}건): ${titles}</span><span class="live-poll-banner-arrow">투표하기 →</span></div>`;
                     banner.classList.remove('hidden');
                 } else {
@@ -12083,7 +12103,8 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             const userName  = document.getElementById(`er-name-${id}`)?.value.trim();
             const etc       = document.getElementById(`er-etc-${id}`)?.value.trim();
             if (!resDate || !startTime || !endTime || !userName) { alert('날짜·시간·예약자명은 필수입니다.'); return; }
-            if (TIMES.indexOf(startTime) >= TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
+            // 종료 슬롯은 포함형(1시간 예약은 start_time === end_time). 시작이 종료보다 늦을 때만 거부.
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
             const { error } = await supabaseClient.from('reservations')
                 .update({ res_date: resDate, start_time: startTime, end_time: endTime, user_name: userName, participant_etc: etc || null })
                 .eq('id', id);
@@ -12364,11 +12385,6 @@ Wi-Fi: 거울측 선반 2번째 칸 공유기 확인
             document.getElementById('noticeContent').value = '';
             await fetchNotices();
             renderAdminNotices();
-        }
-
-        async function applyAdminDataFixes() {
-            if (!supabaseClient) return;
-            await supabaseClient.from('profiles').update({ phone: '010-4102-2754' }).eq('name', '이성호').neq('phone', '010-4102-2754');
         }
 
         async function deleteNotice(id) {
