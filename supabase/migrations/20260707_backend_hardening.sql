@@ -9,27 +9,29 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- 1) 도어락/Wi-Fi/연락처 안내문 템플릿을 소스에서 분리 → documents 로 이전
+-- 1) 도어락/Wi-Fi/연락처 안내문 템플릿을 소스에서 분리 → app_settings 로 이전
+--    ⚠️ 기존 'documents' 테이블은 앱의 자료실 기능이 이미 사용 중(id/category/title...)
+--       이라 재사용 불가 → 전용 테이블 app_settings(key/value) 를 새로 만든다.
 --    클라이언트 generateApprovalMessage() 가 key='perf_approval_template' 을 읽음.
 --    관리자만 읽도록 RLS 로 보호.
 -- ----------------------------------------------------------------------------
-create table if not exists public.documents (
+create table if not exists public.app_settings (
   key        text primary key,
   content    text,
   updated_at timestamptz default now()
 );
 
 -- 기존 안내문(도어락 코드 포함)을 seed. 플레이스홀더: {DATE} {START} {END} {HOURS}
-insert into public.documents (key, content) values (
+insert into public.app_settings (key, content) values (
   'perf_approval_template',
   E'안녕하세요! 신촌 게더 올 어라운드입니다.\n{DATE} {START}~{END}({HOURS}시간) 예약이 확인되었습니다.\n아래 안내사항을 꼭 확인해 주시고, 확인 후 답변주시면 감사하겠습니다!! 😊\n\n📍 기본 정보\n주소: 서울시 서대문구 연세로5나길 33 지하 1층\n출입방법: [1층 현관] 0815 [지하 1층] 20251220\nWi-Fi: 거울측 선반 2번째 칸 공유기 확인\n\n💬 이용 시 주의사항\n장비 보호: 악기, 장비, 물품 파손 시 100% 본인 과실로 변상하셔야 합니다.\n화기 금지 / 음식물 취식 후 정리 철저 / 사용 물품 원상 복구 / 금연 및 매너 유지 / 퇴실 시 소등·문단속 확인\n\n💬 시설 이용법 및 세팅\n🎹 음향 및 장비 상세 매뉴얼: https://docs.google.com/presentation/d/1k9r6Dlt9TKcI1rcwLl3g0ggCvJVaRm7XFf0LLqEbJT0/edit?usp=sharing\n❄️ 냉난방기: 리모컨 사용 (에어컨/히터 모두 구비)\n📽️ 빔프로젝터: HDMI 연결 후 리모컨으로 전원 ON\n\n☎️ 문의처: 010-5109-1042 (최경수) / 010-2357-2040 (장한영)'
 ) on conflict (key) do nothing;
 
-alter table public.documents enable row level security;
+alter table public.app_settings enable row level security;
 
 -- 관리자(운영 총괄/총괄/세션장)만 SELECT. 프로젝트의 role 값에 맞게 조정.
-drop policy if exists documents_admin_read on public.documents;
-create policy documents_admin_read on public.documents
+drop policy if exists app_settings_admin_read on public.app_settings;
+create policy app_settings_admin_read on public.app_settings
   for select using (
     exists (
       select 1 from public.profiles p
@@ -39,8 +41,8 @@ create policy documents_admin_read on public.documents
   );
 
 -- 쓰기(템플릿 수정)도 관리자만
-drop policy if exists documents_admin_write on public.documents;
-create policy documents_admin_write on public.documents
+drop policy if exists app_settings_admin_write on public.app_settings;
+create policy app_settings_admin_write on public.app_settings
   for all using (
     exists (
       select 1 from public.profiles p

@@ -7244,7 +7244,7 @@
             if (_perfApprovalTemplate !== null) return;
             try {
                 const { data, error } = await supabaseClient
-                    .from('documents').select('content').eq('key', 'perf_approval_template').maybeSingle();
+                    .from('app_settings').select('content').eq('key', 'perf_approval_template').maybeSingle();
                 _perfApprovalTemplate = (!error && data && typeof data.content === 'string') ? data.content : '';
             } catch (_) { _perfApprovalTemplate = ''; }
         }

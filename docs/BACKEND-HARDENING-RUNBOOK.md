@@ -5,7 +5,7 @@
 
 | 항목 | 처리 | 비고 |
 |---|---|---|
-| 1. 도어락/PII 하드코딩 | **수정** | documents 로 이전 + 소스 제거 |
+| 1. 도어락/PII 하드코딩 | **수정** | app_settings 로 이전 + 소스 제거 |
 | 2. send-email 오픈 릴레이 | 설명만 | 코드 변경 없음(원상복구) |
 | 3. 관리자 푸시 비인증 | 설명만 | 코드 변경 없음(원상복구) |
 | 4. 커뮤니티 수정/삭제·해시 노출 | **수정** | 모임별 PW 서버검증 함수 + 클라 폴백 |
@@ -28,7 +28,7 @@
 
 ### 1. Supabase SQL 실행 (먼저)
 `supabase/migrations/20260707_backend_hardening.sql`:
-- `documents` 생성 + 안내문 seed + 관리자 RLS (항목 1)
+- `app_settings` 생성 + 안내문 seed + 관리자 RLS (항목 1)
 - `community_verify_pw` RPC + pgcrypto (항목 4 후속용)
 - `auth_attempts` 테이블 (항목 7 rate-limit)
 
@@ -54,10 +54,10 @@ supabase secrets set CRON_SECRET=<값> --project-ref <REF>
 ```bash
 git push origin claude/project-understanding-wioiao:master
 ```
-검증: 공연대관 관리자 탭 승인 안내문에 도어락 정보 정상 표시(documents 로드), 커뮤니티 주최자/마스터 로그인 정상, 밴드 관리자 패널이 '게더링' 계정에서만 표시.
+검증: 공연대관 관리자 탭 승인 안내문에 도어락 정보 정상 표시(app_settings 로드), 커뮤니티 주최자/마스터 로그인 정상, 밴드 관리자 패널이 '게더링' 계정에서만 표시.
 
 ### 5. 도어락 물리 변경 (항목 1, 코드로 못 끝남)
-출입 코드(`0815`, `20251220`)는 이미 공개 repo 히스토리에 노출됨 → **실제 도어락 번호 변경** 후 새 번호는 `documents.perf_approval_template` 에만 반영(소스 커밋 금지).
+출입 코드(`0815`, `20251220`)는 이미 공개 repo 히스토리에 노출됨 → **실제 도어락 번호 변경** 후 새 번호는 `app_settings.perf_approval_template` 에만 반영(소스 커밋 금지).
 
 ---
 
@@ -65,7 +65,7 @@ git push origin claude/project-understanding-wioiao:master
 
 | 항목 | 파일 | 내용 |
 |---|---|---|
-| 1 | `index.html`(generateApprovalMessage, loadPerfApprovalTemplate, renderPerfAdminTab) + SQL(documents) | 안내문을 관리자 RLS documents 에서 로드, 미로드 시 민감정보 없는 폴백. 소스에서 도어락/Wi-Fi/연락처 제거 |
+| 1 | `index.html`(generateApprovalMessage, loadPerfApprovalTemplate, renderPerfAdminTab) + SQL(app_settings) | 안내문을 관리자 RLS app_settings 에서 로드, 미로드 시 민감정보 없는 폴백. 소스에서 도어락/Wi-Fi/연락처 제거 |
 | 4 | `supabase/functions/verify-meeting-password`(신규), `index.html`(verifyMeetingPassword, checkCommunityOrganizer) | 모임별 PW 서버 검증(해시 클라 미전송), 미배포 시 기존 클라 해시 폴백 |
 | 5 | `index.html`(isBandAdmin) | '게더링' 로그인 아이디(instruments, 편집불가)로 판정. 예약어 팀명 변경 차단(saveBandInfo) |
 | 6 | `supabase/functions/check-band-payments` | CRON_SECRET 호출 인증(선택), 응답에서 팀명/납부상태(alertTeams) 제거 |
