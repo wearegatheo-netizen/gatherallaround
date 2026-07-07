@@ -2,7 +2,9 @@
 // ?news=<fileId> 요청에 대해 Drive에서 기사 제목을 가져와 OG 태그를 동적으로 주입.
 // 메신저 크롤러(KakaoTalk, Facebook 등)가 정적 HTML을 읽을 때 기사별 미리보기가 표시됨.
 
-const DRIVE_API_KEY = 'AIzaSyDk7iyY1XU0mepXOOqwY6h5YitbHHg6t40';
+// Drive API 키는 Cloudflare 환경변수(DRIVE_API_KEY)에서 읽는다.
+// 미설정 시 기존 하드코딩 값으로 폴백(하위호환). 설정 후 이 폴백 값은 콘솔에서 폐기/제한 권장.
+const DRIVE_API_KEY_FALLBACK = 'AIzaSyDk7iyY1XU0mepXOOqwY6h5YitbHHg6t40';
 
 function escapeAttr(s) {
     return String(s)
@@ -13,7 +15,8 @@ function escapeAttr(s) {
 }
 
 export async function onRequest(context) {
-    const { request, next } = context;
+    const { request, next, env } = context;
+    const DRIVE_API_KEY = (env && env.DRIVE_API_KEY) || DRIVE_API_KEY_FALLBACK;
     const url = new URL(request.url);
     const newsId = url.searchParams.get('news');
 

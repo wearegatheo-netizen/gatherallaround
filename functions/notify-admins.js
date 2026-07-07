@@ -2,13 +2,24 @@
 // 비인증 사용자가 관리자에게 푸시 알림을 보낼 때 사용 (RLS 우회).
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (+ /push가 사용하는 VAPID_*)
 
-export async function onRequest(context) {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
+function corsFor(origin) {
+    const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
+    const allowed = origin && (
+        origin === 'https://gatherallaround.co.kr' ||
+        origin === 'https://www.gatherallaround.co.kr' ||
+        /\.(pages\.dev|gatherallaround\.co\.kr)$/.test(host)
+    );
+    return {
+        'Access-Control-Allow-Origin': allowed ? origin : 'https://gatherallaround.co.kr',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
+        'Vary': 'Origin',
     };
+}
+
+export async function onRequest(context) {
     const { request, env } = context;
+    const corsHeaders = corsFor(request.headers.get('Origin'));
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
@@ -36,8 +47,14 @@ export async function onRequest(context) {
                 Authorization: `Bearer ${SERVICE_KEY}`,
             },
         });
+        if (!sbRes.ok) {
+            const errText = await sbRes.text().catch(() => '');
+            return new Response(JSON.stringify({ error: 'supabase query failed', status: sbRes.status, detail: errText.slice(0, 300) }), {
+                status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
         const profs = await sbRes.json();
-        const subs = (profs || []).map(p => p.push_subscription).filter(Boolean);
+        const subs = (Array.isArray(profs) ? profs : []).map(p => p.push_subscription).filter(Boolean);
 
         const origin = new URL(request.url).origin;
         const results = await Promise.allSettled(subs.map(sub =>

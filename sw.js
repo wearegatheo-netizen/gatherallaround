@@ -1,3 +1,12 @@
+// 새 서비스워커가 대기 없이 즉시 활성화되고 모든 탭을 제어하도록 한다
+// (업데이트가 모든 탭을 닫아야만 반영되던 지연 제거).
+self.addEventListener('install', function() {
+    self.skipWaiting();
+});
+self.addEventListener('activate', function(event) {
+    event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', function(event) {
     console.log('[sw] push event received', event);
     let data = { title: '게더올어라운드', body: '새 알림이 있습니다.' };

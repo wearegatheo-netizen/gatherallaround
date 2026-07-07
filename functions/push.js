@@ -2,16 +2,28 @@
 // Handles VAPID JWT signing and RFC 8291 AES-128-GCM payload encryption
 // Env vars required: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
-export async function onRequest(context) {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
+function corsFor(origin) {
+    const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
+    const allowed = origin && (
+        origin === 'https://gatherallaround.co.kr' ||
+        origin === 'https://www.gatherallaround.co.kr' ||
+        /\.(pages\.dev|gatherallaround\.co\.kr)$/.test(host)
+    );
+    return {
+        'Access-Control-Allow-Origin': allowed ? origin : 'https://gatherallaround.co.kr',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
+        'Vary': 'Origin',
     };
+}
+
+export async function onRequest(context) {
+    const corsHeaders = corsFor(context.request.headers.get('Origin'));
     try {
         return await handle(context, corsHeaders);
     } catch (e) {
-        return new Response(JSON.stringify({ error: 'unhandled', message: String(e && e.message || e), stack: String(e && e.stack || '') }), {
+        console.error('[push] unhandled', e && e.stack || e);
+        return new Response(JSON.stringify({ error: 'unhandled', message: String(e && e.message || e) }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -32,7 +44,7 @@ async function handle(context, corsHeaders) {
     }
 
     if (request.method !== 'POST') {
-        return new Response('Method Not Allowed', { status: 405 });
+        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
     }
 
     let payload;
@@ -76,7 +88,8 @@ async function handle(context, corsHeaders) {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     } catch (e) {
-        return new Response(JSON.stringify({ error: 'caught', stage, message: String(e && e.message || e), stack: String(e && e.stack || '').slice(0, 500) }), {
+        console.error('[push] error at stage', stage, e && e.stack || e);
+        return new Response(JSON.stringify({ error: 'caught', stage, message: String(e && e.message || e) }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
