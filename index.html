@@ -3196,6 +3196,7 @@
             communityCurrentId: null,
             communityCurrentMeeting: null,
             communityEditAuth: {},
+            communityEditPw: {},
             communityEditView: null,
             communityEditTab: 'info',
             communityCurrentAppList: [],
@@ -7639,6 +7640,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             state.communityCreateOpen = false;
             state.communityTab = 'current';
             state.communityEditAuth = {};
+            state.communityEditPw = {};
             state.communityGameType = null;
             state.communityTestType = null;
             state.communityTestStep = 0;
@@ -8516,14 +8518,37 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
 
         // 주최자 인증 공통: 서버 모임별 검증 → 실패 시 클라 해시 폴백 → 마스터 비밀번호
         async function checkCommunityOrganizer(meeting, pw) {
-            const server = await verifyMeetingPassword(meeting.id, pw);
-            if (server === true) return true;
-            if (server === null && meeting.password_salt && meeting.password_hash) {
-                // verify-meeting-password 미배포 환경 폴백
-                const hash = await hashPw(pw, meeting.password_salt);
-                if (hash === meeting.password_hash) return true;
+            // 모임별 비번은 서버(verify-meeting-password)에서만 검증 → 해시를 클라로 내려받지 않음.
+            // 실패 시 마스터 비번(verify-community-admin)으로 재시도.
+            let ok = (await verifyMeetingPassword(meeting.id, pw)) === true;
+            if (!ok) ok = await verifyCommunityAdminPw(pw);
+            if (ok) state.communityEditPw[meeting.id] = pw; // 이후 수정/삭제 서버 검증에 사용
+            return ok;
+        }
+
+        // 커뮤니티 모임 수정/삭제는 서버 RPC(비밀번호 재검증)를 통해서만 실제 반영되게 한다.
+        // - RPC 가 아직 없으면(미배포) 기존 직접 쿼리로 폴백(하위호환).
+        // - RPC 가 비번 불일치(FORBIDDEN)를 반환하면 폴백하지 않고 실패 처리(콘솔 우회 차단).
+        function _communityForbidden(err) {
+            return (((err && (err.message || '')) + '').toUpperCase()).includes('FORBIDDEN');
+        }
+        async function communityUpdate(id, patch) {
+            const pw = state.communityEditPw[id];
+            if (pw) {
+                const { error } = await supabaseClient.rpc('community_update_meeting', { p_id: id, p_pw: pw, p_patch: patch });
+                if (!error) return { error: null };
+                if (_communityForbidden(error)) return { error };
             }
-            return await verifyCommunityAdminPw(pw);
+            return await supabaseClient.from('community_meetings').update(patch).eq('id', id);
+        }
+        async function communityDelete(id) {
+            const pw = state.communityEditPw[id];
+            if (pw) {
+                const { error } = await supabaseClient.rpc('community_delete_meeting', { p_id: id, p_pw: pw });
+                if (!error) return { error: null };
+                if (_communityForbidden(error)) return { error };
+            }
+            return await supabaseClient.from('community_meetings').delete().eq('id', id);
         }
 
         async function communityOrganizerAuthModal(id) {
@@ -8585,10 +8610,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         async function saveCommunityFormFields(id) {
-            const { error } = await supabaseClient
-                .from('community_meetings')
-                .update({ form_fields: state.communityEditFields })
-                .eq('id', id);
+            const { error } = await communityUpdate(id, { form_fields: state.communityEditFields });
             if (error) return alert('저장 실패: ' + error.message);
             await fetchCommunityMeetings();
             alert('커스텀 필드가 저장되었습니다.');
@@ -8645,7 +8667,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 description: desc || null,
             };
 
-            const { error } = await supabaseClient.from('community_meetings').update(payload).eq('id', id);
+            const { error } = await communityUpdate(id, payload);
             if (error) return alert('수정 실패: ' + error.message);
             await fetchCommunityMeetings();
             delete state.communityEditAuth[id];
@@ -8654,10 +8676,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         async function toggleCommunityMeetingClosed(id, currentlyClosed) {
-            const { error } = await supabaseClient
-                .from('community_meetings')
-                .update({ is_closed: !currentlyClosed })
-                .eq('id', id);
+            const { error } = await communityUpdate(id, { is_closed: !currentlyClosed });
             if (error) return alert('상태 변경 실패: ' + error.message);
             await fetchCommunityMeetings();
             renderCommunityDetail(id);
@@ -8666,7 +8685,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         async function deleteCommunityMeeting(id) {
             if (!confirm('모임을 삭제하면 모든 신청 정보도 삭제됩니다. 정말 삭제하시겠습니까?')) return;
             const meeting = state.communityMeetings.find(m => m.id === id);
-            const { error } = await supabaseClient.from('community_meetings').delete().eq('id', id);
+            const { error } = await communityDelete(id);
             if (error) return alert('삭제 실패: ' + error.message);
             // Remove associated time_block in GatheO
             if (meeting) {
