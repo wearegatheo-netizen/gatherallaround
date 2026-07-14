@@ -6776,8 +6776,8 @@
                         <div class="perf-section" id="perfHeadcountSection" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
                             <div class="perf-section-title">인원수</div>
                             <div style="display:flex;align-items:center;gap:12px">
-                                <input type="number" id="perfHeadcount" min="1" max="15" value="${_perfState.headcount}"
-                                    oninput="_perfState.headcount=Math.max(1,Math.min(15,parseInt(this.value)||1));renderPerfFee()"
+                                <input type="number" id="perfHeadcount" min="1" max="20" value="${_perfState.headcount}"
+                                    oninput="_perfState.headcount=Math.max(1,Math.min(20,parseInt(this.value)||1));renderPerfFee()"
                                     style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.95rem;font-family:inherit;outline:none">
                                 <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
                             </div>
