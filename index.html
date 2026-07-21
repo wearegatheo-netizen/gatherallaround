@@ -4928,6 +4928,18 @@
             return escapeHtml(isSelf ? name : name.replace('(관리자)', '').trim());
         }
 
+        // 예약 r 의 participant_ids(추가된 참여 멤버)를 이름 목록 문자열로 변환.
+        // cachedMembers 에 없는 id(미로드/탈퇴)는 건너뜀.
+        // 반환값은 이스케이프되지 않은 원문 — innerHTML 에 넣을 땐 escapeHtml() 필수.
+        function participantNames(r) {
+            const ids = Array.isArray(r && r.participant_ids) ? r.participant_ids : [];
+            if (!ids.length) return '';
+            return ids.map(id => {
+                const m = (state.cachedMembers || []).find(x => x.id === id);
+                return m ? (m.name || '').replace('(관리자)', '').trim() : '';
+            }).filter(Boolean).join(', ');
+        }
+
         function renderSongList() {
             const c = document.getElementById('editingSongList');
             if (!c) return;
@@ -5219,6 +5231,10 @@
                 const etcLine = r.participant_etc
                     ? `<div style="flex-basis:100%;font-size:0.76rem;color:#e07b00;padding-top:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
                     : '';
+                const pNames = participantNames(r);
+                const membersLine = pNames
+                    ? `<div style="flex-basis:100%;font-size:0.76rem;color:var(--wds-primary);padding-top:2px">👥 멤버: ${escapeHtml(pNames)}</div>`
+                    : '';
                 item.innerHTML = `
                     <div class="my-res-info">
                         <div class="my-res-date">${r.res_date} <span class="status-badge ${statusClass}">${statusText}</span></div>
@@ -5228,7 +5244,7 @@
                         ${editable ? `<button type="button" class="cancel-btn" style="background:var(--wds-primary);color:#fff;border-color:var(--wds-primary)" onclick="openEditParticipantsModal('${r.id}')">멤버 수정</button>` : ''}
                         ${canCancel ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}')">취소</button>` : ''}
                     </div>
-                    ${etcLine}`;
+                    ${membersLine}${etcLine}`;
                 list.appendChild(item);
             });
             container.appendChild(list);
@@ -5820,6 +5836,10 @@
                     const etcLine = r.participant_etc
                         ? `<div style="flex-basis:100%;font-size:0.76rem;color:#e07b00;padding-top:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
                         : '';
+                    const pNames = participantNames(r);
+                    const membersLine = pNames
+                        ? `<div style="flex-basis:100%;font-size:0.76rem;color:var(--wds-primary);padding-top:2px">👥 멤버: ${escapeHtml(pNames)}</div>`
+                        : '';
                     item.innerHTML = `
                         <div class="my-res-info">
                             <div class="my-res-date">${r.res_date} <span style="font-size:0.8rem;color:var(--wds-gray-500);font-weight:normal">(${escapeHtml(r.user_name)})</span></div>
@@ -5829,7 +5849,7 @@
                             ${canApproveRes() ? `<button type="button" class="approve-btn" onclick="approveReservation('${r.id}')">승인</button>` : ''}
                             ${canCancelRes() ? `<button type="button" class="reject-btn" onclick="rejectReservation('${r.id}')">거절</button>` : ''}
                         </div>
-                        ${etcLine}`;
+                        ${membersLine}${etcLine}`;
                     pendingList.appendChild(item);
                 });
                 pendingSection.appendChild(pendingList);
@@ -5865,6 +5885,10 @@
                     const etcLine = canApproveRes() && r.participant_etc
                         ? `<div style="flex-basis:100%;font-size:0.74rem;color:#e07b00;padding-top:2px;padding-left:2px">📝 기타: ${escapeHtml(r.participant_etc)}</div>`
                         : '';
+                    const pNames = canApproveRes() ? participantNames(r) : '';
+                    const membersLine = pNames
+                        ? `<div style="flex-basis:100%;font-size:0.74rem;color:var(--wds-primary);padding-top:2px;padding-left:2px">👥 멤버: ${escapeHtml(pNames)}</div>`
+                        : '';
                     item.innerHTML = `
                         <div class="admin-member-main">
                             <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
@@ -5875,7 +5899,7 @@
                             ${isSuper() ? `<button type="button" class="edit-btn" onclick="editResInfo('${r.id}')">수정</button>` : ''}
                             ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
                         </div>
-                        ${etcLine}`;
+                        ${membersLine}${etcLine}`;
                     approvedList.appendChild(item);
                 });
                 approvedSection.appendChild(approvedList);
@@ -6256,13 +6280,20 @@
                             s.textContent = '🎭 공연 대관';
                         } else if (isSuper()) {
                             s.style.cursor = 'pointer';
-                            s.title = showEtc
-                                ? `${occupiedRes.user_name}\n기타: ${occupiedRes.participant_etc}\n— 클릭하여 예약 취소`
-                                : `${occupiedRes.user_name} — 클릭하여 예약 취소`;
+                            const weekPNames = participantNames(occupiedRes);
+                            const tParts = [occupiedRes.user_name];
+                            if (weekPNames) tParts.push(`멤버: ${weekPNames}`);
+                            if (showEtc) tParts.push(`기타: ${occupiedRes.participant_etc}`);
+                            tParts.push('— 클릭하여 예약 취소');
+                            s.title = tParts.join('\n');
                             s.onclick = () => { if (confirm(`${occupiedRes.user_name}의 예약(${d} ${time})을 취소하시겠습니까?`)) cancelReservation(occupiedRes.id, true); };
                         } else {
                             s.style.cursor = 'not-allowed';
-                            if (showEtc) s.title = `기타: ${occupiedRes.participant_etc}`;
+                            const weekPNames = canApproveRes() ? participantNames(occupiedRes) : '';
+                            const tParts = [];
+                            if (weekPNames) tParts.push(`멤버: ${weekPNames}`);
+                            if (showEtc) tParts.push(`기타: ${occupiedRes.participant_etc}`);
+                            if (tParts.length) s.title = tParts.join('\n');
                         }
                         if (!occupiedRes.__perf) {
                             if (showEtc) {
@@ -6314,9 +6345,11 @@
                         s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
                     } else {
                         const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
+                        const dayPNames = canApproveRes() ? participantNames(occupiedRes) : '';
+                        const membersNote = dayPNames ? `<div style="font-size:0.72rem;color:var(--wds-primary);margin-top:2px;white-space:normal;text-align:left">멤버: ${escapeHtml(dayPNames)}</div>` : '';
                         const cancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('이 예약을 취소하시겠습니까?'))cancelReservation('${occupiedRes.id}',true)" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
                         if (isSuper()) s.style.cursor = 'default';
-                        s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${etcNote}`;
+                        s.innerHTML = `이미 예약됨 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${maskName(occupiedRes.user_name)})</span>${cancelBtn}${membersNote}${etcNote}`;
                     }
                 } else {
                     if (isSlotSelected(state.viewDate, time)) {
