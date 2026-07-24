@@ -6795,28 +6795,12 @@
             const now = new Date();
             _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
             renderPerfStep1();
-            // 서버 소개글 로드 후, 아직 1단계 초기 상태면 다시 렌더(선택 진행 중이면 건드리지 않음)
-            loadPerfSpaceDesc().then(() => {
-                if (_perfState.step === 1 && _perfState.startSlot === null) renderPerfStep1();
-            });
-        }
-
-        // 공간 소개글: 서버(app_settings key='perf_space_desc')에서 로드해 모든 기기 공유.
-        // null=아직 미로드 / ''=서버에 값 없음 → 둘 다 기본 문구로 폴백.
-        let _perfSpaceDesc = null;
-        async function loadPerfSpaceDesc() {
-            if (_perfSpaceDesc !== null) return;
-            try {
-                const { data, error } = await supabaseClient
-                    .from('app_settings').select('content').eq('key', 'perf_space_desc').maybeSingle();
-                _perfSpaceDesc = (!error && data && typeof data.content === 'string') ? data.content : '';
-            } catch (_) { _perfSpaceDesc = ''; }
         }
 
         function renderPerfStep1() {
             const container = document.getElementById('perf-step-container');
-            const savedDesc = _perfSpaceDesc || PERF_SPACE_DESC_DEFAULT;
-            const canEdit = canPostNotice && canPostNotice(); // 서버 저장 권한(운영총괄·총괄)과 일치
+            // 공간 소개글은 코드에 하드코딩(PERF_SPACE_DESC_DEFAULT). 수정 필요 시 그 상수를 변경.
+            const savedDesc = PERF_SPACE_DESC_DEFAULT;
             const photos = PERF_SPACE_PHOTOS.map(u => `<img src="${u}" alt="공간 사진" onerror="this.style.display='none'">`).join('');
             container.innerHTML = `
                 <div class="perf-layout">
@@ -6852,9 +6836,7 @@
                         <div class="perf-section">
                             <div class="perf-section-title">공간 소개</div>
                             <div class="perf-photo-gallery">${photos}</div>
-                            <div class="perf-desc-text" id="perfDescText" contenteditable="${canEdit}" spellcheck="false"
-                                style="margin-top:12px">${escapeHtml(savedDesc)}</div>
-                            ${canEdit ? `<button onclick="savePerfDesc()" style="margin-top:6px;padding:4px 12px;border-radius:6px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.78rem;font-family:inherit">저장</button>` : ''}
+                            <div class="perf-desc-text" id="perfDescText" style="margin-top:12px">${escapeHtml(savedDesc)}</div>
                         </div>
                         <div class="perf-section">
                             <div class="perf-section-title">요금 안내</div>
@@ -6869,18 +6851,6 @@
                 </div>`;
             renderPerfCal();
             if (_perfState.startSlot !== null && _perfState.endSlot !== null) renderPerfFee();
-        }
-
-        async function savePerfDesc() {
-            const el = document.getElementById('perfDescText');
-            if (!el || !supabaseClient) return;
-            const content = el.innerText;
-            const { error } = await supabaseClient
-                .from('app_settings')
-                .upsert({ key: 'perf_space_desc', content, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-            if (error) { alert('저장 실패: ' + error.message); return; }
-            _perfSpaceDesc = content;
-            alert('저장되었습니다. (모든 기기에 반영됩니다)');
         }
 
         function setPerfCalView(view) {
