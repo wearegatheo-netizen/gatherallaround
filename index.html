@@ -6795,12 +6795,28 @@
             const now = new Date();
             _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
             renderPerfStep1();
+            // 서버 소개글 로드 후, 아직 1단계 초기 상태면 다시 렌더(선택 진행 중이면 건드리지 않음)
+            loadPerfSpaceDesc().then(() => {
+                if (_perfState.step === 1 && _perfState.startSlot === null) renderPerfStep1();
+            });
+        }
+
+        // 공간 소개글: 서버(app_settings key='perf_space_desc')에서 로드해 모든 기기 공유.
+        // null=아직 미로드 / ''=서버에 값 없음 → 둘 다 기본 문구로 폴백.
+        let _perfSpaceDesc = null;
+        async function loadPerfSpaceDesc() {
+            if (_perfSpaceDesc !== null) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('app_settings').select('content').eq('key', 'perf_space_desc').maybeSingle();
+                _perfSpaceDesc = (!error && data && typeof data.content === 'string') ? data.content : '';
+            } catch (_) { _perfSpaceDesc = ''; }
         }
 
         function renderPerfStep1() {
             const container = document.getElementById('perf-step-container');
-            const savedDesc = localStorage.getItem('perf_space_desc') || PERF_SPACE_DESC_DEFAULT;
-            const canEdit = canApproveRes && canApproveRes();
+            const savedDesc = _perfSpaceDesc || PERF_SPACE_DESC_DEFAULT;
+            const canEdit = canPostNotice && canPostNotice(); // 서버 저장 권한(운영총괄·총괄)과 일치
             const photos = PERF_SPACE_PHOTOS.map(u => `<img src="${u}" alt="공간 사진" onerror="this.style.display='none'">`).join('');
             container.innerHTML = `
                 <div class="perf-layout">
@@ -6855,10 +6871,16 @@
             if (_perfState.startSlot !== null && _perfState.endSlot !== null) renderPerfFee();
         }
 
-        function savePerfDesc() {
+        async function savePerfDesc() {
             const el = document.getElementById('perfDescText');
-            if (el) localStorage.setItem('perf_space_desc', el.innerText);
-            alert('저장되었습니다.');
+            if (!el || !supabaseClient) return;
+            const content = el.innerText;
+            const { error } = await supabaseClient
+                .from('app_settings')
+                .upsert({ key: 'perf_space_desc', content, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            _perfSpaceDesc = content;
+            alert('저장되었습니다. (모든 기기에 반영됩니다)');
         }
 
         function setPerfCalView(view) {
