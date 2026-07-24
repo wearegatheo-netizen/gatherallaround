@@ -3239,6 +3239,9 @@
             if (key.startsWith('adminMember')) {
                 const el = document.getElementById('memberList');
                 if (el) renderAdminMemberListEl(el);
+            } else if (key === 'adminApproved' || key === 'adminPending') {
+                // 관리자 예약승인 목록은 #gatheOTabAdmin 에 렌더됨 → render()(viewContainer) 아닌 관리자탭 재렌더
+                renderGatheOAdmin();
             } else if (key.startsWith('member_') || key === 'statsRanking') {
                 renderMemberPanel();
             } else if (key.startsWith('block')) {
