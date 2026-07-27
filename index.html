@@ -33,6 +33,9 @@
     <meta property="og:url" content="https://gatherallaround.co.kr">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/icon.jpg">
+    <!-- 꾸불림체 라틴 청크 선행 로드 — 로딩 화면이 대체 글꼴로 뜨는 문제 방지.
+         crossorigin 필수(폰트 요청은 항상 CORS 익명 모드, 빼면 중복 다운로드) -->
+    <link rel="preload" href="/fonts/BMKkubulim-latin.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Pretendard Font -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -56,10 +59,20 @@
             --kakao-yellow: #FEE500;
         }
 
+        /* 자체 호스팅 + 라틴/한글 분할 — 로딩 화면("Gather all around")은 라틴 청크(26KB)만
+           받으면 되므로 첫 진입에서도 즉시 꾸불림체로 렌더된다. 한글 청크(991KB)는
+           unicode-range 덕에 한글이 실제로 그려질 때만 내려받는다. */
         @font-face {
             font-family: 'KkuBulLim';
-            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2410-1@1.0/BMkkubulimTTF-Regular.woff2') format('woff2');
+            src: url('/fonts/BMKkubulim-latin.woff2') format('woff2');
             font-weight: normal; font-style: normal; font-display: swap;
+            unicode-range: U+0000,U+000D,U+0020-007E,U+00A0-00A3,U+00A5,U+00A9,U+00AD-00AE,U+00B0-00B1,U+00B6-00B7,U+00BF,U+00D7,U+00F7,U+2002-2007,U+2009-200A,U+2010-2015,U+2018-2019,U+201C-201D,U+2020-2023,U+2025-2026,U+2032-2033,U+203B,U+20A9,U+20AC,U+2103,U+2109,U+2122,U+2190-2199,U+2212,U+2260,U+2264-2265;
+        }
+        @font-face {
+            font-family: 'KkuBulLim';
+            src: url('/fonts/BMKkubulim-korean.woff2') format('woff2');
+            font-weight: normal; font-style: normal; font-display: swap;
+            unicode-range: U+2329-232A,U+25A0-25A1,U+25AA,U+25C7,U+25CB,U+25E6,U+2605-2606,U+2661,U+2664-2665,U+2667,U+274C,U+2E3A-2E3B,U+3000,U+3008-3011,U+3014-3015,U+3131-3164,U+AC00-D7A3,U+FB00-FB04,U+FFE6;
         }
 
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
@@ -692,7 +705,7 @@
         #portalLoadingScreen { position:fixed; inset:0; background:#fff; z-index:99999; display:flex; align-items:center; justify-content:center; opacity:1; transition:opacity 0.35s ease; }
         body.dark #portalLoadingScreen { background:#111; }
         #portalLoadingScreen.fade-out { opacity:0; pointer-events:none; }
-        .portal-loading-text { font-family:'KkuBulLim',cursive; font-size:clamp(1.8rem,4vw,2.2rem); color:var(--wds-black); display:flex; align-items:center; gap:0; line-height:1; transform:translateY(-8px); }
+        .portal-loading-text { font-family:'KkuBulLim',sans-serif; font-size:clamp(1.8rem,4vw,2.2rem); color:var(--wds-black); display:flex; align-items:center; gap:0; line-height:1; transform:translateY(-8px); }
         body.dark .portal-loading-text { color:#fff; }
         .pll { display:inline-block; animation:portalLetterWobble 1s ease-in-out infinite; }
         .pll-space { display:inline-block; width:0.35em; }
@@ -3294,12 +3307,20 @@
                 el.id = 'portalLoadingScreen';
                 el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
                 document.body.appendChild(el);
+                // 꾸불림체가 아직 안 왔으면 최대 300ms까지만 기다렸다가 카운트다운 시작.
+                // (preload한 라틴 청크는 보통 그 전에 도착 — 이건 극단적으로 느린 회선용 안전망)
+                const fontReady = (document.fonts && document.fonts.load)
+                    ? Promise.race([
+                          document.fonts.load('1em KkuBulLim', text).catch(() => {}),
+                          new Promise(r => setTimeout(r, 300))
+                      ])
+                    : Promise.resolve();
                 // 최대 600ms — 인증이 더 빠르면 loginUI/logoutUI에서 먼저 제거
-                setTimeout(() => {
+                fontReady.then(() => setTimeout(() => {
                     if (!el.parentNode) return;
                     el.classList.add('fade-out');
                     setTimeout(() => el.remove(), 380);
-                }, 600);
+                }, 600));
             })();
             initServiceWorker();
             initInstallBanner();
