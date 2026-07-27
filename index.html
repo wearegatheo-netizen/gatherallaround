@@ -1475,26 +1475,26 @@
     <div id="auto-toast"></div>
 
     <!-- 앱 설치 안내 배너 (PWA) -->
-    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:10000;background:#fff;border:1px solid var(--wds-gray-200);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
+    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:10000;background:var(--wds-white);border:1px solid var(--wds-gray-300);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
         <div style="display:flex;align-items:center;gap:11px">
             <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
             <div style="flex:1;min-width:0">
-                <div id="installBannerTitle" style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-800)">앱으로 설치하기</div>
-                <div id="installBannerDesc" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:1px">홈 화면에 추가해 앱처럼 빠르게 이용하세요.</div>
+                <div id="installBannerTitle" style="font-size:0.92rem;font-weight:800;color:var(--wds-gray-900)">앱으로 설치하기</div>
+                <div id="installBannerDesc" style="font-size:0.76rem;color:var(--wds-gray-700);margin-top:1px">홈 화면에 추가해 앱처럼 빠르게 이용하세요.</div>
             </div>
-            <button type="button" onclick="dismissInstallBanner()" aria-label="닫기" style="flex:none;width:26px;height:26px;border:none;background:var(--wds-gray-100);border-radius:50%;cursor:pointer;color:var(--wds-gray-500);font-size:0.95rem;line-height:1">✕</button>
+            <button type="button" onclick="dismissInstallBanner()" aria-label="닫기" style="flex:none;width:26px;height:26px;border:none;background:var(--wds-gray-100);border-radius:50%;cursor:pointer;color:var(--wds-gray-700);font-size:0.95rem;line-height:1">✕</button>
         </div>
         <div id="installBannerActions" style="margin-top:11px">
             <button type="button" id="installBannerBtn" onclick="triggerInstall()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">설치하기</button>
         </div>
-        <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+        <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-700);line-height:1.55;background:var(--wds-gray-100);border-radius:9px;padding:10px 12px">
             <div>① 하단 <strong>공유</strong> 버튼 <span style="display:inline-block;border:1px solid var(--wds-gray-300);border-radius:5px;padding:0 5px;font-size:0.72rem">􀈂</span> 을 누르세요.</div>
             <div style="margin-top:4px">② <strong>홈 화면에 추가</strong>를 선택하세요.</div>
         </div>
         <div id="installBannerInappBtn" style="display:none;margin-top:11px">
             <button type="button" onclick="openInExternalBrowser()" style="width:100%;padding:10px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">기본 브라우저로 열기</button>
         </div>
-        <div id="installBannerInappGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-600);line-height:1.55;background:var(--wds-gray-50);border-radius:9px;padding:10px 12px">
+        <div id="installBannerInappGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-700);line-height:1.55;background:var(--wds-gray-100);border-radius:9px;padding:10px 12px">
             앱 설치는 <strong>Safari/Chrome 등 기본 브라우저</strong>에서만 가능해요.<br>
             우측 하단(또는 우측 상단) <strong>⋯ 메뉴</strong>를 눌러 <strong>‘다른 브라우저로 열기’</strong>를 선택해 주세요.
         </div>
