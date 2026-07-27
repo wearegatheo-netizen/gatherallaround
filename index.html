@@ -1617,6 +1617,15 @@
 
             <!-- 회원가입 폼 -->
             <div id="email-signup-form" class="email-form hidden">
+                <!-- 사전 가입 신청서 확인 — '아니오'면 아래 폼 전체가 잠긴다 -->
+                <div class="instrument-section" id="signupPreformSection">
+                    <div class="form-label-text">사전에 가입 신청서(구글폼)를 작성하셨나요? <span style="color:#e74c3c">*</span></div>
+                    <div class="instrument-buttons" id="signupPreformBtns">
+                        <button type="button" class="inst-btn" data-preform="yes" onclick="selectSignupPreform('yes')">예</button>
+                        <button type="button" class="inst-btn" data-preform="no" onclick="selectSignupPreform('no')">아니오</button>
+                    </div>
+                </div>
+
                 <input type="text" id="signupName" placeholder="이름 (실명)" autocomplete="name">
                 <input type="tel" id="signupPhone" placeholder="전화번호 (010-0000-0000)" autocomplete="tel">
                 <input type="email" id="signupEmail" placeholder="이메일" autocomplete="email">
@@ -11215,7 +11224,66 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             document.getElementById('email-signup-form').classList.remove('hidden');
             const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
+            resetSignupPreform();
             setTimeout(() => renderMtEditUI('mtEdit_signup', null), 0);
+        }
+
+        // 사전 가입 신청서(구글폼) 작성 여부. null=미선택, true=예, false=아니오
+        let _signupPreformOk = null;
+
+        // 질문 아래의 가입 폼 전체를 잠그거나 푼다(질문 버튼 자신은 항상 살려둔다).
+        function _setSignupFormLocked(locked) {
+            const form = document.getElementById('email-signup-form');
+            if (!form) return;
+            form.querySelectorAll('input, button, select, textarea').forEach(el => {
+                if (el.closest('#signupPreformSection')) return;
+                el.disabled = locked;
+            });
+            // 질문 영역은 흐리지 않는다 — 답을 다시 고를 수 있어야 한다.
+            form.querySelectorAll('.instrument-section, .privacy-box, .privacy-label, input, button')
+                .forEach(el => {
+                    if (el.closest('#signupPreformSection')) return;
+                    el.style.opacity = locked ? '0.45' : '';
+                });
+        }
+
+        function resetSignupPreform() {
+            _signupPreformOk = null;
+            document.querySelectorAll('#signupPreformBtns .inst-btn').forEach(b => b.classList.remove('selected'));
+            _setSignupFormLocked(false);
+        }
+
+        function selectSignupPreform(answer) {
+            const yes = answer === 'yes';
+            _signupPreformOk = yes;
+            document.querySelectorAll('#signupPreformBtns .inst-btn').forEach(b =>
+                b.classList.toggle('selected', b.dataset.preform === answer));
+            const res = document.getElementById('signupResult');
+            if (res) res.textContent = '';
+            _setSignupFormLocked(!yes);
+            if (!yes) showSignupPreformNotice();
+        }
+
+        // 가입 불가 안내 — 확인을 누르면 로그인 화면으로 돌아간다.
+        // 색은 팔레트 변수로만 지정할 것: cssText 대입은 style 속성을 재직렬화해
+        // body.dark의 [style*="background:#fff"] 일괄 보정이 걸리지 않는다.
+        function showSignupPreformNotice() {
+            document.getElementById('signupPreformNotice')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'signupPreformNotice';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+            const inner = document.createElement('div');
+            inner.style.cssText = 'background:var(--wds-white);border-radius:14px;max-width:360px;width:100%;padding:24px 22px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:inherit;text-align:center';
+            inner.innerHTML = `
+                <div style="font-size:1.02rem;font-weight:700;margin-bottom:10px;color:var(--wds-black)">📝 가입 신청서 확인</div>
+                <div style="font-size:0.9rem;line-height:1.6;color:var(--wds-gray-900);margin-bottom:18px">운영진에게 문의하여 가입신청서를 먼저 작성해주세요.</div>
+                <button type="button" class="preform-ok" style="width:100%;padding:11px;border-radius:9px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-weight:700;font-size:0.9rem;font-family:inherit">확인</button>`;
+            overlay.appendChild(inner);
+            document.body.appendChild(overlay);
+            inner.querySelector('.preform-ok').onclick = () => {
+                overlay.remove();
+                showLoginForm();
+            };
         }
 
         function showLoginForm() {
@@ -11224,6 +11292,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             document.getElementById('email-login-form').classList.remove('hidden');
             const r1 = document.getElementById('loginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('signupResult'); if (r2) r2.textContent = '';
+            resetSignupPreform();
         }
 
         function showFindId() {
@@ -11329,6 +11398,13 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const res = document.getElementById('signupResult');
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
+
+            // 폼이 잠겨 있어 버튼도 비활성이지만, 우회 제출을 막는 백스톱
+            if (_signupPreformOk !== true) {
+                if (_signupPreformOk === false) { showSignupPreformNotice(); return; }
+                showErr('가입 신청서 작성 여부를 선택해주세요.');
+                return;
+            }
 
             if (!name || !phone || !email || !password) { showErr('모든 항목을 입력해주세요.'); return; }
             if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) { showErr('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return; }
