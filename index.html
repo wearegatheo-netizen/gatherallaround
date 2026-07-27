@@ -6586,6 +6586,17 @@
             const hasMembers = state.participantIds && state.participantIds.length > 0;
             if (!hasMembers && !etcFinal) { alert('참여 멤버를 1명 이상 추가하거나 기타란에 이름을 적어주세요.'); return; }
 
+            // 시간을 고르면 본인이 자동으로 담기므로(위 slot 선택 로직), 아무도 더 추가하지
+            // 않으면 '혼자 예약'이 된다. 실수인 경우가 많아 제출 전에 한 번 확인받는다.
+            if (hasMembers && state.participantIds.length === 1 && !etcFinal) {
+                const me = (state.cachedMembers || []).find(m =>
+                    m.kakao_id === (state.user && state.user.kakaoId) || m.email === (state.user && state.user.email));
+                if (me && state.participantIds[0] === me.id) {
+                    const ok = confirm('참여 멤버가 본인 한 명뿐입니다.\n다른 참여 멤버를 추가하지 않고 이대로 예약할까요?\n\n(참여 멤버는 참여 횟수 집계에 반영됩니다)');
+                    if (!ok) return;
+                }
+            }
+
             // 일반 멤버: 오늘로부터 2개월 이내만 예약 가능
             if (!canApproveRes()) {
                 const maxDate = new Date();
