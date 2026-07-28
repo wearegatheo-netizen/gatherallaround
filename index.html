@@ -5287,7 +5287,6 @@
             const subtabDefs = [
                 { key: 'approval', label: '⏳ 예약승인' },
                 { key: 'members', label: '👥 멤버현황' },
-                ...(canApproveRes() ? [{ key: 'polls', label: '🗳️ 투표' }] : []),
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
                 ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
                 ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }, { key: 'perfbooking', label: '🎭 공연대관' }] : [])
@@ -5312,10 +5311,6 @@
                 renderAdminBlocksSection(content);
             } else if (state.adminTab === 'bgm') {
                 renderAdminBgmSection(content);
-            } else if (state.adminTab === 'polls') {
-                content.id = 'adminPollContent';
-                await fetchPolls(); await fetchPollVotes();
-                renderAdminPollsSection(content);
             } else if (state.adminTab === 'push') {
                 await renderAdminPushSection(content);
             } else if (state.adminTab === 'docs') {
@@ -12955,9 +12950,10 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             max-height: 320px;
             overflow-y: auto;
             /* backdrop-filter 사용 금지 — 아래 #bgm-player 주석 참고.
-               불투명색을 쓴다: 반투명이면 닫힌 패널·본문이 바 너머로 비쳐 보인다. */
-            background: #0F0F0F;
-            border-top: 1px solid rgba(255,255,255,0.08);
+               불투명색을 쓴다: 반투명이면 닫힌 패널·본문이 바 너머로 비쳐 보인다.
+               팔레트 변수 사용 — 라이트/다크 모드에 따라 톤이 함께 바뀐다. */
+            background: var(--wds-white);
+            border-top: 1px solid var(--wds-gray-300);
             z-index: 9998;
             font-family: 'Pretendard', -apple-system, sans-serif;
             transform: translateY(100%);
@@ -12974,41 +12970,41 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
         #bgm-playlist-panel::-webkit-scrollbar { width: 4px; }
         #bgm-playlist-panel::-webkit-scrollbar-track { background: transparent; }
-        #bgm-playlist-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+        #bgm-playlist-panel::-webkit-scrollbar-thumb { background: var(--wds-gray-300); border-radius: 2px; }
         .bgm-pl-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 12px 20px 8px;
-            font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.4);
+            font-size: 0.75rem; font-weight: 700; color: var(--wds-gray-500);
             letter-spacing: 0.08em; text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid var(--wds-gray-300);
             position: sticky; top: 0;
-            background: rgba(15,15,15,0.97);
+            background: var(--wds-white);
         }
         .bgm-pl-item {
             display: flex; align-items: center; gap: 12px;
             padding: 10px 20px;
             cursor: pointer;
             transition: background 0.12s;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid var(--wds-gray-100);
         }
-        .bgm-pl-item:hover { background: rgba(255,255,255,0.06); }
-        .bgm-pl-item.active { background: rgba(51,102,255,0.15); }
+        .bgm-pl-item:hover { background: var(--wds-gray-100); }
+        .bgm-pl-item.active { background: var(--wds-primary-light); }
         .bgm-pl-num {
             width: 20px; text-align: center; flex-shrink: 0;
-            font-size: 0.75rem; color: rgba(255,255,255,0.3);
+            font-size: 0.75rem; color: var(--wds-gray-500);
         }
-        .bgm-pl-item.active .bgm-pl-num { color: #3366FF; }
+        .bgm-pl-item.active .bgm-pl-num { color: var(--wds-primary); }
         .bgm-pl-name {
-            flex: 1; font-size: 0.85rem; color: rgba(255,255,255,0.8);
+            flex: 1; font-size: 0.85rem; color: var(--wds-gray-900);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .bgm-pl-item.active .bgm-pl-name { color: #fff; font-weight: 600; }
+        .bgm-pl-item.active .bgm-pl-name { color: var(--wds-black); font-weight: 600; }
         .bgm-playing-bars {
             display: none; align-items: flex-end; gap: 2px; height: 14px; flex-shrink: 0;
         }
         .bgm-pl-item.active.playing .bgm-playing-bars { display: flex; }
         .bgm-playing-bars span {
-            width: 3px; background: #3366FF; border-radius: 1px;
+            width: 3px; background: var(--wds-primary); border-radius: 1px;
             animation: bgmBar 0.8s ease-in-out infinite alternate;
         }
         .bgm-playing-bars span:nth-child(2) { animation-delay: 0.2s; }
@@ -13023,37 +13019,38 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             /* backdrop-filter를 쓰지 않는다. iOS Safari가 position:fixed + backdrop-filter
                요소를 별도 합성 레이어로 승격시킨 뒤, 스크롤·주소창 전환 중 갱신 전 위치에
                그려서 바가 화면 중간에 떠 보이는 일이 있었다.
-               블러 없이 반투명만 남기면 뒤 내용이 잔상으로 비치므로 불투명색을 쓴다. */
-            background: #111111;
+               블러 없이 반투명만 남기면 뒤 내용이 잔상으로 비치므로 불투명색을 쓴다.
+               팔레트 변수 사용 — 라이트/다크 모드에 따라 톤이 함께 바뀐다. */
+            background: var(--wds-white);
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 0 20px;
             z-index: 9999;
-            border-top: 1px solid rgba(255,255,255,0.08);
+            border-top: 1px solid var(--wds-gray-300);
             font-family: 'Pretendard', -apple-system, sans-serif;
         }
         #bgm-title {
             flex: 1;
             font-size: 0.8rem;
-            color: rgba(255,255,255,0.75);
+            color: var(--wds-gray-700);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 0;
             cursor: pointer;
         }
-        #bgm-title:hover { color: #fff; }
+        #bgm-title:hover { color: var(--wds-black); }
         #bgm-title span {
             font-size: 0.7rem;
-            color: rgba(255,255,255,0.4);
+            color: var(--wds-gray-500);
             margin-right: 6px;
         }
         .bgm-btn {
             background: none;
             border: none;
             cursor: pointer;
-            color: rgba(255,255,255,0.8);
+            color: var(--wds-gray-700);
             padding: 6px;
             border-radius: 50%;
             display: flex;
@@ -13062,12 +13059,12 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             transition: background 0.15s, color 0.15s;
             flex-shrink: 0;
         }
-        .bgm-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
-        .bgm-btn.active-btn { color: #3366FF; }
+        .bgm-btn:hover { background: var(--wds-gray-100); color: var(--wds-black); }
+        .bgm-btn.active-btn { color: var(--wds-primary); }
         .bgm-btn svg { display: block; }
         #bgm-volume {
             width: 72px; height: 3px;
-            cursor: pointer; accent-color: #3366FF; flex-shrink: 0;
+            cursor: pointer; accent-color: var(--wds-primary); flex-shrink: 0;
         }
         @media (max-width: 480px) {
             #bgm-volume { width: 52px; }
