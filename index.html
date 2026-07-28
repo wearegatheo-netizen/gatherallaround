@@ -13081,12 +13081,14 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
 
         /* ── GatheO 하단 탭바 ──────────────────────────────
            backdrop-filter 사용 금지 — 위 #bgm-player 주석 참고(iOS fixed+backdrop-filter
-           합성 레이어 버그). 불투명 팔레트 배경만 사용한다. */
+           합성 레이어 버그). 불투명 팔레트 배경만 사용한다.
+           --gnav-h 하나로 탭바 높이와 그 위에 얹히는 요소들(BGM·패널·배너·본문 여백)의
+           오프셋을 함께 관리한다 — 높이를 바꿀 땐 이 변수만 수정. */
+        :root { --gnav-h: calc(68px + env(safe-area-inset-bottom, 0px)); }
         #gatheo-bottom-nav {
             display: none;                          /* body.gatheo-nav에서만 표시 */
             position: fixed; left: 0; right: 0; bottom: 0;
-            height: calc(56px + env(safe-area-inset-bottom, 0px));
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+            height: var(--gnav-h);
             background: var(--wds-white);
             border-top: 1px solid var(--wds-gray-300);
             z-index: 9999;                          /* BGM 바와 동급, 모달(99999)·installBanner(10000) 아래 */
@@ -13096,7 +13098,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         .gnav-item {
             flex: 1 1 0; min-width: 0;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-            background: none; border: none; padding: 6px 0 4px;
+            background: none; border: none;
+            /* 아래 여유(홈 인디케이터·엄지 영역)를 버튼 패딩으로 줘서 터치 영역에 포함시킨다 */
+            padding: 6px 0 calc(16px + env(safe-area-inset-bottom, 0px));
             cursor: pointer; color: var(--wds-gray-500);
             -webkit-tap-highlight-color: transparent; font-family: inherit;
         }
@@ -13106,11 +13110,11 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         .gnav-label { font-size: 0.62rem; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; line-height: 1; }
 
         /* GatheO 화면에서만: 본문 하단 여백 확장 + BGM 스택 상승 + 배너 연동 */
-        body.gatheo-nav { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
-        body.gatheo-nav #bgm-player { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
-        body.gatheo-nav #bgm-playlist-panel { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+        body.gatheo-nav { padding-bottom: calc(var(--gnav-h) + 56px); }
+        body.gatheo-nav #bgm-player { bottom: var(--gnav-h); }
+        body.gatheo-nav #bgm-playlist-panel { bottom: calc(var(--gnav-h) + 56px); }
         #installBanner { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
-        body.gatheo-nav #installBanner { bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
+        body.gatheo-nav #installBanner { bottom: calc(var(--gnav-h) + 72px); }
     </style>
 
     <!-- GatheO 하단 탭바 — body.gatheo-nav일 때만 표시 (loginUI/_showGatheoMain에서 부여, _hideAllScreens에서 제거) -->
