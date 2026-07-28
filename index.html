@@ -572,7 +572,9 @@
         }
         .submit-btn:hover { background: var(--wds-primary-hover); }
 
-        #comments_container { width: 100%; max-width: 800px; padding: 32px; background: var(--wds-gray-100); border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); }
+        /* 예약 등 다른 탭의 .section-box 카드와 동일한 스킨 — 독립 화면이던 시절의
+           shadow-lg/패딩 32px를 탭 카드 규격으로 통일 */
+        #comments_container { width: 100%; max-width: 800px; padding: 20px 24px; background: var(--wds-gray-100); border-radius: var(--wds-radius-l); border: 1px solid var(--wds-gray-300); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         #comments_container h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
 
         .comment-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
@@ -625,7 +627,9 @@
         .board-row-replies { flex-shrink: 0; font-size: 0.72rem; color: var(--wds-primary); font-weight: 700; }
         .board-row-meta { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: var(--wds-gray-500); flex-shrink: 0; white-space: nowrap; }
         .board-row-author { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
-        .board-post-expand { padding: 6px 14px 12px; background: var(--wds-gray-100); color: var(--wds-black); }
+        .board-post-expand { padding: 4px 16px 14px; background: var(--wds-gray-100); color: var(--wds-black); border-top: 1px solid var(--wds-gray-300); }
+        .board-post-expand > .comment-item { padding: 10px 0 4px; border-bottom: none; }
+        .comment-date-foot { margin-left: auto; align-self: center; font-size: 0.72rem; color: var(--wds-gray-500); }
         @media (max-width: 480px) {
             .board-row { flex-direction: column; align-items: stretch; gap: 6px; }
             .board-row-head { width: 100%; }
@@ -1109,7 +1113,7 @@
         @media (max-width: 1023px) and (min-width: 769px) {
             body { padding: 24px 12px; }
             .container { padding: 28px 24px; max-width: 760px; }
-            #comments_container { padding: 24px; max-width: 760px; }
+            #comments_container { padding: 20px 24px; max-width: 760px; }
             .tabs { gap: 16px; }
             .weekly-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         }
@@ -12628,7 +12632,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             });
             Object.keys(replyMap).forEach(p => replyMap[p].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)));
 
-            const renderItem = (c, isReply, parentComment) => {
+            // isExpandParent: 접힌 행을 펼친 본문 — 제목·작성자·날짜는 바로 위 행에 이미
+            // 보이므로 반복하지 않고, 전체 작성일시만 액션 줄 오른쪽에 작게 표시한다.
+            const renderItem = (c, isReply, parentComment, isExpandParent) => {
                 const date = new Date(c.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 const isMine = state.user && state.user.kakaoId === c.kakao_id;
                 const isLiked = liked.includes(String(c.id));
@@ -12642,12 +12648,14 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 }
                 // 답글은 제목 없음. 게시글은 제목/본문 분리
                 const { title, body } = isReply ? { title: '', body: String(c.content || '').replace(/\x1F/g, '') } : parseBoardPost(c.content);
-                const titleHtml = (!isReply && title) ? `<div class="board-post-title">${escapeHtml(title)}</div>` : '';
+                const titleHtml = (!isReply && !isExpandParent && title) ? `<div class="board-post-title">${escapeHtml(title)}</div>` : '';
+                const authorHtml = isExpandParent ? '' : `<div class="comment-author"><div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>`;
+                const footDateHtml = isExpandParent ? `<span class="comment-date-foot">${date}</span>` : '';
                 const canEdit = isMine && !isReply;
                 return `
                     <div class="comment-item${isReply ? ' comment-reply' : ''}" id="comment-wrap-${c.id}">
                         <div style="flex:1;min-width:0">
-                            <div class="comment-author"><div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>
+                            ${authorHtml}
                             <div id="comment-view-${c.id}">
                                 ${titleHtml}
                                 <div class="comment-content">${escapeHtml(body)}</div>
@@ -12662,9 +12670,10 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                                 </div>
                             </div>
                             <div class="comment-actions">
-                                <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">❤️ 좋아요 ${likesCount}개</button>
-                                ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">💬 답글</button>` : ''}
-                                ${canEdit ? `<button class="reply-btn" onclick="startEditComment('${c.id}')">✏️ 수정</button>` : ''}
+                                <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">${isLiked ? '♥' : '♡'} 좋아요 ${likesCount}</button>
+                                ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">답글 달기</button>` : ''}
+                                ${canEdit ? `<button class="reply-btn" onclick="startEditComment('${c.id}')">수정</button>` : ''}
+                                ${footDateHtml}
                             </div>
                             ${!isReply ? `<div id="reply-form-${c.id}" class="reply-form hidden">
                                 <textarea id="replyInput-${c.id}" placeholder="답글을 입력하세요..."></textarea>
@@ -12686,17 +12695,17 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         <div class="board-row-head">
                             <span class="board-row-chevron" id="board-chevron-${p.id}">▾</span>
                             <span class="board-row-title">${escapeHtml(displayTitle)}</span>
-                            ${replies.length>0?`<span class="board-row-replies">💬 ${replies.length}</span>`:''}
+                            ${replies.length>0?`<span class="board-row-replies">답글 ${replies.length}</span>`:''}
                         </div>
                         <div class="board-row-meta">
                             <span class="board-row-author">${escapeHtml(p.user_name)}</span>
                             <span>${shortDate}</span>
-                            <span class="board-row-likes">❤️ ${p.likes||0}</span>
+                            <span class="board-row-likes">♥ ${p.likes||0}</span>
                         </div>
                     </div>
                     <div id="board-post-${p.id}" class="hidden board-post-expand">
-                        ${renderItem(p, false)}
-                        ${replies.length > 0 ? `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▼ 답글 ${replies.length}개 보기</span></div><div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>` : ''}
+                        ${renderItem(p, false, null, true)}
+                        ${replies.length > 0 ? `<div class="reply-toggle" onclick="toggleReplies('${p.id}')"><span id="reply-toggle-text-${p.id}">▾ 답글 ${replies.length}개 보기</span></div><div class="comment-replies hidden" id="replies-${p.id}">${replies.map(r => renderItem(r, true, p)).join('')}</div>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -12715,7 +12724,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const willHide = !repliesEl.classList.contains('hidden');
             repliesEl.classList.toggle('hidden');
             const count = repliesEl.querySelectorAll('.comment-reply').length;
-            toggleEl.textContent = willHide ? `▼ 답글 ${count}개 보기` : `▲ 답글 ${count}개 숨기기`;
+            toggleEl.textContent = willHide ? `▾ 답글 ${count}개 보기` : `▴ 답글 ${count}개 접기`;
         }
 
         function toggleBoardPost(id) {
