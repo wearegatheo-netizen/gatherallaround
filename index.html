@@ -644,12 +644,6 @@
         /* 공지사항 */
         #schedule_banner { margin-bottom: 12px; }
         #notice_container { margin-bottom: 20px; }
-        #livePollBanner { margin-bottom: 12px; }
-        .live-poll-banner-inner { display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:10px 14px; border-radius:var(--wds-radius-m); cursor:pointer; font-size:0.88rem; font-weight:600; transition:opacity 0.2s; }
-        .live-poll-banner-inner:hover { opacity:0.88; }
-        .live-poll-banner-icon { font-size:1.1rem; flex-shrink:0; animation:pulse 2s infinite; }
-        .live-poll-banner-text { flex:1; line-height:1.4; }
-        .live-poll-banner-arrow { font-size:0.8rem; opacity:0.85; flex-shrink:0; }
         .find-link-btn { background: none; border: none; color: var(--wds-gray-500); font-size: 0.82rem; cursor: pointer; padding: 0; font-family: inherit; }
         .find-link-btn:hover { color: var(--wds-primary); text-decoration: underline; }
         .notice-card { padding: 16px 20px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--wds-radius-m); margin-bottom: 10px; }
@@ -1475,7 +1469,7 @@
     <div id="auto-toast"></div>
 
     <!-- 앱 설치 안내 배너 (PWA) -->
-    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:440px;z-index:10000;background:var(--wds-white);border:1px solid var(--wds-gray-300);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
+    <div id="installBanner" style="display:none;position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:440px;z-index:10000;background:var(--wds-white);border:1px solid var(--wds-gray-300);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,0.18);padding:14px 14px 12px;box-sizing:border-box">
         <div style="display:flex;align-items:center;gap:11px">
             <img src="/icon-192.png" alt="" style="width:42px;height:42px;border-radius:10px;flex:none">
             <div style="flex:1;min-width:0">
@@ -2004,17 +1998,7 @@
 
         <!-- Banners -->
         <div id="schedule_banner" class="hidden" style="padding:12px 20px 0"></div>
-        <div id="livePollBanner" class="hidden" style="padding:12px 20px 0"></div>
         <div id="notice_container" class="hidden" style="padding:12px 20px 0"></div>
-
-        <!-- Tab bar -->
-        <div class="community-tab-bar" id="gatheoTabBar" style="margin:0 16px">
-            <button class="community-tab active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">예약</button>
-            <button class="community-tab" id="gatheoTab-member" onclick="setGatheOTab('member')">멤버 & 팀 <span id="livePollBadge" style="display:none;background:#ff4d4f;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;line-height:1.4;animation:pulse 2s infinite">🔴</span></button>
-            <button class="community-tab" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">마이페이지</button>
-            <button class="community-tab" id="gatheoTab-activity" onclick="setGatheOTab('activity')">활동기록</button>
-            <button class="community-tab hidden" id="gatheoTab-admin" onclick="setGatheOTab('admin')">관리자</button>
-        </div>
 
         <!-- Dummy spans for backwards compat (logoutUI references these) -->
         <span id="memberPanelArrow" style="display:none"></span>
@@ -2087,7 +2071,7 @@
                     <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
                     <div class="admin-subtab" onclick="setMemberTab('schedule')">일정표</div>
                     <div class="admin-subtab" onclick="setMemberTab('stats')">참여횟수</div>
-                    <div class="admin-subtab" onclick="setMemberTab('votes')">투표</div>
+                    <div class="admin-subtab" onclick="setMemberTab('activity')">활동기록</div>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -2101,17 +2085,11 @@
             </div>
         </div>
 
-        <!-- Tab body: 활동기록 -->
-        <div id="gatheOTabActivity" class="gatheo-tab-body hidden">
-            <div id="driveGalleryRoot"></div>
-        </div>
-
         <!-- Tab body: 관리자 -->
         <div id="gatheOTabAdmin" class="gatheo-tab-body hidden"></div>
-    </div>
 
-    <!-- Comments -->
-    <div id="comments_container" class="hidden">
+        <!-- Tab body: 게시판 (자유게시판 — main-content 밖 상시 노출에서 하단 탭바의 독립 탭으로 이동) -->
+        <div id="comments_container" class="hidden" style="margin:16px 4px 48px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
             <h2 style="margin:0">📋 자유게시판</h2>
             <button type="button" id="boardWriteToggleBtn" onclick="toggleBoardWriteForm()" style="padding:7px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:8px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit">✏️ 글쓰기</button>
@@ -2127,6 +2105,7 @@
             </div>
         </div>
         <div id="commentList"></div>
+    </div>
     </div>
 
     <!-- Scripts -->
@@ -2235,7 +2214,7 @@
             document.body.classList.remove('fullwidth-view');
             _hideAllScreens();
             document.getElementById('main-content').classList.remove('hidden');
-            document.getElementById('comments_container').classList.remove('hidden');
+            document.body.classList.add('gatheo-nav');
             document.getElementById('userNameDisplay').textContent = nickname;
             document.getElementById('userNameInput').value = nickname;
             
@@ -2461,7 +2440,7 @@
         // --- GatheO tab navigation ---
         function setGatheOTab(tab) {
             state.gatheoTab = tab;
-            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', mypage: 'gatheOTabMypage', activity: 'gatheOTabActivity', admin: 'gatheOTabAdmin' };
+            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', board: 'comments_container', mypage: 'gatheOTabMypage', admin: 'gatheOTabAdmin' };
             Object.entries(map).forEach(([t, id]) => {
                 const btn = document.getElementById('gatheoTab-' + t);
                 const body = document.getElementById(id);
@@ -2477,9 +2456,8 @@
                 renderMypagePanel();
             } else if (tab === 'admin') {
                 renderGatheOAdmin();
-            } else if (tab === 'activity') {
-                window.__driveStack = [];
-                renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
+            } else if (tab === 'board') {
+                fetchComments();
             }
         }
 
@@ -3781,7 +3759,7 @@
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
             const subtabs = document.querySelectorAll('#memberPanelContent .admin-subtab');
-            const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'votes'];
+            const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
         }
@@ -3793,8 +3771,10 @@
                 await renderMembersTab(view);
             } else if (state.memberPanelTab === 'stats') {
                 await renderParticipationStatsTab(view);
-            } else if (state.memberPanelTab === 'votes') {
-                await renderVotesTab(view);
+            } else if (state.memberPanelTab === 'activity') {
+                view.innerHTML = '<div id="driveGalleryRoot"></div>';
+                window.__driveStack = [];
+                renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
             } else if (state.memberPanelTab === 'docs') {
                 renderDocsPage(view);
             } else if (state.memberPanelTab === 'schedule') {
@@ -6687,9 +6667,11 @@
         let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
 
         // 모든 최상위 화면 컨테이너 — 화면 전환 시 이전 화면이 남는(누수) 버그 방지용 일괄 숨김
-        const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','comments_container','notice_container','band-news-page','performance-booking-page','pending-screen'];
+        const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','notice_container','band-news-page','performance-booking-page','pending-screen'];
         function _hideAllScreens() {
             _ALL_SCREEN_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            // GatheO 하단 탭바(+BGM 스택·본문 여백)는 GatheO 메인에서만 — 모든 화면 전환이 여길 거치므로 여기가 유일한 해제 지점
+            document.body.classList.remove('gatheo-nav');
         }
 
         // 로그인된 GatheO 메인 뷰를 (재-fetch 없이) 다시 표시 — 뒤로/앞으로 복원용
@@ -6698,7 +6680,7 @@
             document.body.classList.remove('fullwidth-view');
             _hideAllScreens();
             document.getElementById('main-content').classList.remove('hidden');
-            document.getElementById('comments_container').classList.remove('hidden');
+            document.body.classList.add('gatheo-nav');
             document.getElementById('notice_container').classList.remove('hidden');
         }
 
@@ -7813,6 +7795,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         async function fetchCommunityMeetings() {
+            if (!supabaseClient) return;
             const { data, error } = await supabaseClient
                 .from('community_meetings')
                 .select('*')
@@ -11553,11 +11536,6 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             }
         }
 
-        function goToVotesTab() {
-            setGatheOTab('member');
-            setMemberTab('votes');
-        }
-
         async function fetchPollVotes() {
             if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('poll_votes').select('*');
@@ -13097,7 +13075,64 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             #bgm-playlist-panel { max-height: 260px; }
         }
         body { padding-bottom: 56px; }
+
+        /* ── GatheO 하단 탭바 ──────────────────────────────
+           backdrop-filter 사용 금지 — 위 #bgm-player 주석 참고(iOS fixed+backdrop-filter
+           합성 레이어 버그). 불투명 팔레트 배경만 사용한다. */
+        #gatheo-bottom-nav {
+            display: none;                          /* body.gatheo-nav에서만 표시 */
+            position: fixed; left: 0; right: 0; bottom: 0;
+            height: calc(56px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            background: var(--wds-white);
+            border-top: 1px solid var(--wds-gray-300);
+            z-index: 9999;                          /* BGM 바와 동급, 모달(99999)·installBanner(10000) 아래 */
+            font-family: 'Pretendard', -apple-system, sans-serif;
+        }
+        body.gatheo-nav #gatheo-bottom-nav { display: flex; }
+        .gnav-item {
+            flex: 1 1 0; min-width: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            background: none; border: none; padding: 6px 0 4px;
+            cursor: pointer; color: var(--wds-gray-500);
+            -webkit-tap-highlight-color: transparent; font-family: inherit;
+        }
+        .gnav-item.active { color: var(--wds-primary); }
+        .gnav-ico { display: block; height: 24px; }
+        .gnav-ico svg { display: block; }
+        .gnav-label { font-size: 0.62rem; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; line-height: 1; }
+
+        /* GatheO 화면에서만: 본문 하단 여백 확장 + BGM 스택 상승 + 배너 연동 */
+        body.gatheo-nav { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+        body.gatheo-nav #bgm-player { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+        body.gatheo-nav #bgm-playlist-panel { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+        #installBanner { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+        body.gatheo-nav #installBanner { bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
     </style>
+
+    <!-- GatheO 하단 탭바 — body.gatheo-nav일 때만 표시 (loginUI/_showGatheoMain에서 부여, _hideAllScreens에서 제거) -->
+    <nav id="gatheo-bottom-nav">
+        <button type="button" class="gnav-item active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/></svg></span>
+            <span class="gnav-label">예약</span>
+        </button>
+        <button type="button" class="gnav-item" id="gatheoTab-member" onclick="setGatheOTab('member')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M15.5 5.7a3.2 3.2 0 0 1 0 5.6"/><path d="M17.5 14.9c1.8.7 3 2.4 3 4.6"/></svg></span>
+            <span class="gnav-label">멤버&amp;팀</span>
+        </button>
+        <button type="button" class="gnav-item" id="gatheoTab-board" onclick="setGatheOTab('board')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H12l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg></span>
+            <span class="gnav-label">게시판</span>
+        </button>
+        <button type="button" class="gnav-item" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.5 3.1-5.8 7-5.8s7 2.3 7 5.8"/></svg></span>
+            <span class="gnav-label">마이페이지</span>
+        </button>
+        <button type="button" class="gnav-item hidden" id="gatheoTab-admin" onclick="setGatheOTab('admin')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M17 7h3M4 12h3M11 12h9M4 17h7M17 17h3"/><circle cx="14" cy="7" r="2.2"/><circle cx="8" cy="12" r="2.2"/><circle cx="14" cy="17" r="2.2"/></svg></span>
+            <span class="gnav-label">관리자</span>
+        </button>
+    </nav>
 
     <!-- 플레이리스트 패널 -->
     <div id="bgm-playlist-panel">
