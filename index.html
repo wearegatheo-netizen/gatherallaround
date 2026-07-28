@@ -95,6 +95,12 @@
 
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
+        /* .gatheo-topbar의 풀블리드 트릭(margin: -50vw+50%)은 100vw가 세로 스크롤바를
+           포함하는 탓에, 세로 스크롤이 생기는 화면에서 스크롤바 폭(~17px)만큼 오른쪽으로
+           삐져나가 가로 스크롤바를 만든다. clip으로 잘라낸다 — hidden과 달리 스크롤
+           컨테이너를 만들지 않아 position: sticky에 영향 없음. */
+        html { overflow-x: clip; }
+
         body.dark {
             --wds-primary: #5C82FF;
             --wds-primary-hover: #7A99FF;
