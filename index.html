@@ -3231,6 +3231,7 @@
             communityTestStep: 0,
             communityTestAnswers: [],
             communityTestResult: null,
+            communityTestDetail: null,
         };
 
         const PAGE_SIZE = 10;
@@ -3406,17 +3407,30 @@
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
+                const _ct = _sp.get('ct'), _cr = _sp.get('cr');
+                const _m = parseInt(_sp.get('m'), 10); // 공유자의 매칭률 (선택, 구 링크엔 없음)
                 ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page','performance-booking-page']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
                     state.communityTab = 'test';
-                    state.communityTestType = null;
-                    state.communityTestResult = null;
-                    renderCommunityTestHome();
+                    const _valid = (_ct === 'inst' && INST_RESULTS[_cr]) || (_ct === 'band' && BAND_RESULTS[_cr]);
+                    if (_valid) {
+                        // 공유자의 결과 화면을 그대로 보여주고 "나도 테스트하기" CTA 노출
+                        state.communityTestType = _ct;
+                        state.communityTestResult = _cr;
+                        state.communityTestDetail = (_ct === 'band' && _m >= 60 && _m <= 99)
+                            ? { userAxes: null, ranking: [{ key: _cr, pct: _m }] } : null;
+                        state.communityTestShared = true;
+                        renderCommunityTestResult();
+                    } else {
+                        state.communityTestType = null;
+                        state.communityTestResult = null;
+                        renderCommunityTestHome();
+                    }
                     window.__shareEntryMode = false;
                 });
-                return; // initSession 호출 안 함 — 테스트 목록만 표시
+                return; // initSession 호출 안 함 — 공유 결과/테스트 목록만 표시
             }
 
             // ── 새로고침/딥링크 복원: 현재 URL hash가 가리키는 섹션을 기억해 둔다.
@@ -7763,6 +7777,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             state.communityTestStep = 0;
             state.communityTestAnswers = [];
             state.communityTestResult = null;
+            state.communityTestDetail = null;
             window.scrollTo({ top: 0, behavior: 'instant' });
             await Promise.all([
                 showPortalLoading(),
@@ -9125,7 +9140,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         ];
 
         const BAND_RESULTS = {
-            jannabi:       { name:'잔나비', emoji:'🌙', color:'#8B6914', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/jannabi.jpeg', v:[3,2,4,4,4],
+            jannabi:       { name:'잔나비', emoji:'🌙', color:'#8B6914', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/jannabi.jpeg', v:[2,3,4,4,4],
                 desc:'레트로 감성과 깊은 가사로 세대를 아우르는 밴드. 팬과의 진한 소통과 열정적인 무대가 특징.',
                 sns:{ instagram:'https://www.instagram.com/bandjannabi/' },
                 songs:[
@@ -9133,7 +9148,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'화창한 날에',             vibe:'햇살처럼 가볍고 자유롭게, 아무 걱정 없이 떠나고 싶은 날' },
                     { title:'사랑하긴 했었나요',       vibe:'지난 사랑에 대한 솔직하고 담담한 물음' },
                 ]},
-            hyukoh:        { name:'혁오', emoji:'🌊', color:'#2C3E50', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/hyuckoh.jpg', v:[2,4,3,2,3],
+            hyukoh:        { name:'혁오', emoji:'🌊', color:'#2C3E50', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/hyuckoh.jpg', v:[1,5,4,1,4],
                 desc:'쿨한 쇼게이즈 사운드와 독창적 세계관. 트렌드보다 자기 색깔을 추구하는 아티스트.',
                 sns:{ instagram:'https://www.instagram.com/hyukohofficial/' },
                 songs:[
@@ -9141,7 +9156,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'Gondry',    vibe:'쿨하게 포장한 그리움, 무심한 듯 감성적인' },
                     { title:'와리가리', vibe:'방황하는 청춘의 에너지를 날 것 그대로 담은 곡' },
                 ]},
-            silicagel:     { name:'실리카겔', emoji:'🔮', color:'#6C3483', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/silicagel.jpeg', v:[4,5,2,2,3],
+            silicagel:     { name:'실리카겔', emoji:'🔮', color:'#6C3483', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/silicagel.jpeg', v:[4,5,1,2,3],
                 desc:'사이키델릭과 노이즈팝의 경계를 허무는 실험정신. 강렬한 라이브로 음악 마니아를 사로잡는다.',
                 sns:{ instagram:'https://www.instagram.com/silicagel.official/' },
                 songs:[
@@ -9149,7 +9164,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'Desert Eagle', vibe:'폭발하는 사이키델릭 사운드, 음악 마니아를 사로잡은 명곡' },
                     { title:'Tik Tak Tok',  vibe:'기묘하게 중독적인 리듬, 실험성과 대중성의 완벽한 균형' },
                 ]},
-            sesoneeon:     { name:'새소년', emoji:'🌆', color:'#2E4057', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/Sesoneeon.jpg', v:[4,4,3,3,3],
+            sesoneeon:     { name:'새소년', emoji:'🌆', color:'#2E4057', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/Sesoneeon.jpg', v:[4,4,3,3,2],
                 desc:'도시의 불안과 자유를 청량한 인디록으로 담아낸다. 기존 틀을 거부하는 독립적 감성.',
                 sns:{ instagram:'https://www.instagram.com/se_so_neon/' },
                 songs:[
@@ -9157,7 +9172,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'파도',  vibe:'도시 속 청춘의 불안과 해방이 교차하는 청량감' },
                     { title:'병',    vibe:'말 못 하고 쌓이는 감정의 무게를 담담하게 풀어낸 곡' },
                 ]},
-            tencm:         { name:'10cm', emoji:'☕', color:'#795548', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/tencm.jpeg', v:[2,2,3,5,3],
+            tencm:         { name:'10cm', emoji:'☕', color:'#795548', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/tencm.jpeg', v:[2,3,2,4,3],
                 desc:'일상의 솔직한 관찰과 위트 있는 가사. 친근한 어쿠스틱 사운드로 팬과 가까이 호흡하는 뮤지션.',
                 sns:{ instagram:'https://www.instagram.com/10cm_official/' },
                 songs:[
@@ -9165,7 +9180,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'봄이 좋냐',   vibe:'봄과 사랑을 유쾌하게 등치시킨 발랄한 감성' },
                     { title:'Lazy Love',   vibe:'게으른 듯 자연스럽게 익어가는 사랑의 온도' },
                 ]},
-            leenalchi:     { name:'이날치', emoji:'🥁', color:'#C0392B', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/leenalchi.jpeg', v:[4,5,2,4,2],
+            leenalchi:     { name:'이날치', emoji:'🥁', color:'#C0392B', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/leenalchi.jpeg', v:[5,4,1,4,2],
                 desc:'판소리를 전자음악과 펑크로 재창조. 한국 전통의 리듬을 현대적으로 폭발시키는 퓨전 밴드.',
                 sns:{ instagram:'https://www.instagram.com/leenalchi/' },
                 songs:[
@@ -9173,7 +9188,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'수궁가 메들리', vibe:'전통의 해학과 현대의 에너지가 충돌하는 쾌감' },
                     { title:'어류도감',     vibe:'바다 생물을 의인화한 익살, 독특한 세계관의 진수' },
                 ]},
-            nell:          { name:'넬', emoji:'🌑', color:'#1A252F', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/nell.jpeg', v:[2,2,5,2,5],
+            nell:          { name:'넬', emoji:'🌑', color:'#1A252F', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/nell.jpeg', v:[2,4,5,2,5],
                 desc:'25년간 한국 록의 서정을 지킨 전설. 존재적 고뇌를 시처럼 담아내는 깊고 아름다운 음악.',
                 sns:{ instagram:'https://www.instagram.com/spacebohemians/' },
                 songs:[
@@ -9181,7 +9196,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'Lost',              vibe:'존재의 공허함을 거대한 사운드로 가득 채운 록의 서정' },
                     { title:'멀어지다',          vibe:'멀어질수록 선명해지는 감정, 깊고 조용한 이별의 결' },
                 ]},
-            broccoli:      { name:'브로콜리너마저', emoji:'🌿', color:'#27AE60', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/broccoli.jpeg', v:[2,2,4,4,3],
+            broccoli:      { name:'브로콜리너마저', emoji:'🌿', color:'#27AE60', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/broccoli.jpeg', v:[2,1,4,5,3],
                 desc:'일상의 소소함을 따뜻하게 담는 포크팝. 남녀 보컬의 조화로 듣는 이에게 위로를 건넨다.',
                 sns:{ instagram:'https://www.instagram.com/band_broccoliyoutoo/' },
                 songs:[
@@ -9189,7 +9204,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'앵콜요청금지', vibe:'끝났지만 끝나지 않은 공연, 또 만날 것 같은 예감' },
                     { title:'보편적인 노래', vibe:'누구나 공감할 평범한 감정을 담담하게 노래한 포크팝' },
                 ]},
-            blackskirts:   { name:'검정치마', emoji:'🖤', color:'#2C2C2C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/blackskirts.webp', v:[4,3,2,2,3],
+            blackskirts:   { name:'검정치마', emoji:'🖤', color:'#2C2C2C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/blackskirts.webp', v:[2,4,3,1,3],
                 desc:'신랄하고 세련된 인디록. 독보적인 세계관으로 자신만의 언어를 만드는 솔로 프로젝트.',
                 sns:{ instagram:'https://www.instagram.com/holideez/' },
                 songs:[
@@ -9197,7 +9212,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'한시 오분',      vibe:'늦은 밤 새벽 한 시의 쓸쓸한 공기, 세련된 인디록의 정수' },
                     { title:'기다린 만큼, 더', vibe:'담담하게 깊어지는 그리움, 검정치마 특유의 결이 묻어나는 곡' },
                 ]},
-            cryingnut:     { name:'크라잉넛', emoji:'⚡', color:'#E74C3C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/cryingnut.jpeg', v:[5,2,1,4,2],
+            cryingnut:     { name:'크라잉넛', emoji:'⚡', color:'#E74C3C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/cryingnut.jpeg', v:[5,1,1,5,2],
                 desc:'30년을 달려온 한국 펑크의 살아있는 역사. 폭발적 에너지로 관객과 하나되는 공연의 전설.',
                 sns:{ instagram:'https://www.instagram.com/crying.nut/' },
                 songs:[
@@ -9205,7 +9220,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'룩셈부르크', vibe:'함께라면 어디든 달려갈 것 같은 청춘의 질주' },
                     { title:'갈매기',     vibe:'바다를 향해 외치는 듯한 펑크의 자유, 1집 시절의 패기' },
                 ]},
-            galaxyexpress: { name:'갤럭시익스프레스', emoji:'🚀', color:'#E67E22', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/galaxyexpress.jpeg', v:[5,3,1,3,2],
+            galaxyexpress: { name:'갤럭시익스프레스', emoji:'🚀', color:'#E67E22', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/galaxyexpress.jpeg', v:[4,4,1,2,2],
                 desc:'홍대 가라지 록의 정수. 땀 튀기는 생생한 에너지와 거침없는 사운드가 라이브의 전부다.',
                 sns:{ instagram:'https://www.instagram.com/galaxy_express_official/' },
                 songs:[
@@ -9213,7 +9228,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'호롱불',         vibe:'어둠을 밝히는 작은 불빛처럼, 거칠지만 따뜻한 사운드' },
                     { title:'언제까지나',     vibe:'질주를 멈추지 않는 청춘의 의지, 갤럭시익스프레스의 트레이드마크' },
                 ]},
-            guckkasten:    { name:'국카스텐', emoji:'🔥', color:'#922B21', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/guckkasten.jpeg', v:[4,4,2,3,3],
+            guckkasten:    { name:'국카스텐', emoji:'🔥', color:'#922B21', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/guckkasten.jpeg', v:[4,4,2,1,3],
                 desc:'시각 예술과 사이키델릭 록의 결합. 강렬한 보컬 퍼포먼스와 실험적 무대 연출로 압도한다.',
                 sns:{ instagram:'https://www.instagram.com/guckkasten_official/' },
                 songs:[
@@ -9229,7 +9244,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'캐러밴',                      vibe:'사막을 가로지르는 듯한 이국적 비트, 멈출 수 없는 리듬' },
                     { title:'Waiting For Your Calling Back', vibe:'중독적인 디스코 사운드, 자꾸만 듣게 되는 파티 찬가' },
                 ]},
-            yozoh:         { name:'요조', emoji:'📚', color:'#16A085', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/yozoh.jpeg', v:[2,2,4,4,3],
+            yozoh:         { name:'요조', emoji:'📚', color:'#16A085', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/yozoh.jpeg', v:[2,2,4,3,2],
                 desc:'홍대 감성의 뮤즈. 책·카페·산책이 어울리는 따뜻하고 아기자기한 인디팝.',
                 sns:{ instagram:'https://www.instagram.com/official_yozoh/' },
                 songs:[
@@ -9237,7 +9252,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'꽃',               vibe:'봄볕처럼 부드럽고 따뜻한, 요조 특유의 아기자기한 인디팝' },
                     { title:'Honey Honey Baby', vibe:'달콤하게 속삭이는 듯한 멜로디, 듣기만 해도 마음이 포근해지는 곡' },
                 ]},
-            soran:         { name:'소란', emoji:'☀️', color:'#D4AC0D', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/soran.jpeg', v:[3,2,3,5,3],
+            soran:         { name:'소란', emoji:'☀️', color:'#D4AC0D', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/soran.jpeg', v:[2,1,3,5,2],
                 desc:'대화하듯 일상을 노래하는 인디록. 팬과의 거리가 없는 따뜻한 소통이 트레이드마크.',
                 sns:{ instagram:'https://www.instagram.com/band_soran/' },
                 songs:[
@@ -9245,7 +9260,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'그대 있어 준 것만으로도', vibe:'함께해줘서 충분해, 소박하지만 진심 어린 감사의 노래' },
                     { title:'아름다워',                vibe:'일상의 아름다움을 발견하는 소란 특유의 따뜻한 시선' },
                 ]},
-            sunwoo:        { name:'선우정아', emoji:'🎷', color:'#1ABC9C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/sunwoo.jpeg', v:[2,3,3,3,4],
+            sunwoo:        { name:'선우정아', emoji:'🎷', color:'#1ABC9C', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/sunwoo.jpeg', v:[1,4,4,1,5],
                 desc:'재즈와 인디팝을 넘나드는 뮤지션. 음악적 깊이와 세련된 감각으로 동료 뮤지션에게도 존경받는다.',
                 sns:{ instagram:'https://www.instagram.com/sunwoojunga_official/' },
                 songs:[
@@ -9253,7 +9268,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'삐에로',        vibe:'웃음 뒤의 슬픔, 선우정아 특유의 날카롭고 진한 감성' },
                     { title:'아 이게 아닌데', vibe:'어긋난 감정을 위트 있게 풀어낸 독특한 매력' },
                 ]},
-            surl:          { name:'SURL', emoji:'🌤️', color:'#5DADE2', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/surl.jpeg', v:[2,2,4,4,3],
+            surl:          { name:'SURL', emoji:'🌤️', color:'#5DADE2', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/surl.jpeg', v:[3,4,3,2,2],
                 desc:'어쿠스틱 기반의 감성 인디팝. OST로 먼저 알려진 뒤 라이브에서 팬들과 깊은 교감을 나누는 밴드.',
                 sns:{ instagram:'https://www.instagram.com/surlofficial/' },
                 songs:[
@@ -9261,7 +9276,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'Picnic',       vibe:'아무 걱정 없이 나들이 나온 듯 가볍고 청량한 인디팝' },
                     { title:'VIBE',         vibe:'부드럽고 감각적인 리듬, 듣는 것만으로 기분이 좋아지는 곡' },
                 ]},
-            epitone:       { name:'에피톤프로젝트', emoji:'🎹', color:'#85929E', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/epitone.jpeg', v:[1,2,5,4,4],
+            epitone:       { name:'에피톤프로젝트', emoji:'🎹', color:'#85929E', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/epitone.jpeg', v:[1,1,4,4,4],
                 desc:"피아노 선율에 담긴 위로와 희망. '봄날, 벚꽃, 그리고 너'처럼 일상의 감동을 조용히 전달한다.",
                 sns:{ instagram:'https://www.instagram.com/epitone.project/' },
                 songs:[
@@ -9269,7 +9284,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'어른',                   vibe:'성장의 쓸쓸함을 담담하게 담아낸 에피톤의 대표작' },
                     { title:'사랑은 은하수 다방에서', vibe:'레트로 감성에 담긴 순수한 사랑, 따뜻하고 그리운 분위기' },
                 ]},
-            lucy:          { name:'루시', emoji:'🎻', color:'#6C5CE7', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/lucy.jpeg', v:[3,3,4,4,4],
+            lucy:          { name:'루시', emoji:'🎻', color:'#6C5CE7', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/lucy.jpeg', v:[4,3,4,4,2],
                 desc:'바이올린을 품은 인디 팝록. 클래식과 록의 경계를 허물며 Coldplay도 반한 섬세한 감성.',
                 sns:{ instagram:'https://www.instagram.com/band_lucy/' },
                 songs:[
@@ -9277,7 +9292,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'개화',    vibe:'봄꽃처럼 피어나는 감정, 클래식과 팝록의 아름다운 만남' },
                     { title:'Stardust', vibe:'별처럼 흩어진 기억들, 루시 특유의 서정적 세계관' },
                 ]},
-            monni:         { name:'몽니', emoji:'🌙', color:'#7F8C8D', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/monni.jpeg', v:[3,2,3,3,3],
+            monni:         { name:'몽니', emoji:'🌙', color:'#7F8C8D', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/monni.jpeg', v:[3,2,4,4,4],
                 desc:'욕심 많다는 이름처럼 좋은 음악에 대한 진지한 탐구. 성숙하고 차분하게 깊어지는 인디록.',
                 sns:{ instagram:'https://www.instagram.com/band__monni/' },
                 songs:[
@@ -9285,7 +9300,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'소나기',           vibe:'갑작스럽게 쏟아지는 감정, 보컬 김신의의 실화를 담은 곡' },
                     { title:'행복을 주는 사람', vibe:'소중한 사람에 대한 진지하고 따뜻한 고백' },
                 ]},
-            hanlolo:       { name:'한로로', emoji:'🌸', color:'#E8A0B4', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/hanroro.jpeg', v:[1,2,3,3,2],
+            hanlolo:       { name:'한로로', emoji:'🌸', color:'#E8A0B4', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/hanroro.jpeg', v:[2,3,5,2,3],
                 desc:'담백하고 솔직한 감성으로 일상의 감정을 노래하는 싱어송라이터. 따뜻한 온기가 가득한 인디팝.',
                 sns:{ instagram:'https://www.instagram.com/hanr0r0/' },
                 songs:[
@@ -9293,7 +9308,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     { title:'입춘',             vibe:'덤덤한 듯 깊은 울림, 한국대중음악상 후보에 오른 강한 첫인상' },
                     { title:'0+0',              vibe:'\'자몽살구클럽\' 수록곡, 차트 상위권을 점령한 풋풋한 감성' },
                 ]},
-            leeseungyoon:  { name:'이승윤', emoji:'🪵', color:'#6D4C41', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/leeseungyoon.jpeg', v:[1,2,3,2,4],
+            leeseungyoon:  { name:'이승윤', emoji:'🪵', color:'#6D4C41', imgSrc:'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/leeseungyoon.jpeg', v:[2,4,3,3,5],
                 desc:'깊고 진한 이야기를 담은 포크록. 삶의 무게와 진정성을 무대 위에서 온전히 쏟아내는 아티스트.',
                 sns:{ instagram:'https://www.instagram.com/bgsmsyl/' },
                 songs:[
@@ -9333,72 +9348,83 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             leeseungyoon:  '삶의 무게를 진지하게 담아내는 깊이 있는 당신. 이승윤의 포크록이 당신의 진정성 있는 내면과 정확히 맞닿아요.',
         };
 
+        // 축 의미: [0]에너지(조용↔폭발) [1]실험성(익숙↔실험) [2]감성(쿨↔서정) [3]친화력(마이웨이↔소통) [4]깊이(유쾌↔묵직)
+        const BAND_AXES = [
+            { name:'에너지', emoji:'🔥' },
+            { name:'실험성', emoji:'🧪' },
+            { name:'감성',   emoji:'🌙' },
+            { name:'친화력', emoji:'🤝' },
+            { name:'깊이',   emoji:'🌊' },
+        ];
+        // ⚠️ 문항·선택지 벡터나 밴드 v를 바꾸면 반드시 전수 시뮬레이션으로 22팀 분포 재검증할 것
+        //    (2026-07 리밸런싱: 전 팀 3.7~6.6% 균등, 이전엔 혁오 31% 편중 + 요조/SURL 도달 불가였음)
         const BAND_QUESTIONS = [
-            { q:'나는 스트레스를 어떻게 푸나요?', opts:[
-                { label:'친구들 불러서 신나게 놀기, 몸으로 발산', v:[2,0,0,1,0] },
-                { label:'혼자 좋아하는 것에 푹 빠지기', v:[0,1,1,0,1] },
-                { label:'집에서 편안하게 쉬며 재충전', v:[-1,0,1,1,0] },
-                { label:'새로운 장소·활동 즉흥 도전', v:[1,2,0,0,0] },
+            { q:'공연장에 갔다. 나는 어디에 있을까?', opts:[
+                { label:'맨 앞줄 — 뛰고 떼창하고 땀범벅', v:[2,0,-1,1,-1] },
+                { label:'사운드 제일 좋은 스팟 — 연주를 뜯어듣는 중', v:[0,1,0,-1,2] },
+                { label:'중간 어딘가 — 조명과 분위기에 스며드는 중', v:[-1,0,2,0,1] },
+                { label:'친구들과 같이 — 공연 반, 수다 반', v:[1,-1,0,2,-1] },
             ]},
-            { q:'사람들과의 관계에서 나는?', opts:[
-                { label:'처음 만나는 사람과도 금방 친해진다', v:[1,0,0,2,0] },
-                { label:'소수와 깊게 사귄다, 친해지는 데 시간 걸림', v:[-1,1,1,-1,1] },
-                { label:'상황에 따라 유연하게 맞춰간다', v:[0,0,0,1,0] },
-                { label:'독립적으로 혼자 있는 시간이 중요하다', v:[-1,2,1,-1,1] },
+            { q:'플레이리스트에 노래를 담는 기준은?', opts:[
+                { label:'텐션! 출근길도 페스티벌로 만들어주는 곡', v:[2,0,-1,1,-1] },
+                { label:'아무도 모르는 노래를 발굴하는 재미', v:[0,2,0,-1,1] },
+                { label:'가사가 꼭 내 얘기 같은 곡', v:[-1,0,2,0,1] },
+                { label:'다 같이 따라 부를 수 있는 곡', v:[1,-1,0,2,-1] },
             ]},
-            { q:'내가 좋아하는 콘텐츠나 취미는?', opts:[
-                { label:'신나는 파티·페스티벌·스포츠 관람', v:[2,0,-1,2,0] },
-                { label:'독서·전시회·다큐멘터리', v:[0,1,2,0,2] },
-                { label:'SNS·유튜브·트렌디한 콘텐츠', v:[1,0,0,2,-1] },
-                { label:'독창적 창작·실험적 예술 활동', v:[0,3,1,0,1] },
+            { q:'스트레스가 한계치를 찍으면?', opts:[
+                { label:'소리 지르고 몸으로 털어낸다', v:[2,0,-1,0,-1] },
+                { label:'평소 안 하던 걸 저지르며 환기한다', v:[1,2,0,-1,0] },
+                { label:'슬픈 노래 틀고 오히려 더 깊이 잠긴다', v:[-2,0,2,0,1] },
+                { label:'사람들을 만나서 털어놓는다', v:[0,-1,0,2,0] },
             ]},
-            { q:'그룹 안에서 나의 역할은?', opts:[
-                { label:'분위기 메이커, 에너지 공급자', v:[2,0,-1,2,0] },
-                { label:'아이디어맨, 독창적 시각 제공', v:[0,2,0,0,1] },
-                { label:'든든한 지원자, 팀의 안정감', v:[-1,0,1,2,1] },
-                { label:'분석가, 깊게 생각하고 천천히 움직임', v:[-1,1,1,-1,2] },
+            { q:'처음 만난 사람들 사이에서 나는?', opts:[
+                { label:'먼저 말 걸고 분위기를 끌어올리는 쪽', v:[2,0,0,2,-1] },
+                { label:'관찰하다가 흥미로운 사람에게만 훅 들어감', v:[-1,2,0,-1,1] },
+                { label:'잘 들어주다 보면 어느새 깊은 얘기 담당', v:[-1,0,1,1,2] },
+                { label:'낯은 가리지만 한번 마음 열면 오래 감', v:[-1,0,2,1,0] },
             ]},
-            { q:'여행 스타일은?', opts:[
-                { label:'계획 없이 즉흥적으로, 에너지 충전', v:[2,1,0,1,0] },
-                { label:'숨겨진 로컬 명소 탐방, 나만의 루트', v:[0,2,1,0,1] },
-                { label:'편안한 휴양, 느긋하게 쉬는 여행', v:[-1,0,2,1,0] },
-                { label:'역사·문화·예술 탐방, 의미 있는 경험', v:[0,1,1,0,2] },
+            { q:'여행지에서 제일 기대되는 순간은?', opts:[
+                { label:'현지 축제나 시장 — 시끌벅적 그 자체', v:[2,1,-1,1,-1] },
+                { label:'검색해도 안 나오는 골목 — 나만의 발견', v:[0,2,0,-1,1] },
+                { label:'노을 지는 바닷가 — 말없이 오래 보기', v:[-2,0,2,0,1] },
+                { label:'숙소에서 일행들과 밤새 떠드는 시간', v:[1,-1,0,2,0] },
             ]},
-            { q:'나를 가장 잘 표현하는 단어는?', opts:[
-                { label:'열정적·활동적·사교적', v:[2,0,0,2,0] },
-                { label:'독창적·실험적·개성있는', v:[0,3,0,-1,1] },
-                { label:'감성적·서정적·내면이 풍부한', v:[-1,0,3,0,2] },
-                { label:'따뜻한·친근한·배려심 있는', v:[0,0,1,3,1] },
+            { q:'내 플레이리스트가 유출됐다. 사람들의 반응은?', opts:[
+                { label:'"이거 완전 파티 플리잖아"', v:[2,0,-1,1,-1] },
+                { label:'"이런 밴드를 어떻게 알아?"', v:[0,2,0,-1,1] },
+                { label:'"...너 요즘 무슨 일 있어?"', v:[-1,0,2,0,1] },
+                { label:'"어? 나도 이 노래 좋아하는데"', v:[0,-1,0,2,0] },
             ]},
-            { q:'일할 때(혹은 공부할 때) 나는?', opts:[
-                { label:'빠르게 결정하고 추진력 있게 실행', v:[2,0,0,0,0] },
-                { label:'전통적 방법보다 새로운 방식을 시도', v:[0,2,0,0,1] },
-                { label:'꼼꼼하게 계획하고 완성도를 높임', v:[0,1,1,0,2] },
-                { label:'팀원 의견을 잘 듣고 협력을 중시', v:[0,0,0,2,1] },
+            { q:'팀 프로젝트에서 나의 역할은?', opts:[
+                { label:'일단 시동 거는 추진력 담당', v:[2,0,-1,1,0] },
+                { label:'아무도 생각 못 한 방향을 던지는 쪽', v:[0,2,0,-1,1] },
+                { label:'디테일과 완성도를 끝까지 붙잡는 쪽', v:[-1,0,1,0,2] },
+                { label:'의견 조율하고 팀 분위기 챙기는 쪽', v:[0,-1,1,2,0] },
             ]},
-            { q:'내가 중요하게 생각하는 가치는?', opts:[
-                { label:'자유와 즉흥성', v:[1,2,0,0,0] },
-                { label:'진정성과 솔직함', v:[0,1,1,1,2] },
-                { label:'공동체와 따뜻한 연대', v:[0,0,1,3,1] },
-                { label:'독창성과 나만의 세계', v:[-1,3,1,-1,1] },
+            { q:'"인생곡"의 조건은?', opts:[
+                { label:'전주 1초 만에 심장이 뛰는 곡', v:[2,0,0,0,-1] },
+                { label:'들을 때마다 새로운 게 들리는 곡', v:[0,2,0,-1,1] },
+                { label:'특정 계절·사람·거리가 떠오르는 곡', v:[-1,0,2,1,0] },
+                { label:'힘들 때 꺼내 듣는, 나를 일으키는 곡', v:[-1,0,1,1,2] },
             ]},
-            { q:'나는 감정을 어떻게 표현하나요?', opts:[
-                { label:'직접적으로, 즉흥적으로 드러낸다', v:[2,0,0,1,0] },
-                { label:'예술·글·창작으로 간접적으로 표현', v:[0,1,2,0,2] },
-                { label:'가까운 사람에게 조용히 털어놓는다', v:[-1,0,1,2,1] },
-                { label:'혼자 오래 곱씹으며 내면에서 정리', v:[-1,1,2,-1,2] },
+            { q:'금요일 밤 10시, 나의 이상적인 모습은?', opts:[
+                { label:'시끌벅적한 곳에서 놀고 있는 중', v:[2,0,-1,2,-1] },
+                { label:'이색적인 공간이나 심야 전시를 탐험 중', v:[0,2,0,-1,1] },
+                { label:'혼자 이어폰 끼고 새벽 감성 예열 중', v:[-2,0,2,-1,1] },
+                { label:'가까운 사람들과 깊은 대화 중', v:[-1,0,1,2,1] },
             ]},
-            { q:'이상적인 금요일 밤은?', opts:[
-                { label:'클럽·바·파티·활기찬 모임', v:[3,0,-1,2,0] },
-                { label:'소규모 친구들과 집에서 깊은 대화', v:[0,0,1,2,2] },
-                { label:'혼자만의 시간, 나를 위한 취미', v:[-1,2,2,-1,1] },
-                { label:'새롭고 이색적인 장소 탐방', v:[1,2,0,1,0] },
+            { q:'만약 내가 밴드를 시작한다면, 첫 곡은?', opts:[
+                { label:'첫 소절부터 관객을 뛰게 만드는 곡', v:[2,0,-1,1,-1] },
+                { label:'"이게 뭐지?" 싶은 실험적인 곡', v:[0,2,0,-1,1] },
+                { label:'내 마음속 이야기를 눌러 담은 곡', v:[-1,0,2,0,1] },
+                { label:'듣는 사람이 위로받았으면 하는 곡', v:[-1,-1,1,2,1] },
             ]},
         ];
 
         function renderCommunityTestHome() {
             const el = document.getElementById('communityContent');
             if (!el) return;
+            state.communityTestShared = false;
             if (location.search) history.replaceState({}, '', location.pathname);
             el.innerHTML = `
                 <div class="community-tab-bar">
@@ -9734,6 +9760,8 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             state.communityTestStep = 0;
             state.communityTestAnswers = [];
             state.communityTestResult = null;
+            state.communityTestDetail = null;
+            state.communityTestShared = false;
             renderCommunityTestQuestion();
         }
 
@@ -9795,22 +9823,53 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             };
         }
 
+        // ── 밴드 매칭 정규화 통계 ──
+        // 균등 선택 가정 하에 각 축 합의 평균·표준편차를 닫힌형으로 계산 (문항이 바뀌면 자동 갱신됨)
+        let _bandTestStats = null;
+        function getBandTestStats() {
+            if (_bandTestStats) return _bandTestStats;
+            const mean = [0, 0, 0, 0, 0], sd = [0, 0, 0, 0, 0], vari = [0, 0, 0, 0, 0];
+            BAND_QUESTIONS.forEach(q => {
+                for (let d = 0; d < 5; d++) {
+                    const vals = q.opts.map(o => o.v[d]);
+                    const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    mean[d] += m;
+                    vari[d] += vals.reduce((s, x) => s + (x - m) * (x - m), 0) / vals.length;
+                }
+            });
+            for (let d = 0; d < 5; d++) sd[d] = Math.sqrt(vari[d]) || 1;
+            _bandTestStats = { mean, sd };
+            return _bandTestStats;
+        }
+
+        // 유저 원점수 합 → 1~5 성향 축 값 (z-score 기반. SCALE=1.5는 전수 시뮬레이션으로 22팀 균등 분포 검증된 값)
+        function normalizeBandUserVec(raw) {
+            const { mean, sd } = getBandTestStats();
+            return raw.map((x, d) => Math.max(1, Math.min(5, 3 + (x - mean[d]) / sd[d] * 1.5)));
+        }
+
+        // 거리 → 매칭률 % (1위 기준 대략 77~95% 분포가 되도록 보정)
+        function bandMatchPct(dist) {
+            return Math.max(60, Math.min(99, Math.round(99 - dist * 9)));
+        }
+
         function calcCommunityTestResult() {
             if (state.communityTestType === 'inst') {
                 const counts = {};
                 state.communityTestAnswers.forEach(a => { counts[a.key] = (counts[a.key] || 0) + 1; });
                 return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
             } else {
-                const userVec = [0, 0, 0, 0, 0];
+                const raw = [0, 0, 0, 0, 0];
                 state.communityTestAnswers.forEach(a => {
-                    a.v.forEach((d, i) => { userVec[i] += d; });
+                    a.v.forEach((d, i) => { raw[i] += d; });
                 });
-                let best = null, minDist = Infinity;
-                Object.entries(BAND_RESULTS).forEach(([key, band]) => {
-                    const dist = Math.sqrt(band.v.reduce((s, val, i) => s + Math.pow(val * 2 - userVec[i], 2), 0));
-                    if (dist < minDist) { minDist = dist; best = key; }
-                });
-                return best;
+                const userAxes = normalizeBandUserVec(raw);
+                const ranking = Object.entries(BAND_RESULTS).map(([key, band]) => {
+                    const dist = Math.sqrt(band.v.reduce((s, val, i) => s + Math.pow(val - userAxes[i], 2), 0));
+                    return { key, dist, pct: bandMatchPct(dist) };
+                }).sort((a, b) => a.dist - b.dist);
+                state.communityTestDetail = { userAxes, ranking };
+                return ranking[0].key;
             }
         }
 
@@ -9859,8 +9918,13 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
             if (!result) { renderCommunityTestHome(); return; }
 
-            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
-            history.replaceState({}, '', `?ct=${type}&cr=${key}`);
+            // 매칭 상세(내 성향 축·전체 랭킹) — 공유 링크 진입 시엔 없거나 매칭률만 있을 수 있음
+            const detail = type === 'band' ? state.communityTestDetail : null;
+            const topPct = (detail && detail.ranking && detail.ranking[0] && detail.ranking[0].key === key) ? detail.ranking[0].pct : null;
+            const shared = !!state.communityTestShared;
+
+            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}${topPct ? `&m=${topPct}` : ''}`;
+            history.replaceState({}, '', `?ct=${type}&cr=${key}${topPct ? `&m=${topPct}` : ''}`);
 
             const title = type === 'inst' ? '나에게 어울리는 악기 세션은?' : '나랑 어울리는 밴드는?';
             const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
@@ -9871,6 +9935,11 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             el.innerHTML = `
                 <div style="padding-top:8px;padding-bottom:48px;">
                     <button onclick="renderCommunityTestHome()" style="background:none;border:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.88rem;padding:0 0 16px;display:flex;align-items:center;gap:4px">← 테스트 & 게임</button>
+                    ${shared ? `
+                    <div style="background:var(--wds-gray-100);border:1.5px dashed var(--wds-gray-200);border-radius:14px;padding:12px 16px;margin-bottom:14px;text-align:center;">
+                        <div style="font-size:0.85rem;font-weight:700;color:var(--wds-black)">👀 친구가 공유한 결과예요</div>
+                        <div style="font-size:0.75rem;color:var(--wds-gray-500);margin-top:2px">나는 어떤 밴드가 나올까? 아래에서 바로 확인!</div>
+                    </div>` : ''}
                     <div id="testResultCard" style="${cardStyle}">
                         ${type === 'band' && result.imgSrc ? `
                         <div style="position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:rgba(0,0,0,0.35);">
@@ -9883,6 +9952,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         <div style="padding:22px 22px 28px;color:#fff;">
                             <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;opacity:0.75;margin-bottom:6px">YOUR BAND MATCH</div>
                             <div style="font-size:1.7rem;font-weight:800;margin-bottom:12px;line-height:1.2">${escapeHtml(resultLabel)}</div>
+                            ${topPct ? `<div style="display:inline-block;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.4);border-radius:999px;padding:4px 14px;font-size:0.82rem;font-weight:800;margin-bottom:12px;letter-spacing:0.02em">매칭률 ${topPct}%</div>` : ''}
                             <div style="height:2px;width:40px;background:rgba(255,255,255,0.5);margin:0 auto 14px;border-radius:2px"></div>
                             <div style="font-size:0.88rem;opacity:0.92;line-height:1.65;max-width:300px;margin:0 auto">${escapeHtml(result.desc)}</div>
                         </div>
@@ -9899,6 +9969,24 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     <div style="background:var(--wds-gray-100);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
                         <div style="font-size:0.72rem;font-weight:700;color:var(--wds-primary);letter-spacing:0.06em;margin-bottom:6px">💡 이 결과가 나온 이유</div>
                         <div style="font-size:0.85rem;color:var(--wds-black);line-height:1.6">${escapeHtml(RESULT_WHY[key])}</div>
+                    </div>` : ''}
+                    ${detail && detail.userAxes ? `
+                    <div style="background:var(--wds-gray-100);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+                        <div style="font-size:0.72rem;font-weight:700;color:var(--wds-primary);letter-spacing:0.06em;margin-bottom:12px">📊 나의 성향 그래프</div>
+                        ${BAND_AXES.map((ax, i) => {
+                            const uPct = Math.round((detail.userAxes[i] - 1) / 4 * 100);
+                            const bPct = Math.round((result.v[i] - 1) / 4 * 100);
+                            return `
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+                            <span style="font-size:0.75rem;width:66px;flex-shrink:0;color:var(--wds-black);font-weight:600">${ax.emoji} ${ax.name}</span>
+                            <div style="flex:1;position:relative;height:14px;">
+                                <div style="position:absolute;inset:0;background:var(--wds-gray-200);border-radius:999px"></div>
+                                <div style="position:absolute;top:0;left:0;bottom:0;width:${uPct}%;background:linear-gradient(90deg,var(--wds-primary),#6C5CE7);border-radius:999px;min-width:6px"></div>
+                                <div style="position:absolute;top:50%;left:${bPct}%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid ${result.color};box-shadow:0 1px 4px rgba(0,0,0,0.35)"></div>
+                            </div>
+                        </div>`;
+                        }).join('')}
+                        <div style="font-size:0.68rem;color:var(--wds-gray-500);margin-top:6px">막대 = 나의 성향 · 점 = ${escapeHtml(result.name)}의 성향</div>
                     </div>` : ''}
                     ${result.songs ? `
                     <div style="margin-bottom:20px">
@@ -9932,11 +10020,19 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                                 </div>
                             </div>`;
                         };
+                        const runners = (detail && detail.ranking && detail.ranking.length > 2)
+                            ? detail.ranking.slice(1, 3).map(r => ({ key: r.key, band: BAND_RESULTS[r.key], pct: r.pct }))
+                            : null;
                         return `
+                        ${runners ? `
+                        <div style="margin-bottom:18px">
+                            <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em;margin-bottom:10px">🥈 아깝게 놓친 매칭</div>
+                            <div style="display:flex;gap:10px">${runners.map((it, i) => renderMini(it, `${i + 2}위 · ${it.pct}%`)).join('')}</div>
+                        </div>` : `
                         <div style="margin-bottom:18px">
                             <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em;margin-bottom:10px">💚 비슷한 성향의 밴드</div>
                             <div style="display:flex;gap:10px">${rel.similar.map(it => renderMini(it, '비슷')).join('')}</div>
-                        </div>
+                        </div>`}
                         <div style="margin-bottom:18px">
                             <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em;margin-bottom:10px">🔥 완전 반대 성향의 밴드</div>
                             <div style="display:flex;gap:10px">${rel.opposite.map(it => renderMini(it, '반대')).join('')}</div>
@@ -9950,6 +10046,11 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                             <span style="font-size:0.88rem;font-weight:700">Instagram에서 ${escapeHtml(result.name)} 팔로우</span>
                         </a>
                     </div>` : ''}
+                    ${shared ? `
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <button onclick="startCommunityTest('${type}')" style="padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--wds-primary),#6C5CE7);color:#fff;cursor:pointer;font-size:1rem;font-weight:800;box-shadow:0 8px 20px -8px rgba(0,0,0,0.35)">🎸 나도 테스트하러 가기 (1분)</button>
+                        <button onclick="renderCommunityTestHome()" style="padding:12px;border-radius:12px;border:1.5px solid var(--wds-gray-200);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.88rem;font-weight:600">다른 테스트 보기</button>
+                    </div>` : `
                     <div style="background:linear-gradient(135deg,var(--wds-primary),#6C5CE7);border-radius:14px;padding:14px 16px;margin-bottom:12px;text-align:center;">
                         <div style="font-size:0.88rem;font-weight:700;color:#fff;margin-bottom:4px">📣 결과 공유하기</div>
                         <div style="font-size:0.78rem;color:rgba(255,255,255,0.85);line-height:1.5">링크를 받은 친구가 내 결과를 보고<br>자기 테스트도 바로 해볼 수 있어요!</div>
@@ -9961,7 +10062,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     <div style="display:flex;gap:10px">
                         <button onclick="startCommunityTest('${type}')" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--wds-primary);background:var(--wds-white);color:var(--wds-primary);cursor:pointer;font-size:0.88rem;font-weight:600">다시하기</button>
                         <button onclick="renderCommunityTestHome()" style="flex:1;padding:12px;border-radius:12px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.88rem;font-weight:600">다른 테스트</button>
-                    </div>
+                    </div>`}
                 </div>`;
         }
 
@@ -9980,7 +10081,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 alert('카카오 공유를 사용할 수 없습니다. 링크 복사를 이용해주세요.');
                 return;
             }
-            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}`;
+            const _kd = type === 'band' ? state.communityTestDetail : null;
+            const _kPct = (_kd && _kd.ranking && _kd.ranking[0] && _kd.ranking[0].key === key) ? _kd.ranking[0].pct : null;
+            const shareUrl = `${location.origin}${location.pathname}?ct=${type}&cr=${key}${_kPct ? `&m=${_kPct}` : ''}`;
             const resultLabel = type === 'inst' ? `나는 ${result.name} 타입!` : `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
             const emojiText = (typeof result.emoji === 'string' && result.emoji.startsWith('<')) ? '🎵' : result.emoji;
             const linkObj = { webUrl: shareUrl, mobileWebUrl: shareUrl };
@@ -10057,7 +10160,11 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
             if (!result) return;
 
-            const related = type === 'band' ? findRelatedBands(key) : { similar: [], opposite: [] };
+            // 2·3위 매칭 — 이미지에 한 줄로 표기 (매칭 상세가 있을 때만)
+            const _dd = type === 'band' ? state.communityTestDetail : null;
+            const runners = (_dd && _dd.ranking && _dd.ranking.length > 2)
+                ? _dd.ranking.slice(1, 3).map(r => ({ name: BAND_RESULTS[r.key].name, pct: r.pct }))
+                : null;
 
             function loadImg(src) {
                 return new Promise(resolve => {
@@ -10070,17 +10177,24 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 });
             }
 
-            function drawCanvas(bandImg, relatedImgs) {
+            function saveBlob(blob, fname) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fname;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+
+            // ── 결과 이미지: 인스타 스토리 9:16 (1080×1920) 단일 포맷 — 핵심 정보만 크게
+            // done(blob) 콜백으로 전달 (저장/카카오 공유 공용)
+            function drawStory(mainImg, done) {
                 const canvas = document.createElement('canvas');
-                const DPR = 2; // 2x 해상도
-                const W = type === 'band' ? 540 : 540;
-                const H = type === 'band' ? 1450 : 1100;
+                const DPR = 2, W = 540, H = 960;
                 canvas.width = W * DPR; canvas.height = H * DPR;
                 const ctx = canvas.getContext('2d');
                 ctx.scale(DPR, DPR);
                 ctx.textBaseline = 'alphabetic';
-
-                function roundRect(x, y, w, h, r) {
+                function rr(x, y, w, h, r) {
                     ctx.beginPath();
                     ctx.moveTo(x+r, y);
                     ctx.arcTo(x+w, y, x+w, y+h, r);
@@ -10090,396 +10204,189 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     ctx.closePath();
                 }
 
-                function wrapLines(text, maxW, font) {
-                    ctx.font = font;
-                    const words = text.split(' ');
-                    let line = '', lines = [];
-                    words.forEach(w => {
-                        const t = line + w + ' ';
-                        if (ctx.measureText(t).width > maxW && line) { lines.push(line.trim()); line = w + ' '; }
-                        else line = t;
-                    });
-                    if (line) lines.push(line.trim());
-                    return lines;
-                }
+                const _sd = type === 'band' ? state.communityTestDetail : null;
+                const sPct = (_sd && _sd.ranking && _sd.ranking[0] && _sd.ranking[0].key === key) ? _sd.ranking[0].pct : null;
+                const hasAxes = !!(_sd && _sd.userAxes);
 
-                if (type === 'band') {
-                    // ── 배경 그라디언트
-                    const grad = ctx.createLinearGradient(0, 0, W, H);
-                    grad.addColorStop(0, darkenColor(result.color, 0.2));
-                    grad.addColorStop(1, darkenColor(result.color, 0.55));
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, W, H);
+                // 배경
+                const g = ctx.createLinearGradient(0, 0, 0, H);
+                g.addColorStop(0, darkenColor(result.color, 0.15));
+                g.addColorStop(1, darkenColor(result.color, 0.6));
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.beginPath(); ctx.arc(W-40, 200, 150, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(40, 760, 120, 0, Math.PI*2); ctx.fill();
 
-                    // ── 장식 도형
-                    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-                    ctx.beginPath(); ctx.arc(W-60, 80, 160, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(60, H-120, 130, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(W+30, H/2, 100, 0, Math.PI*2); ctx.fill();
+                // 상단 브랜드 칩 (IG 상단 UI 안전 여백 아래)
+                const chipText = type === 'band' ? '✨ 밴드 성향 테스트' : '🎵 악기 세션 테스트';
+                ctx.font = 'bold 14px sans-serif';
+                const chipW = ctx.measureText(chipText).width + 36;
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                rr(W/2 - chipW/2, 92, chipW, 34, 17); ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.fillText(chipText, W/2, 114);
 
-                    // ── 상단 밴드 사진 (둥근 모서리, contain 방식 - 잘림 없음)
-                    const imgH = 400;
-                    if (bandImg && typeof bandImg !== 'string') {
-                        ctx.save();
-                        roundRect(20, 20, W-40, imgH, 24);
-                        ctx.clip();
-                        // 1) 블러 배경 (cover)
-                        const cr = (W-40) / imgH;
-                        const ir = bandImg.width / bandImg.height;
-                        let bsx=0, bsy=0, bsw=bandImg.width, bsh=bandImg.height;
-                        if (ir > cr) { bsw = bandImg.height * cr; bsx = (bandImg.width - bsw)/2; }
-                        else { bsh = bandImg.width / cr; bsy = (bandImg.height - bsh)/2; }
-                        ctx.filter = 'blur(24px) brightness(0.55)';
-                        ctx.drawImage(bandImg, bsx, bsy, bsw, bsh, 10, 10, W-20, imgH+20);
-                        ctx.filter = 'none';
-                        // 2) 메인 이미지 (contain - 잘림 없음)
-                        let dw, dh, dx, dy;
-                        if (ir > cr) { dw = W-40; dh = (W-40) / ir; dx = 20; dy = 20 + (imgH - dh)/2; }
-                        else { dh = imgH; dw = imgH * ir; dx = 20 + (W-40 - dw)/2; dy = 20; }
-                        ctx.drawImage(bandImg, dx, dy, dw, dh);
-                        // 3) 하단 어둑
-                        const og = ctx.createLinearGradient(0, 20+imgH-130, 0, 20+imgH);
-                        og.addColorStop(0, 'rgba(0,0,0,0)');
-                        og.addColorStop(1, 'rgba(0,0,0,0.7)');
-                        ctx.fillStyle = og;
-                        ctx.fillRect(20, 20+imgH-130, W-40, 130);
-                        ctx.restore();
-                    } else {
-                        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                        roundRect(20, 20, W-40, imgH, 24); ctx.fill();
-                    }
-
-                    // ── 사진 위 칩 (브랜드)
-                    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-                    roundRect(38, 38, 175, 30, 15); ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 13px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText('✨ 밴드 성향 테스트', 50, 58);
-
-                    // ── 사진 위 결과명 (폰트 자동 축소로 한 줄 유지)
-                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText('YOUR BAND MATCH', 40, 370);
-                    ctx.fillStyle = '#fff';
-                    const label = `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!`;
-                    let labelSize = 30;
-                    while (labelSize > 16) {
-                        ctx.font = `bold ${labelSize}px sans-serif`;
-                        if (ctx.measureText(label).width <= W - 80) break;
-                        labelSize--;
-                    }
-                    ctx.fillText(label, 40, 406);
-
-                    // ── 본문 시작
-                    let y = 20 + imgH + 28;
-
-                    // 설명 (밴드 소개)
-                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-                    ctx.textAlign = 'left';
-                    const descLines = wrapLines(result.desc, W-80, '14.5px sans-serif');
-                    descLines.slice(0, 4).forEach((l, i) => ctx.fillText(l, 40, y + i*22));
-                    y += Math.min(descLines.length, 4) * 22 + 16;
-
-                    // ── 추천 이유 박스
-                    const why = (typeof RESULT_WHY !== 'undefined' && RESULT_WHY[key]) ? RESULT_WHY[key] : '';
-                    if (why) {
-                        const whyLines = wrapLines(why, W-90, '13px sans-serif');
-                        const whyShown = whyLines.slice(0, 4);
-                        const whyH = 30 + whyShown.length * 19 + 14;
-                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
-                        roundRect(30, y, W-60, whyH, 14); ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText('💡 이 결과가 나온 이유', 44, y + 20);
-                        ctx.fillStyle = '#fff';
-                        ctx.font = '13px sans-serif';
-                        whyShown.forEach((l, i) => ctx.fillText(l, 44, y + 40 + i*19));
-                        y += whyH + 16;
-                    }
-
-                    // ── 추천 트랙 박스 (3개)
-                    if (result.songs && result.songs.length) {
-                        const tracks = result.songs.slice(0, 3);
-                        const trackBoxH = 32 + tracks.length * 44 + 8;
-                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
-                        roundRect(30, y, W-60, trackBoxH, 14); ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText('🎵 추천 트랙', 44, y + 20);
-                        tracks.forEach((s, i) => {
-                            const ty = y + 38 + i*44;
-                            // 번호 뱃지
-                            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-                            ctx.beginPath(); ctx.arc(54, ty + 4, 11, 0, Math.PI*2); ctx.fill();
-                            ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 11px sans-serif';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(String(i+1), 54, ty + 8);
-                            ctx.textAlign = 'left';
-                            // 곡명
-                            ctx.font = 'bold 14.5px sans-serif';
-                            const tt = s.title.length > 26 ? s.title.slice(0,26)+'…' : s.title;
-                            ctx.fillText(tt, 72, ty + 6);
-                            // vibe
-                            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                            ctx.font = '12px sans-serif';
-                            const vb = s.vibe || '';
-                            ctx.fillText(vb.length > 36 ? vb.slice(0,36)+'…' : vb, 72, ty + 24);
-                            ctx.fillStyle = '#fff';
-                        });
-                        y += trackBoxH + 16;
-                    }
-
-                    // ── 비슷한 / 반대 성향 밴드 섹션
-                    function drawRelatedRow(items, imgs, tagLabel, startY) {
-                        const cellW = (W - 60 - 10) / 2;
-                        const cellH = 110;
-                        items.forEach((it, i) => {
-                            const x = 30 + i * (cellW + 10);
-                            ctx.fillStyle = 'rgba(255,255,255,0.14)';
-                            roundRect(x, startY, cellW, cellH, 12); ctx.fill();
-                            // 썸네일 (사각, 좌측)
-                            const thumb = 86;
-                            const im = imgs[i];
-                            ctx.save();
-                            roundRect(x + 10, startY + (cellH - thumb)/2, thumb, thumb, 10);
-                            ctx.clip();
-                            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                            ctx.fillRect(x + 10, startY + (cellH - thumb)/2, thumb, thumb);
-                            if (im) {
-                                // contain 비율 유지
-                                const ir = im.width / im.height;
-                                let dw, dh, dx, dy;
-                                if (ir > 1) { dw = thumb; dh = thumb/ir; dx = x+10; dy = startY + (cellH - thumb)/2 + (thumb-dh)/2; }
-                                else { dh = thumb; dw = thumb*ir; dx = x+10+(thumb-dw)/2; dy = startY + (cellH - thumb)/2; }
-                                ctx.drawImage(im, dx, dy, dw, dh);
-                            } else {
-                                ctx.fillStyle = '#fff';
-                                ctx.font = '32px sans-serif';
-                                ctx.textAlign = 'center';
-                                ctx.fillText(it.band.emoji, x + 10 + thumb/2, startY + (cellH - thumb)/2 + thumb/2 + 12);
-                            }
-                            ctx.restore();
-                            // 우측 텍스트
-                            const tx = x + 10 + thumb + 10;
-                            ctx.textAlign = 'left';
-                            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                            ctx.font = 'bold 10px sans-serif';
-                            ctx.fillText(tagLabel, tx, startY + 24);
-                            ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 14px sans-serif';
-                            const nm = it.band.name;
-                            ctx.fillText(nm.length > 9 ? nm.slice(0,9)+'…' : nm, tx, startY + 44);
-                            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                            ctx.font = '10.5px sans-serif';
-                            const descLines = wrapLines(it.band.desc, cellW - thumb - 30, '10.5px sans-serif');
-                            descLines.slice(0,3).forEach((l, j) => ctx.fillText(l, tx, startY + 62 + j*14));
-                        });
-                    }
-                    if (related.similar.length) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.fillText('💚 비슷한 성향의 밴드', 40, y + 4);
-                        y += 18;
-                        drawRelatedRow(related.similar, relatedImgs.similar, '비슷', y);
-                        y += 110 + 18;
-                    }
-                    if (related.opposite.length) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.fillText('🔥 완전 반대 성향의 밴드', 40, y + 4);
-                        y += 18;
-                        drawRelatedRow(related.opposite, relatedImgs.opposite, '반대', y);
-                        y += 110 + 18;
-                    }
-
-                    // ── 푸터 (콘텐츠 바로 아래)
-                    y += 10;
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillText('🎯 너의 밴드는? · 나도 테스트해보기', W/2, y + 16);
-                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                    ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather all around · ' + location.hostname, W/2, y + 32);
-                    y += 48;
-
-                    // 실제 콘텐츠 높이로 트림 (하단 여백 24px)
-                    const trimH = Math.ceil(y + 24);
-                    const trimCanvas = document.createElement('canvas');
-                    trimCanvas.width = W * DPR;
-                    trimCanvas.height = trimH * DPR;
-                    trimCanvas.getContext('2d').drawImage(canvas, 0, 0);
-                    trimCanvas.toBlob(blob => {
-                        if (onBlob) { onBlob(blob); return; }
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `band-test-${key}.png`;
-                        a.click();
-                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                    });
-                    return; // band 타입은 여기서 완료
-
+                // 히어로 (밴드 사진 / 악기 이모지)
+                const px = 60, pw = W - 120;
+                const py = 138;
+                const ph = type === 'band' ? (hasAxes ? 320 : 420) : 300;
+                if (type === 'band' && mainImg && typeof mainImg !== 'string') {
+                    ctx.save();
+                    rr(px, py, pw, ph, 26); ctx.clip();
+                    const cr = pw / ph, ir = mainImg.width / mainImg.height;
+                    let bsx=0, bsy=0, bsw=mainImg.width, bsh=mainImg.height;
+                    if (ir > cr) { bsw = mainImg.height * cr; bsx = (mainImg.width - bsw)/2; }
+                    else { bsh = mainImg.width / cr; bsy = (mainImg.height - bsh)/2; }
+                    ctx.filter = 'blur(24px) brightness(0.55)';
+                    ctx.drawImage(mainImg, bsx, bsy, bsw, bsh, px-10, py-10, pw+20, ph+20);
+                    ctx.filter = 'none';
+                    let dw, dh, dx, dy;
+                    if (ir > cr) { dw = pw; dh = pw / ir; dx = px; dy = py + (ph - dh)/2; }
+                    else { dh = ph; dw = ph * ir; dx = px + (pw - dw)/2; dy = py; }
+                    ctx.drawImage(mainImg, dx, dy, dw, dh);
+                    ctx.restore();
                 } else {
-                    // ── inst 타입 — 세로형 풍부한 결과 이미지
-                    const iW = 540;
-                    const iGrad = ctx.createLinearGradient(0, 0, iW, 1200);
-                    iGrad.addColorStop(0, darkenColor(result.color, 0.1));
-                    iGrad.addColorStop(1, darkenColor(result.color, 0.52));
-                    ctx.fillStyle = iGrad;
-                    ctx.fillRect(0, 0, iW, 1400); // 넉넉하게 채워두고 나중에 트림
-
-                    // 장식 원
-                    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-                    ctx.beginPath(); ctx.arc(iW - 50, 90, 170, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(40,  1300, 130, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(iW + 20, 600, 100, 0, Math.PI*2); ctx.fill();
-
-                    // ── 상단 칩 (브랜드)
-                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-                    roundRect(30, 28, 185, 30, 15); ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 13px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText('🎵 악기 세션 테스트', 44, 48);
-
-                    // ── 브랜딩 (우상단)
-                    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                    ctx.font = '11px sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.fillText('Gather all around', iW - 30, 48);
-
-                    // ── 이모지 히어로 영역
-                    const heroY = 80, heroH = 220;
                     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                    roundRect(30, heroY, iW - 60, heroH, 24); ctx.fill();
-
-                    if (bandImg && typeof bandImg !== 'string') {
-                        // 베이스 등 이미지 아이콘이 있는 경우 drawImage로 렌더
-                        const iconSize = 110;
-                        ctx.drawImage(bandImg, iW/2 - iconSize/2, heroY + (heroH - iconSize)/2, iconSize, iconSize);
+                    rr(px, py, pw, ph, 26); ctx.fill();
+                    if (mainImg && typeof mainImg !== 'string') {
+                        // inst의 이미지 아이콘(베이스 등)
+                        const icon = 130;
+                        ctx.drawImage(mainImg, W/2 - icon/2, py + (ph - icon)/2, icon, icon);
                     } else {
-                        const instEmoji = result.emoji && !result.emoji.startsWith('<') ? result.emoji : '🎵';
-                        ctx.font = '100px sans-serif';
+                        const heroEmoji = (typeof result.emoji === 'string' && !result.emoji.startsWith('<')) ? result.emoji : (type === 'band' ? '🎸' : '🎵');
+                        ctx.font = '110px sans-serif';
                         ctx.textAlign = 'center';
-                        ctx.fillText(instEmoji, iW / 2, heroY + 140);
+                        ctx.fillText(heroEmoji, W/2, py + ph/2 + 40);
                     }
-
-                    // ── 결과 제목
-                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText('YOUR INSTRUMENT', 40, heroY + heroH + 28);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 34px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`나는 ${result.name} 타입!`, iW / 2, heroY + heroH + 62);
-
-                    let iy = heroY + heroH + 84;
-
-                    // ── 설명
-                    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-                    ctx.textAlign = 'left';
-                    const iDescLines = wrapLines(result.desc, iW - 80, '14.5px sans-serif');
-                    iDescLines.slice(0, 3).forEach((l, i) => { ctx.font = '14.5px sans-serif'; ctx.fillText(l, 40, iy + i * 22); });
-                    iy += Math.min(iDescLines.length, 3) * 22 + 16;
-
-                    // ── 선정 이유 박스
-                    const iWhy = (typeof RESULT_WHY !== 'undefined' && RESULT_WHY[key]) ? RESULT_WHY[key] : '';
-                    if (iWhy) {
-                        const iWhyLines = wrapLines(iWhy, iW - 90, '13px sans-serif');
-                        const iWhyShown = iWhyLines.slice(0, 4);
-                        const iWhyH = 30 + iWhyShown.length * 19 + 14;
-                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
-                        roundRect(30, iy, iW - 60, iWhyH, 14); ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.fillText('💡 이 결과가 나온 이유', 44, iy + 20);
-                        ctx.fillStyle = '#fff';
-                        ctx.font = '13px sans-serif';
-                        iWhyShown.forEach((l, i) => ctx.fillText(l, 44, iy + 40 + i * 19));
-                        iy += iWhyH + 16;
-                    }
-
-                    // ── 추천 트랙 박스
-                    if (result.songs && result.songs.length) {
-                        const iTracks = result.songs.slice(0, 3);
-                        const iTrackBoxH = 32 + iTracks.length * 52 + 8;
-                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
-                        roundRect(30, iy, iW - 60, iTrackBoxH, 14); ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.fillText('🎸 입문 추천 트랙', 44, iy + 20);
-                        iTracks.forEach((s, i) => {
-                            const ty = iy + 36 + i * 52;
-                            // 번호 뱃지
-                            ctx.fillStyle = 'rgba(255,255,255,0.28)';
-                            ctx.beginPath(); ctx.arc(54, ty + 10, 12, 0, Math.PI * 2); ctx.fill();
-                            ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 11px sans-serif';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(String(i + 1), 54, ty + 14);
-                            ctx.textAlign = 'left';
-                            // 곡명
-                            ctx.font = 'bold 15px sans-serif';
-                            ctx.fillStyle = '#fff';
-                            const tt = s.title.length > 24 ? s.title.slice(0, 24) + '…' : s.title;
-                            ctx.fillText(tt, 74, ty + 8);
-                            // 아티스트
-                            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                            ctx.font = '12px sans-serif';
-                            ctx.fillText(`— ${s.artist}`, 74, ty + 24);
-                            // vibe
-                            ctx.fillStyle = 'rgba(255,255,255,0.75)';
-                            ctx.font = '11.5px sans-serif';
-                            const vb = s.vibe || '';
-                            ctx.fillText(vb.length > 34 ? vb.slice(0, 34) + '…' : vb, 74, ty + 40);
-                            ctx.fillStyle = '#fff';
-                        });
-                        iy += iTrackBoxH + 16;
-                    }
-
-                    // ── 푸터
-                    iy += 8;
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillText('🎯 나에게 맞는 악기는? · 나도 테스트해보기', iW / 2, iy + 16);
-                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                    ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather all around · ' + location.hostname, iW / 2, iy + 32);
-                    iy += 48;
-
-                    // 실제 높이로 트림
-                    const iTrimH = Math.ceil(iy + 24);
-                    const iTrimCanvas = document.createElement('canvas');
-                    iTrimCanvas.width = iW * DPR;
-                    iTrimCanvas.height = iTrimH * DPR;
-                    iTrimCanvas.getContext('2d').drawImage(canvas, 0, 0);
-                    iTrimCanvas.toBlob(blob => {
-                        if (onBlob) { onBlob(blob); return; }
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `inst-test-${key}.png`;
-                        a.click();
-                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                    });
-                    return; // inst 타입 완료
                 }
+
+                // 결과 라벨
+                let sy = py + ph + 44;
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(type === 'band' ? 'YOUR BAND MATCH' : 'YOUR INSTRUMENT', W/2, sy);
+                sy += 36;
+                const sLabel = type === 'band' ? `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!` : `나는 ${result.name} 타입!`;
+                ctx.fillStyle = '#fff';
+                let sSize = 28;
+                while (sSize > 15) {
+                    ctx.font = `bold ${sSize}px sans-serif`;
+                    if (ctx.measureText(sLabel).width <= W - 70) break;
+                    sSize--;
+                }
+                ctx.fillText(sLabel, W/2, sy);
+                sy += 22;
+
+                // 매칭률 (크게)
+                if (sPct) {
+                    const pctText = `매칭률 ${sPct}%`;
+                    ctx.font = 'bold 19px sans-serif';
+                    const pw2 = ctx.measureText(pctText).width + 44;
+                    ctx.fillStyle = '#fff';
+                    rr(W/2 - pw2/2, sy, pw2, 42, 21); ctx.fill();
+                    ctx.fillStyle = darkenColor(result.color, 0.45);
+                    ctx.fillText(pctText, W/2, sy + 28);
+                    sy += 58;
+                } else if (result.desc) {
+                    // 매칭률이 없으면 소개 문구 한 줄로 공백 보완
+                    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                    ctx.font = '14px sans-serif';
+                    const d = result.desc.length > 34 ? result.desc.slice(0, 34) + '…' : result.desc;
+                    ctx.fillText(d, W/2, sy + 10);
+                    sy += 40;
+                }
+
+                // 성향 미니 그래프
+                if (hasAxes) {
+                    const boxX = 56, boxW = W - 112;
+                    const rowH = 22;
+                    const boxH = 18 + BAND_AXES.length * rowH + 14;
+                    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                    rr(boxX, sy, boxW, boxH, 14); ctx.fill();
+                    const trackX = boxX + 96, trackW = boxX + boxW - 18 - trackX;
+                    BAND_AXES.forEach((ax, i) => {
+                        const ry = sy + 22 + i * rowH;
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 11.5px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`${ax.emoji} ${ax.name}`, boxX + 16, ry + 9);
+                        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                        rr(trackX, ry, trackW, 9, 4.5); ctx.fill();
+                        const uw = Math.max(7, trackW * (_sd.userAxes[i] - 1) / 4);
+                        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+                        rr(trackX, ry, uw, 9, 4.5); ctx.fill();
+                        const bx = trackX + trackW * (result.v[i] - 1) / 4;
+                        ctx.beginPath(); ctx.arc(bx, ry + 4.5, 5.5, 0, Math.PI*2);
+                        ctx.fillStyle = darkenColor(result.color, 0.45); ctx.fill();
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+                    });
+                    sy += boxH;
+                }
+
+                // 2·3위 매칭 한 줄
+                if (runners) {
+                    const runnersText = `아깝게 놓친 매칭  🥈 ${runners[0].name} ${runners[0].pct}% · 🥉 ${runners[1].name} ${runners[1].pct}%`;
+                    let rSize = 13;
+                    while (rSize > 10) {
+                        ctx.font = `bold ${rSize}px sans-serif`;
+                        if (ctx.measureText(runnersText).width <= W - 60) break;
+                        rSize--;
+                    }
+                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(runnersText, W/2, sy + 26);
+                }
+
+                // inst: 입문 추천 트랙 컴팩트 박스
+                if (type === 'inst' && result.songs && result.songs.length) {
+                    const boxX = 56, boxW = W - 112;
+                    const tr = result.songs.slice(0, 3);
+                    const trBoxH = 24 + tr.length * 42 + 8;
+                    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                    rr(boxX, sy, boxW, trBoxH, 14); ctx.fill();
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('🎸 입문 추천 트랙', boxX + 16, sy + 20);
+                    tr.forEach((s, i) => {
+                        const ty = sy + 40 + i * 42;
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 13.5px sans-serif';
+                        const tt = s.title.length > 22 ? s.title.slice(0, 22) + '…' : s.title;
+                        ctx.fillText(`${i + 1}. ${tt}`, boxX + 16, ty);
+                        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                        ctx.font = '11.5px sans-serif';
+                        ctx.fillText(s.artist ? `— ${s.artist}` : '', boxX + 32, ty + 17);
+                    });
+                    sy += trBoxH;
+                }
+
+                // 하단 CTA + 도메인 (IG 하단 UI 안전 여백 위)
+                const ctaText2 = type === 'band' ? '🎸 너의 밴드도 찾아보기' : '🎯 나에게 맞는 악기 찾아보기';
+                ctx.font = 'bold 15px sans-serif';
+                ctx.textAlign = 'center';
+                const cw2 = ctx.measureText(ctaText2).width + 52;
+                ctx.fillStyle = '#fff';
+                rr(W/2 - cw2/2, 806, cw2, 44, 22); ctx.fill();
+                ctx.fillStyle = darkenColor(result.color, 0.45);
+                ctx.fillText(ctaText2, W/2, 834);
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText((location.hostname || 'gatherallaround.com'), W/2, 878);
+
+                canvas.toBlob(done);
             }
 
-            Promise.all([
-                loadImg(result.imgSrc),
-                Promise.all(related.similar.map(it => loadImg(it.band.imgSrc))),
-                Promise.all(related.opposite.map(it => loadImg(it.band.imgSrc))),
-            ]).then(([mainImg, simImgs, oppImgs]) => {
-                drawCanvas(mainImg || result.emoji, { similar: simImgs, opposite: oppImgs });
+
+            loadImg(result.imgSrc).then(mainImg => {
+                drawStory(mainImg, blob => {
+                    if (!blob) return;
+                    if (onBlob) { onBlob(blob); return; } // 카카오 공유용
+                    saveBlob(blob, `${type === 'band' ? 'band' : 'inst'}-test-${key}.png`);
+                });
             });
         }
 
