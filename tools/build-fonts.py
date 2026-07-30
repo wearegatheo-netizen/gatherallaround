@@ -38,7 +38,7 @@ CRITICAL_TEXT = (
     '게·어·드 커뮤니티'          # portal-btn-title
     '게더링'                     # portal-btn-title
     '고정 합주팀'                # portal-btn-title / bandHeaderName
-    '공연 대관'                  # portal-btn-title
+    '공간 대관'                  # portal-btn-title ('연'은 기존 폰트에 남아 있어 무해)
     '게더올어라운드 이용 시스템'   # portal-sub
     '게더링 멤버 전용 공간'       # landing-page
     '돌아가기'                   # portal-back-btn

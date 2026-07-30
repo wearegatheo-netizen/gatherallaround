@@ -246,7 +246,7 @@
             .band-news-header { padding: 22px 14px 14px; }
             .band-news-inner { padding: 16px 14px 40px; }
         }
-        /* 공연 대관 페이지 */
+        /* 공간 대관 페이지 */
         #performance-booking-page {
             width: 100%;
             min-height: 100vh;
@@ -1530,7 +1530,7 @@
         </button>
         <button type="button" class="portal-btn portal-btn-primary" onclick="showPerformanceBookingSection()">
             <span class="portal-btn-text">
-                <span class="portal-btn-title">공연 대관</span>
+                <span class="portal-btn-title">공간 대관</span>
                 <span class="portal-btn-desc">소규모 공연을 위한 예약 페이지</span>
             </span>
         </button>
@@ -1552,13 +1552,13 @@
         </div>
     </div>
 
-    <!-- 공연 대관 예약 페이지 -->
+    <!-- 공간 대관 예약 페이지 -->
     <div id="performance-booking-page" class="hidden">
         <div class="perf-header">
             <div class="perf-header-inner" style="position:relative">
                 <button type="button" id="themeToggleBtnPerf" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:0;right:0">🌙</button>
                 <button class="portal-back-btn" onclick="showPortal()" style="display:inline-block;margin-bottom:10px">← 돌아가기</button>
-                <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.7rem;margin:0 0 4px">공연 대관</h1>
+                <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.7rem;margin:0 0 4px">공간 대관</h1>
                 <p style="color:var(--wds-gray-700);margin:0;font-size:0.95rem">소규모 공연을 위한 공간 예약</p>
             </div>
         </div>
@@ -3301,7 +3301,7 @@
                 res_date: b.date,
                 start_time: b.start_time,
                 end_time: b.end_time,
-                user_name: '공연 대관',
+                user_name: '공간 대관',
                 status: 'approved',
                 __perf: true,
             }));
@@ -3329,7 +3329,7 @@
                     ? Promise.race([
                           Promise.all([
                               document.fonts.load('1em KkuBulLim', text),
-                              document.fonts.load('1em KkuBulLim', '게더링 커뮤니티 고정 합주팀 공연 대관')
+                              document.fonts.load('1em KkuBulLim', '게더링 커뮤니티 고정 합주팀 공간 대관')
                           ]).catch(() => {}),
                           new Promise(r => setTimeout(r, 500))
                       ])
@@ -3426,7 +3426,7 @@
                 _initialPage === 'portal' ? location.pathname : '#' + _initialPage);
             if (_initialPage !== 'portal') {
                 _pendingRoute = _initialPage;
-                // 공개 섹션(커뮤니티/밴드소식/공연대관)은 인증과 무관하므로 즉시
+                // 공개 섹션(커뮤니티/밴드소식/공간대관)은 인증과 무관하므로 즉시
                 // 표시해 포털 깜빡임을 방지. 로그인 콜백이 main-content로 덮어써도
                 // applyPendingRoute가 다시 복원한다.
                 if (['community', 'band-news', 'perf'].includes(_initialPage)) {
@@ -5299,7 +5299,7 @@
                 { key: 'members', label: '👥 멤버현황' },
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
                 ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
-                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }, { key: 'perfbooking', label: '🎭 공연대관' }] : [])
+                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }, { key: 'perfbooking', label: '🎭 공간대관' }] : [])
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -6305,13 +6305,13 @@
                             if (isSuper()) {
                                 const realId = occupiedRes.id.replace(/^perf-/, '');
                                 s.style.cursor = 'pointer';
-                                s.title = '공연 대관 예약 — 클릭하여 취소';
-                                s.onclick = () => { if (confirm(`공연 대관 예약(${d.toLocaleDateString('ko-KR')} ${time})을 취소하시겠습니까?`)) cancelPerfReservation(realId); };
+                                s.title = '공간 대관 예약 — 클릭하여 취소';
+                                s.onclick = () => { if (confirm(`공간 대관 예약(${d.toLocaleDateString('ko-KR')} ${time})을 취소하시겠습니까?`)) cancelPerfReservation(realId); };
                             } else {
                                 s.style.cursor = 'not-allowed';
-                                s.title = '공연 대관 예약';
+                                s.title = '공간 대관 예약';
                             }
-                            s.textContent = '🎭 공연 대관';
+                            s.textContent = '🎭 공간 대관';
                         } else if (isSuper()) {
                             s.style.cursor = 'pointer';
                             const weekPNames = participantNames(occupiedRes);
@@ -6375,8 +6375,8 @@
                     s.style.cursor = 'not-allowed';
                     if (occupiedRes.__perf) {
                         const realId = occupiedRes.id.replace(/^perf-/, '');
-                        const perfCancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('공연 대관 예약을 취소하시겠습니까?'))cancelPerfReservation('${realId}')" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
-                        s.innerHTML = `🎭 공연 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
+                        const perfCancelBtn = isSuper() ? `<button type="button" onclick="event.stopPropagation();if(confirm('공간 대관 예약을 취소하시겠습니까?'))cancelPerfReservation('${realId}')" style="margin-left:8px;padding:2px 8px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:4px;cursor:pointer;font-weight:600;vertical-align:middle">취소</button>` : '';
+                        s.innerHTML = `🎭 공간 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
                     } else {
                         const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
                         const dayPNames = canApproveRes() ? participantNames(occupiedRes) : '';
@@ -6738,7 +6738,7 @@
             document.getElementById('portal-page').classList.remove('hidden');
         }
 
-        // ===== 공연 대관 예약 =====
+        // ===== 공간 대관 예약 =====
         // 공간 소개 사진 목록. Git 저장소 루트에 이미지 파일을 올린 뒤 아래 배열에
         // raw URL 을 추가하면 "공간 소개"에 표시됨. 예:
         //   'https://raw.githubusercontent.com/wearegatheo-netizen/gatherallaround/master/새파일명.jpg',
@@ -6771,9 +6771,11 @@
             step: 1,
             howFound: '',
             howFoundOther: '',
+            audienceTbd: false, // 관람객 인원 미정 — 공연진 인원으로만 우선 예약, 당일 정산
         };
 
         async function loadPerfBlocks() {
+            if (!supabaseClient) return;
             const { data } = await supabaseClient.from('time_blocks').select('*');
             _perfState.blocks = data || [];
         }
@@ -6790,6 +6792,7 @@
         }
 
         async function loadPerfRangeConflicts(startDate, endDate) {
+            if (!supabaseClient) return;
             if (!_perfState.blocks.length) await loadPerfBlocks();
             const [resResult, pbResult] = await Promise.all([
                 supabaseClient.from('reservations').select('res_date,start_time,end_time')
@@ -6837,7 +6840,7 @@
             _hideAllScreens();
             document.getElementById('performance-booking-page').classList.remove('hidden');
             const now = new Date();
-            _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '' };
+            _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '', audienceTbd: false };
             renderPerfStep1();
         }
 
@@ -6870,6 +6873,7 @@
                                     style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.95rem;font-family:inherit;outline:none">
                                 <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
                             </div>
+                            <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">관람객 수가 아직 미정이면 우선 <strong>공연진 인원만</strong> 입력하세요. 다음 단계에서 체크할 수 있습니다.</div>
                             <div id="perfFeeSummary"></div>
                         </div>
                         <div id="perfStep1Next" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
@@ -6889,6 +6893,14 @@
                                 📅 주말 (토·일): 40,000원 / 시간 (5인 기준)<br>
                                 👥 5인 초과 시: 1인당 +5,000원 추가<br>
                                 ⏱️ 최소 예약 3시간
+                            </div>
+                        </div>
+                        <div class="perf-section">
+                            <div class="perf-section-title">유의사항</div>
+                            <div class="perf-price-table">
+                                👥 관람객 수가 미정이면 공연진 인원으로만 우선 예약하고, 당일 최종 인원을 산정해 초과 인원만큼 추가 결제하시면 됩니다.<br>
+                                🎚️ 별도의 엔지니어가 상주하지 않습니다.<br>
+                                📖 예약 완료 시 장비 사용법을 따로 안내해 드립니다.
                             </div>
                         </div>
                     </div>
@@ -7221,7 +7233,7 @@
                 <div style="max-width:560px;margin:0 auto">
                 <div class="perf-summary-box">
                     📅 ${selectedDate} ${TIMES[startSlot]} ~ ${endDisplay} (${hours}시간)<br>
-                    👥 ${headcount}명 · 예상 금액 <strong>${fee.toLocaleString()}원</strong>
+                    👥 <span id="perfSummaryHeadcount">${headcount}명${_perfState.audienceTbd ? ' (공연진 기준 · 관람객 미정)' : ''}</span> · 예상 금액 <strong>${fee.toLocaleString()}원</strong>
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">이름 *</label>
@@ -7241,12 +7253,30 @@
                     <input type="text" class="perf-form-input" id="perfHowFoundOther" placeholder="직접 입력"
                         style="margin-top:8px;display:${_perfState.howFound==='기타'?'block':'none'}" value="${_perfState.howFoundOther||''}">
                 </div>
+                <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
+                    <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.88rem;font-weight:600;color:var(--wds-black);line-height:1.5">
+                        <input type="checkbox" id="perfAudienceTbd" ${_perfState.audienceTbd ? 'checked' : ''}
+                            onchange="toggleAudienceTbd(this.checked)"
+                            style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
+                        관람객 인원이 아직 미정입니다 — 공연진 인원으로만 우선 예약할게요.
+                    </label>
+                    <div style="font-size:0.78rem;color:var(--wds-gray-700);margin-top:6px;padding-left:27px;line-height:1.55">당일 관람객을 포함한 최종 인원을 산정하여, 초과 인원(1인당 +5,000원)은 현장에서 추가 결제됩니다.</div>
+                </div>
                 <div id="perfSubmitResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <div style="display:flex;gap:8px;margin-top:4px">
                     <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">← 돌아가기</button>
                     <button id="perfSubmitBtn" onclick="submitPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">신청하기</button>
                 </div>
                 </div>`;
+        }
+
+        // 관람객 미정 체크 — DB에 별도 컬럼이 없어 purpose 끝에 마커 문자열로 저장한다.
+        // 관리자 카드가 이 마커를 감지해 배지로 표시하고, 표시 시엔 마커를 떼어낸다.
+        const PERF_AUDIENCE_TBD_MARK = '[관람객 미정·당일 추가결제]';
+        function toggleAudienceTbd(checked) {
+            _perfState.audienceTbd = checked;
+            const s = document.getElementById('perfSummaryHeadcount');
+            if (s) s.textContent = `${_perfState.headcount}명${checked ? ' (공연진 기준 · 관람객 미정)' : ''}`;
         }
 
         function selectPerfHowFound(opt) {
@@ -7291,15 +7321,16 @@
                     return startSlot <= ce && endSlot >= cs;
                 });
                 if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
+                const purposeFinal = _perfState.audienceTbd ? `${purpose} ${PERF_AUDIENCE_TBD_MARK}` : purpose;
                 const { error } = await supabaseClient.from('performance_bookings').insert({
-                    name, phone, purpose, how_found: howFound,
+                    name, phone, purpose: purposeFinal, how_found: howFound,
                     date: selectedDate,
                     start_time: TIMES[startSlot],
                     end_time: TIMES[endSlot],
                     headcount
                 });
                 if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
-                sendAdminPush('🎭 공연 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}`).catch(() => {});
+                sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
                 renderPerfStep3();
             } finally {
                 _perfSubmitBusy = false;
@@ -7313,7 +7344,7 @@
                 <div style="text-align:center;padding:40px 20px">
                     <div style="font-size:2.5rem;margin-bottom:16px">✅</div>
                     <div style="font-size:1.1rem;font-weight:700;margin-bottom:10px">예약 신청이 완료되었습니다!</div>
-                    <p style="font-size:0.88rem;color:var(--wds-gray-600);line-height:1.6">검토 후 연락처로 안내 드리겠습니다.<br>문의: 010-5109-1042 (최경수)</p>
+                    <p style="font-size:0.88rem;color:var(--wds-gray-600);line-height:1.6">검토 후 연락처로 안내 드리겠습니다.<br>예약 확정 시 장비 사용법도 함께 안내해 드립니다.<br>문의: 010-5109-1042 (최경수)</p>
                     <button onclick="showPortal()" style="margin-top:24px;padding:12px 32px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">처음으로</button>
                 </div>`;
         }
@@ -7359,22 +7390,25 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const items = data || [];
             const pending = items.filter(b => b.status === 'pending');
             const others = items.filter(b => b.status !== 'pending');
-            let html = `<div class="admin-section-title">🎭 공연 대관 신청 (${items.length}건)</div>`;
+            let html = `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
             if (!items.length) { html += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500)">신청 내역이 없습니다.</p>'; container.innerHTML = html; return; }
             const renderCard = (b) => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
                 const hours = TIMES.indexOf(b.end_time) - TIMES.indexOf(b.start_time) + 1;
                 const fee = calcPerformanceFee(b.date, TIMES.indexOf(b.start_time), TIMES.indexOf(b.end_time), b.headcount);
                 const approvalMsg = b.status === 'approved' ? generateApprovalMessage(b) : '';
+                const audienceTbd = (b.purpose || '').includes(PERF_AUDIENCE_TBD_MARK);
+                const purposeDisplay = (b.purpose || '').replace(PERF_AUDIENCE_TBD_MARK, '').trim();
                 return `<div class="perf-admin-card${b.status==='pending'?' pending':''}" id="perf-card-${b.id}">
                     <div class="perf-admin-card-title">
                         ${b.status==='pending'?'⏳ 대기':''}${b.status==='approved'?'✅ 승인':''}${b.status==='rejected'?'❌ 거절':''} · ${escapeHtml(b.name)}
                     </div>
+                    ${audienceTbd ? `<div style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:12px;margin:4px 0 6px">👥 관람객 미정 — 공연진 ${b.headcount}명 기준, 당일 인원 산정 후 추가 결제</div>` : ''}
                     <div class="perf-admin-card-info">
                         📅 ${b.date} ${b.start_time} ~ ${endDisplay} (${hours}시간)<br>
-                        👥 ${b.headcount}명 · ${fee.toLocaleString()}원<br>
+                        👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준)' : ''} · ${fee.toLocaleString()}원${audienceTbd ? ' + 당일 추가분' : ''}<br>
                         📞 ${escapeHtml(b.phone)}<br>
-                        🎯 ${escapeHtml(b.purpose)}<br>
+                        🎯 ${escapeHtml(purposeDisplay)}<br>
                         🔍 경로: ${escapeHtml(b.how_found)}<br>
                         🕐 ${new Date(b.created_at).toLocaleString('ko-KR')}
                     </div>
@@ -7477,7 +7511,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             // body.dark의 [style*="background:#fff"] 일괄 보정이 걸리지 않는다.
             inner.style.cssText = 'background:var(--wds-white);border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:20px 22px;box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:inherit;color:var(--wds-gray-900)';
             inner.innerHTML = `
-                <div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--wds-black)">🎭 공연 대관 예약 안내</div>
+                <div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--wds-black)">🎭 공간 대관 예약 안내</div>
                 <pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:0.9rem;line-height:1.65;margin:0 0 14px;color:var(--wds-gray-900)">${safeMsg}</pre>
                 <div style="display:flex;gap:8px">
                     <button class="pm-copy" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-weight:600;font-family:inherit">📋 복사</button>
@@ -7505,7 +7539,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
         document.addEventListener('DOMContentLoaded', showPerfMsgFromQuery);
         if (document.readyState !== 'loading') showPerfMsgFromQuery();
-        // ===== /공연 대관 예약 =====
+        // ===== /공간 대관 예약 =====
 
         async function showBandNewsSection() {
             _pushNav('band-news');
