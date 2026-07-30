@@ -10145,6 +10145,170 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 });
             }
 
+            function saveBlob(blob, fname) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fname;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+
+            // ── 인스타 스토리용 9:16 이미지 (1080×1920) — 핵심 정보만 크게
+            function drawStory(mainImg, fname) {
+                const canvas = document.createElement('canvas');
+                const DPR = 2, W = 540, H = 960;
+                canvas.width = W * DPR; canvas.height = H * DPR;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(DPR, DPR);
+                ctx.textBaseline = 'alphabetic';
+                function rr(x, y, w, h, r) {
+                    ctx.beginPath();
+                    ctx.moveTo(x+r, y);
+                    ctx.arcTo(x+w, y, x+w, y+h, r);
+                    ctx.arcTo(x+w, y+h, x, y+h, r);
+                    ctx.arcTo(x, y+h, x, y, r);
+                    ctx.arcTo(x, y, x+w, y, r);
+                    ctx.closePath();
+                }
+
+                const _sd = type === 'band' ? state.communityTestDetail : null;
+                const sPct = (_sd && _sd.ranking && _sd.ranking[0] && _sd.ranking[0].key === key) ? _sd.ranking[0].pct : null;
+                const hasAxes = !!(_sd && _sd.userAxes);
+
+                // 배경
+                const g = ctx.createLinearGradient(0, 0, 0, H);
+                g.addColorStop(0, darkenColor(result.color, 0.15));
+                g.addColorStop(1, darkenColor(result.color, 0.6));
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.beginPath(); ctx.arc(W-40, 200, 150, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(40, 760, 120, 0, Math.PI*2); ctx.fill();
+
+                // 상단 브랜드 칩 (IG 상단 UI 안전 여백 아래)
+                const chipText = type === 'band' ? '✨ 밴드 성향 테스트' : '🎵 악기 세션 테스트';
+                ctx.font = 'bold 14px sans-serif';
+                const chipW = ctx.measureText(chipText).width + 36;
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                rr(W/2 - chipW/2, 92, chipW, 34, 17); ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.fillText(chipText, W/2, 114);
+
+                // 히어로 (밴드 사진 / 악기 이모지)
+                const px = 60, pw = W - 120;
+                const py = 148;
+                const ph = type === 'band' ? (hasAxes ? 350 : 430) : 300;
+                if (type === 'band' && mainImg && typeof mainImg !== 'string') {
+                    ctx.save();
+                    rr(px, py, pw, ph, 26); ctx.clip();
+                    const cr = pw / ph, ir = mainImg.width / mainImg.height;
+                    let bsx=0, bsy=0, bsw=mainImg.width, bsh=mainImg.height;
+                    if (ir > cr) { bsw = mainImg.height * cr; bsx = (mainImg.width - bsw)/2; }
+                    else { bsh = mainImg.width / cr; bsy = (mainImg.height - bsh)/2; }
+                    ctx.filter = 'blur(24px) brightness(0.55)';
+                    ctx.drawImage(mainImg, bsx, bsy, bsw, bsh, px-10, py-10, pw+20, ph+20);
+                    ctx.filter = 'none';
+                    let dw, dh, dx, dy;
+                    if (ir > cr) { dw = pw; dh = pw / ir; dx = px; dy = py + (ph - dh)/2; }
+                    else { dh = ph; dw = ph * ir; dx = px + (pw - dw)/2; dy = py; }
+                    ctx.drawImage(mainImg, dx, dy, dw, dh);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                    rr(px, py, pw, ph, 26); ctx.fill();
+                    if (mainImg && typeof mainImg !== 'string') {
+                        // inst의 이미지 아이콘(베이스 등)
+                        const icon = 130;
+                        ctx.drawImage(mainImg, W/2 - icon/2, py + (ph - icon)/2, icon, icon);
+                    } else {
+                        const heroEmoji = (typeof result.emoji === 'string' && !result.emoji.startsWith('<')) ? result.emoji : (type === 'band' ? '🎸' : '🎵');
+                        ctx.font = '110px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(heroEmoji, W/2, py + ph/2 + 40);
+                    }
+                }
+
+                // 결과 라벨
+                let sy = py + ph + 44;
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(type === 'band' ? 'YOUR BAND MATCH' : 'YOUR INSTRUMENT', W/2, sy);
+                sy += 36;
+                const sLabel = type === 'band' ? `나는 ${withWaGwa(result.name)} 잘 어울리는 사람!` : `나는 ${result.name} 타입!`;
+                ctx.fillStyle = '#fff';
+                let sSize = 28;
+                while (sSize > 15) {
+                    ctx.font = `bold ${sSize}px sans-serif`;
+                    if (ctx.measureText(sLabel).width <= W - 70) break;
+                    sSize--;
+                }
+                ctx.fillText(sLabel, W/2, sy);
+                sy += 22;
+
+                // 매칭률 (크게)
+                if (sPct) {
+                    const pctText = `매칭률 ${sPct}%`;
+                    ctx.font = 'bold 19px sans-serif';
+                    const pw2 = ctx.measureText(pctText).width + 44;
+                    ctx.fillStyle = '#fff';
+                    rr(W/2 - pw2/2, sy, pw2, 42, 21); ctx.fill();
+                    ctx.fillStyle = darkenColor(result.color, 0.45);
+                    ctx.fillText(pctText, W/2, sy + 28);
+                    sy += 58;
+                } else if (result.desc) {
+                    // 매칭률이 없으면 소개 문구 한 줄로 공백 보완
+                    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                    ctx.font = '14px sans-serif';
+                    const d = result.desc.length > 34 ? result.desc.slice(0, 34) + '…' : result.desc;
+                    ctx.fillText(d, W/2, sy + 10);
+                    sy += 40;
+                }
+
+                // 성향 미니 그래프
+                if (hasAxes) {
+                    const boxX = 56, boxW = W - 112;
+                    const rowH = 23;
+                    const boxH = 18 + BAND_AXES.length * rowH + 14;
+                    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                    rr(boxX, sy, boxW, boxH, 14); ctx.fill();
+                    const trackX = boxX + 96, trackW = boxX + boxW - 18 - trackX;
+                    BAND_AXES.forEach((ax, i) => {
+                        const ry = sy + 22 + i * rowH;
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 11.5px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`${ax.emoji} ${ax.name}`, boxX + 16, ry + 9);
+                        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                        rr(trackX, ry, trackW, 9, 4.5); ctx.fill();
+                        const uw = Math.max(7, trackW * (_sd.userAxes[i] - 1) / 4);
+                        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+                        rr(trackX, ry, uw, 9, 4.5); ctx.fill();
+                        const bx = trackX + trackW * (result.v[i] - 1) / 4;
+                        ctx.beginPath(); ctx.arc(bx, ry + 4.5, 5.5, 0, Math.PI*2);
+                        ctx.fillStyle = darkenColor(result.color, 0.45); ctx.fill();
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+                    });
+                    sy += boxH;
+                }
+
+                // 하단 CTA + 도메인 (IG 하단 UI 안전 여백 위)
+                const ctaText2 = type === 'band' ? '🎸 너의 밴드도 찾아보기' : '🎯 나에게 맞는 악기 찾아보기';
+                ctx.font = 'bold 15px sans-serif';
+                ctx.textAlign = 'center';
+                const cw2 = ctx.measureText(ctaText2).width + 52;
+                ctx.fillStyle = '#fff';
+                rr(W/2 - cw2/2, 806, cw2, 44, 22); ctx.fill();
+                ctx.fillStyle = darkenColor(result.color, 0.45);
+                ctx.fillText(ctaText2, W/2, 834);
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText((location.hostname || 'gatherallaround.com'), W/2, 878);
+
+                canvas.toBlob(blob => { if (blob) saveBlob(blob, fname); });
+            }
+
             function drawCanvas(bandImg, relatedImgs) {
                 const canvas = document.createElement('canvas');
                 const DPR = 2; // 2x 해상도
@@ -10444,12 +10608,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     trimCanvas.height = trimH * DPR;
                     trimCanvas.getContext('2d').drawImage(canvas, 0, 0);
                     trimCanvas.toBlob(blob => {
-                        if (onBlob) { onBlob(blob); return; }
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `band-test-${key}.png`;
-                        a.click();
-                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                        if (onBlob) { onBlob(blob); return; } // 카카오 공유는 리포트 1장만
+                        saveBlob(blob, `band-test-${key}.png`);
+                        drawStory(bandImg, `band-test-${key}-story.png`); // 스토리용 9:16 자동 추가 저장
                     });
                     return; // band 타입은 여기서 완료
 
@@ -10596,12 +10757,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     iTrimCanvas.height = iTrimH * DPR;
                     iTrimCanvas.getContext('2d').drawImage(canvas, 0, 0);
                     iTrimCanvas.toBlob(blob => {
-                        if (onBlob) { onBlob(blob); return; }
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `inst-test-${key}.png`;
-                        a.click();
-                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                        if (onBlob) { onBlob(blob); return; } // 카카오 공유는 리포트 1장만
+                        saveBlob(blob, `inst-test-${key}.png`);
+                        drawStory(bandImg, `inst-test-${key}-story.png`); // 스토리용 9:16 자동 추가 저장
                     });
                     return; // inst 타입 완료
                 }
