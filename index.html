@@ -10127,6 +10127,12 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             if (!result) return;
 
             const related = type === 'band' ? findRelatedBands(key) : { similar: [], opposite: [] };
+            // 매칭 상세가 있으면 '비슷한 밴드' 대신 화면과 동일하게 실제 2·3위 매칭을 그린다
+            const _dd = type === 'band' ? state.communityTestDetail : null;
+            const runners = (_dd && _dd.ranking && _dd.ranking.length > 2)
+                ? _dd.ranking.slice(1, 3).map((r, i) => ({ key: r.key, band: BAND_RESULTS[r.key], tag: `${i + 2}위 · ${r.pct}%` }))
+                : null;
+            const simItems = runners || related.similar;
 
             function loadImg(src) {
                 return new Promise(resolve => {
@@ -10143,7 +10149,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 const canvas = document.createElement('canvas');
                 const DPR = 2; // 2x 해상도
                 const W = type === 'band' ? 540 : 540;
-                const H = type === 'band' ? 1450 : 1100;
+                const H = type === 'band' ? 1750 : 1200; // 넉넉히 그리고 마지막에 실제 높이로 트림
                 canvas.width = W * DPR; canvas.height = H * DPR;
                 const ctx = canvas.getContext('2d');
                 ctx.scale(DPR, DPR);
@@ -10173,8 +10179,8 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 }
 
                 if (type === 'band') {
-                    // ── 배경 그라디언트
-                    const grad = ctx.createLinearGradient(0, 0, W, H);
+                    // ── 배경 그라디언트 (트림되는 실측 높이 기준으로 고정)
+                    const grad = ctx.createLinearGradient(0, 0, W, 1400);
                     grad.addColorStop(0, darkenColor(result.color, 0.2));
                     grad.addColorStop(1, darkenColor(result.color, 0.55));
                     ctx.fillStyle = grad;
@@ -10183,8 +10189,8 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     // ── 장식 도형
                     ctx.fillStyle = 'rgba(255,255,255,0.06)';
                     ctx.beginPath(); ctx.arc(W-60, 80, 160, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(60, H-120, 130, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(W+30, H/2, 100, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(60, 1250, 130, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(W+30, 700, 100, 0, Math.PI*2); ctx.fill();
 
                     // ── 상단 밴드 사진 (둥근 모서리, contain 방식 - 잘림 없음)
                     const imgH = 400;
@@ -10282,6 +10288,42 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         y += whyH + 16;
                     }
 
+                    // ── 나의 성향 그래프 (매칭 상세가 있을 때만 — 화면과 동일)
+                    if (_cd && _cd.userAxes) {
+                        const rowH = 26;
+                        const axBoxH = 34 + BAND_AXES.length * rowH + 24;
+                        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                        roundRect(30, y, W-60, axBoxH, 14); ctx.fill();
+                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText('📊 나의 성향 그래프', 44, y + 22);
+                        const trackX = 140, trackW = W - 44 - trackX;
+                        BAND_AXES.forEach((ax, i) => {
+                            const ry = y + 40 + i * rowH;
+                            // 축 라벨
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 12px sans-serif';
+                            ctx.fillText(`${ax.emoji} ${ax.name}`, 44, ry + 12);
+                            // 트랙
+                            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                            roundRect(trackX, ry + 2, trackW, 10, 5); ctx.fill();
+                            // 내 값 (막대)
+                            const uw = Math.max(8, trackW * (_cd.userAxes[i] - 1) / 4);
+                            ctx.fillStyle = 'rgba(255,255,255,0.92)';
+                            roundRect(trackX, ry + 2, uw, 10, 5); ctx.fill();
+                            // 밴드 값 (점)
+                            const bx = trackX + trackW * (result.v[i] - 1) / 4;
+                            ctx.beginPath(); ctx.arc(bx, ry + 7, 6.5, 0, Math.PI*2);
+                            ctx.fillStyle = darkenColor(result.color, 0.45); ctx.fill();
+                            ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+                        });
+                        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                        ctx.font = '10px sans-serif';
+                        ctx.fillText(`막대 = 나의 성향 · 점 = ${result.name}의 성향`, 44, y + 40 + BAND_AXES.length * rowH + 6);
+                        y += axBoxH + 16;
+                    }
+
                     // ── 추천 트랙 박스 (3개)
                     if (result.songs && result.songs.length) {
                         const tracks = result.songs.slice(0, 3);
@@ -10350,7 +10392,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                             ctx.textAlign = 'left';
                             ctx.fillStyle = 'rgba(255,255,255,0.7)';
                             ctx.font = 'bold 10px sans-serif';
-                            ctx.fillText(tagLabel, tx, startY + 24);
+                            ctx.fillText(it.tag || tagLabel, tx, startY + 24);
                             ctx.fillStyle = '#fff';
                             ctx.font = 'bold 14px sans-serif';
                             const nm = it.band.name;
@@ -10361,13 +10403,13 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                             descLines.slice(0,3).forEach((l, j) => ctx.fillText(l, tx, startY + 62 + j*14));
                         });
                     }
-                    if (related.similar.length) {
+                    if (simItems.length) {
                         ctx.fillStyle = 'rgba(255,255,255,0.7)';
                         ctx.font = 'bold 11px sans-serif';
                         ctx.textAlign = 'left';
-                        ctx.fillText('💚 비슷한 성향의 밴드', 40, y + 4);
+                        ctx.fillText(runners ? '🥈 아깝게 놓친 매칭' : '💚 비슷한 성향의 밴드', 40, y + 4);
                         y += 18;
-                        drawRelatedRow(related.similar, relatedImgs.similar, '비슷', y);
+                        drawRelatedRow(simItems, relatedImgs.similar, '비슷', y);
                         y += 110 + 18;
                     }
                     if (related.opposite.length) {
@@ -10380,16 +10422,20 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         y += 110 + 18;
                     }
 
-                    // ── 푸터 (콘텐츠 바로 아래)
-                    y += 10;
+                    // ── 푸터: 버튼형 CTA + 브랜딩
+                    y += 12;
+                    const ctaText = '🎸 너의 밴드도 찾아보기';
+                    ctx.font = 'bold 14px sans-serif';
+                    const ctaW = ctx.measureText(ctaText).width + 48;
+                    ctx.fillStyle = '#fff';
+                    roundRect(W/2 - ctaW/2, y, ctaW, 40, 20); ctx.fill();
+                    ctx.fillStyle = darkenColor(result.color, 0.45);
                     ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillText('🎯 너의 밴드는? · 나도 테스트해보기', W/2, y + 16);
-                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                    ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather all around · ' + location.hostname, W/2, y + 32);
-                    y += 48;
+                    ctx.fillText(ctaText, W/2, y + 26);
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.font = '11px sans-serif';
+                    ctx.fillText('Gather all around · ' + (location.hostname || 'gatherallaround.com'), W/2, y + 62);
+                    y += 74;
 
                     // 실제 콘텐츠 높이로 트림 (하단 여백 24px)
                     const trimH = Math.ceil(y + 24);
@@ -10528,16 +10574,20 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         iy += iTrackBoxH + 16;
                     }
 
-                    // ── 푸터
-                    iy += 8;
+                    // ── 푸터: 버튼형 CTA + 브랜딩
+                    iy += 10;
+                    const iCtaText = '🎯 나에게 맞는 악기 찾아보기';
+                    ctx.font = 'bold 14px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillText('🎯 나에게 맞는 악기는? · 나도 테스트해보기', iW / 2, iy + 16);
-                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                    ctx.font = '10.5px sans-serif';
-                    ctx.fillText('Gather all around · ' + location.hostname, iW / 2, iy + 32);
-                    iy += 48;
+                    const iCtaW = ctx.measureText(iCtaText).width + 48;
+                    ctx.fillStyle = '#fff';
+                    roundRect(iW/2 - iCtaW/2, iy, iCtaW, 40, 20); ctx.fill();
+                    ctx.fillStyle = darkenColor(result.color, 0.45);
+                    ctx.fillText(iCtaText, iW / 2, iy + 26);
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.font = '11px sans-serif';
+                    ctx.fillText('Gather all around · ' + (location.hostname || 'gatherallaround.com'), iW / 2, iy + 62);
+                    iy += 74;
 
                     // 실제 높이로 트림
                     const iTrimH = Math.ceil(iy + 24);
@@ -10559,7 +10609,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
 
             Promise.all([
                 loadImg(result.imgSrc),
-                Promise.all(related.similar.map(it => loadImg(it.band.imgSrc))),
+                Promise.all(simItems.map(it => loadImg(it.band.imgSrc))),
                 Promise.all(related.opposite.map(it => loadImg(it.band.imgSrc))),
             ]).then(([mainImg, simImgs, oppImgs]) => {
                 drawCanvas(mainImg || result.emoji, { similar: simImgs, opposite: oppImgs });
