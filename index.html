@@ -179,7 +179,8 @@
             min-height: 100vh;
         }
         body.portal-view { padding-left: 20px; padding-right: 20px; }
-        body.fullwidth-view { padding: 0 !important; align-items: stretch !important; }
+        /* 전체화면 페이지도 하단 BGM 바(56px) 몫은 남긴다 — padding:0으로 지우면 맨 아래 콘텐츠가 바에 가려진다 */
+        body.fullwidth-view { padding: 0 0 56px !important; align-items: stretch !important; }
 
         .hidden { display: none !important; }
 
