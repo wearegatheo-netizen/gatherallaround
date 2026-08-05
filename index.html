@@ -4554,7 +4554,7 @@
                 list.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">아직 등록된 팀이 없습니다.</p>';
                 return;
             }
-            list.innerHTML = state.teams.map(t => {
+            const renderCard = (t, isPast) => {
                 const slots = t.members || [];
                 let period = '';
                 if (t.start_date && t.end_date) period = `${t.start_date} ~ ${t.end_date}`;
@@ -4572,17 +4572,41 @@
                     const name = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?';
                     return `<span class="team-slot"><strong>${escapeHtml(s.session)}</strong>${escapeHtml(name)}</span>`;
                 }).join('');
-                return `<div class="team-card">
+                return `<div class="team-card"${isPast ? ' style="opacity:0.78"' : ''}>
                     <div class="team-card-actions">
                         <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
                         <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
                     </div>
-                    <div class="team-name">${escapeHtml(t.name)}</div>
+                    <div class="team-name">${escapeHtml(t.name)}${isPast ? ' <span style="display:inline-block;vertical-align:middle;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);color:var(--wds-gray-500);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px">종료</span>' : ''}</div>
                     ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">${period}</span></div>` : ''}
                     ${songs.length > 0 ? `<div class="team-row"><span class="team-label">곡</span><div class="team-songs">${songsHtml}</div></div>` : ''}
                     <div class="team-row"><span class="team-label">멤버</span><div class="team-slots">${slotsHtml}</div></div>
                 </div>`;
-            }).join('');
+            };
+            // 종료일이 지난 팀은 '지난 팀'으로 분리 (종료일 없는 팀 = 진행 중)
+            const today = new Date().toLocaleDateString('en-CA');
+            const isPastTeam = t => !!t.end_date && t.end_date < today;
+            const activeTeams = state.teams.filter(t => !isPastTeam(t));
+            const pastTeams = state.teams.filter(isPastTeam);
+            let html = activeTeams.length
+                ? activeTeams.map(t => renderCard(t, false)).join('')
+                : '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:22px">진행 중인 팀이 없습니다.</p>';
+            if (pastTeams.length > 0) {
+                html += `
+                    <div class="reply-toggle" style="margin:16px 0 0;text-align:center" onclick="togglePastTeams()"><span id="pastTeamsToggleText">▾ 지난 팀 ${pastTeams.length}개 보기</span></div>
+                    <div id="pastTeamsList" class="hidden" style="margin-top:10px">${pastTeams.map(t => renderCard(t, true)).join('')}</div>`;
+            }
+            list.innerHTML = html;
+        }
+
+        function togglePastTeams() {
+            const el = document.getElementById('pastTeamsList');
+            const txt = document.getElementById('pastTeamsToggleText');
+            if (!el || !txt) return;
+            const willHide = !el.classList.contains('hidden');
+            el.classList.toggle('hidden');
+            const count = el.querySelectorAll('.team-card').length;
+            txt.textContent = willHide ? `▾ 지난 팀 ${count}개 보기` : `▴ 지난 팀 ${count}개 접기`;
         }
 
         function editTeam(id) {
