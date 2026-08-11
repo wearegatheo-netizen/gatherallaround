@@ -2244,7 +2244,15 @@
                 tabs.appendChild(myTab);
                 myTab.addEventListener('click', onTabClick);
             }
-            setGatheOTab('reservation');
+            // 비로그인 상태로 #gatheo/... 딥링크 진입했다가 로그인한 경우 — 그 탭으로 이어간다
+            {
+                const sub = Array.isArray(_pendingGatheoSub) && _pendingGatheoSub.length ? _pendingGatheoSub : null;
+                _pendingGatheoSub = null;
+                let initTab = sub && _GATHEO_TABS.includes(sub[0]) ? sub[0] : 'reservation';
+                if (initTab === 'admin' && !isAdminUser()) initTab = 'reservation';
+                setGatheOTab(initTab);
+                if (initTab === 'member' && sub && _MEMBER_SUBTABS.includes(sub[1])) setMemberTab(sub[1]);
+            }
             fetchReservations();
             fetchComments();
             fetchNotices();
@@ -2470,6 +2478,7 @@
             } else if (tab === 'board') {
                 fetchComments();
             }
+            _pushNav('gatheo/' + tab); // 탭 단위 딥링크 주소 발행
         }
 
         // ── 활동기록: Google Drive 갤러리 ─────────────────────────────────────
@@ -3444,7 +3453,7 @@
                 // 공개 섹션(커뮤니티/밴드소식/공간대관)은 인증과 무관하므로 즉시
                 // 표시해 포털 깜빡임을 방지. 로그인 콜백이 main-content로 덮어써도
                 // applyPendingRoute가 다시 복원한다.
-                if (['community', 'band-news', 'perf'].includes(_initialPage)) {
+                if (['community', 'band-news', 'perf'].includes(_initialPage.split('/')[0])) {
                     _routeToPage(_initialPage);
                 }
                 // 로그인/로그아웃 콜백이 끝내 호출되지 않는 경우(로그아웃 상태 등)
@@ -3787,6 +3796,7 @@
             const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
             subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
             renderMemberPanel();
+            _pushNav('gatheo/member/' + tab); // 하위탭 딥링크 주소 발행
         }
 
         async function renderMemberPanel() {
@@ -3913,6 +3923,13 @@
                 baseSchedules = baseSchedules.filter(s => s.date && s.date.startsWith(yearStr));
             }
 
+            // 일정표 직접 참여 신청(schedule_attendees)을 이 탭에서 직접 로드한다.
+            // 이전엔 일정표 화면이 남긴 상태에 의존해서, 일정표(기본: 다가오는 일정)만
+            // 봤거나 아예 안 본 경우 과거 신청 기록이 누락 집계되는 버그가 있었다.
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const attendeeDates = [...new Set(baseSchedules.map(s => s.date).filter(d => d && d <= todayStr))];
+            await fetchScheduleAttendees(attendeeDates);
+
             const rowsRaw = approved.map(m => {
                 const count = countParticipationDates(m.id, baseRes, baseSchedules);
                 return { m, count };
@@ -3994,7 +4011,7 @@
             state.scheduleAttendees = {};
             state.scheduleGroupAttendees = {};
             state.scheduleSlotAttendees = {};
-            if (!dates || dates.length === 0) return;
+            if (!supabaseClient || !dates || dates.length === 0) return;
             const { data } = await supabaseClient
                 .from('schedule_attendees')
                 .select('schedule_date, profile_id, group_name')
@@ -6728,24 +6745,62 @@
             document.getElementById('notice_container').classList.remove('hidden');
         }
 
+        // ── 서브 경로(탭 단위 딥링크) ──────────────────────────
+        // #gatheo/board, #gatheo/member/schedule, #community/test 형태.
+        // 허용 목록에 없는 세그먼트는 섹션까지로 절단 — 임의 해시로 이상 상태 방지.
+        const _GATHEO_TABS = ['reservation', 'member', 'board', 'mypage', 'admin'];
+        const _MEMBER_SUBTABS = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
+        const _COMMUNITY_TABS = ['current', 'past', 'test'];
+        let _pendingGatheoSub = null; // 비로그인 상태로 #gatheo/... 진입 시, 로그인 후 이어갈 탭 경로
+
         function _pageFromHash() {
-            const h = (location.hash || '').replace(/^#/, '');
-            return _NAV_PAGES.includes(h) ? h : 'portal';
+            const segs = (location.hash || '').replace(/^#/, '').split('/').filter(Boolean);
+            if (!_NAV_PAGES.includes(segs[0])) return 'portal';
+            if (segs[0] === 'gatheo' && segs[1]) {
+                if (!_GATHEO_TABS.includes(segs[1])) return 'gatheo';
+                if (segs[1] === 'member' && segs[2])
+                    return _MEMBER_SUBTABS.includes(segs[2]) ? segs.slice(0, 3).join('/') : 'gatheo/member';
+                return segs.slice(0, 2).join('/');
+            }
+            if (segs[0] === 'community' && segs[1])
+                return _COMMUNITY_TABS.includes(segs[1]) ? segs.slice(0, 2).join('/') : 'community';
+            return segs[0];
         }
 
-        function _pushNav(page) {
+        function _pushNav(path) {
             if (_navFromPop) return;
-            // 같은 섹션을 다시 누르면 항목 중복 방지
-            if (history.state && history.state.page === page) return;
-            history.pushState({ page }, '', '#' + page);
+            const cur = (history.state && history.state.page) || '';
+            if (cur === path) return; // 같은 경로 재클릭 → 항목 중복 방지
+            // 섹션 항목(#gatheo)이 기본 탭(#gatheo/reservation)으로 구체화될 땐 교체 — 뒤로가기 한 번에 섹션을 빠져나가게
+            const method = cur === path.split('/')[0] ? 'replaceState' : 'pushState';
+            history[method]({ page: path }, '', '#' + path);
         }
 
-        function _routeToPage(page) {
+        function _routeToPage(path) {
             _navFromPop = true; // 복원이므로 pushState 하지 않음 (항목은 이미 존재)
             try {
-                if (page === 'gatheo') { if (state.user) _showGatheoMain(); else showGatheoSection(); }
+                const segs = String(path || 'portal').split('/');
+                const page = segs[0];
+                if (page === 'gatheo') {
+                    if (state.user) {
+                        _showGatheoMain();
+                        let tab = _GATHEO_TABS.includes(segs[1]) ? segs[1] : null;
+                        if (tab === 'admin' && !isAdminUser()) tab = 'reservation'; // 권한 없는 딥링크 방어
+                        if (tab) {
+                            setGatheOTab(tab);
+                            if (tab === 'member' && _MEMBER_SUBTABS.includes(segs[2])) setMemberTab(segs[2]);
+                        }
+                    } else {
+                        _pendingGatheoSub = segs.slice(1); // 로그인 후 loginUI가 이어감
+                        showGatheoSection();
+                    }
+                }
                 else if (page === 'band') { if (state.bandProfile) loginBandUI(state.bandProfile); else showBandSection(); }
-                else if (page === 'community') showCommunitySection();
+                else if (page === 'community') {
+                    // showCommunitySection이 탭을 'current'로 리셋하므로, 원하는 탭을 미리 맡겨둔다
+                    if (_COMMUNITY_TABS.includes(segs[1])) window.__routeCommunityTab = segs[1];
+                    showCommunitySection();
+                }
                 else if (page === 'band-news') showBandNewsSection();
                 else if (page === 'perf') showPerformanceBookingSection();
                 else showPortal();
@@ -7795,6 +7850,8 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             state.communityCurrentId = null;
             state.communityCreateOpen = false;
             state.communityTab = 'current';
+            // 딥링크(#community/past 등) 복원 — _routeToPage가 맡겨둔 탭을 수령
+            if (window.__routeCommunityTab) { state.communityTab = window.__routeCommunityTab; window.__routeCommunityTab = null; }
             state.communityEditAuth = {};
             state.communityEditPw = {};
             state.communityGameType = null;
@@ -8100,6 +8157,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         function communitySetTab(tab) {
             state.communityTab = tab;
             state.paging['commList'] = 0;
+            _pushNav('community/' + tab); // 탭 단위 딥링크 주소 발행
             if (tab === 'test') {
                 renderCommunityTestHome();
             } else {
