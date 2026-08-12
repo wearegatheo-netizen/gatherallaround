@@ -3676,7 +3676,8 @@
         function openEditParticipantsModal(resId) {
             const r = (state.reservations || []).find(x => x.id === resId);
             if (!r) return;
-            if (!isReservationEditable(r)) { alert('이미 지나간 예약은 수정할 수 없습니다.'); return; }
+            // 총괄은 지난 예약도 보정할 수 있어야 한다(관리자 목록에 지난 예약이 노출되므로).
+            if (!isReservationEditable(r) && !isSuper()) { alert('이미 지나간 예약은 수정할 수 없습니다.'); return; }
             state.editingResId = resId;
             state.editingResParticipantIds = Array.isArray(r.participant_ids) ? [...r.participant_ids] : [];
             const endIdx = TIMES.indexOf(r.end_time);
@@ -3687,10 +3688,9 @@
             renderEditParticipantSelector();
             const etcEl = document.getElementById('editParticipantEtcInput');
             const countEl = document.getElementById('editParticipantCountInput');
-            const etcRaw = r.participant_etc || '';
-            const etcMatch = etcRaw.match(/^(.*?)\s*\((\d+)명\)$/);
-            if (etcEl) etcEl.value = etcMatch ? etcMatch[1].trim() : etcRaw;
-            if (countEl) countEl.value = etcMatch ? etcMatch[2] : '0';
+            const { text: etcText, count: etcCount } = splitEtc(r.participant_etc);
+            if (etcEl) etcEl.value = etcText;
+            if (countEl) countEl.value = String(etcCount);
         }
 
         function closeEditParticipantsModal() {
@@ -3777,14 +3777,14 @@
             if (ids.length === 0) { alert('참여 멤버를 1명 이상 추가해주세요.'); return; }
             const etcEl = document.getElementById('editParticipantEtcInput');
             const countEl = document.getElementById('editParticipantCountInput');
-            const etcText = etcEl ? (etcEl.value || '').trim() : '';
-            const etcCount = countEl ? (parseInt(countEl.value) || 0) : 0;
-            const etcVal = etcCount > 0 ? (etcText ? `${etcText} (${etcCount}명)` : `(${etcCount}명)`) : etcText;
+            const etcVal = joinEtc(etcEl ? etcEl.value : '', countEl ? countEl.value : 0);
             const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids, participant_etc: etcVal || null }).eq('id', state.editingResId);
             if (error) { alert('수정 실패: ' + error.message); return; }
             closeEditParticipantsModal();
             showToast('참여 멤버가 수정되었습니다.');
-            fetchReservations();
+            // 목록·달력을 즉시 갱신 (예전엔 fetch만 하고 다시 그리지 않아 화면이 그대로였다)
+            await refreshAdminApprovalView();
+            if (state.gatheoTab === 'mypage') renderMypagePanel();
         }
 
         // --- 멤버 패널 ---
@@ -12303,10 +12303,29 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         const _memberActionInflight = new Set();
+
+        // participant_etc는 "메모 (N명)" 한 문자열에 메모와 비등록 인원수가 함께 담긴다.
+        // 자유 텍스트로 편집하면 "(5 명)"처럼 오타 하나에 인원이 통째로 유실되므로,
+        // 편집 시엔 메모/인원을 분리해 다루고 저장할 때 다시 합친다. (예약 폼·멤버 수정 모달과 동일 규칙)
+        function splitEtc(raw) {
+            const s = String(raw || '');
+            const m = s.match(/^(.*?)\s*\((\d+)명\)$/);
+            return { text: m ? m[1].trim() : s, count: m ? parseInt(m[2], 10) : 0 };
+        }
+        function joinEtc(text, count) {
+            const t = (text || '').trim();
+            const n = Math.max(0, parseInt(count, 10) || 0);
+            return n > 0 ? (t ? `${t} (${n}명)` : `(${n}명)`) : t;
+        }
+
         function editResInfo(id) {
             const row = document.getElementById(`admin-res-row-${id}`);
             if (!row) return;
             const { resDate, startTime, endTime, userName, etc } = row.dataset;
+            const { text: etcText, count: etcCount } = splitEtc(etc);
+            const r = (state.reservations || []).find(x => x.id === id);
+            const memberCount = Array.isArray(r && r.participant_ids) ? r.participant_ids.length : 0;
+            const memberNames = r ? participantNames(r) : '';
             const timeOpts = TIMES.map(t => `<option value="${t}" ${t===startTime?'selected':''}>${t}</option>`).join('');
             const endOpts  = TIMES.map((t, i) => `<option value="${t}" ${t===endTime?'selected':''}>${TIMES[i+1]||'23:00'}</option>`).join('');
             row.innerHTML = `
@@ -12318,12 +12337,30 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         <select id="er-end-${id}" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit">${endOpts}</select>
                         <input id="er-name-${id}" value="${escapeHtml(userName)}" placeholder="예약자명" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;flex:1;min-width:80px">
                     </div>
-                    <input id="er-etc-${id}" value="${escapeHtml(etc)}" placeholder="기타 메모 (선택)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;width:100%;box-sizing:border-box">
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:6px;padding:7px 9px">
+                        <span style="font-size:0.76rem;font-weight:700;color:var(--wds-primary);white-space:nowrap">👥 참여 멤버 ${memberCount}명</span>
+                        <span id="er-mnames-${id}" style="font-size:0.74rem;color:var(--wds-gray-700);flex:1;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(memberNames) || '(없음)'}</span>
+                        <button type="button" onclick="openEditParticipantsModal('${id}')" class="edit-btn" style="white-space:nowrap">멤버 수정</button>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                        <input id="er-etc-${id}" value="${escapeHtml(etcText)}" placeholder="기타 메모 (예: 아워플레이스 예지님)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;flex:1;min-width:120px">
+                        <span style="font-size:0.76rem;color:var(--wds-gray-700);white-space:nowrap">비등록 인원</span>
+                        <input id="er-etccnt-${id}" type="number" min="0" max="30" value="${etcCount}" style="width:62px;height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit">
+                        <span style="font-size:0.76rem;color:var(--wds-gray-700)">명</span>
+                    </div>
                     <div style="display:flex;gap:6px">
                         <button type="button" onclick="saveResEdit('${id}')" class="approve-btn">저장</button>
-                        <button type="button" onclick="cancelMemberEdit()" style="font-size:0.78rem;padding:4px 12px;border-radius:4px;border:1px solid var(--wds-gray-300);background:none;cursor:pointer">취소</button>
+                        <button type="button" onclick="refreshAdminApprovalView()" style="font-size:0.78rem;padding:4px 12px;border-radius:4px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer">취소</button>
                     </div>
                 </div>`;
+        }
+
+        // 예약승인 탭을 최신 데이터로 다시 그린다 (저장/취소 후 라이브 반영용).
+        // 관리자 탭이 아닌 화면에서 호출돼도 안전하도록 컨테이너 존재를 확인한다.
+        async function refreshAdminApprovalView() {
+            await fetchReservations();
+            render();
+            if (document.getElementById('gatheOTabAdmin') && state.gatheoTab === 'admin') renderGatheOAdmin();
         }
 
         async function saveResEdit(id) {
@@ -12331,15 +12368,17 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const startTime = document.getElementById(`er-start-${id}`)?.value;
             const endTime   = document.getElementById(`er-end-${id}`)?.value;
             const userName  = document.getElementById(`er-name-${id}`)?.value.trim();
-            const etc       = document.getElementById(`er-etc-${id}`)?.value.trim();
+            const etcText   = document.getElementById(`er-etc-${id}`)?.value.trim();
+            const etcCount  = document.getElementById(`er-etccnt-${id}`)?.value;
             if (!resDate || !startTime || !endTime || !userName) { alert('날짜·시간·예약자명은 필수입니다.'); return; }
             // 종료 슬롯은 포함형(1시간 예약은 start_time === end_time). 시작이 종료보다 늦을 때만 거부.
             if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
             const { error } = await supabaseClient.from('reservations')
-                .update({ res_date: resDate, start_time: startTime, end_time: endTime, user_name: userName, participant_etc: etc || null })
+                .update({ res_date: resDate, start_time: startTime, end_time: endTime, user_name: userName, participant_etc: joinEtc(etcText, etcCount) || null })
                 .eq('id', id);
             if (error) { alert('저장 실패: ' + error.message); return; }
-            fetchReservations().then(() => render());
+            showToast('예약이 수정되었습니다.');
+            await refreshAdminApprovalView();
         }
 
         function editMemberInfo(id) {
