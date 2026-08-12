@@ -770,6 +770,27 @@
         .docs-card-content a { color: var(--wds-primary); text-decoration: underline; }
         .docs-card-content blockquote { border-left: 3px solid var(--wds-primary); padding-left: 12px; margin: 8px 0; color: var(--wds-gray-700); }
         .docs-card-content hr { border: none; border-top: 1px solid var(--wds-gray-300); margin: 16px 0; }
+
+        /* 문서 서식 편집기 (블로그형 WYSIWYG) */
+        .rte-wrap { border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-s); background: var(--wds-white); overflow: hidden; }
+        .rte-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; background: var(--wds-gray-100); border-bottom: 1px solid var(--wds-gray-300); }
+        .rte-btn { min-width: 30px; height: 30px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; background: none; cursor: pointer;
+                   font-size: 0.84rem; font-family: inherit; color: var(--wds-gray-900); display: inline-flex; align-items: center; justify-content: center; transition: 0.12s; }
+        .rte-btn:hover { background: var(--wds-white); border-color: var(--wds-gray-300); }
+        .rte-btn.on { background: var(--wds-primary-light); border-color: var(--wds-primary); color: var(--wds-primary); }
+        .rte-sep { width: 1px; margin: 4px 3px; background: var(--wds-gray-300); }
+        .rte-body { min-height: 190px; max-height: 460px; overflow-y: auto; padding: 12px 14px; outline: none;
+                    font-size: 0.92rem; line-height: 1.7; color: var(--wds-gray-900); }
+        .rte-body:empty::before { content: attr(data-placeholder); color: var(--wds-gray-500); }
+        .rte-body:focus { box-shadow: inset 0 0 0 2px var(--wds-primary-light); }
+        .rte-body h2 { font-size: 1.15rem; font-weight: 700; margin: 12px 0 6px; }
+        .rte-body h3 { font-size: 1.02rem; font-weight: 700; margin: 10px 0 5px; }
+        .rte-body p { margin: 5px 0; }
+        .rte-body ul, .rte-body ol { padding-left: 22px; margin: 6px 0; }
+        .rte-body a { color: var(--wds-primary); text-decoration: underline; }
+        .rte-body blockquote { border-left: 3px solid var(--wds-primary); padding-left: 12px; margin: 8px 0; color: var(--wds-gray-700); }
+        .rte-body hr { border: none; border-top: 1px solid var(--wds-gray-300); margin: 14px 0; }
+        @media (max-width: 480px) { .rte-btn { min-width: 28px; height: 28px; font-size: 0.8rem; } .rte-body { min-height: 150px; } }
         body.dark .docs-card { background: var(--wds-gray-100); border-color: #444; }
         body.dark .docs-cat-tab { background: var(--wds-gray-100); border-color: #444; color: #ddd; }
         body.dark .docs-cat-tab.active { background: var(--wds-primary); color: white; }
@@ -12086,6 +12107,96 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             return DOMPurify.sanitize(marked.parse(md || '', { breaks: true, gfm: true }));
         }
 
+        // ── 문서 서식 편집기 (블로그형) ───────────────────────────────
+        // 저장 형식은 그대로 마크다운 컬럼(content)을 쓰되 HTML을 담는다.
+        // 표시 경로가 renderMarkdown = DOMPurify(marked.parse(...))라 마크다운/HTML 둘 다
+        // 처리되므로, 기존 마크다운 문서도 편집기에서 열면 서식으로 보이고 그대로 저장된다.
+        function docEditorHTML(id, initialHtml, placeholder) {
+            const b = (label, cmd, val, title, extra) =>
+                `<button type="button" class="rte-btn" title="${title}" onmousedown="event.preventDefault()" onclick="rteExec('${id}','${cmd}'${val ? ",'" + val + "'" : ''})"${extra || ''}>${label}</button>`;
+            return `
+                <div class="rte-wrap" id="rte-wrap-${id}">
+                    <div class="rte-toolbar">
+                        ${b('<strong>B</strong>', 'bold', '', '굵게')}
+                        ${b('<em>I</em>', 'italic', '', '기울임')}
+                        ${b('<u>U</u>', 'underline', '', '밑줄')}
+                        ${b('<s>S</s>', 'strikeThrough', '', '취소선')}
+                        <div class="rte-sep"></div>
+                        ${b('큰제목', 'formatBlock', 'h2', '큰 제목')}
+                        ${b('소제목', 'formatBlock', 'h3', '소제목')}
+                        ${b('본문', 'formatBlock', 'p', '본문')}
+                        <div class="rte-sep"></div>
+                        ${b('• 목록', 'insertUnorderedList', '', '글머리 기호')}
+                        ${b('1. 목록', 'insertOrderedList', '', '번호 매기기')}
+                        ${b('❝ 인용', 'formatBlock', 'blockquote', '인용구')}
+                        <div class="rte-sep"></div>
+                        ${b('☰', 'justifyLeft', '', '왼쪽 정렬')}
+                        ${b('☰', 'justifyCenter', '', '가운데 정렬')}
+                        <div class="rte-sep"></div>
+                        <button type="button" class="rte-btn" title="링크" onmousedown="event.preventDefault()" onclick="rteLink('${id}')">🔗</button>
+                        ${b('─', 'insertHorizontalRule', '', '구분선')}
+                        ${b('✕서식', 'removeFormat', '', '서식 지우기')}
+                    </div>
+                    <div class="rte-body" id="${id}" contenteditable="true" data-placeholder="${escapeHtml(placeholder || '내용을 입력하세요')}">${initialHtml || ''}</div>
+                </div>`;
+        }
+
+        function rteExec(id, cmd, val) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.focus();
+            try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
+            // 같은 블록 서식을 다시 누르면 본문으로 되돌린다 (토글)
+            if (cmd === 'formatBlock' && val !== 'p') {
+                const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+                if (cur === val) val = 'p';
+            }
+            document.execCommand(cmd, false, val || null);
+        }
+
+        function rteLink(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.focus();
+            const sel = window.getSelection();
+            const hasSel = sel && String(sel).trim().length > 0;
+            const url = prompt('연결할 주소를 입력하세요 (예: https://...)');
+            if (!url) return;
+            const safe = /^(https?:|mailto:)/i.test(url) ? url : 'https://' + url.replace(/^\/+/, '');
+            if (hasSel) document.execCommand('createLink', false, safe);
+            else document.execCommand('insertHTML', false,
+                `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener">${escapeHtml(safe)}</a>`);
+        }
+
+        // 편집기 내용을 저장용으로 정리 — 저장 시점에도 한 번 살균한다(표시 경로와 이중 방어).
+        // 문서 본문(마크다운 또는 HTML)에서 태그를 걷어낸 순수 텍스트 — 목록 미리보기용
+        function docPlainText(content) {
+            const t = document.createElement('div');
+            // 블록 경계에 공백을 넣지 않으면 textContent가 "소제목굵게 본문"처럼 단어를 붙여버린다
+            t.innerHTML = renderMarkdown(content || '').replace(/<\/(p|h[1-6]|li|div|blockquote|tr)>|<br\s*\/?>/gi, ' ');
+            return (t.textContent || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function rteValue(id) {
+            const el = document.getElementById(id);
+            if (!el) return '';
+            const raw = el.innerHTML.trim();
+            if (!raw || raw === '<br>' || !el.textContent.trim()) return '';
+            if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(raw);
+            // DOMPurify 미로드(CDN 지연·차단) 시에도 위험 요소는 남기지 않는다.
+            // 표시 경로에도 폴백 이스케이프가 있지만, 애초에 저장하지 않는 편이 안전하다.
+            const doc = new DOMParser().parseFromString(raw, 'text/html');
+            doc.body.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach(n => n.remove());
+            doc.body.querySelectorAll('*').forEach(n => {
+                [...n.attributes].forEach(a => {
+                    const name = a.name.toLowerCase();
+                    if (name.startsWith('on')) n.removeAttribute(a.name);
+                    else if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(a.value)) n.removeAttribute(a.name);
+                });
+            });
+            return doc.body.innerHTML;
+        }
+
         function renderDocsPage(container) {
             const docs = state.docs || [];
             const isAdmin = canApproveRes();
@@ -12107,7 +12218,6 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const cards = filtered.map(d => {
                 const safeC = (d.category||'').replace(/"/g,'&quot;');
                 const safeT = (d.title||'').replace(/"/g,'&quot;');
-                const safeBody = (d.content||'').replace(/</g,'&lt;');
                 const adminBar = isAdmin ? `
                     <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end">
                         <button type="button" style="padding:4px 12px;font-size:0.75rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">수정</button>
@@ -12118,7 +12228,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                         <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                         <input id="doc-edit-summary-${d.id}" type="text" value="${(d.summary||'').replace(/"/g,'&quot;')}" placeholder="간단 요약 (제목 옆에 작은 글씨로 표시)" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
-                        <textarea id="doc-edit-content-${d.id}" style="width:100%;height:200px;margin-bottom:8px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
+                        <div style="margin-bottom:8px">${docEditorHTML('doc-edit-content-' + d.id, renderMarkdown(d.content), '내용을 입력하세요')}</div>
                         <div style="display:flex;gap:6px;justify-content:flex-end">
                             <button type="button" style="padding:6px 14px;font-size:0.8rem;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700" onclick="updateDoc('${d.id}')">저장</button>
                             <button type="button" style="padding:6px 14px;font-size:0.8rem;background:white;color:var(--wds-gray-600);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">취소</button>
@@ -12177,12 +12287,12 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     ${grouped[cat].map(d => {
                         const safeC = (d.category||'').replace(/"/g,'&quot;');
                         const safeT = (d.title||'').replace(/"/g,'&quot;');
-                        const safeBody = (d.content||'').replace(/</g,'&lt;');
-                        const preview = (d.content||'').replace(/\n/g,' ').slice(0, 120);
+                        // 본문에 HTML 서식이 들어가므로 미리보기는 태그를 제거한 순수 텍스트로
+                        const preview = docPlainText(d.content).slice(0, 120);
                         return `<div class="my-res-item" style="margin-bottom:6px" id="doc-row-${d.id}">
                             <div class="doc-view-${d.id}">
                                 <div style="margin-bottom:4px"><strong>${escapeHtml(d.title)}</strong></div>
-                                <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-bottom:6px">${escapeHtml(preview)}${d.content && d.content.length > 120 ? '...' : ''}</div>
+                                <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-bottom:6px">${escapeHtml(preview)}${docPlainText(d.content).length > 120 ? '...' : ''}</div>
                                 <div style="display:flex;gap:6px">
                                     <button type="button" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">수정</button>
                                     <button type="button" style="padding:4px 10px;font-size:0.72rem;background:white;color:#ff4d4f;border:1px solid #ff4d4f;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="deleteDoc('${d.id}')">삭제</button>
@@ -12192,7 +12302,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                                 <input id="doc-edit-cat-${d.id}" type="text" value="${safeC}" placeholder="카테고리" list="docCategoriesList" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
                                 <input id="doc-edit-title-${d.id}" type="text" value="${safeT}" placeholder="제목" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                                 <input id="doc-edit-summary-${d.id}" type="text" value="${(d.summary||'').replace(/"/g,'&quot;')}" placeholder="간단 요약 (제목 옆 작은 글씨)" style="width:100%;margin-bottom:4px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box">
-                                <textarea id="doc-edit-content-${d.id}" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box;font-family:inherit">${safeBody}</textarea>
+                                <div style="margin-bottom:6px">${docEditorHTML('doc-edit-content-' + d.id, renderMarkdown(d.content), '내용을 입력하세요')}</div>
                                 <div style="display:flex;gap:6px">
                                     <button type="button" style="padding:4px 10px;font-size:0.72rem;background:var(--wds-primary);color:#fff;border:1px solid var(--wds-primary);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="updateDoc('${d.id}')">저장</button>
                                     <button type="button" style="padding:4px 10px;font-size:0.72rem;background:white;color:var(--wds-gray-600);border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);cursor:pointer;font-weight:600" onclick="toggleDocEdit('${d.id}')">취소</button>
@@ -12213,7 +12323,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                         <input id="newDocCategory" type="text" placeholder="카테고리 (예: 운영규칙, FAQ, 멤버가이드)" list="docCategoriesList" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                         <input id="newDocTitle" type="text" placeholder="제목" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
                         <input id="newDocSummary" type="text" placeholder="간단 요약 (제목 옆에 작은 글씨로 표시, 선택)" style="width:100%;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
-                        <textarea id="newDocContent" placeholder="내용 (마크다운 지원: **굵게**, *기울임*, - 리스트, [링크](url), ## 소제목, 줄바꿈은 그대로 적용)" style="width:100%;height:160px;margin-bottom:6px;padding:6px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+                        <div style="margin-bottom:8px">${docEditorHTML('newDocContent', '', '내용을 입력하세요. 위 버튼으로 굵게·제목·목록·링크 등을 지정할 수 있습니다.')}</div>
                         <button type="button" onclick="addDoc()" style="padding:6px 16px;background:var(--wds-primary);color:#fff;border:none;border-radius:var(--wds-radius-s);cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit">추가</button>
                     </div>
 
@@ -12226,7 +12336,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const category = document.getElementById('newDocCategory').value.trim();
             const title = document.getElementById('newDocTitle').value.trim();
             const summary = (document.getElementById('newDocSummary')?.value || '').trim();
-            const content = document.getElementById('newDocContent').value.trim();
+            const content = rteValue('newDocContent');
             if (!category || !title || !content) { alert('카테고리/제목/내용을 모두 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('documents').insert([{ category, title, summary, content }]);
             if (error) { alert('추가 실패: ' + error.message); return; }
@@ -12234,7 +12344,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             document.getElementById('newDocTitle').value = '';
             const sumEl = document.getElementById('newDocSummary');
             if (sumEl) sumEl.value = '';
-            document.getElementById('newDocContent').value = '';
+            document.getElementById('newDocContent').innerHTML = ''; // contenteditable이라 value가 아니다
             await fetchDocs();
             render();
         }
@@ -12256,7 +12366,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         async function updateDoc(id) {
             const c = document.getElementById(`doc-edit-cat-${id}`).value.trim();
             const t = document.getElementById(`doc-edit-title-${id}`).value.trim();
-            const co = document.getElementById(`doc-edit-content-${id}`).value.trim();
+            const co = rteValue(`doc-edit-content-${id}`);
             const sumEl = document.getElementById(`doc-edit-summary-${id}`);
             const s = sumEl ? sumEl.value.trim() : '';
             if (!c || !t || !co) { alert('카테고리/제목/내용 모두 입력해주세요.'); return; }
