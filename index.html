@@ -12345,8 +12345,20 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const sumEl = document.getElementById('newDocSummary');
             if (sumEl) sumEl.value = '';
             document.getElementById('newDocContent').innerHTML = ''; // contenteditable이라 value가 아니다
+            showToast('문서가 추가되었습니다.');
+            await refreshDocsViews();
+        }
+
+        // 문서 추가/수정/삭제 후 열려 있는 문서 화면들을 최신 데이터로 재렌더.
+        // (기존엔 state.currentView === 'admin' 이라는 옛 레이아웃 조건이라 관리자
+        // 문서관리 목록이 갱신되지 않았다 — currentView는 예약 달력 뷰 상태다.)
+        async function refreshDocsViews() {
             await fetchDocs();
-            render();
+            if (state.gatheoTab === 'admin' && state.adminTab === 'docs') renderGatheOAdmin();
+            if (state.memberPanelTab === 'docs') {
+                const view = document.getElementById('memberPanelView');
+                if (view) renderDocsPage(view);
+            }
         }
 
         function toggleDocsCard(id) {
@@ -12372,24 +12384,16 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             if (!c || !t || !co) { alert('카테고리/제목/내용 모두 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, summary: s, updated_at: new Date().toISOString() }).eq('id', id);
             if (error) { alert('수정 실패: ' + error.message); return; }
-            await fetchDocs();
-            if (state.memberPanelTab === 'docs') {
-                const view = document.getElementById('memberPanelView');
-                if (view) renderDocsPage(view);
-            }
-            if (state.currentView === 'admin') render();
+            showToast('문서가 수정되었습니다.');
+            await refreshDocsViews();
         }
 
         async function deleteDoc(id) {
             if (!confirm('이 문서를 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('documents').delete().eq('id', id);
             if (error) { alert('삭제 실패: ' + error.message); return; }
-            await fetchDocs();
-            if (state.memberPanelTab === 'docs') {
-                const view = document.getElementById('memberPanelView');
-                if (view) renderDocsPage(view);
-            }
-            if (state.currentView === 'admin') render();
+            showToast('문서가 삭제되었습니다.');
+            await refreshDocsViews();
         }
         // ────────────────────────────────────────────────────────────────────
 
