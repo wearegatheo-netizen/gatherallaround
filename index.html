@@ -4078,6 +4078,7 @@
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
             if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            if (date < new Date().toLocaleDateString('en-CA')) { alert('지난 일정은 참여 신청/취소할 수 없습니다.'); return; }
             const attendees = (state.scheduleAttendees || {})[date] || [];
             const already = attendees.includes(me.id);
             if (!already) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
@@ -4102,6 +4103,7 @@
             if (!state.user) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
             const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
             if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            if (date < new Date().toLocaleDateString('en-CA')) { alert('지난 일정은 참여 신청/취소할 수 없습니다.'); return; }
             const grpAttendees = ((state.scheduleGroupAttendees || {})[date] || {})[groupName] || [];
             const isMeIn = grpAttendees.includes(me.id);
             if (!isMeIn) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
@@ -4123,6 +4125,7 @@
             if (!state.user) { alert('로그인이 필요합니다.'); return; }
             const me = (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email);
             if (!me) { alert('승인된 멤버만 참여 신청 가능합니다.'); return; }
+            if (date < new Date().toLocaleDateString('en-CA')) { alert('지난 일정은 참여 신청/취소할 수 없습니다.'); return; }
             const key = slotAttKey(gn, startTime);
             const cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
             const isMeIn = cur.includes(me.id);
@@ -4411,6 +4414,7 @@
             };
             const timetableDay = (date, entries) => {
                 const isToday = date === today;
+                const isPastDate = date < today; // 지난 일정 — 신청/취소 버튼 미노출 (열람 전용)
                 const first = entries[0] || {};
                 const sigOpen  = first.signup_open  || null;
                 const sigClose = first.signup_close || null;
@@ -4437,7 +4441,8 @@
                         openBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff3e0;color:#e07000;border:1px solid #ffd9a0">🔥 마감 D-${dDay} · ${fmtDT(sigClose)}</span>`;
                     }
                 }
-                const sigBadge = sigStatus === null ? '' :
+                const sigBadge = isPastDate ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:var(--wds-gray-100);color:var(--wds-gray-500)">⏳ 지난 일정</span>` :
+                    sigStatus === null ? '' :
                     sigStatus === 'open'   ? openBadge :
                     sigStatus === 'before' ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff8e6;color:#e07000">🕐 신청 시작 ${fmtDT(sigOpen)}</span>` :
                                             `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdf2f2;color:#e74c3c">🔒 신청 마감 ${fmtDT(sigClose)}</span>`;
@@ -4491,7 +4496,7 @@
                         // 참여자 명단 — 기본 항상 닫힘
                         const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
-                        const slotBtn = state.user ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
+                        const slotBtn = (state.user && !isPastDate) ? `<button type="button" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}
                             style="padding:2px 8px;font-size:0.66rem;border-radius:4px;border:1.5px solid ${isMeInSlot?'#EF4444':'var(--wds-primary)'};background:${isMeInSlot?'#FEF2F2':'var(--wds-primary-light)'};color:${isMeInSlot?'#EF4444':'var(--wds-primary)'};cursor:${slotBlocked?'not-allowed':'pointer'};font-weight:700;white-space:nowrap;flex-shrink:0">${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
                         return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
