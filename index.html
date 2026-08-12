@@ -5708,11 +5708,21 @@
             if (countEl) countEl.textContent = state.blocks.length;
 
             const dayNames = ['일','월','화','수','목','금','토'];
+            // 지난 차단 분리: 특정 날짜는 그 날짜가 지났으면, 매주 반복은 적용 종료일이 지났으면 '지난 차단'
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const isPastBlock = (b) => {
+                const isOnce = b.start_date && b.start_date === b.end_date;
+                return isOnce ? b.start_date < todayStr : !!(b.end_date && b.end_date < todayStr);
+            };
+            const pastBlocks = state.blocks.filter(isPastBlock);
+            const activeBlocks = state.blocks.filter(b => !isPastBlock(b));
             // 그룹: 매주 / 1회/다중 (날짜 지정)
-            const weekly = state.blocks.filter(b => !(b.start_date && b.start_date === b.end_date));
-            const once   = state.blocks.filter(b =>  (b.start_date && b.start_date === b.end_date));
+            const weekly = activeBlocks.filter(b => !(b.start_date && b.start_date === b.end_date));
+            const once   = activeBlocks.filter(b =>  (b.start_date && b.start_date === b.end_date));
             weekly.sort((a,b) => a.day_of_week - b.day_of_week || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
             once.sort((a,b) => (a.start_date || '').localeCompare(b.start_date || '') || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
+            // 지난 차단은 최근에 지난 것부터
+            pastBlocks.sort((a,b) => (b.start_date || b.end_date || '').localeCompare(a.start_date || a.end_date || ''));
 
             const timeOptions = TIMES.map(t => `<option value="${t}">${t}</option>`).join('');
             const renderOne = (b) => {
@@ -5775,8 +5785,33 @@
                 </div>`;
             };
 
+            // 지난 차단: 접힌 영역 (펼침 상태는 페이저 재렌더에도 유지)
+            let pastHtml = '';
+            if (pastBlocks.length > 0) {
+                const open = !!window.__pastBlocksOpen;
+                const { items, page, totalPages, total } = getPaged(pastBlocks, 'blockPast');
+                pastHtml = `
+                    <div class="reply-toggle" style="margin:14px 0 0;text-align:center" onclick="togglePastBlocks()"><span id="pastBlocksToggleText">${open ? '▴' : '▾'} 지난 차단 ${pastBlocks.length}개 ${open ? '접기' : '보기'}</span></div>
+                    <div id="pastBlocksList" class="${open ? '' : 'hidden'}" style="margin-top:8px;opacity:0.8">
+                        ${items.map(renderOne).join('')}
+                        ${pagerHTML('blockPast', page, totalPages, total)}
+                    </div>`;
+            }
+
             list.innerHTML = sectionHtml('🔄 매주 반복', '#3366FF', weekly, 'blockWeekly')
-                           + sectionHtml('📌 특정 날짜', '#f0a050', once, 'blockOnce');
+                           + sectionHtml('📌 특정 날짜', '#f0a050', once, 'blockOnce')
+                           + (weekly.length + once.length === 0 ? '<p style="color:var(--wds-gray-500);font-size:0.85rem;padding:14px;text-align:center;background:var(--wds-gray-100);border-radius:var(--wds-radius-s)">진행 중인 차단이 없습니다.</p>' : '')
+                           + pastHtml;
+        }
+
+        window.togglePastBlocks = function() {
+            window.__pastBlocksOpen = !window.__pastBlocksOpen;
+            const el = document.getElementById('pastBlocksList');
+            const txt = document.getElementById('pastBlocksToggleText');
+            if (!el || !txt) return;
+            el.classList.toggle('hidden', !window.__pastBlocksOpen);
+            const count = (state.blocks || []).length && txt.textContent.match(/\d+/) ? txt.textContent.match(/\d+/)[0] : '';
+            txt.textContent = window.__pastBlocksOpen ? `▴ 지난 차단 ${count}개 접기` : `▾ 지난 차단 ${count}개 보기`;
         }
 
         window.toggleBlockEdit = function(id) {
