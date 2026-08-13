@@ -3695,6 +3695,7 @@
         }
 
         function openEditParticipantsModal(resId) {
+            if (String(resId).startsWith('perf-')) { alert('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
             const r = (state.reservations || []).find(x => x.id === resId);
             if (!r) return;
             // 총괄은 지난 예약도 보정할 수 있어야 한다(관리자 목록에 지난 예약이 노출되므로).
@@ -6040,15 +6041,22 @@
                     const membersLine = pNames
                         ? `<div style="flex-basis:100%;font-size:0.74rem;color:var(--wds-primary);padding-top:2px;padding-left:2px">👥 멤버: ${escapeHtml(pNames)}</div>`
                         : '';
+                    // 공간 대관 가상 행(id 'perf-…')은 reservations 테이블에 없다 —
+                    // 일반 수정/취소를 연결하면 uuid 오류. 공간대관 탭으로 안내한다.
+                    const isPerf = !!r.__perf;
+                    const sideBtns = isPerf
+                        ? `${isSuper() ? `<button type="button" class="edit-btn" onclick="state.adminTab='perfbooking';renderGatheOAdmin()">공간대관 탭</button>` : ''}
+                           ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelPerfReservation('${r.id.replace(/^perf-/, '')}')">취소</button>` : ''}`
+                        : `${isSuper() ? `<button type="button" class="edit-btn" onclick="editResInfo('${r.id}')">수정</button>` : ''}
+                           ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}`;
                     item.innerHTML = `
                         <div class="admin-member-main">
                             <span style="font-size:0.82rem;font-weight:700;white-space:nowrap">${r.res_date}</span>
                             <span style="font-size:0.78rem;color:var(--wds-gray-500);white-space:nowrap;padding-left:4px">${r.start_time}–${endTimeDisplay}</span>
-                            <span style="font-size:0.82rem;font-weight:600;padding-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.user_name)}</span>
+                            <span style="font-size:0.82rem;font-weight:600;padding-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${isPerf ? '🎭 ' : ''}${escapeHtml(r.user_name)}</span>
                         </div>
                         <div class="admin-member-side">
-                            ${isSuper() ? `<button type="button" class="edit-btn" onclick="editResInfo('${r.id}')">수정</button>` : ''}
-                            ${canCancelRes() ? `<button type="button" class="cancel-btn" onclick="cancelReservation('${r.id}', true)">취소</button>` : ''}
+                            ${sideBtns}
                         </div>
                         ${membersLine}${etcLine}`;
                     approvedList.appendChild(item);
@@ -6282,6 +6290,7 @@
         }
 
         async function cancelReservation(id, isAdmin = false) {
+            if (String(id).startsWith('perf-')) { cancelPerfReservation(String(id).replace(/^perf-/, '')); return; }
             const confirmMsg = isAdmin ? "관리자 권한으로 이 예약을 강제로 취소하시겠습니까?" : "정말로 예약을 취소하시겠습니까?";
             if (!confirm(confirmMsg)) return;
 
@@ -12474,6 +12483,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         function editResInfo(id) {
+            if (String(id).startsWith('perf-')) { alert('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
             const row = document.getElementById(`admin-res-row-${id}`);
             if (!row) return;
             const { resDate, startTime, endTime, userName, etc } = row.dataset;
