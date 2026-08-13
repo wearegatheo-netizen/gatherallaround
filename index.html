@@ -5382,7 +5382,8 @@
                 { key: 'members', label: '👥 멤버현황' },
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
                 ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
-                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }, { key: 'perfbooking', label: '🎭 공간대관' }] : [])
+                ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }] : []),
+                ...(isSuper() ? [{ key: 'perfbooking', label: '🎭 공간대관' }] : []) // 대관 신청엔 연락처 등 외부인 개인정보 포함 — 운영 총괄 전용
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -7547,6 +7548,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
         }
 
         async function renderPerfAdminTab(container) {
+            if (!isSuper()) { container.innerHTML = '<p style="text-align:center;padding:24px;color:var(--wds-gray-500);font-size:0.88rem">공간 대관 관리는 운영 총괄만 볼 수 있습니다.</p>'; return; }
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500)">불러오는 중…</div>';
             await loadPerfApprovalTemplate(); // 도어락 등 안내문 템플릿(관리자 전용) 로드
             const { data, error } = await supabaseClient.from('performance_bookings')
