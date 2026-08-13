@@ -38,12 +38,37 @@ async function solapiAuthHeader(apiKey, apiSecret) {
     return `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 }
 
-// 한글 2byte 기준 90byte 이내 → 단문(SMS)으로 발송됨. 문구 수정 시 길이 주의.
+// 접수 직후 발송되는 예약 확인·입금 안내 문자.
+// 90byte 초과라 솔라피가 장문(LMS)으로 자동 전환해 발송한다(한도 2,000byte).
+// 이모지는 문자 인코딩(EUC-KR)에서 깨질 수 있어 넣지 않는다.
+// 요금 규칙은 index.html calcPerformanceFee와 동일하게 유지할 것:
+//   주말(토·일) 40,000/시간, 평일 25,000/시간 + 5인 초과 시 예약당 1인 5,000원
+const PERF_TBD_MARK = '[관람객 미정·당일 추가결제]';
 function buildText(bk) {
     const [, m, d] = bk.date.split('-').map(Number);
-    // end_time은 마지막 이용 슬롯의 시작(예: 22:00 = 실제 종료 23:00) — 관리자 화면과 동일 규칙
-    const end = String(parseInt(bk.end_time, 10) + 1).padStart(2, '0') + ':00';
-    return `[게더올어라운드] ${m}/${d} ${bk.start_time}~${end} 공간대관 신청 접수완료. 확정시 별도 안내드립니다.`;
+    const dow = new Date(bk.date + 'T00:00:00Z').getUTCDay();
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][dow];
+    const sh = parseInt(bk.start_time, 10);
+    const eh = parseInt(bk.end_time, 10) + 1; // end_time은 마지막 이용 슬롯의 시작(22:00 = 실제 종료 23:00)
+    const hours = eh - sh;
+    const fee = hours * (dow === 0 || dow === 6 ? 40000 : 25000)
+        + (bk.headcount > 5 ? (bk.headcount - 5) * 5000 : 0);
+    let text = `안녕하세요
+
+신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
+
+[ ${m}/${d}(${wd}) ${sh}-${eh}시(${hours}시간) ${bk.headcount}명 ] 예약이 확인되었습니다.
+
+이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 입금해주시면 예약이 확정됩니다!
+
+토스뱅크 1002-1793-5417 최경수`;
+    // 관람객 미정 체크 건에만 인원 변동 안내를 덧붙인다
+    if ((bk.purpose || '').includes(PERF_TBD_MARK)) {
+        text += `
+
+※ 기준 인원 수 5명을 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
+    }
+    return text;
 }
 
 // 진단용 솔라피 조회 (발송 없음)
@@ -123,7 +148,7 @@ export async function onRequest(context) {
         }
 
         const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
-        const sel = 'id,phone,date,start_time,end_time,created_at,sms_sent_at';
+        const sel = 'id,phone,date,start_time,end_time,headcount,purpose,created_at,sms_sent_at';
         const getRes = await fetch(
             `${SUPABASE_URL}/rest/v1/performance_bookings?id=eq.${booking_id}&select=${sel}&limit=1`,
             { headers: sbHeaders });
