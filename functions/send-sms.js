@@ -181,6 +181,9 @@ export async function onRequest(context) {
             },
             body: JSON.stringify({ message: {
                 to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text: buildText(bk),
+                // LMS는 제목이 규격상 필수라 미지정 시 본문 첫 40byte가 자동 복사돼
+                // 수신 화면에 첫 줄이 잘린 채 두 번 보인다. 명시 지정(40byte 이내).
+                subject: '게더 올 어라운드 예약 안내',
             } }),
         });
         if (!smsRes.ok) {
