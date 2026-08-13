@@ -7553,6 +7553,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 .select('*').order('created_at', { ascending: false });
             if (error) { container.innerHTML = `<div style="color:red;padding:16px">오류: ${error.message}</div>`; return; }
             const items = data || [];
+            state.perfAdminItems = items; // 인라인 수정(editPerfBooking)에서 원본 조회용
             const pending = items.filter(b => b.status === 'pending');
             const others = items.filter(b => b.status !== 'pending');
             let html = `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
@@ -7579,6 +7580,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                     </div>
                     ${b.status==='pending' ? `
                     <div style="display:flex;gap:8px;margin-top:10px">
+                        ${isSuper() ? `<button onclick="editPerfBooking('${b.id}')" class="edit-btn">시간·인원 수정</button>` : ''}
                         <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
                         <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
                         <button onclick="deletePerfBooking('${b.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
@@ -7592,6 +7594,7 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                             <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
                         </div>
                         <div style="display:flex;gap:8px;margin-top:6px">
+                            ${isSuper() ? `<button onclick="editPerfBooking('${b.id}')" class="edit-btn" style="padding:8px 12px">시간·인원 수정</button>` : ''}
                             <button onclick="cancelPerfReservation('${b.id}')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid #ff4d4f;background:none;color:#ff4d4f;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">❌ 예약 취소</button>
                             <button onclick="deletePerfBooking('${b.id}')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
                         </div>
@@ -7625,6 +7628,86 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             if (error) { alert('오류: ' + error.message); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
+        }
+
+        // 공간 대관 시간·인원 인라인 수정 — 운영 총괄 전용
+        function editPerfBooking(id) {
+            if (!isSuper()) { alert('운영 총괄만 수정할 수 있습니다.'); return; }
+            const b = (state.perfAdminItems || []).find(x => x.id === id);
+            const card = document.getElementById(`perf-card-${id}`);
+            if (!b || !card) return;
+            const selStart = TIMES.map(t => `<option value="${t}"${t===b.start_time?' selected':''}>${t}</option>`).join('');
+            const selEnd   = TIMES.map((t, i) => `<option value="${t}"${t===b.end_time?' selected':''}>${TIMES[i+1]||'23:00'}</option>`).join('');
+            const hasTbd = (b.purpose || '').includes(PERF_AUDIENCE_TBD_MARK);
+            card.innerHTML = `
+                <div class="perf-admin-card-title">✏️ ${escapeHtml(b.name)} — 시간·인원 수정</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                        <input id="pe-date-${id}" type="date" value="${b.date}" style="height:34px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.84rem;font-family:inherit">
+                        <select id="pe-st-${id}" style="height:34px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.84rem;font-family:inherit">${selStart}</select>
+                        <span style="font-size:0.82rem">~</span>
+                        <select id="pe-et-${id}" style="height:34px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.84rem;font-family:inherit">${selEnd}</select>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                        <span style="font-size:0.8rem;color:var(--wds-gray-700)">인원</span>
+                        <input id="pe-hc-${id}" type="number" min="1" max="50" value="${b.headcount}" style="width:66px;height:34px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:6px;font-size:0.84rem;font-family:inherit">
+                        <span style="font-size:0.8rem;color:var(--wds-gray-700)">명</span>
+                        <span id="pe-fee-${id}" style="font-size:0.8rem;font-weight:700;color:var(--wds-primary);margin-left:6px"></span>
+                    </div>
+                    ${hasTbd ? `<label style="display:flex;align-items:center;gap:7px;font-size:0.8rem;color:var(--wds-gray-700);cursor:pointer">
+                        <input type="checkbox" id="pe-cleartbd-${id}" style="width:16px;height:16px;cursor:pointer">
+                        최종 인원 확정 — '관람객 미정' 표시 제거</label>` : ''}
+                    <div style="display:flex;gap:6px">
+                        <button type="button" onclick="savePerfEdit('${id}')" class="approve-btn">저장</button>
+                        <button type="button" onclick="renderGatheOAdmin()" style="font-size:0.82rem;padding:6px 14px;border-radius:6px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-family:inherit">취소</button>
+                    </div>
+                </div>`;
+            // 입력 변경 시 예상 금액 미리보기
+            const updFee = () => {
+                const d = document.getElementById(`pe-date-${id}`)?.value;
+                const s = TIMES.indexOf(document.getElementById(`pe-st-${id}`)?.value);
+                const e = TIMES.indexOf(document.getElementById(`pe-et-${id}`)?.value);
+                const h = parseInt(document.getElementById(`pe-hc-${id}`)?.value) || 1;
+                const feeEl = document.getElementById(`pe-fee-${id}`);
+                if (feeEl && d && s >= 0 && e >= 0 && s <= e) feeEl.textContent = `예상 ${calcPerformanceFee(d, s, e, h).toLocaleString()}원`;
+            };
+            ['pe-date-', 'pe-st-', 'pe-et-', 'pe-hc-'].forEach(p => document.getElementById(p + id)?.addEventListener('input', updFee));
+            updFee();
+        }
+
+        async function savePerfEdit(id) {
+            if (!isSuper()) { alert('운영 총괄만 수정할 수 있습니다.'); return; }
+            const b = (state.perfAdminItems || []).find(x => x.id === id);
+            const date = document.getElementById(`pe-date-${id}`)?.value;
+            const startTime = document.getElementById(`pe-st-${id}`)?.value;
+            const endTime = document.getElementById(`pe-et-${id}`)?.value;
+            const headcount = parseInt(document.getElementById(`pe-hc-${id}`)?.value);
+            const clearTbd = document.getElementById(`pe-cleartbd-${id}`)?.checked;
+            if (!date || !startTime || !endTime) { alert('날짜와 시간을 입력해주세요.'); return; }
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
+            if (!headcount || headcount < 1) { alert('인원을 1명 이상 입력해주세요.'); return; }
+            // 겹침 검사 (자기 자신 제외) — 총괄 판단으로 강행 가능
+            try {
+                const [resCheck, pbCheck] = await Promise.all([
+                    supabaseClient.from('reservations').select('start_time,end_time')
+                        .eq('res_date', date).neq('status','rejected').neq('status','cancelled'),
+                    supabaseClient.from('performance_bookings').select('id,start_time,end_time')
+                        .eq('date', date).neq('status','rejected')
+                ]);
+                const sIdx = TIMES.indexOf(startTime), eIdx = TIMES.indexOf(endTime);
+                const conflict = [...(resCheck.data||[]), ...(pbCheck.data||[]).filter(x => x.id !== id)].some(c => {
+                    const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                    return sIdx <= ce && eIdx >= cs;
+                });
+                if (conflict && !confirm('해당 시간대에 겹치는 예약/대관이 있습니다.\n그래도 저장할까요?')) return;
+            } catch (_) { /* 검사 실패 시에도 총괄 수정은 진행 */ }
+            const payload = { date, start_time: startTime, end_time: endTime, headcount };
+            if (clearTbd && b) payload.purpose = (b.purpose || '').replace(PERF_AUDIENCE_TBD_MARK, '').trim();
+            const { error } = await supabaseClient.from('performance_bookings').update(payload).eq('id', id);
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            showToast('대관 정보가 수정되었습니다.');
+            await fetchReservations();   // GatheO 달력의 가상 행도 갱신
+            renderGatheOAdmin();
         }
 
         async function cancelPerfReservation(id) {
