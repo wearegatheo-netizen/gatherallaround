@@ -7488,15 +7488,22 @@
                 });
                 if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 const purposeFinal = _perfState.audienceTbd ? `${purpose} ${PERF_AUDIENCE_TBD_MARK}` : purpose;
-                const { error } = await supabaseClient.from('performance_bookings').insert({
+                const { data: inserted, error } = await supabaseClient.from('performance_bookings').insert({
                     name, phone, purpose: purposeFinal, how_found: howFound,
                     date: selectedDate,
                     start_time: TIMES[startSlot],
                     end_time: TIMES[endSlot],
                     headcount
-                });
+                }).select('id').single();
                 if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
                 sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
+                // 접수 확인 문자 fire-and-forget — 실제 접수 건 대조·1회 발송 보장은 /send-sms가 서비스 롤로 수행
+                if (inserted && inserted.id) {
+                    fetch('/send-sms', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ booking_id: inserted.id })
+                    }).catch(() => {});
+                }
                 renderPerfStep3();
             } finally {
                 _perfSubmitBusy = false;
