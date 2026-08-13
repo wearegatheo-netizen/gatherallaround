@@ -43,7 +43,6 @@ async function solapiAuthHeader(apiKey, apiSecret) {
 // 이모지는 문자 인코딩(EUC-KR)에서 깨질 수 있어 넣지 않는다.
 // 요금 규칙은 index.html calcPerformanceFee와 동일하게 유지할 것:
 //   주말(토·일) 40,000/시간, 평일 25,000/시간 + 5인 초과 시 예약당 1인 5,000원
-const PERF_TBD_MARK = '[관람객 미정·당일 추가결제]';
 function buildText(bk) {
     const [, m, d] = bk.date.split('-').map(Number);
     const dow = new Date(bk.date + 'T00:00:00Z').getUTCDay();
@@ -53,22 +52,15 @@ function buildText(bk) {
     const hours = eh - sh;
     const fee = hours * (dow === 0 || dow === 6 ? 40000 : 25000)
         + (bk.headcount > 5 ? (bk.headcount - 5) * 5000 : 0);
-    let text = `안녕하세요
-
-신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
+    return `안녕하세요 ! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
 
 [ ${m}/${d}(${wd}) ${sh}-${eh}시(${hours}시간) ${bk.headcount}명 ] 예약이 확인되었습니다.
 
 이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 입금해주시면 예약이 확정됩니다!
 
-토스뱅크 1002-1793-5417 최경수`;
-    // 관람객 미정 체크 건에만 인원 변동 안내를 덧붙인다
-    if ((bk.purpose || '').includes(PERF_TBD_MARK)) {
-        text += `
+토스뱅크 1002-1793-5417 최경수
 
-※ 기준 인원 수 5명을 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
-    }
-    return text;
+※ 기준 인원 수(5명)를 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
 }
 
 // 진단용 솔라피 조회 (발송 없음)
@@ -148,7 +140,7 @@ export async function onRequest(context) {
         }
 
         const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
-        const sel = 'id,phone,date,start_time,end_time,headcount,purpose,created_at,sms_sent_at';
+        const sel = 'id,phone,date,start_time,end_time,headcount,created_at,sms_sent_at';
         const getRes = await fetch(
             `${SUPABASE_URL}/rest/v1/performance_bookings?id=eq.${booking_id}&select=${sel}&limit=1`,
             { headers: sbHeaders });
