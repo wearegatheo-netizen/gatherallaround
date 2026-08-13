@@ -369,8 +369,8 @@
         .perf-admin-card.pending { border-color: #e07b00; background: #fff8f0; }
         body.dark .perf-admin-card.pending { background: #2a1800; }
         .perf-admin-card-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
-        .perf-admin-card-info { font-size: 0.8rem; color: var(--wds-gray-600); line-height: 1.7; }
-        .perf-approval-msg { background: var(--wds-gray-100); border-radius: 8px; padding: 12px; font-size: 0.78rem; white-space: pre-wrap; line-height: 1.6; color: var(--wds-gray-800); margin-top: 10px; max-height: 200px; overflow-y: auto; }
+        .perf-admin-card-info { font-size: 0.8rem; color: var(--wds-gray-700); line-height: 1.7; }
+        .perf-approval-msg { background: var(--wds-gray-100); border-radius: 8px; padding: 12px; font-size: 0.78rem; white-space: pre-wrap; line-height: 1.6; color: var(--wds-gray-900); margin-top: 10px; max-height: 200px; overflow-y: auto; }
         #portal-page h1 { font-size: 2.2rem; margin-bottom: 10px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
         #portal-page .portal-sub { color: var(--wds-gray-700); margin-bottom: 36px; font-size: 1.05rem; }
         .portal-btn {
@@ -7590,12 +7590,10 @@
             const vars = { DATE: dateFormatted, START: b.start_time, END: endDisplay, HOURS: String(hours) };
             const fill = (tpl) => tpl.replace(/\{(DATE|START|END|HOURS)\}/g, (_, k) => vars[k]);
             if (_perfApprovalTemplate) return fill(_perfApprovalTemplate);
-            // 폴백: 민감정보(도어락/Wi-Fi/연락처) 미포함
+            // 폴백: 민감정보(도어락/Wi-Fi/연락처) 미포함.
+            // 템플릿 미설정 경고는 카드 UI에서만 띄운다 — 복사·공유되는 본문에 내부 안내를 섞지 않는다.
             return `안녕하세요! 신촌 게더 올 어라운드입니다.
-${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인되었습니다.
-
-⚠️ 출입/Wi-Fi/연락처 등 상세 안내 템플릿을 불러오지 못했습니다.
-관리자 설정(documents.key='perf_approval_template')을 확인해 주세요.`;
+${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인되었습니다.`;
         }
 
         async function renderPerfAdminTab(container) {
@@ -7611,6 +7609,9 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
             const others = items.filter(b => b.status !== 'pending');
             let html = `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
             if (!items.length) { html += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500)">신청 내역이 없습니다.</p>'; container.innerHTML = html; return; }
+            // 카드 내 액션 버튼 공통 스타일 — 크기·모양 통일 (기능별 색만 다르게)
+            const _pbtn = (label, onclick, color, border) =>
+                `<button onclick="${onclick}" style="padding:7px 12px;border-radius:8px;border:1px solid ${border};background:none;color:${color};cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">${label}</button>`;
             const renderCard = (b) => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
                 const hours = TIMES.indexOf(b.end_time) - TIMES.indexOf(b.start_time) + 1;
@@ -7618,44 +7619,48 @@ ${dateFormatted} ${b.start_time}~${endDisplay}(${hours}시간) 예약이 확인�
                 const approvalMsg = b.status === 'approved' ? generateApprovalMessage(b) : '';
                 const audienceTbd = (b.purpose || '').includes(PERF_AUDIENCE_TBD_MARK);
                 const purposeDisplay = (b.purpose || '').replace(PERF_AUDIENCE_TBD_MARK, '').trim();
+                const wd = ['일','월','화','수','목','금','토'][new Date(b.date + 'T00:00:00').getDay()];
+                const phoneDigits = String(b.phone || '').replace(/\D/g, '');
+                const cd = new Date(b.created_at);
+                const createdShort = `${cd.getMonth()+1}/${cd.getDate()} ${String(cd.getHours()).padStart(2,'0')}:${String(cd.getMinutes()).padStart(2,'0')} 접수`;
+                const chip = b.status === 'pending' ? ['⏳ 대기', '#FEF3C7', '#92400E']
+                    : b.status === 'approved' ? ['✅ 승인', '#DCFCE7', '#166534'] : ['❌ 거절', '#FEE2E2', '#991B1B'];
+                const editBtn = isSuper() ? _pbtn('✏️ 수정', `editPerfBooking('${b.id}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : '';
+                const delBtn = _pbtn('삭제', `deletePerfBooking('${b.id}')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)');
                 return `<div class="perf-admin-card${b.status==='pending'?' pending':''}" id="perf-card-${b.id}">
-                    <div class="perf-admin-card-title">
-                        ${b.status==='pending'?'⏳ 대기':''}${b.status==='approved'?'✅ 승인':''}${b.status==='rejected'?'❌ 거절':''} · ${escapeHtml(b.name)}
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="background:${chip[1]};color:${chip[2]};font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:10px;flex:none">${chip[0]}</span>
+                        <span style="font-size:0.9rem;font-weight:700">${escapeHtml(b.name)}</span>
+                        <span style="margin-left:auto;font-size:0.72rem;color:var(--wds-gray-500)">${createdShort}</span>
                     </div>
-                    ${audienceTbd ? `<div style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:12px;margin:4px 0 6px">👥 관람객 미정 — 공연진 ${b.headcount}명 기준, 당일 인원 산정 후 추가 결제</div>` : ''}
-                    <div class="perf-admin-card-info">
-                        📅 ${b.date} ${b.start_time} ~ ${endDisplay} (${hours}시간)<br>
-                        👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준)' : ''} · ${fee.toLocaleString()}원${audienceTbd ? ' + 당일 추가분' : ''}<br>
-                        📞 ${escapeHtml(b.phone)}<br>
-                        🎯 ${escapeHtml(purposeDisplay)}<br>
-                        🔍 경로: ${escapeHtml(b.how_found)}<br>
-                        🕐 ${new Date(b.created_at).toLocaleString('ko-KR')}
+                    ${audienceTbd ? `<div style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:12px;margin:8px 0 0">👥 관람객 미정 — 공연진 ${b.headcount}명 기준, 당일 인원 산정 후 추가 결제</div>` : ''}
+                    <div class="perf-admin-card-info" style="margin-top:8px">
+                        📅 ${b.date}(${wd}) ${b.start_time} ~ ${endDisplay} · ${hours}시간<br>
+                        👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준)' : ''} · <strong style="color:var(--wds-black)">${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''}<br>
+                        📞 <a href="tel:${phoneDigits}" style="color:inherit">${escapeHtml(b.phone)}</a> &nbsp;·&nbsp; 🎯 ${escapeHtml(purposeDisplay)} &nbsp;·&nbsp; 🔍 ${escapeHtml(b.how_found)}
                     </div>
-                    ${b.status==='pending' ? `
-                    <div style="display:flex;gap:8px;margin-top:10px">
-                        ${isSuper() ? `<button onclick="editPerfBooking('${b.id}')" class="edit-btn">시간·인원 수정</button>` : ''}
-                        <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
-                        <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
-                        <button onclick="deletePerfBooking('${b.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
-                    </div>` : ''}
                     ${b.status==='approved' ? `
-                    <div style="margin-top:10px">
-                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-700);margin-bottom:4px">안내 메시지 (자동 생성):</div>
+                    <details style="margin-top:10px">
+                        <summary style="cursor:pointer;font-size:0.8rem;font-weight:700;color:var(--wds-primary);user-select:none">📨 안내 메시지 (복사·공유)</summary>
+                        ${_perfApprovalTemplate ? '' : '<div style="font-size:0.75rem;color:#92400E;background:#FEF3C7;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5">⚠️ 상세 안내 템플릿(도어락·Wi-Fi 등)이 등록되지 않아 기본 문구만 생성됩니다.</div>'}
                         <div class="perf-approval-msg">${escapeHtml(approvalMsg)}</div>
                         <div style="display:flex;gap:8px;margin-top:8px">
-                            <button onclick="copyPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📋 복사</button>
-                            <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
+                            <button onclick="copyPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--wds-primary);background:none;color:var(--wds-primary);cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">📋 복사</button>
+                            <button onclick="kakaoPerfMsg('${b.id}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #FEE500;background:#FEE500;color:#3C1E1E;cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">💬 카카오 공유</button>
                         </div>
-                        <div style="display:flex;gap:8px;margin-top:6px">
-                            ${isSuper() ? `<button onclick="editPerfBooking('${b.id}')" class="edit-btn" style="padding:8px 12px">시간·인원 수정</button>` : ''}
-                            <button onclick="cancelPerfReservation('${b.id}')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid #ff4d4f;background:none;color:#ff4d4f;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">❌ 예약 취소</button>
-                            <button onclick="deletePerfBooking('${b.id}')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
-                        </div>
+                    </details>` : ''}
+                    ${b.status==='pending' ? `
+                    <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
+                        <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
+                        <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
+                        <span style="margin-left:auto;display:flex;gap:6px">${editBtn}${delBtn}</span>
+                    </div>` : ''}
+                    ${b.status==='approved' ? `
+                    <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
+                        ${editBtn}${_pbtn('예약 취소', `cancelPerfReservation('${b.id}')`, '#EF4444', '#EF4444')}${delBtn}
                     </div>` : ''}
                     ${b.status==='rejected' ? `
-                    <div style="margin-top:10px">
-                        <button onclick="deletePerfBooking('${b.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid var(--wds-gray-400);background:none;color:var(--wds-gray-600);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">삭제</button>
-                    </div>` : ''}
+                    <div style="display:flex;margin-top:10px;justify-content:flex-end">${delBtn}</div>` : ''}
                 </div>`;
             };
             html += pending.map(renderCard).join('') + others.map(renderCard).join('');
