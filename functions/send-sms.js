@@ -46,13 +46,66 @@ function buildText(bk) {
     return `[게더올어라운드] ${m}/${d} ${bk.start_time}~${end} 공간대관 신청 접수완료. 확정시 별도 안내드립니다.`;
 }
 
+// 진단용 솔라피 조회 (발송 없음)
+async function solapiGet(path, env) {
+    const res = await fetch('https://api.solapi.com' + path, {
+        headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET) },
+    });
+    const body = await res.text().catch(() => '');
+    return { ok: res.ok, status: res.status, body };
+}
+const parseMaybe = (s) => { try { return JSON.parse(s); } catch { return s; } };
+const maskPhone = (v) => String(v).replace(/^(\d{3})\d+(\d{4})$/, '$1****$2');
+
 export async function onRequest(context) {
     const { request, env } = context;
     const corsHeaders = corsFor(request.headers.get('Origin'));
     const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
-        status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status, headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
     });
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+    // GET: 브라우저로 열어보는 셀프 진단 — 키 원문·개인정보 없이 설정 상태만 보여준다.
+    if (request.method === 'GET') {
+        const out = { 시각: new Date().toISOString() };
+        try {
+            out.환경변수_SUPABASE = !!(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+            out.환경변수_SOLAPI = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
+            if (out.환경변수_SUPABASE) {
+                const sbHeaders = { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` };
+                const colRes = await fetch(
+                    `${env.SUPABASE_URL}/rest/v1/performance_bookings?select=created_at,sms_sent_at&order=created_at.desc&limit=1`,
+                    { headers: sbHeaders });
+                out.sms_sent_at_컬럼 = colRes.ok;
+                if (colRes.ok) {
+                    const [row] = await colRes.json().catch(() => []);
+                    out.최근_접수건 = row ? { 접수시각: row.created_at, 문자발송기록: !!row.sms_sent_at } : '접수 내역 없음';
+                } else {
+                    out.컬럼_오류 = (await colRes.text().catch(() => '')).slice(0, 200);
+                }
+            }
+            if (out.환경변수_SOLAPI) {
+                const bal = await solapiGet('/cash/v1/balance', env);
+                out.솔라피_키인증 = bal.ok ? { ok: true, 잔액: parseMaybe(bal.body) }
+                    : { ok: false, status: bal.status, detail: bal.body.slice(0, 200) };
+                const snd = await solapiGet('/senderid/v1/numbers/active', env);
+                if (snd.ok) {
+                    const raw = parseMaybe(snd.body);
+                    const nums = (Array.isArray(raw) ? raw : []).map(n =>
+                        String(typeof n === 'string' ? n : (n && (n.phoneNumber || n.number)) || '').replace(/\D/g, ''));
+                    const sender = String(env.SMS_SENDER).replace(/\D/g, '');
+                    out.솔라피_발신번호목록 = nums.map(maskPhone);
+                    out.발신번호_등록됨 = nums.includes(sender);
+                } else {
+                    out.솔라피_발신번호목록 = { ok: false, status: snd.status, detail: snd.body.slice(0, 200) };
+                }
+            }
+        } catch (e) {
+            out.진단_오류 = String(e && e.message || e);
+        }
+        return json(out);
+    }
+
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
     try {
