@@ -3503,6 +3503,13 @@
                 showHostSection(['join', _hostJoin.toLowerCase()]);
                 return;
             }
+            // 공연 공동 관리팀 초대 링크 (?eventjoin=토큰)
+            const _eventJoin = _sp.get('eventjoin');
+            if (_eventJoin && /^[0-9a-f]{32}$/i.test(_eventJoin)) {
+                history.replaceState({}, '', location.pathname);
+                showHostSection(['eventjoin', _eventJoin.toLowerCase()]);
+                return;
+            }
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
@@ -6917,6 +6924,7 @@
                 if (segs[1] === 'checkin' && _SHOW_CODE_RE.test(segs[2] || '')) return 'host/checkin/' + segs[2].toUpperCase();
                 if (segs[1] === 'event' && _UUID_RE.test(segs[2] || '')) return 'host/event/' + segs[2].toLowerCase();
                 if (segs[1] === 'join' && /^[0-9a-f]{32}$/i.test(segs[2] || '')) return 'host/join/' + segs[2].toLowerCase();
+                if (segs[1] === 'eventjoin' && /^[0-9a-f]{32}$/i.test(segs[2] || '')) return 'host/eventjoin/' + segs[2].toLowerCase();
                 return 'host';
             }
             return segs[0];
@@ -13471,11 +13479,15 @@
                 }
             }
             _showsState.event = ev;
-            // 팀 프로필(공개 뷰) — 부가 정보라 실패해도 상세는 뜬다
-            let hostProf = null;
+            // 팀 프로필·공동 관리팀(공개 뷰) — 부가 정보라 실패해도 상세는 뜬다
+            let hostProf = null, coTeams = [];
             try {
                 const { data: hp } = await supabaseClient.from('event_host_profiles').select('*').eq('id', ev.host_id).maybeSingle();
                 hostProf = hp || null;
+            } catch (_) {}
+            try {
+                const { data: cts } = await supabaseClient.from('event_co_hosts_public').select('*').eq('event_id', ev.id);
+                if (Array.isArray(cts)) coTeams = cts;
             } catch (_) {}
             const seat = _seatInfo(ev);
             const priceStr = ev.price > 0 ? `₩${Number(ev.price).toLocaleString()}` : '무료';
@@ -13506,6 +13518,10 @@
                         ${hostProf.bio ? escapeHtml(hostProf.bio).replace(/\n/g, '<br>') : ''}
                         ${snsUrl ? `${hostProf.bio ? '<br>' : ''}<a href="${escapeHtml(snsUrl)}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">🔗 ${escapeHtml(String(hostProf.sns).replace(/^https?:\/\//i, ''))}</a>` : ''}
                     </div>
+                </div>` : ''}
+                ${coTeams.length ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px">
+                    <span style="font-size:0.76rem;font-weight:700;color:var(--wds-gray-500)">🤝 함께하는 팀</span>
+                    ${coTeams.map(t => `<span class="show-chip" style="background:var(--wds-gray-100);color:var(--wds-gray-700)">${escapeHtml(t.name)}</span>`).join('')}
                 </div>` : ''}
                 ${hasCoords ? `<div style="margin-bottom:14px">
                     <div id="showMap" style="height:180px;border-radius:12px;background:var(--wds-gray-100)"></div>
@@ -13758,14 +13774,15 @@
             document.body.classList.add('fullwidth-view');
             _hideAllScreens();
             document.getElementById('host-page').classList.remove('hidden');
+            _hostState.curEventId = null; // 이전 화면의 명단 컨텍스트가 새 진입을 가로채지 않도록 초기화
             if (subArr[0] === 'checkin' && subArr[1]) {
                 _hostState.pendingCheckin = String(subArr[1]).toUpperCase();
             } else if (subArr[0] === 'join' && subArr[1]) {
                 _hostState.pendingJoin = String(subArr[1]).toLowerCase();
+            } else if (subArr[0] === 'eventjoin' && subArr[1]) {
+                _hostState.pendingEventJoin = String(subArr[1]).toLowerCase();
             } else if (subArr[0] === 'event' && subArr[1] && _UUID_RE.test(subArr[1])) {
                 _hostState.curEventId = subArr[1].toLowerCase();
-            } else {
-                _hostState.curEventId = null;
             }
             hostResume();
         }
@@ -13805,8 +13822,14 @@
                 _hostState.curTeamId = _hostState.teams.length ? _hostState.teams[0].id : null;
             }
             if (!_hostState.teams.length && !_hostState.isAdmin) {
-                renderTeamForm(null); // 공연 생성 전 팀 등록 먼저
+                renderTeamForm(null); // 공연 생성 전 팀 등록 먼저 (pendingEventJoin은 팀 생성 후 이어짐)
                 _prefillKakaoNick();
+                return;
+            }
+            if (_hostState.pendingEventJoin) {
+                const tk = _hostState.pendingEventJoin;
+                _hostState.pendingEventJoin = null;
+                renderEventJoin(tk);
                 return;
             }
             (next || renderHostDashboard)();
@@ -13842,6 +13865,53 @@
             hostLoadTeams();
         }
 
+        // 공연 공동 관리팀 초대 수락 (#host/eventjoin/{token}) — 내 팀 중 하나를 골라 팀 단위로 합류
+        async function renderEventJoin(token) {
+            const c = document.getElementById('host-container');
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">초대를 확인하는 중…</div>';
+            const info = await eventApi({ action: 'event_invite_info', kakao_token: _hostState.token, token });
+            if (!info.ok) {
+                if (info.error === 'auth') { _hostState.token = null; _hostState.pendingEventJoin = token; renderHostLogin(); return; }
+                c.innerHTML = `<div style="text-align:center;padding:40px">
+                    <div style="font-size:2rem;margin-bottom:10px">😥</div>
+                    <p style="color:var(--wds-gray-700);font-size:0.9rem;margin:0 0 18px">${escapeHtml(info.message || '초대를 확인하지 못했습니다.')}</p>
+                    <button onclick="showHostSection()" style="padding:11px 24px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-family:inherit">호스트 센터로</button></div>`;
+                return;
+            }
+            const ownerTeams = (_hostState.teams || []).filter(t => t.my_role === 'owner');
+            const ev = info.event;
+            const evCard = `<div class="host-card" style="margin-bottom:14px">
+                    <div style="font-size:0.75rem;font-weight:700;color:var(--wds-primary);margin-bottom:4px">🤝 공연 공동 관리팀 초대</div>
+                    <div style="font-size:1rem;font-weight:800;color:var(--wds-black)">${escapeHtml(ev.title)}</div>
+                    <div style="font-size:0.8rem;color:var(--wds-gray-700);margin-top:4px">📅 ${_showDateStr(ev.starts_at)} · 주최 ${escapeHtml(ev.host_name || '')}</div>
+                </div>`;
+            if (!ownerTeams.length) {
+                c.innerHTML = `${evCard}
+                    <p style="font-size:0.85rem;color:var(--wds-gray-700);line-height:1.7;margin:0 0 16px">팀 단위 초대는 <strong>팀 소유자</strong>만 수락할 수 있습니다.<br>새 팀을 만들면 그 팀으로 참여할 수 있어요.</p>
+                    <button onclick="_hostState.pendingEventJoin='${jsStr(token)}';renderTeamForm(null)" style="width:100%;padding:13px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">+ 새 팀 만들고 참여하기</button>`;
+                return;
+            }
+            c.innerHTML = `${evCard}
+                <div class="perf-form-group">
+                    <label class="perf-form-label">어느 팀으로 참여할까요?</label>
+                    <select class="perf-form-input" id="ejTeamSel">${ownerTeams.map(t => `<option value="${jsStr(t.id)}">${escapeHtml(t.name)}</option>`).join('')}</select>
+                </div>
+                <div id="ejResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <button onclick="acceptEventJoin('${jsStr(token)}')" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">이 팀으로 공연 관리에 참여하기</button>
+                <p style="font-size:0.76rem;color:var(--wds-gray-500);text-align:center;margin-top:10px;line-height:1.6">참여하면 팀 전체 멤버가 이 공연의 예매자 관리·입금 확인·체크인을 함께 할 수 있습니다.</p>`;
+        }
+
+        async function acceptEventJoin(token) {
+            const res = document.getElementById('ejResult');
+            const hostId = document.getElementById('ejTeamSel')?.value;
+            if (!hostId) return;
+            const out = await eventApi({ action: 'accept_event_invite', kakao_token: _hostState.token, token, host_id: hostId });
+            if (!out.ok) { if (res) res.textContent = out.message || '수락에 실패했습니다.'; return; }
+            showToast(`🎉 '${out.event.title}' 공연을 함께 관리합니다!`);
+            _hostState.curTeamId = hostId;
+            hostLoadTeams();
+        }
+
         function hostKakaoLogin() {
             try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
             if (typeof Kakao === 'undefined' || !Kakao.Auth) { alert('카카오 SDK를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
@@ -13863,6 +13933,7 @@
                     </p>
                     ${_hostState.pendingCheckin ? '<div style="background:#FEF3C7;color:#92400E;border-radius:10px;padding:10px 12px;font-size:0.82rem;font-weight:600;margin-bottom:14px">티켓 체크인을 하려면 호스트 로그인이 필요합니다.</div>' : ''}
                     ${_hostState.pendingJoin ? '<div style="background:#DBEAFE;color:#1E40AF;border-radius:10px;padding:10px 12px;font-size:0.82rem;font-weight:600;margin-bottom:14px">💌 공동호스트 초대를 받았습니다! 카카오 로그인하면 팀에 합류됩니다.</div>' : ''}
+                    ${_hostState.pendingEventJoin ? '<div style="background:#DBEAFE;color:#1E40AF;border-radius:10px;padding:10px 12px;font-size:0.82rem;font-weight:600;margin-bottom:14px">🤝 공연 공동 관리팀 초대를 받았습니다! 카카오 로그인 후 참여할 팀을 선택하세요.</div>' : ''}
                     ${extraMsg ? `<div style="color:#e74c3c;font-size:0.82rem;margin-bottom:12px">${escapeHtml(extraMsg)}</div>` : ''}
                     <button onclick="hostKakaoLogin()" style="width:100%;max-width:320px;padding:14px;border-radius:10px;border:none;background:#FEE500;color:#3C1E1E;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">💬 카카오로 시작하기</button>
                 </div>`;
@@ -14075,6 +14146,7 @@
                     return `<div class="host-card">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                             <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
+                            ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">🤝 공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
                             <span style="font-size:0.95rem;font-weight:700;color:var(--wds-black)">${escapeHtml(ev.title)}</span>
                             <span style="margin-left:auto;font-size:0.75rem;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
                         </div>
@@ -14365,7 +14437,39 @@
             }
             _hostState.attEvent = out.event;
             _hostState.attendees = out.tickets;
+            _hostState.attCoTeams = out.co_teams || [];
+            _hostState.attIsHostTeam = !!out.is_host_team;
             _renderAttendeeList();
+        }
+
+        // 공연 공동 관리팀 초대 — 초대 링크를 카카오톡으로 (팀 소유자가 열어 팀 선택 후 수락)
+        async function hostEventInvite(eventId) {
+            const out = await eventApi({ action: 'create_event_invite', kakao_token: _hostState.token, event_id: eventId });
+            if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
+            const url = location.origin + location.pathname + '?eventjoin=' + out.token;
+            const box = document.getElementById('coInviteBox');
+            const shareApi = (typeof Kakao !== 'undefined') ? ((Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : (Kakao.Link && Kakao.Link.sendDefault ? Kakao.Link : null)) : null;
+            if (shareApi) {
+                try {
+                    shareApi.sendDefault({
+                        objectType: 'text',
+                        text: `🤝 '${out.event.title}' 공연의 공동 관리팀으로 초대합니다!\n초대받은 팀의 소유자가 링크를 열고 팀을 선택하면, 그 팀 전체가 공연을 함께 관리할 수 있어요. (7일간 유효)`,
+                        link: { webUrl: url, mobileWebUrl: url },
+                    });
+                    if (box) box.innerHTML = `<button onclick="navigator.clipboard.writeText('${jsStr(url)}').then(()=>showToast('복사되었습니다.'))" style="width:100%;margin-bottom:10px;padding:9px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-family:inherit">🔗 팀 초대 링크 복사 (직접 전달용)</button>`;
+                    return;
+                } catch (_) { /* 공유 실패 → 복사 폴백 */ }
+            }
+            try { await navigator.clipboard.writeText(url); showToast('팀 초대 링크가 복사되었습니다. 카카오톡에 붙여넣어 보내주세요.'); }
+            catch (_) { if (box) box.innerHTML = `<input class="perf-form-input" value="${escapeHtml(url)}" readonly onclick="this.select()" style="font-size:0.78rem;margin-bottom:10px">`; }
+        }
+
+        async function hostRemoveCoTeam(eventId, hostId, name) {
+            if (!confirm(`'${name}' 팀을 이 공연의 관리팀에서 제외할까요?`)) return;
+            const out = await eventApi({ action: 'remove_co_team', kakao_token: _hostState.token, event_id: eventId, host_id: hostId });
+            if (!out.ok) { alert(out.message || '처리에 실패했습니다.'); return; }
+            showToast('관리팀에서 제외했습니다.');
+            renderHostAttendees(eventId);
         }
 
         function _renderAttendeeList() {
@@ -14410,9 +14514,16 @@
                     <button onclick="downloadAttendeesCSV()" style="margin-left:auto;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📥 명단 다운로드</button>
                 </div>
                 <div class="perf-section-title" style="margin-bottom:6px">${escapeHtml(ev.title)} — 예매자 관리</div>
-                <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:10px">
                     🎟 예매 <strong>${sum.taken}</strong>/${ev.capacity}석 · 확정 ${sum.confirmed} · 입금대기 ${sum.pending} · 입장 ${sum.checked}
                 </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                    <span style="font-size:0.74rem;font-weight:700;color:var(--wds-gray-500)">관리팀</span>
+                    ${_showChip('주최 · ' + escapeHtml(ev.host_name || ''), '#DBEAFE', '#1E40AF')}
+                    ${(_hostState.attCoTeams || []).map(t => `<span class="show-chip" style="background:var(--wds-gray-100);color:var(--wds-gray-700)">${escapeHtml(t.name)}${_hostState.attIsHostTeam ? ` <a href="javascript:void(0)" onclick="hostRemoveCoTeam('${jsStr(ev.id)}','${jsStr(t.id)}','${jsStr(t.name)}')" style="color:#EF4444;text-decoration:none;font-weight:800">✕</a>` : ''}</span>`).join('')}
+                    ${_hostState.attIsHostTeam ? `<button onclick="hostEventInvite('${jsStr(ev.id)}')" style="padding:4px 11px;border-radius:12px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.74rem;font-weight:700;font-family:inherit">+ 팀 초대</button>` : ''}
+                </div>
+                <div id="coInviteBox"></div>
                 <div style="font-size:0.76rem;color:var(--wds-gray-500);margin-bottom:12px;line-height:1.6">📷 공연 당일: 관객의 QR을 <strong>폰 기본 카메라</strong>로 스캔하면 자동 체크인됩니다. QR이 안 되면 아래 검색창에 예매번호를 입력해 [체크인]을 눌러주세요.</div>
                 <input type="text" class="perf-form-input" placeholder="이름 / 예매번호 / 전화번호 검색" value="${escapeHtml(_hostState.attQuery || '')}"
                     oninput="_hostState.attQuery=this.value;_renderAttendeeList();requestAnimationFrame(()=>{const i=document.querySelector('#host-container input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}})" style="margin-bottom:12px">

@@ -240,9 +240,10 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
 }
 // ── 16. update_event: 멤버십 소유권 + ADMIN 백스톱 + 정원 축소
 {
-  mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP(null)]);
+  mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP(null),
+    ['event_co_teams?event_id=eq.', { body: [] }]]);
   const r = await run({ action: 'update_event', kakao_token: 't', event_id: EV_ID, patch: { title: 'x' } });
-  chk('update_event: 비멤버 → 403', r.status === 403);
+  chk('update_event: 비멤버(공동팀도 아님) → 403', r.status === 403);
 
   mockFetch([KAPI_ADMIN, ['events?id=eq.', { body: [EVENT_ROW()] }],
     ['events?id=eq.' + EV_ID, { method: 'PATCH', body: [{ id: EV_ID, title: '관리자수정' }] }]]);
@@ -258,6 +259,7 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
 {
   mockFetch([KAPI_OK, MEMBERSHIP('member'),
     [`events?host_id=eq.${HOST_ID}`, { body: [EVENT_ROW()] }],
+    [`event_co_teams?host_id=eq.${HOST_ID}`, { body: [] }],
     ['event_tickets?event_id=in.', { body: [
       { event_id: EV_ID, qty: 2, status: 'confirmed', checked_in_at: PAST },
       { event_id: EV_ID, qty: 3, status: 'pending_payment', checked_in_at: null },
@@ -297,7 +299,7 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   mockFetch([KAPI_OK, tk({ checked_in_at: PAST }), MEMBERSHIP('member')]);
   const jAC = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
   chk('checkin: 중복 → 409 + 시각', jAC.error === 'already_checked_in' && jAC.checked_in_at === PAST);
-  mockFetch([KAPI_OK, tk({}), MEMBERSHIP(null)]);
+  mockFetch([KAPI_OK, tk({}), MEMBERSHIP(null), ['event_co_teams?event_id=eq.', { body: [] }]]);
   chk('checkin: 타 팀 공연 → 403', (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).status === 403);
   mockFetch([KAPI_OK, tk({}), MEMBERSHIP('member'),
     ['status=eq.confirmed&checked_in_at=is.null', { method: 'PATCH', body: [{ id: TK_ID, event_id: EV_ID, checked_in_at: 'now' }] }]]);
@@ -355,5 +357,77 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   const j3 = await (await run({ action: 'remove_member', kakao_token: 't', host_id: HOST_ID, member_kakao_id: '888' })).json();
   chk('remove_member: member 내보내기 성공', j3.ok === true);
 }
+// ── 22. 공연 공동 관리팀 (연합공연)
+{
+  const CO_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  // 공동 관리팀 멤버가 공연 관리 가능 (주최팀 멤버십 없음 → co-teams 경유)
+  mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP(null),
+    ['event_co_teams?event_id=eq.', { body: [{ host_id: CO_ID }] }],
+    [`event_host_members?kakao_id=eq.777&host_id=in.(${CO_ID})`, { body: [{ host_id: CO_ID }] }],
+    ['events?id=eq.' + EV_ID, { method: 'PATCH', body: [{ id: EV_ID, title: '공동수정' }] }]]);
+  const j = await (await run({ action: 'update_event', kakao_token: 't', event_id: EV_ID, patch: { title: '공동수정' } })).json();
+  chk('공동 관리팀 멤버: 공연 수정 가능', j.ok === true);
+
+  // create_event_invite — 주최팀 아님(공동팀 소속) → 403
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,title,host_id`, { body: [{ id: EV_ID, title: '공연', host_id: HOST_ID }] }],
+    MEMBERSHIP(null)]);
+  const r2 = await run({ action: 'create_event_invite', kakao_token: 't', event_id: EV_ID });
+  chk('create_event_invite: 주최팀 아니면 403', r2.status === 403 && (await r2.json()).error === 'not_host_team');
+
+  // create_event_invite 성공 (기존 토큰 대체)
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,title,host_id`, { body: [{ id: EV_ID, title: '연합공연', host_id: HOST_ID }] }],
+    MEMBERSHIP('member'),
+    [`event_co_invites?event_id=eq.${EV_ID}`, { method: 'DELETE', body: [] }],
+    ['event_co_invites', { method: 'POST', body: [] }]]);
+  const j3 = await (await run({ action: 'create_event_invite', kakao_token: 't', event_id: EV_ID })).json();
+  chk('create_event_invite: 성공 + 32hex + 공연명', j3.ok === true && /^[0-9a-f]{32}$/.test(j3.token) && j3.event.title === '연합공연');
+
+  // accept_event_invite — 주최팀 자신 → 409 own_team
+  const TOKEN = 'cd'.repeat(16);
+  const INV = (hostId) => [`event_co_invites?token=eq.${TOKEN}`, { body: [{ token: TOKEN, expires_at: FUTURE, events: { id: EV_ID, title: '연합공연', host_id: hostId } }] }];
+  mockFetch([KAPI_OK, MEMBERSHIP('owner'), INV(HOST_ID)]);
+  const r4 = await run({ action: 'accept_event_invite', kakao_token: 't', token: TOKEN, host_id: HOST_ID });
+  chk('accept_event_invite: 주최팀 자신 → 409', r4.status === 409 && (await r4.json()).error === 'own_team');
+
+  // accept_event_invite — 팀 owner가 수락 성공
+  mockFetch([KAPI_OK, MEMBERSHIP('owner'), INV(CO_ID),
+    ['event_co_teams?on_conflict=event_id,host_id', { method: 'POST', body: [] }]]);
+  const j5 = await (await run({ action: 'accept_event_invite', kakao_token: 't', token: TOKEN, host_id: HOST_ID })).json();
+  const ins = calls.find(c => c.url.includes('event_co_teams?on_conflict'));
+  chk('accept_event_invite: 성공 — 팀 단위 합류(ignore-duplicates)', j5.ok === true && j5.event.title === '연합공연'
+    && JSON.parse(ins.body).host_id === HOST_ID && ins.headers.Prefer.includes('ignore-duplicates'));
+
+  // accept — member는 403 (팀 소유자만 팀을 대표해 수락)
+  mockFetch([KAPI_OK, MEMBERSHIP('member')]);
+  chk('accept_event_invite: 팀 member → 403', (await run({ action: 'accept_event_invite', kakao_token: 't', token: TOKEN, host_id: HOST_ID })).status === 403);
+
+  // remove_co_team — 공동팀 owner 자진 탈퇴 허용
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: CO_ID }] }],
+    [`event_host_members?host_id=eq.${CO_ID}&kakao_id=eq.777`, { body: [] }],        // 주최팀(CO_ID) 멤버 아님
+    [`event_host_members?host_id=eq.${HOST_ID}&kakao_id=eq.777`, { body: [{ role: 'owner' }] }], // 내 팀 owner
+    ['event_co_teams?event_id=eq.', { method: 'DELETE', body: [{ host_id: HOST_ID }] }]]);
+  const j7 = await (await run({ action: 'remove_co_team', kakao_token: 't', event_id: EV_ID, host_id: HOST_ID })).json();
+  chk('remove_co_team: 공동팀 owner 자진 탈퇴', j7.ok === true);
+
+  // attendees에 co_teams + is_host_team 포함
+  mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP('member'),
+    ['event_tickets?event_id=eq.', { body: [] }],
+    ['event_co_teams?event_id=eq.', { body: [{ host_id: CO_ID, event_hosts: { id: CO_ID, name: '어쿠스틱 팀', logo_url: null } }] }]]);
+  const j8 = await (await run({ action: 'attendees', kakao_token: 't', event_id: EV_ID })).json();
+  chk('attendees: co_teams 목록 + is_host_team', j8.ok === true && j8.co_teams[0].name === '어쿠스틱 팀' && j8.is_host_team === true);
+}
+// ── 23. my_events: 공동 관리 공연 병합
+{
+  const CO_EV = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  mockFetch([KAPI_OK, MEMBERSHIP('member'),
+    [`events?host_id=eq.${HOST_ID}`, { body: [EVENT_ROW()] }],
+    [`event_co_teams?host_id=eq.${HOST_ID}`, { body: [{ event_id: CO_EV }] }],
+    [`events?id=in.(${CO_EV})`, { body: [EVENT_ROW({ id: CO_EV, title: '연합공연', host_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', host_name: '주최팀B' })] }],
+    ['event_tickets?event_id=in.', { body: [] }]]);
+  const j = await (await run({ action: 'my_events', kakao_token: 't', host_id: HOST_ID })).json();
+  const co = j.events.find(e => e.id === CO_EV);
+  chk('my_events: 공동 관리 공연 병합 + co_hosted 플래그', j.ok === true && j.events.length === 2 && co && co.co_hosted === true && co.host_name === '주최팀B');
+}
+
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
 process.exit(fail ? 1 : 0);

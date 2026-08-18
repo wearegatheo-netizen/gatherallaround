@@ -312,6 +312,47 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('초대 수락: accept_invite → 합류한 팀 선택 + 팀 칩 2개', s.acc && s.acc.token === 'cd'.repeat(16)
     && s.myev.host_id === 'h2' && s.dash.includes('어쿠스틱 팀') && s.dash.includes('밴드 스컬'));
 
+  // ── 7c2. 공연 관리팀(연합) — 명단 화면 관리팀 행 + 팀 초대 공유
+  await p.evaluate(() => {
+    _hostState.attEvent = { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50, host_name: '밴드 스컬' };
+    _hostState.attendees = [];
+    _hostState.attCoTeams = [{ id: 'h9', name: '재즈 콜렉티브', logo_url: null }];
+    _hostState.attIsHostTeam = true;
+    _hostState.curEventId = '11111111-1111-4111-8111-111111111111';
+    _renderAttendeeList();
+  });
+  s = await p.evaluate(() => document.getElementById('host-container').textContent);
+  chk('명단: 관리팀 행(주최+공동팀 ✕)과 [+ 팀 초대]', s.includes('주최 · 밴드 스컬') && s.includes('재즈 콜렉티브') && s.includes('✕') && s.includes('+ 팀 초대'));
+  await p.evaluate(() => { window.__shared = null;
+    window.__apiQueue.push({ ok: true, token: 'aa'.repeat(16), expires_at: new Date(Date.now() + 7 * 86400e3).toISOString(), event: { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락' } }); });
+  await p.click('button:has-text("+ 팀 초대")');
+  await p.waitForTimeout(200);
+  s = await p.evaluate(() => ({ shared: window.__shared, call: window.__apiCalls.filter(c => c.action === 'create_event_invite').pop() }));
+  chk('팀 초대: create_event_invite + ?eventjoin 링크 카카오 공유', s.call && s.call.event_id === '11111111-1111-4111-8111-111111111111'
+    && s.shared && s.shared.link.webUrl.includes('?eventjoin=' + 'aa'.repeat(16)), s.shared && s.shared.link.webUrl);
+
+  // ── 7c3. 공연 관리팀 초대 수락 — 팀 선택 → 팀 단위 합류
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true, teams: [{ id: 'h1', name: '밴드 스컬', my_role: 'owner' }], is_admin: false }); // host_me
+    window.__apiQueue.push({ ok: true, event: { id: 'e9', title: '연합공연', starts_at: new Date(Date.now() + 5 * 86400e3).toISOString(), host_name: '주최팀B' } }); // event_invite_info
+    _routeToPage('host/eventjoin/' + 'bb'.repeat(16));
+  });
+  await p.waitForTimeout(350);
+  s = await p.evaluate(() => ({
+    txt: document.getElementById('host-container').textContent,
+    sel: !!document.getElementById('ejTeamSel'),
+  }));
+  chk('팀 초대 수락 화면: 공연 정보 + 팀 선택 셀렉트', s.sel && s.txt.includes('연합공연') && s.txt.includes('주최팀B') && s.txt.includes('어느 팀으로'), s.txt.slice(0, 80));
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true, event: { id: 'e9', title: '연합공연' } });   // accept_event_invite
+    window.__apiQueue.push({ ok: true, teams: [{ id: 'h1', name: '밴드 스컬', my_role: 'owner' }], is_admin: false }); // host_me
+    window.__apiQueue.push({ ok: true, is_admin: false, events: [] });               // my_events
+  });
+  await p.click('button:has-text("이 팀으로 공연 관리에 참여하기")');
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ acc: window.__apiCalls.filter(c => c.action === 'accept_event_invite').pop() }));
+  chk('팀 초대 수락: accept_event_invite(token+host_id)', s.acc && s.acc.token === 'bb'.repeat(16) && s.acc.host_id === 'h1');
+
   // ── 7d. 예매자 명단 CSV 다운로드
   s = await p.evaluate(async () => {
     HTMLAnchorElement.prototype.click = function () { window.__dl = { href: this.href, name: this.download }; };
