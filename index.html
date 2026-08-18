@@ -293,7 +293,7 @@
             .perf-cal-nav button { padding: 6px 14px; font-size: 0.88rem; }
             .perf-cal-nav #perfCalLabel { font-size: 0.95rem; }
             .perf-form-group { margin-bottom: 14px; }
-            #performance-booking-page .perf-form-input { height: 46px; font-size: 0.92rem; }
+            #performance-booking-page .perf-form-input, #shows-page .perf-form-input, #host-page .perf-form-input { height: 46px; font-size: 0.92rem; }
             .perf-summary-box { font-size: 0.86rem; padding: 14px; }
             .perf-fee-summary { font-size: 0.88rem; padding: 13px 14px; }
             .perf-hf-chip { padding: 8px 14px; font-size: 0.86rem; }
@@ -358,8 +358,8 @@
         /* 신청폼 */
         .perf-form-group { margin-bottom: 16px; }
         .perf-form-label { font-size: 0.86rem; font-weight: 700; color: var(--wds-gray-700); margin-bottom: 6px; display: block; }
-        #performance-booking-page .perf-form-input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-size: 0.92rem; font-family: inherit; outline: none; box-sizing: border-box; background: var(--wds-white); color: var(--wds-black); }
-        #performance-booking-page .perf-form-input:focus { border-color: var(--wds-primary); }
+        #performance-booking-page .perf-form-input, #shows-page .perf-form-input, #host-page .perf-form-input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-size: 0.92rem; font-family: inherit; outline: none; box-sizing: border-box; background: var(--wds-white); color: var(--wds-black); }
+        #performance-booking-page .perf-form-input:focus, #shows-page .perf-form-input:focus, #host-page .perf-form-input:focus { border-color: var(--wds-primary); }
         .perf-how-found-opts { display: flex; flex-wrap: wrap; gap: 6px; }
         .perf-hf-chip { padding: 6px 12px; border: 1px solid var(--wds-gray-300); border-radius: 20px; font-size: 0.86rem; cursor: pointer; transition: all 0.1s; font-family: inherit; background: var(--wds-white); color: var(--wds-black); }
         .perf-hf-chip.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
@@ -370,6 +370,19 @@
         body.dark .perf-admin-card.pending { background: #2a1800; }
         .perf-admin-card-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
         .perf-admin-card-info { font-size: 0.8rem; color: var(--wds-gray-700); line-height: 1.7; }
+
+        /* ── 공연 예매 (shows) + 호스트 센터 (host) ── */
+        .show-card { display: flex; gap: 14px; border: 1px solid var(--wds-gray-300); border-radius: 14px; padding: 14px; margin-bottom: 12px; cursor: pointer; background: var(--wds-white); transition: border-color 0.15s; text-align: left; }
+        .show-card:hover { border-color: var(--wds-primary); }
+        .show-poster { width: 84px; height: 112px; border-radius: 10px; object-fit: cover; background: var(--wds-gray-100); flex: none; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; color: var(--wds-gray-500); }
+        .show-poster-lg { width: 100%; max-width: 300px; border-radius: 14px; display: block; margin: 0 auto 16px; }
+        .show-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+        .ticket-box { border: 2px dashed var(--wds-gray-300); border-radius: 16px; padding: 24px 18px; text-align: center; background: var(--wds-white); }
+        .ticket-code { font-size: 1.9rem; font-weight: 800; letter-spacing: 0.32em; padding-left: 0.32em; color: var(--wds-black); }
+        /* QR 스캔 대비 확보 — 다크모드에서도 흰 배경 고정 (팔레트 변수 쓰지 말 것) */
+        .qr-frame { background: #fff; border-radius: 12px; padding: 12px; width: 196px; height: 196px; margin: 14px auto; display: flex; align-items: center; justify-content: center; box-sizing: content-box; }
+        .qr-frame svg { width: 100%; height: 100%; display: block; }
+        .host-card { border: 1px solid var(--wds-gray-300); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: var(--wds-white); }
         #portal-page h1 { font-size: 2.2rem; margin-bottom: 10px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
         #portal-page .portal-sub { color: var(--wds-gray-700); margin-bottom: 36px; font-size: 1.05rem; }
         .portal-btn {
@@ -1549,6 +1562,12 @@
                 <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
             </span>
         </button>
+        <button type="button" class="portal-btn portal-btn-primary" onclick="showShowsSection()">
+            <span class="portal-btn-text">
+                <span class="portal-btn-title">공연 예매</span>
+                <span class="portal-btn-desc">밴드 공연 티켓 예매</span>
+            </span>
+        </button>
         <button type="button" class="portal-btn portal-btn-primary" onclick="showPerformanceBookingSection()">
             <span class="portal-btn-text">
                 <span class="portal-btn-title">공간 대관</span>
@@ -1585,6 +1604,36 @@
         </div>
         <div class="perf-inner">
             <div id="perf-step-container"></div>
+        </div>
+    </div>
+
+    <!-- 공연 예매 (두둥식 티켓 플랫폼 — 공개 존) -->
+    <div id="shows-page" class="hidden">
+        <div class="perf-header">
+            <div class="perf-header-inner" style="position:relative">
+                <button type="button" id="themeToggleBtnShows" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:0;right:0">🌙</button>
+                <button class="portal-back-btn" onclick="showPortal()" style="display:inline-block;margin-bottom:10px">← 돌아가기</button>
+                <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.7rem;margin:0 0 4px">공연 예매</h1>
+                <p style="color:var(--wds-gray-700);margin:0;font-size:0.95rem">밴드 공연 티켓을 간편하게 예매하세요</p>
+            </div>
+        </div>
+        <div class="perf-inner" style="max-width:720px">
+            <div id="shows-container"></div>
+        </div>
+    </div>
+
+    <!-- 호스트 센터 (공연 등록·예매자 관리 — 카카오 로그인, 게더링과 무관) -->
+    <div id="host-page" class="hidden">
+        <div class="perf-header">
+            <div class="perf-header-inner" style="position:relative">
+                <button type="button" id="themeToggleBtnHost" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:0;right:0">🌙</button>
+                <button class="portal-back-btn" onclick="showShowsSection()" style="display:inline-block;margin-bottom:10px">← 공연 목록</button>
+                <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.7rem;margin:0 0 4px">호스트 센터</h1>
+                <p style="color:var(--wds-gray-700);margin:0;font-size:0.95rem">공연을 등록하고 예매자를 관리하세요</p>
+            </div>
+        </div>
+        <div class="perf-inner" style="max-width:720px">
+            <div id="host-container"></div>
         </div>
     </div>
 
@@ -3439,7 +3488,7 @@
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
                 const _ct = _sp.get('ct'), _cr = _sp.get('cr');
                 const _m = parseInt(_sp.get('m'), 10); // 공유자의 매칭률 (선택, 구 링크엔 없음)
-                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page','performance-booking-page']
+                ['portal-page','landing-page','landing-page-band','main-content','band-main-content','pending-screen','band-news-page','performance-booking-page','shows-page','host-page']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
                 history.replaceState({}, '', location.pathname);
                 showCommunitySection().then(() => {
@@ -3473,7 +3522,7 @@
                 // 공개 섹션(커뮤니티/밴드소식/공간대관)은 인증과 무관하므로 즉시
                 // 표시해 포털 깜빡임을 방지. 로그인 콜백이 main-content로 덮어써도
                 // applyPendingRoute가 다시 복원한다.
-                if (['community', 'band-news', 'perf'].includes(_initialPage.split('/')[0])) {
+                if (['community', 'band-news', 'perf', 'shows', 'host'].includes(_initialPage.split('/')[0])) {
                     _routeToPage(_initialPage);
                 }
                 // 로그인/로그아웃 콜백이 끝내 호출되지 않는 경우(로그아웃 상태 등)
@@ -6792,13 +6841,13 @@
         // 포털을 허브로 하는 단일파일 SPA. 각 섹션 진입 시 history에 항목을 쌓아
         // 브라우저 뒤로가기로 이전 섹션/포털로 돌아갈 수 있게 하고, 새로고침 시
         // location.hash를 읽어 현재 섹션을 복원한다.
-        const _NAV_PAGES = ['gatheo', 'band', 'community', 'band-news', 'perf'];
+        const _NAV_PAGES = ['gatheo', 'band', 'community', 'band-news', 'perf', 'shows', 'host'];
         let _navFromPop = false;       // popstate/복원 중에는 pushState 억제
         let _pendingRoute = null;      // 로드 시 hash로부터 복원할 섹션
         let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
 
         // 모든 최상위 화면 컨테이너 — 화면 전환 시 이전 화면이 남는(누수) 버그 방지용 일괄 숨김
-        const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','notice_container','band-news-page','performance-booking-page','pending-screen'];
+        const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','notice_container','band-news-page','performance-booking-page','pending-screen','shows-page','host-page'];
         function _hideAllScreens() {
             _ALL_SCREEN_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             // GatheO 하단 탭바(+BGM 스택·본문 여백)는 GatheO 메인에서만 — 모든 화면 전환이 여길 거치므로 여기가 유일한 해제 지점
@@ -6821,6 +6870,9 @@
         const _GATHEO_TABS = ['reservation', 'member', 'board', 'mypage', 'admin'];
         const _MEMBER_SUBTABS = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
         const _COMMUNITY_TABS = ['current', 'past', 'test'];
+        // 공연 예매 파라미터 라우트 검증 — _pageFromHash가 부팅 초기에 실행되므로 여기(사용처 옆)에 선언
+        const _SHOW_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/i;
+        const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         let _pendingGatheoSub = null; // 비로그인 상태로 #gatheo/... 진입 시, 로그인 후 이어갈 탭 경로
 
         function _pageFromHash() {
@@ -6834,6 +6886,18 @@
             }
             if (segs[0] === 'community' && segs[1])
                 return _COMMUNITY_TABS.includes(segs[1]) ? segs.slice(0, 2).join('/') : 'community';
+            // 공연 예매/호스트 — 파라미터 라우트(형식 검증, 화이트리스트 아님)
+            if (segs[0] === 'shows' && segs[1]) {
+                if (segs[1] === 'find') return 'shows/find';
+                if (segs[1] === 'ticket' && _SHOW_CODE_RE.test(segs[2] || '')) return 'shows/ticket/' + segs[2].toUpperCase();
+                if (_UUID_RE.test(segs[1])) return 'shows/' + segs[1].toLowerCase();
+                return 'shows';
+            }
+            if (segs[0] === 'host' && segs[1]) {
+                if (segs[1] === 'checkin' && _SHOW_CODE_RE.test(segs[2] || '')) return 'host/checkin/' + segs[2].toUpperCase();
+                if (segs[1] === 'event' && _UUID_RE.test(segs[2] || '')) return 'host/event/' + segs[2].toLowerCase();
+                return 'host';
+            }
             return segs[0];
         }
 
@@ -6841,8 +6905,10 @@
             if (_navFromPop) return;
             const cur = (history.state && history.state.page) || '';
             if (cur === path) return; // 같은 경로 재클릭 → 항목 중복 방지
-            // 섹션 항목(#gatheo)이 기본 탭(#gatheo/reservation)으로 구체화될 땐 교체 — 뒤로가기 한 번에 섹션을 빠져나가게
-            const method = cur === path.split('/')[0] ? 'replaceState' : 'pushState';
+            // 섹션 항목(#gatheo)이 기본 탭(#gatheo/reservation)으로 구체화될 땐 교체 — 뒤로가기 한 번에 섹션을 빠져나가게.
+            // 단 shows/host는 목록→상세가 별개 화면이므로 항상 push (뒤로가기로 목록 복귀 보장).
+            const root = path.split('/')[0];
+            const method = (cur === root && root !== 'shows' && root !== 'host') ? 'replaceState' : 'pushState';
             history[method]({ page: path }, '', '#' + path);
         }
 
@@ -6873,6 +6939,8 @@
                 }
                 else if (page === 'band-news') showBandNewsSection();
                 else if (page === 'perf') showPerformanceBookingSection();
+                else if (page === 'shows') showShowsSection(segs.slice(1));
+                else if (page === 'host') showHostSection(segs.slice(1));
                 else showPortal();
             } finally {
                 _navFromPop = false;
@@ -13218,6 +13286,345 @@
                 }
                 pulling = false;
             }, { passive: true });
+        }
+
+        // ═══════════════ 공연 예매 (shows) — 공개 존 ═══════════════
+        // 두둥식 티켓 플랫폼. 읽기는 anon(events/event_seats), 쓰기는 전부 /event-api(service role).
+        // 관객은 로그인 없이 이름+전화번호로 예매하고, 예매번호+전화번호로 조회·취소한다.
+        let _showsState = { events: [], seats: {}, event: null, ticket: null, tEvent: null, busy: false };
+
+        async function eventApi(payload) {
+            let out = null;
+            try {
+                const res = await fetch('/event-api', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                out = await res.json().catch(() => null);
+            } catch (_) {}
+            return out || { ok: false, error: 'network', message: '서버와 통신하지 못했습니다. 잠시 후 다시 시도해주세요.' };
+        }
+
+        function showShowsSection(sub) {
+            const subArr = Array.isArray(sub) ? sub : [];
+            _pushNav('shows' + (subArr.length ? '/' + subArr.join('/') : ''));
+            document.body.classList.add('portal-view');
+            document.body.classList.add('fullwidth-view');
+            _hideAllScreens();
+            document.getElementById('shows-page').classList.remove('hidden');
+            if (!supabaseClient) {
+                document.getElementById('shows-container').innerHTML =
+                    '<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">일시적인 오류입니다. 잠시 후 새로고침해주세요.</p>';
+                return;
+            }
+            if (subArr[0] === 'ticket' && subArr[1]) {
+                const code = String(subArr[1]).toUpperCase();
+                // 예매 직후 이동이면 메모리의 티켓을 바로 표시, 새로고침 진입이면 전화번호 검증(조회 폼)
+                if (_showsState.ticket && _showsState.ticket.code === code) renderTicketView();
+                else renderTicketLookup(code);
+                return;
+            }
+            if (subArr[0] === 'find') { renderTicketLookup(''); return; }
+            if (subArr[0] && _UUID_RE.test(subArr[0])) { renderShowDetail(subArr[0].toLowerCase()); return; }
+            renderShowsList();
+        }
+
+        function _showDateStr(iso) {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+            const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${hm}`;
+        }
+        const _showChip = (label, bg, fg) => `<span class="show-chip" style="background:${bg};color:${fg}">${label}</span>`;
+
+        // 잔여석 배지 — event_seats 조회 실패 시에도 목록이 뜨도록 소프트 처리
+        function _seatInfo(ev) {
+            const s = _showsState.seats[ev.id];
+            const past = new Date(ev.starts_at) <= new Date();
+            if (past) return { label: '공연 종료', bg: 'var(--wds-gray-100)', fg: 'var(--wds-gray-500)', bookable: false, remaining: 0 };
+            if (ev.status !== 'published') return { label: '예매 마감', bg: 'var(--wds-gray-100)', fg: 'var(--wds-gray-500)', bookable: false, remaining: 0 };
+            if (!s) return { label: '예매 가능', bg: '#DCFCE7', fg: '#166534', bookable: true, remaining: null };
+            const rem = Math.max(0, s.capacity - s.taken);
+            if (rem <= 0) return { label: '매진', bg: '#FEE2E2', fg: '#991B1B', bookable: false, remaining: 0 };
+            if (rem <= 10) return { label: `잔여 ${rem}석`, bg: '#FEF3C7', fg: '#92400E', bookable: true, remaining: rem };
+            return { label: '예매 가능', bg: '#DCFCE7', fg: '#166534', bookable: true, remaining: rem };
+        }
+
+        async function fetchShows() {
+            const { data, error } = await supabaseClient.from('events').select('*').order('starts_at', { ascending: true });
+            if (error) throw error;
+            _showsState.events = data || [];
+            _showsState.seats = {};
+            try {
+                const { data: seats, error: se } = await supabaseClient.from('event_seats').select('*');
+                if (!se && Array.isArray(seats)) seats.forEach(s => { _showsState.seats[s.event_id] = s; });
+            } catch (_) { /* 잔여석은 부가 정보 */ }
+        }
+
+        function _showCardHTML(ev) {
+            const seat = _seatInfo(ev);
+            const poster = ev.poster_url
+                ? `<img class="show-poster" src="${escapeHtml(ev.poster_url)}" alt="" loading="lazy">`
+                : '<div class="show-poster">🎸</div>';
+            const priceStr = ev.price > 0 ? `₩${Number(ev.price).toLocaleString()}` : '무료';
+            return `<div class="show-card" onclick="showShowsSection(['${jsStr(ev.id)}'])">
+                ${poster}
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+                        ${_showChip(seat.label, seat.bg, seat.fg)}
+                        ${_showChip(priceStr, 'var(--wds-gray-100)', 'var(--wds-gray-700)')}
+                    </div>
+                    <div style="font-size:0.98rem;font-weight:700;color:var(--wds-black);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ev.title)}</div>
+                    <div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6">
+                        ${escapeHtml(ev.host_name || '')}<br>
+                        📅 ${_showDateStr(ev.starts_at)} · 📍 ${escapeHtml(ev.venue)}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        async function renderShowsList() {
+            const c = document.getElementById('shows-container');
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연을 불러오는 중…</div>';
+            try { await fetchShows(); } catch (e) {
+                c.innerHTML = '<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>';
+                return;
+            }
+            const now = new Date();
+            const upcoming = _showsState.events.filter(ev => new Date(ev.starts_at) > now);
+            const past = _showsState.events.filter(ev => new Date(ev.starts_at) <= now).reverse();
+            let html = `<div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px">
+                <button onclick="showShowsSection(['find'])" style="padding:8px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">🎟 내 티켓 조회</button>
+            </div>`;
+            if (!upcoming.length) {
+                html += '<p style="text-align:center;padding:36px 0;color:var(--wds-gray-500)">예정된 공연이 없습니다.</p>';
+            } else {
+                html += upcoming.map(_showCardHTML).join('');
+            }
+            if (past.length) {
+                html += `<details style="margin-top:20px"><summary style="cursor:pointer;font-size:0.85rem;font-weight:700;color:var(--wds-gray-500);user-select:none">지난 공연 (${past.length})</summary>
+                    <div style="margin-top:10px;opacity:0.75">${past.map(_showCardHTML).join('')}</div></details>`;
+            }
+            html += `<p style="text-align:center;margin-top:28px;font-size:0.82rem">
+                <a href="javascript:void(0)" onclick="showHostSection()" style="color:var(--wds-gray-500);text-decoration:underline">공연 호스트이신가요? 호스트 센터 →</a></p>`;
+            c.innerHTML = html;
+        }
+
+        async function renderShowDetail(id) {
+            const c = document.getElementById('shows-container');
+            let ev = _showsState.events.find(e => e.id === id);
+            if (!ev) {
+                c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
+                try {
+                    const { data, error } = await supabaseClient.from('events').select('*').eq('id', id).maybeSingle();
+                    if (error || !data) throw error || new Error('not found');
+                    ev = data;
+                    try {
+                        const { data: s } = await supabaseClient.from('event_seats').select('*').eq('event_id', id).maybeSingle();
+                        if (s) _showsState.seats[id] = s;
+                    } catch (_) {}
+                } catch (_) {
+                    c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연을 찾을 수 없습니다.</p>
+                        <p style="text-align:center"><button onclick="showShowsSection()" style="padding:10px 24px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-family:inherit;font-weight:600">← 공연 목록</button></p>`;
+                    return;
+                }
+            }
+            _showsState.event = ev;
+            const seat = _seatInfo(ev);
+            const priceStr = ev.price > 0 ? `₩${Number(ev.price).toLocaleString()}` : '무료';
+            const maxQty = Math.max(1, Math.min(ev.max_per_booking || 4, seat.remaining == null ? (ev.max_per_booking || 4) : seat.remaining));
+            const descHtml = ev.description ? escapeHtml(ev.description).replace(/\n/g, '<br>') : '';
+            let html = `
+                <button onclick="showShowsSection()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 공연 목록</button>
+                ${ev.poster_url ? `<img class="show-poster-lg" src="${escapeHtml(ev.poster_url)}" alt="공연 포스터">` : ''}
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    ${_showChip(seat.label, seat.bg, seat.fg)}${_showChip(priceStr, 'var(--wds-gray-100)', 'var(--wds-gray-700)')}
+                </div>
+                <h2 style="font-size:1.25rem;font-weight:800;color:var(--wds-black);margin:0 0 6px">${escapeHtml(ev.title)}</h2>
+                <div style="font-size:0.86rem;color:var(--wds-gray-700);line-height:1.8;margin-bottom:14px">
+                    🎤 ${escapeHtml(ev.host_name || '')}<br>
+                    📅 ${_showDateStr(ev.starts_at)}<br>
+                    📍 ${escapeHtml(ev.venue)}
+                </div>
+                ${descHtml ? `<div style="font-size:0.86rem;color:var(--wds-gray-900);line-height:1.7;background:var(--wds-gray-100);border-radius:12px;padding:14px 16px;margin-bottom:18px">${descHtml}</div>` : ''}`;
+            if (seat.bookable) {
+                const qtyOpts = Array.from({ length: maxQty }, (_, i) => `<option value="${i + 1}">${i + 1}매</option>`).join('');
+                html += `
+                <div class="perf-section-title" style="margin-top:8px">예매하기</div>
+                ${ev.price > 0 ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.55">💳 계좌이체 예매 — 예매 후 안내되는 계좌로 입금하시면 호스트 확인 후 확정됩니다.</div>` : ''}
+                <div class="perf-form-group">
+                    <label class="perf-form-label">이름 *</label>
+                    <input type="text" class="perf-form-input" id="showName" placeholder="실명 입력">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">연락처 *</label>
+                    <input type="tel" class="perf-form-input" id="showPhone" placeholder="010-0000-0000">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">매수 *</label>
+                    <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
+                </div>
+                <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
+                    <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
+                        <input type="checkbox" id="showPrivacyAgree" style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
+                        [필수] 개인정보 수집·이용에 동의합니다.
+                    </label>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-700);margin-top:6px;padding-left:27px;line-height:1.6">
+                        · 수집 항목: 이름, 연락처 · 이용 목적: 공연 예매 확인 및 입장 관리<br>
+                        · 보유 기간: 공연 종료 후 1년 보관 후 파기 · 거부 시 예매가 제한됩니다.
+                    </div>
+                </div>
+                <div id="showsBookResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <button id="showBookBtn" onclick="submitShowBooking('${jsStr(ev.id)}')" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">예매하기${ev.price > 0 ? ` · ₩${Number(ev.price).toLocaleString()}/매` : ''}</button>`;
+            } else {
+                html += `<div style="text-align:center;padding:18px;background:var(--wds-gray-100);border-radius:12px;color:var(--wds-gray-500);font-size:0.9rem;font-weight:600">${seat.label}인 공연입니다.</div>`;
+            }
+            c.innerHTML = html;
+        }
+
+        async function submitShowBooking(eventId) {
+            const res = document.getElementById('showsBookResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (_showsState.busy) return;
+            const name = document.getElementById('showName')?.value.trim();
+            const phone = document.getElementById('showPhone')?.value.trim();
+            const qty = parseInt(document.getElementById('showQty')?.value, 10) || 1;
+            if (!name) { showErr('이름을 입력해주세요.'); return; }
+            if (!/^01[016789][0-9]{7,8}$/.test((phone || '').replace(/\D/g, ''))) { showErr('휴대폰 번호를 확인해주세요.'); return; }
+            if (!document.getElementById('showPrivacyAgree')?.checked) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
+            const btn = document.getElementById('showBookBtn');
+            _showsState.busy = true;
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+            try {
+                const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty });
+                if (!out.ok) { showErr(out.message || '예매에 실패했습니다.'); return; }
+                _showsState.ticket = out.ticket;
+                _showsState.tEvent = out.event;
+                renderTicketView();
+                _pushNav('shows/ticket/' + out.ticket.code);
+            } finally {
+                _showsState.busy = false;
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+            }
+        }
+
+        function _ticketChip(t) {
+            if (t.status === 'cancelled') return _showChip('취소됨', '#FEE2E2', '#991B1B');
+            if (t.checked_in_at) return _showChip('입장 완료', '#DBEAFE', '#1E40AF');
+            if (t.status === 'confirmed') return _showChip('예매 확정', '#DCFCE7', '#166534');
+            return _showChip('입금 확인 중', '#FEF3C7', '#92400E');
+        }
+
+        function renderTicketView() {
+            const c = document.getElementById('shows-container');
+            const t = _showsState.ticket, ev = _showsState.tEvent;
+            if (!t || !ev) { renderTicketLookup(''); return; }
+            const cancellable = (t.status === 'pending_payment' || t.status === 'confirmed')
+                && !t.checked_in_at && new Date(ev.starts_at) > new Date();
+            const amount = (ev.price || 0) * (t.qty || 1);
+            let html = `
+                <div class="ticket-box">
+                    <div style="margin-bottom:10px">${_ticketChip(t)}</div>
+                    <div style="font-size:1.05rem;font-weight:800;color:var(--wds-black);margin-bottom:4px">${escapeHtml(ev.title)}</div>
+                    <div style="font-size:0.82rem;color:var(--wds-gray-700);line-height:1.7;margin-bottom:14px">
+                        ${escapeHtml(ev.host_name || '')} · 📍 ${escapeHtml(ev.venue)}<br>
+                        📅 ${_showDateStr(ev.starts_at)}
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--wds-gray-500)">예매번호</div>
+                    <div class="ticket-code">${escapeHtml(t.code)}</div>
+                    <div id="ticketQrSlot"></div>
+                    <div style="font-size:0.82rem;color:var(--wds-gray-700);margin-top:6px">${escapeHtml(t.buyer_name)} · ${t.qty}매${amount > 0 ? ` · ₩${amount.toLocaleString()}` : ''}</div>
+                </div>`;
+            if (t.status === 'pending_payment') {
+                html += `
+                <div style="background:#FEF3C7;color:#92400E;border-radius:12px;padding:14px 16px;margin-top:14px;font-size:0.84rem;line-height:1.7">
+                    <div style="font-weight:800;margin-bottom:6px">💳 입금 안내</div>
+                    입금 금액: <strong>₩${amount.toLocaleString()}</strong><br>
+                    입금 계좌: <strong id="ticketBankInfo">${escapeHtml(ev.bank_info || '호스트에게 문의')}</strong>
+                    ${ev.bank_info ? `<button onclick="copyBankInfo()" style="margin-left:6px;padding:3px 10px;border-radius:6px;border:1px solid #92400E;background:none;color:#92400E;cursor:pointer;font-size:0.74rem;font-weight:700;font-family:inherit">복사</button>` : ''}<br>
+                    입금자명은 <strong>예매자 이름(${escapeHtml(t.buyer_name)})</strong>과 동일하게 해주세요.<br>
+                    호스트가 입금을 확인하면 <strong>예매 확정</strong>으로 바뀝니다.
+                </div>`;
+            }
+            html += `
+                <div style="font-size:0.78rem;color:var(--wds-gray-500);text-align:center;margin-top:14px;line-height:1.6">
+                    이 화면을 캡처하거나 예매번호를 저장해주세요.<br>공연 입장 시 QR 또는 예매번호를 제시하시면 됩니다.<br>
+                    "내 티켓 조회"에서 예매번호+전화번호로 언제든 다시 볼 수 있습니다.
+                </div>
+                <div style="display:flex;gap:8px;margin-top:18px">
+                    <button onclick="showShowsSection()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">공연 목록</button>
+                    ${cancellable ? `<button onclick="cancelMyTicket()" style="flex:1;padding:12px;border-radius:10px;border:1px solid #EF4444;background:none;color:#EF4444;cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">예매 취소</button>` : ''}
+                </div>`;
+            c.innerHTML = html;
+            // QR은 Phase B(vendor 라이브러리)에서 렌더 — 미로드 시 예매번호 텍스트로 충분
+            if (typeof renderTicketQR === 'function') renderTicketQR(document.getElementById('ticketQrSlot'), t.code);
+        }
+
+        function copyBankInfo() {
+            const txt = document.getElementById('ticketBankInfo')?.textContent || '';
+            if (!txt) return;
+            const done = () => showToast('계좌 정보가 복사되었습니다.');
+            if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done).catch(() => showToast('복사에 실패했습니다. 길게 눌러 복사해주세요.'));
+            else showToast('복사에 실패했습니다. 길게 눌러 복사해주세요.');
+        }
+
+        async function cancelMyTicket() {
+            const t = _showsState.ticket;
+            if (!t) return;
+            if (!confirm('예매를 취소하시겠습니까?' + (t.status === 'pending_payment' ? '' : '\n(이미 입금하셨다면 호스트에게 환불을 문의해주세요.)'))) return;
+            const out = await eventApi({ action: 'cancel', code: t.code, phone: t.buyer_phone });
+            if (!out.ok) { alert(out.message || '취소에 실패했습니다.'); return; }
+            _showsState.ticket = { ..._showsState.ticket, ...out.ticket };
+            renderTicketView();
+            showToast('예매가 취소되었습니다.');
+        }
+
+        function renderTicketLookup(prefillCode) {
+            const c = document.getElementById('shows-container');
+            c.innerHTML = `
+                <button onclick="showShowsSection()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 공연 목록</button>
+                <div class="perf-section-title">내 티켓 조회</div>
+                <p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">예매 시 발급된 <strong>예매번호(6자리)</strong>와 <strong>전화번호</strong>를 입력해주세요.</p>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">예매번호</label>
+                    <input type="text" class="perf-form-input" id="findCode" maxlength="6" placeholder="예: AB3XKP" value="${escapeHtml(prefillCode || '')}" style="text-transform:uppercase;letter-spacing:0.2em">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">연락처</label>
+                    <input type="tel" class="perf-form-input" id="findPhone" placeholder="010-0000-0000">
+                </div>
+                <div id="showsFindResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <button onclick="lookupTicket()" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">조회하기</button>`;
+        }
+
+        async function lookupTicket() {
+            const res = document.getElementById('showsFindResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const code = (document.getElementById('findCode')?.value || '').trim().toUpperCase();
+            const phone = document.getElementById('findPhone')?.value || '';
+            if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) { showErr('예매번호 6자리를 확인해주세요.'); return; }
+            if (!/^01[016789][0-9]{7,8}$/.test(phone.replace(/\D/g, ''))) { showErr('휴대폰 번호를 확인해주세요.'); return; }
+            const out = await eventApi({ action: 'lookup', code, phone });
+            if (!out.ok) { showErr(out.message || '조회에 실패했습니다.'); return; }
+            _showsState.ticket = out.ticket;
+            _showsState.tEvent = out.event;
+            renderTicketView();
+            _pushNav('shows/ticket/' + out.ticket.code);
+        }
+
+        // 호스트 센터 — Phase B에서 구현. 라우팅·포털 링크가 먼저 배포되므로 자리 표시.
+        function showHostSection(sub) {
+            const subArr = Array.isArray(sub) ? sub : [];
+            _pushNav('host' + (subArr.length ? '/' + subArr.join('/') : ''));
+            document.body.classList.add('portal-view');
+            document.body.classList.add('fullwidth-view');
+            _hideAllScreens();
+            document.getElementById('host-page').classList.remove('hidden');
+            document.getElementById('host-container').innerHTML =
+                '<p style="text-align:center;padding:48px 0;color:var(--wds-gray-500);font-size:0.92rem">호스트 센터를 준비 중입니다. 곧 열려요!</p>';
         }
     </script>
 
