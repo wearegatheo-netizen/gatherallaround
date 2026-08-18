@@ -76,42 +76,63 @@ async function verifyKakao(token) {
         });
         if (!r.ok) return null;
         const u = await r.json().catch(() => null);
-        return u && u.id ? String(u.id) : null;
+        if (!u || !u.id) return null;
+        const nickname = (u.kakao_account && u.kakao_account.profile && u.kakao_account.profile.nickname)
+            || (u.properties && u.properties.nickname) || '';
+        return { id: String(u.id), nickname };
     } catch (_) { return null; }
 }
 
-async function getHost(env, kakaoId) {
-    const r = await sbFetch(env, `event_hosts?kakao_id=eq.${encodeURIComponent(kakaoId)}&select=*&limit=1`);
-    if (!r.ok) throw new Error('host lookup failed: ' + r.status);
-    const [h] = await r.json();
-    return h || null;
+// 내가 속한 팀 목록 (멤버십 join)
+async function getMyTeams(env, kakaoId) {
+    const sel = 'role,event_hosts(*)';
+    const r = await sbFetch(env, `event_host_members?kakao_id=eq.${encodeURIComponent(kakaoId)}&select=${encodeURIComponent(sel)}&order=created_at.asc`);
+    if (!r.ok) throw new Error('teams lookup failed: ' + r.status);
+    return (await r.json()).filter(m => m.event_hosts).map(m => ({ ...m.event_hosts, my_role: m.role }));
 }
 
-// 공연 소유권 확인 (ADMIN 백스톱 포함). 반환: { ev } 또는 { err: [status, code, msg] }
+// 팀 멤버십 확인 — 멤버 행(role 포함) 또는 null
+async function getMembership(env, hostId, kakaoId) {
+    const r = await sbFetch(env, `event_host_members?host_id=eq.${hostId}&kakao_id=eq.${encodeURIComponent(kakaoId)}&select=role&limit=1`);
+    if (!r.ok) throw new Error('membership lookup failed: ' + r.status);
+    const [m] = await r.json();
+    return m || null;
+}
+
+// 공연 소유권 확인 — 해당 팀의 멤버(공동호스트 포함)이거나 ADMIN.
+// 반환: { ev } 또는 { err: [status, code, msg] }
 async function getEventOwned(env, eventId, kakaoId) {
     if (!isUuid(eventId)) return { err: [400, 'bad_event', '공연 정보가 올바르지 않습니다.'] };
-    const r = await sbFetch(env, `events?id=eq.${eventId}&select=${encodeURIComponent('*,event_hosts(kakao_id)')}&limit=1`);
+    const r = await sbFetch(env, `events?id=eq.${eventId}&select=*&limit=1`);
     if (!r.ok) return { err: [502, 'db', '공연 조회에 실패했습니다.'] };
     const [ev] = await r.json();
     if (!ev) return { err: [404, 'not_found', '공연을 찾을 수 없습니다.'] };
-    const owner = ev.event_hosts && ev.event_hosts.kakao_id;
-    if (owner !== kakaoId && kakaoId !== ADMIN_KAKAO_ID) return { err: [403, 'not_owner', '이 공연을 관리할 권한이 없습니다.'] };
-    delete ev.event_hosts;
+    if (kakaoId !== ADMIN_KAKAO_ID) {
+        const m = await getMembership(env, ev.host_id, kakaoId);
+        if (!m) return { err: [403, 'not_owner', '이 공연을 관리할 권한이 없습니다.'] };
+    }
     return { ev };
 }
 
-// 티켓 소유권 확인 (티켓 → 공연 → 호스트 역추적)
+// 티켓 소유권 확인 (티켓 → 공연 → 팀 멤버십 역추적)
 async function getTicketOwned(env, ticketId, kakaoId) {
     if (!isUuid(ticketId)) return { err: [400, 'bad_ticket', '티켓 정보가 올바르지 않습니다.'] };
-    const sel = '*,events(id,title,starts_at,price,event_hosts(kakao_id))';
+    const sel = '*,events(id,title,starts_at,price,host_id)';
     const r = await sbFetch(env, `event_tickets?id=eq.${ticketId}&select=${encodeURIComponent(sel)}&limit=1`);
     if (!r.ok) return { err: [502, 'db', '티켓 조회에 실패했습니다.'] };
     const [t] = await r.json();
     if (!t) return { err: [404, 'not_found', '티켓을 찾을 수 없습니다.'] };
-    const owner = t.events && t.events.event_hosts && t.events.event_hosts.kakao_id;
-    if (owner !== kakaoId && kakaoId !== ADMIN_KAKAO_ID) return { err: [403, 'not_owner', '이 티켓을 관리할 권한이 없습니다.'] };
+    if (kakaoId !== ADMIN_KAKAO_ID) {
+        const m = t.events ? await getMembership(env, t.events.host_id, kakaoId) : null;
+        if (!m) return { err: [403, 'not_owner', '이 티켓을 관리할 권한이 없습니다.'] };
+    }
     return { t };
 }
+
+const newToken = () => {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+};
 
 // 공연 필드 검증 (create/update 공용). partial=true면 존재하는 필드만 검증.
 function validateEventFields(e, { partial = false } = {}) {
@@ -279,44 +300,126 @@ export async function onRequest(context) {
         }
 
         // ── 호스트 액션 (카카오 토큰 검증 필수) ────────────────────
-        const HOST_ACTIONS = ['host_me', 'register_host', 'create_event', 'update_event', 'set_event_status',
+        const HOST_ACTIONS = ['host_me', 'create_team', 'update_team', 'list_members', 'remove_member',
+            'create_invite', 'accept_invite', 'create_event', 'update_event', 'set_event_status',
             'my_events', 'attendees', 'confirm_payment', 'revert_payment', 'host_cancel', 'checkin', 'uncheckin'];
         if (HOST_ACTIONS.includes(action)) {
-            const kakaoId = await verifyKakao(body.kakao_token);
-            if (!kakaoId) return fail(401, 'auth', '카카오 로그인이 만료되었습니다. 다시 로그인해주세요.');
+            const kk = await verifyKakao(body.kakao_token);
+            if (!kk) return fail(401, 'auth', '카카오 로그인이 만료되었습니다. 다시 로그인해주세요.');
+            const kakaoId = kk.id;
             const isAdmin = kakaoId === ADMIN_KAKAO_ID;
             const posterOk = (u) => !u || String(u).startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/community-images/events/`);
+            // 팀 대상 액션 공통 게이트 — needOwner=true면 owner(또는 ADMIN)만
+            const requireTeam = async (hostId, needOwner) => {
+                if (!isUuid(hostId)) return { err: [400, 'bad_team', '팀 정보가 올바르지 않습니다.'] };
+                if (isAdmin) return { role: 'owner' };
+                const m = await getMembership(env, hostId, kakaoId);
+                if (!m) return { err: [403, 'not_member', '이 팀의 멤버가 아닙니다.'] };
+                if (needOwner && m.role !== 'owner') return { err: [403, 'not_team_owner', '팀 소유자만 할 수 있습니다.'] };
+                return { role: m.role };
+            };
 
             if (action === 'host_me') {
-                const host = await getHost(env, kakaoId);
-                return json({ ok: true, host, is_admin: isAdmin });
+                const teams = await getMyTeams(env, kakaoId);
+                return json({ ok: true, teams, is_admin: isAdmin });
             }
 
-            if (action === 'register_host') {
+            if (action === 'create_team' || action === 'update_team') {
                 const name = String(body.name || '').trim();
-                if (!name || name.length > 40) return fail(400, 'bad_name', '호스트(팀) 이름을 확인해주세요. (40자 이내)');
+                if (!name || name.length > 40) return fail(400, 'bad_name', '팀 이름을 확인해주세요. (40자 이내)');
                 const bio = String(body.bio || '').trim().slice(0, 500) || null;
                 const sns = String(body.sns || '').trim().slice(0, 200) || null;
-                const r = await sbFetch(env, 'event_hosts?on_conflict=kakao_id', {
-                    method: 'POST',
-                    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-                    body: JSON.stringify({ kakao_id: kakaoId, name, bio, sns }),
-                });
-                if (!r.ok) return json({ ok: false, error: 'db', message: '호스트 등록에 실패했습니다.',
-                    detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
-                const [host] = await r.json();
-                // 팀 이름이 바뀌면 기존 공연 카드의 표시명(events.host_name)도 함께 갱신
-                if (host && host.id) {
-                    await sbFetch(env, `events?host_id=eq.${host.id}`, {
-                        method: 'PATCH', body: JSON.stringify({ host_name: host.name }),
-                    }).catch(() => {});
+                if (action === 'create_team') {
+                    const r = await sbFetch(env, 'event_hosts', {
+                        method: 'POST', headers: { Prefer: 'return=representation' },
+                        body: JSON.stringify({ kakao_id: kakaoId, name, bio, sns }),
+                    });
+                    if (!r.ok) return json({ ok: false, error: 'db', message: '팀 생성에 실패했습니다.',
+                        detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
+                    const [team] = await r.json();
+                    const mr = await sbFetch(env, 'event_host_members', {
+                        method: 'POST', body: JSON.stringify({ host_id: team.id, kakao_id: kakaoId, name: kk.nickname || null, role: 'owner' }),
+                    });
+                    if (!mr.ok) return fail(502, 'db', '팀 멤버십 생성에 실패했습니다.');
+                    return json({ ok: true, team: { ...team, my_role: 'owner' } });
                 }
-                return json({ ok: true, host, is_admin: isAdmin });
+                const gate = await requireTeam(body.host_id, true);
+                if (gate.err) return fail(...gate.err);
+                const r = await sbFetch(env, `events?host_id=eq.${body.host_id}`, {
+                    method: 'PATCH', body: JSON.stringify({ host_name: name }),
+                });
+                if (!r.ok) { /* host_name 동기화 실패는 치명적이지 않음 */ }
+                const tr = await sbFetch(env, `event_hosts?id=eq.${body.host_id}`, {
+                    method: 'PATCH', headers: { Prefer: 'return=representation' },
+                    body: JSON.stringify({ name, bio, sns }),
+                });
+                if (!tr.ok) return fail(502, 'db', '팀 수정에 실패했습니다.');
+                const [team] = await tr.json();
+                return json({ ok: true, team: { ...team, my_role: gate.role } });
+            }
+
+            if (action === 'list_members') {
+                const gate = await requireTeam(body.host_id, false);
+                if (gate.err) return fail(...gate.err);
+                const r = await sbFetch(env, `event_host_members?host_id=eq.${body.host_id}&select=kakao_id,name,role,created_at&order=created_at.asc`);
+                if (!r.ok) return fail(502, 'db', '멤버 조회에 실패했습니다.');
+                return json({ ok: true, members: await r.json(), my_role: gate.role, my_kakao_id: kakaoId });
+            }
+
+            if (action === 'remove_member') {
+                const gate = await requireTeam(body.host_id, true);
+                if (gate.err) return fail(...gate.err);
+                const target = String(body.member_kakao_id || '');
+                if (!target) return fail(400, 'bad_member', '대상이 올바르지 않습니다.');
+                // owner는 내보낼 수 없음(창설자 보호) — 조건부 DELETE
+                const r = await sbFetch(env, `event_host_members?host_id=eq.${body.host_id}&kakao_id=eq.${encodeURIComponent(target)}&role=eq.member`, {
+                    method: 'DELETE', headers: { Prefer: 'return=representation' },
+                });
+                if (!r.ok) return fail(502, 'db', '멤버 삭제에 실패했습니다.');
+                const rows = await r.json().catch(() => []);
+                if (!rows.length) return fail(409, 'not_removable', '팀 소유자는 내보낼 수 없습니다.');
+                return json({ ok: true });
+            }
+
+            if (action === 'create_invite') {
+                const gate = await requireTeam(body.host_id, true);
+                if (gate.err) return fail(...gate.err);
+                // 기존 토큰은 대체(취소) — 팀당 유효 토큰 1개
+                await sbFetch(env, `event_host_invites?host_id=eq.${body.host_id}`, { method: 'DELETE' }).catch(() => {});
+                const token = newToken();
+                const expires = new Date(Date.now() + 7 * 86400e3).toISOString();
+                const r = await sbFetch(env, 'event_host_invites', {
+                    method: 'POST', headers: { Prefer: 'return=representation' },
+                    body: JSON.stringify({ token, host_id: body.host_id, created_by: kakaoId, expires_at: expires }),
+                });
+                if (!r.ok) return fail(502, 'db', '초대 생성에 실패했습니다.');
+                return json({ ok: true, token, expires_at: expires });
+            }
+
+            if (action === 'accept_invite') {
+                const token = String(body.token || '');
+                if (!/^[0-9a-f]{32}$/.test(token)) return fail(400, 'bad_token', '초대 링크가 올바르지 않습니다.');
+                const sel = '*,event_hosts(id,name)';
+                const r = await sbFetch(env, `event_host_invites?token=eq.${token}&select=${encodeURIComponent(sel)}&limit=1`);
+                if (!r.ok) return fail(502, 'db', '초대 확인에 실패했습니다.');
+                const [inv] = await r.json();
+                if (!inv || !inv.event_hosts) return fail(404, 'not_found', '유효하지 않은 초대입니다. 호스트에게 새 초대 링크를 요청해주세요.');
+                if (new Date(inv.expires_at) <= new Date()) return fail(409, 'expired', '만료된 초대입니다. 호스트에게 새 초대 링크를 요청해주세요.');
+                const mr = await sbFetch(env, 'event_host_members?on_conflict=host_id,kakao_id', {
+                    method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+                    body: JSON.stringify({ host_id: inv.host_id, kakao_id: kakaoId, name: kk.nickname || null, role: 'member' }),
+                });
+                if (!mr.ok) return fail(502, 'db', '팀 합류에 실패했습니다.');
+                return json({ ok: true, team: { id: inv.event_hosts.id, name: inv.event_hosts.name } });
             }
 
             if (action === 'create_event') {
-                const host = await getHost(env, kakaoId);
-                if (!host) return fail(403, 'no_host', '먼저 호스트 등록을 해주세요.');
+                const gate = await requireTeam(body.host_id, false);
+                if (gate.err) return fail(...gate.err);
+                const hr = await sbFetch(env, `event_hosts?id=eq.${body.host_id}&select=*&limit=1`);
+                if (!hr.ok) return fail(502, 'db', '팀 조회에 실패했습니다.');
+                const [host] = await hr.json();
+                if (!host) return fail(404, 'no_host', '팀을 찾을 수 없습니다. 먼저 팀을 등록해주세요.');
                 const e = body.event || {};
                 const v = validateEventFields(e, { partial: false });
                 if (v.error) return fail(400, 'bad_event', v.error);
@@ -384,10 +487,14 @@ export async function onRequest(context) {
             }
 
             if (action === 'my_events') {
-                const host = await getHost(env, kakaoId);
-                if (!host && !isAdmin) return json({ ok: true, host: null, is_admin: false, events: [] });
-                const q = isAdmin ? 'events?select=*&order=starts_at.desc'
-                    : `events?host_id=eq.${host.id}&select=*&order=starts_at.desc`;
+                let q;
+                if (isAdmin && !body.host_id) {
+                    q = 'events?select=*&order=starts_at.desc'; // 관리자 전체 보기
+                } else {
+                    const gate = await requireTeam(body.host_id, false);
+                    if (gate.err) return fail(...gate.err);
+                    q = `events?host_id=eq.${body.host_id}&select=*&order=starts_at.desc`;
+                }
                 const r = await sbFetch(env, q);
                 if (!r.ok) return fail(502, 'db', '공연 목록 조회에 실패했습니다.');
                 const events = await r.json();
@@ -404,7 +511,7 @@ export async function onRequest(context) {
                         }
                     }
                 }
-                return json({ ok: true, host, is_admin: isAdmin,
+                return json({ ok: true, is_admin: isAdmin,
                     events: events.map(e => ({ ...e, stats: stats[e.id] || { taken: 0, pending: 0, confirmed: 0, checked_in: 0 } })) });
             }
 
@@ -441,13 +548,15 @@ export async function onRequest(context) {
             if (action === 'checkin') {
                 const code = normCode(body.code);
                 if (!code) return fail(400, 'bad_code', '예매번호를 확인해주세요.');
-                const sel = '*,events(id,title,starts_at,event_hosts(kakao_id))';
+                const sel = '*,events(id,title,starts_at,host_id)';
                 const r = await sbFetch(env, `event_tickets?code=eq.${code}&select=${encodeURIComponent(sel)}&limit=1`);
                 if (!r.ok) return fail(502, 'db', '티켓 조회에 실패했습니다.');
                 const [t] = await r.json();
                 if (!t) return fail(404, 'not_found', '없는 예매번호입니다.');
-                const owner = t.events && t.events.event_hosts && t.events.event_hosts.kakao_id;
-                if (owner !== kakaoId && !isAdmin) return fail(403, 'not_owner', '이 공연의 티켓이 아닙니다. (다른 호스트의 공연)');
+                if (!isAdmin) {
+                    const m = t.events ? await getMembership(env, t.events.host_id, kakaoId) : null;
+                    if (!m) return fail(403, 'not_owner', '이 공연의 티켓이 아닙니다. (다른 팀의 공연)');
+                }
                 const info = { id: t.id, code: t.code, buyer_name: t.buyer_name, qty: t.qty, event_id: t.events.id, event_title: t.events.title };
                 if (t.status === 'cancelled') return json({ ok: false, error: 'cancelled', message: '취소된 티켓입니다.', ticket: info }, 409);
                 if (t.checked_in_at) return json({ ok: false, error: 'already_checked_in',

@@ -87,7 +87,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('포털 → 공연 예매: 화면 전환 + 해시', s.pageShown && s.others.length === 0 && s.hash === '#shows');
   chk('목록: 다가오는 3 + 지난 1 카드', s.cards === 4, `${s.cards}개`);
   chk('목록: 잔여 3석/매진/무료 배지', s.text.includes('잔여 3석') && s.text.includes('매진') && s.text.includes('무료') && s.text.includes('₩15,000'));
-  chk('목록: 지난 공연 접힘 + 호스트 링크', s.text.includes('지난 공연 (1)') && s.text.includes('호스트 센터'));
+  chk('목록: 지난 공연 접힘 + 호스트 링크', s.text.includes('지난 공연 1개 보기') && s.text.includes('호스트 센터'));
 
   // ── 2. 상세 진입 (pushState) + 뒤로가기 복귀
   const lenBefore = await p.evaluate(() => history.length);

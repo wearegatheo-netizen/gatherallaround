@@ -36,6 +36,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
         logout: () => {},
       },
       API: { request: ({ success }) => success({ id: 777, kakao_account: { profile: { nickname: '카카오닉' } } }) },
+      Share: { sendDefault: (o) => { window.__shared = o; } },
     };
     // 카카오 지도 SDK 스텁 (장소 검색용)
     window.kakao = { maps: {
@@ -72,9 +73,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('비로그인: 로그인 화면 + API 미호출', s.shown && s.login && s.calls === 0 && s.hash === '#host');
 
-  // ── 2. 카카오 로그인 → host_me(미등록) → 등록 폼 → 등록
+  // ── 2. 카카오 로그인 → 팀 없음 → 팀 등록 강제 → 팀 생성
   await p.evaluate(() => {
-    window.__apiQueue.push({ ok: true, host: null, is_admin: false });   // host_me
+    window.__apiQueue.push({ ok: true, teams: [], is_admin: false });   // host_me
   });
   await p.click('button:has-text("카카오로 시작하기")');
   await p.waitForTimeout(250);
@@ -84,8 +85,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     teamFields: !!document.getElementById('hostBio') && !!document.getElementById('hostSns'),
     noLegacy: !document.getElementById('hostPhone') && !document.getElementById('hostBank'),
     nickPrefill: document.getElementById('hostName')?.value,
+    forced: document.getElementById('host-container').textContent.includes('먼저 팀을 만들어야'),
   }));
-  chk('로그인 → host_me 검증 호출 → 등록 폼', s.me && s.me.action === 'host_me' && s.me.kakao_token === 'tok-123' && s.regForm);
+  chk('로그인 → host_me → 팀 없으면 팀 등록 강제', s.me && s.me.action === 'host_me' && s.regForm && s.forced);
   chk('등록 폼: 팀 중심(소개·SNS) + 연락처·계좌 필드 없음', s.teamFields && s.noLegacy);
   chk('팀 이름에 카카오 닉네임 자동 적용', s.nickPrefill === '카카오닉', s.nickPrefill);
 
@@ -93,17 +95,22 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.fill('#hostBio', '신촌 5인조 밴드');
   await p.fill('#hostSns', 'instagram.com/bandskull');
   await p.evaluate(() => {
-    window.__apiQueue.push({ ok: true, host: { id: 'h1', kakao_id: '777', name: '밴드 스컬', bio: '신촌 5인조 밴드', sns: 'instagram.com/bandskull', bank_info: '토스뱅크 1002-1111-2222 김호스트' } }); // register_host
-    window.__apiQueue.push({ ok: true, host: { id: 'h1', name: '밴드 스컬', bank_info: '토스뱅크 1002-1111-2222 김호스트' }, is_admin: false, events: [] }); // my_events
+    const TEAM = { id: 'h1', kakao_id: '777', name: '밴드 스컬', bio: '신촌 5인조 밴드', sns: 'instagram.com/bandskull', bank_info: '토스뱅크 1002-1111-2222 김호스트', my_role: 'owner' };
+    window.__apiQueue.push({ ok: true, team: TEAM });                                  // create_team
+    window.__apiQueue.push({ ok: true, teams: [TEAM], is_admin: false });               // host_me (재로드)
+    window.__apiQueue.push({ ok: true, is_admin: false, events: [] });                  // my_events
   });
-  await p.click('button:has-text("등록하고 시작하기")');
-  await p.waitForTimeout(250);
+  await p.click('button:has-text("팀 만들고 시작하기")');
+  await p.waitForTimeout(300);
   s = await p.evaluate(() => ({
     reg: window.__apiCalls[1],
+    myev: window.__apiCalls.find(c => c.action === 'my_events'),
     dash: document.getElementById('host-container').textContent,
   }));
-  chk('호스트 등록(팀 소개·SNS payload) → 대시보드', s.reg.action === 'register_host' && s.reg.name === '밴드 스컬'
+  chk('팀 생성(create_team payload) → 대시보드', s.reg.action === 'create_team' && s.reg.name === '밴드 스컬'
     && s.reg.bio === '신촌 5인조 밴드' && s.reg.sns === 'instagram.com/bandskull' && s.dash.includes('등록한 공연이 없습니다'));
+  chk('대시보드: my_events가 팀 스코프(host_id) + 팀 칩·팀 관리 노출', s.myev.host_id === 'h1'
+    && s.dash.includes('밴드 스컬') && s.dash.includes('+ 새 팀') && s.dash.includes('팀 관리'));
 
   // ── 3. 새 공연 등록 폼 → 장소 검색·콤마 가격·분리 계좌·서식 소개 → payload 검증
   await p.click('button:has-text("+ 새 공연 등록")');
@@ -142,7 +149,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.evaluate(() => {
     document.getElementById('evDescRte').innerHTML = '<h2>라인업</h2><p>밴드A · 밴드B</p>';
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111' } });  // create_event
-    window.__apiQueue.push({ ok: true, host: { id: 'h1', name: '밴드 스컬', bank_info: '토스뱅크 1002-1111-2222 김호스트' }, is_admin: false, events: [
+    window.__apiQueue.push({ ok: true, is_admin: false, events: [
       { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', venue: '홍대 클럽 FF',
         starts_at: new Date('2026-12-24T19:30').toISOString(), capacity: 50, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4,
         status: 'published', stats: { taken: 5, pending: 3, confirmed: 2, checked_in: 0 } },
@@ -158,6 +165,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('공연 등록 payload(제목·ISO일시·정원·콤마 가격 파싱)', e3 && e3.title === '한여름 밤의 락'
     && e3.starts_at === new Date('2026-12-24T19:30').toISOString() && e3.capacity === 50 && e3.price === 15000,
     JSON.stringify(e3).slice(0, 120));
+  chk('payload: 팀 host_id 포함', s.call && s.call.host_id === 'h1');
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
@@ -262,6 +270,75 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     ok: document.getElementById('host-container').textContent.includes('늦은관객'),
   }));
   chk('로그인 후 보류 체크인 자동 이어감', s.last.action === 'checkin' && s.last.code === 'TT2WXY' && s.ok);
+
+  // ── 7b. 팀 관리: 멤버 목록 + 카카오톡 초대
+  await p.evaluate(() => {
+    window.__kakaoToken = 'tok-123'; _hostState.token = 'tok-123';
+    _hostState.teams = [{ id: 'h1', name: '밴드 스컬', bio: '소개', my_role: 'owner' }];
+    _hostState.curTeamId = 'h1'; _hostState.isAdmin = false;
+    window.__apiQueue.push({ ok: true, members: [
+      { kakao_id: '777', name: '카카오닉', role: 'owner' },
+      { kakao_id: '888', name: '기타리스트', role: 'member' },
+    ], my_role: 'owner', my_kakao_id: '777' });
+    renderTeamManage('h1');
+  });
+  await p.waitForTimeout(200);
+  s = await p.evaluate(() => document.getElementById('host-container').textContent);
+  chk('팀 관리: 멤버 목록 + 역할 배지 + 내보내기', s.includes('카카오닉') && s.includes('팀 소유자')
+    && s.includes('기타리스트') && s.includes('공동호스트') && s.includes('내보내기'));
+  await p.evaluate(() => { window.__shared = null;
+    window.__apiQueue.push({ ok: true, token: 'ab'.repeat(16), expires_at: new Date(Date.now() + 7 * 86400e3).toISOString() }); });
+  await p.click('button:has-text("카카오톡으로 공동호스트 초대")');
+  await p.waitForTimeout(200);
+  s = await p.evaluate(() => ({ shared: window.__shared, call: window.__apiCalls.filter(c => c.action === 'create_invite').pop() }));
+  chk('초대: create_invite + 카카오톡 공유에 합류 딥링크', s.call && s.call.host_id === 'h1'
+    && s.shared && s.shared.link.webUrl.includes('/#host/join/' + 'ab'.repeat(16)), s.shared && s.shared.link.webUrl);
+
+  // ── 7c. 초대 수락 딥링크 → 새 팀 합류
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true, team: { id: 'h2', name: '어쿠스틱 팀' } });      // accept_invite
+    window.__apiQueue.push({ ok: true, teams: [
+      { id: 'h1', name: '밴드 스컬', my_role: 'owner' },
+      { id: 'h2', name: '어쿠스틱 팀', my_role: 'member' }], is_admin: false });         // host_me
+    window.__apiQueue.push({ ok: true, is_admin: false, events: [] });                   // my_events (h2)
+    _routeToPage('host/join/' + 'cd'.repeat(16));
+  });
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({
+    acc: window.__apiCalls.filter(c => c.action === 'accept_invite').pop(),
+    myev: window.__apiCalls.filter(c => c.action === 'my_events').pop(),
+    dash: document.getElementById('host-container').textContent,
+  }));
+  chk('초대 수락: accept_invite → 합류한 팀 선택 + 팀 칩 2개', s.acc && s.acc.token === 'cd'.repeat(16)
+    && s.myev.host_id === 'h2' && s.dash.includes('어쿠스틱 팀') && s.dash.includes('밴드 스컬'));
+
+  // ── 7d. 예매자 명단 CSV 다운로드
+  s = await p.evaluate(async () => {
+    HTMLAnchorElement.prototype.click = function () { window.__dl = { href: this.href, name: this.download }; };
+    window.__csvBlob = null;
+    URL.createObjectURL = (b) => { window.__csvBlob = b; return 'blob:mock'; };
+    _hostState.attEvent = { title: '한여름 밤의 락', capacity: 50 };
+    _hostState.attendees = [
+      { buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, code: 'AB3XKP', status: 'confirmed', checked_in_at: null, created_at: new Date().toISOString() },
+      { buyer_name: '김"인용', buyer_phone: '01099998888', qty: 1, code: 'CC7MNP', status: 'pending_payment', checked_in_at: null, created_at: new Date().toISOString() },
+    ];
+    downloadAttendeesCSV();
+    const buf = window.__csvBlob ? new Uint8Array(await window.__csvBlob.arrayBuffer()) : new Uint8Array(0);
+    const text = window.__csvBlob ? await window.__csvBlob.text() : '';
+    // Blob.text()는 디코딩하며 BOM을 제거하므로, BOM은 바이트(EF BB BF)로 확인
+    return { name: window.__dl && window.__dl.name, text, bom: buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF };
+  });
+  chk('CSV: BOM+헤더+행+따옴표 이스케이프+상태 한글', s.name && s.name.startsWith('예매자_한여름 밤의 락')
+    && s.bom && s.text.includes('이름') && s.text.includes('홍길동')
+    && s.text.includes('김""인용') && s.text.includes('입금대기'), s.name);
+
+  // ── 7e. QR 이미지 저장 (PNG dataURL)
+  s = await p.evaluate(() => {
+    window.__dl = null;
+    downloadTicketQR('AB3XKP');
+    return window.__dl;
+  });
+  chk('QR 저장: PNG dataURL + 파일명', s && s.href.startsWith('data:image/png') && s.name === 'ticket-AB3XKP.png');
 
   // ── 8. 티켓 화면 QR 렌더 (vendor 라이브러리 실로드)
   s = await p.evaluate(() => {
