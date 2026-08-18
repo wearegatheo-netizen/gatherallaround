@@ -188,11 +188,11 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
       && document.getElementById('shows-page').classList.contains('hidden');
     _routeToPage('host');
     const hostOk = !document.getElementById('host-page').classList.contains('hidden')
-      && document.getElementById('host-container').textContent.includes('준비 중');
+      && document.getElementById('host-container').textContent.includes('카카오로 시작하기');
     return { perfOk, hostOk };
   });
   chk('회귀: #perf 정상 + 화면 누수 없음', s.perfOk);
-  chk('호스트 자리표시 화면', s.hostOk);
+  chk('호스트 센터: 비로그인 → 로그인 화면', s.hostOk);
 
   // ── 9. 무료 공연 상세: 계좌 안내 없음 + 매수 상한(max_per_booking=2)
   await p.evaluate((EV2) => showShowsSection([EV2]), EV2);

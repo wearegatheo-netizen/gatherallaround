@@ -2193,6 +2193,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
+    <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
+    <script src="vendor/qrcode-generator/qrcode.v1.4.4.js"></script>
     <script>
         // 전역 에러 핸들러 추가 (디버깅용)
         window.onerror = function(msg, url, lineNo, columnNo, error) {
@@ -13615,7 +13617,26 @@
             _pushNav('shows/ticket/' + out.ticket.code);
         }
 
-        // 호스트 센터 — Phase B에서 구현. 라우팅·포털 링크가 먼저 배포되므로 자리 표시.
+        // 티켓 QR — 체크인 딥링크(#host/checkin/CODE)를 인코딩. 호스트가 폰 기본 카메라로
+        // 스캔하면 사이트가 열리고 로그인 상태면 원탭 체크인된다. 라이브러리 미로드 시
+        // 예매번호 텍스트가 이미 표시돼 있으므로 조용히 생략.
+        function renderTicketQR(el, code) {
+            if (!el) return;
+            if (typeof qrcode === 'undefined') { el.innerHTML = ''; return; }
+            try {
+                const qr = qrcode(0, 'M');
+                qr.addData(location.origin + '/#host/checkin/' + code);
+                qr.make();
+                el.innerHTML = '<div class="qr-frame">' + qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }) + '</div>';
+            } catch (_) { el.innerHTML = ''; }
+        }
+
+        // ═══════════════ 호스트 센터 (host) ═══════════════
+        // 게더링 멤버십(state.user/loginUI)과 완전 분리 — 카카오 라이브 토큰만 신뢰하고
+        // 모든 판단은 서버(host_me 등, kapi 검증)가 한다. localStorage 자체 신뢰 금지.
+        let _hostState = { token: null, host: null, isAdmin: false, curEventId: null,
+                           attendees: [], attEvent: null, attQuery: '', pendingCheckin: null, posterUrl: '', busy: false };
+
         function showHostSection(sub) {
             const subArr = Array.isArray(sub) ? sub : [];
             _pushNav('host' + (subArr.length ? '/' + subArr.join('/') : ''));
@@ -13623,8 +13644,457 @@
             document.body.classList.add('fullwidth-view');
             _hideAllScreens();
             document.getElementById('host-page').classList.remove('hidden');
-            document.getElementById('host-container').innerHTML =
-                '<p style="text-align:center;padding:48px 0;color:var(--wds-gray-500);font-size:0.92rem">호스트 센터를 준비 중입니다. 곧 열려요!</p>';
+            if (subArr[0] === 'checkin' && subArr[1]) {
+                _hostState.pendingCheckin = String(subArr[1]).toUpperCase();
+            } else if (subArr[0] === 'event' && subArr[1] && _UUID_RE.test(subArr[1])) {
+                _hostState.curEventId = subArr[1].toLowerCase();
+            } else {
+                _hostState.curEventId = null;
+            }
+            hostResume();
+        }
+
+        async function hostResume() {
+            const c = document.getElementById('host-container');
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">확인 중…</div>';
+            try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
+            const token = (typeof Kakao !== 'undefined' && Kakao.Auth && Kakao.Auth.getAccessToken && Kakao.Auth.getAccessToken()) || null;
+            if (!token) { renderHostLogin(); return; }
+            _hostState.token = token;
+            // 체크인·명단은 해당 액션이 서버에서 토큰·소유권을 직접 검증하므로 host_me를 건너뛴다
+            // (공연 당일 문 앞에서 왕복 1회 절약). 401이면 각 렌더러가 로그인 화면으로 되돌린다.
+            if (_hostState.pendingCheckin) {
+                const code = _hostState.pendingCheckin;
+                _hostState.pendingCheckin = null;
+                hostDoCheckin(code);
+                return;
+            }
+            if (_hostState.curEventId) { renderHostAttendees(_hostState.curEventId); return; }
+            const out = await eventApi({ action: 'host_me', kakao_token: token });
+            if (!out.ok) { _hostState.token = null; renderHostLogin(out.error === 'auth' ? '' : (out.message || '')); return; }
+            _hostState.host = out.host;
+            _hostState.isAdmin = !!out.is_admin;
+            if (!out.host && !out.is_admin) { renderHostRegister(); return; }
+            renderHostDashboard();
+        }
+
+        function hostKakaoLogin() {
+            try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
+            if (typeof Kakao === 'undefined' || !Kakao.Auth) { alert('카카오 SDK를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+            Kakao.Auth.login({
+                success: () => hostResume(),
+                fail: () => alert('카카오 로그인에 실패했습니다. 다시 시도해주세요.'),
+            });
+        }
+
+        function renderHostLogin(extraMsg) {
+            const c = document.getElementById('host-container');
+            c.innerHTML = `
+                <div class="host-card" style="text-align:center;padding:32px 20px">
+                    <div style="font-size:2rem;margin-bottom:12px">🎤</div>
+                    <div style="font-size:1.05rem;font-weight:800;color:var(--wds-black);margin-bottom:8px">호스트 센터</div>
+                    <p style="font-size:0.85rem;color:var(--wds-gray-700);line-height:1.7;margin:0 0 18px">
+                        카카오 로그인만 하면 누구나 공연을 등록하고<br>예매자를 관리할 수 있습니다.<br>
+                        <span style="color:var(--wds-gray-500);font-size:0.78rem">(게더링 멤버십과는 무관합니다)</span>
+                    </p>
+                    ${_hostState.pendingCheckin ? '<div style="background:#FEF3C7;color:#92400E;border-radius:10px;padding:10px 12px;font-size:0.82rem;font-weight:600;margin-bottom:14px">티켓 체크인을 하려면 호스트 로그인이 필요합니다.</div>' : ''}
+                    ${extraMsg ? `<div style="color:#e74c3c;font-size:0.82rem;margin-bottom:12px">${escapeHtml(extraMsg)}</div>` : ''}
+                    <button onclick="hostKakaoLogin()" style="width:100%;max-width:320px;padding:14px;border-radius:10px;border:none;background:#FEE500;color:#3C1E1E;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">💬 카카오로 시작하기</button>
+                </div>`;
+        }
+
+        function renderHostRegister() {
+            const c = document.getElementById('host-container');
+            const h = _hostState.host || {};
+            c.innerHTML = `
+                <div class="perf-section-title">${h.id ? '내 정보 수정' : '호스트 등록'}</div>
+                <p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">공연 페이지에 표시될 호스트(팀) 정보를 입력해주세요.</p>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">호스트/팀 이름 *</label>
+                    <input type="text" class="perf-form-input" id="hostName" maxlength="40" placeholder="예: 밴드 스컬" value="${escapeHtml(h.name || '')}">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">연락처 (선택)</label>
+                    <input type="tel" class="perf-form-input" id="hostPhone" placeholder="010-0000-0000" value="${escapeHtml(h.contact_phone || '')}">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">기본 입금 계좌 (선택 — 유료 공연용)</label>
+                    <input type="text" class="perf-form-input" id="hostBank" maxlength="120" placeholder="예: 토스뱅크 0000-0000-0000 홍길동" value="${escapeHtml(h.bank_info || '')}">
+                </div>
+                <div id="hostRegResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <div style="display:flex;gap:8px">
+                    ${h.id ? '<button onclick="renderHostDashboard()" style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-family:inherit">취소</button>' : ''}
+                    <button onclick="submitHostRegister()" style="flex:2;padding:13px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">${h.id ? '저장' : '등록하고 시작하기'}</button>
+                </div>`;
+        }
+
+        async function submitHostRegister() {
+            const res = document.getElementById('hostRegResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const name = document.getElementById('hostName')?.value.trim();
+            const phone = document.getElementById('hostPhone')?.value.trim();
+            const bank = document.getElementById('hostBank')?.value.trim();
+            if (!name) { showErr('호스트/팀 이름을 입력해주세요.'); return; }
+            if (phone && !/^01[016789][0-9]{7,8}$/.test(phone.replace(/\D/g, ''))) { showErr('연락처 형식을 확인해주세요.'); return; }
+            const out = await eventApi({ action: 'register_host', kakao_token: _hostState.token, name, contact_phone: phone, bank_info: bank });
+            if (!out.ok) { showErr(out.message || '등록에 실패했습니다.'); return; }
+            _hostState.host = out.host;
+            showToast('호스트 정보가 저장되었습니다.');
+            renderHostDashboard();
+        }
+
+        const _EV_STATUS_CHIP = {
+            published: ['공개중', '#DCFCE7', '#166534'],
+            closed: ['예매 마감', '#FEF3C7', '#92400E'],
+            hidden: ['숨김', 'var(--wds-gray-100)', 'var(--wds-gray-500)'],
+        };
+        const _hbtn = (label, onclick, color, border) =>
+            `<button onclick="${onclick}" style="padding:7px 12px;border-radius:8px;border:1px solid ${border};background:none;color:${color};cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">${label}</button>`;
+
+        async function renderHostDashboard() {
+            const c = document.getElementById('host-container');
+            _hostState.curEventId = null;
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            const out = await eventApi({ action: 'my_events', kakao_token: _hostState.token });
+            if (!out.ok) {
+                if (out.error === 'auth') { _hostState.token = null; renderHostLogin(); return; }
+                c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
+                return;
+            }
+            _hostState.host = out.host;
+            _hostState.isAdmin = !!out.is_admin;
+            const hostName = out.host ? out.host.name : (out.is_admin ? '관리자' : '');
+            let html = `
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+                    <div style="font-size:1rem;font-weight:800;color:var(--wds-black)">🎤 ${escapeHtml(hostName)}${_hostState.isAdmin ? ' <span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 — 전체 공연</span>' : ''}</div>
+                    <span style="margin-left:auto;display:flex;gap:6px">
+                        ${_hbtn('내 정보', 'renderHostRegister()', 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        <button onclick="renderHostEventForm()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
+                    </span>
+                </div>`;
+            if (!out.events.length) {
+                html += '<p style="text-align:center;padding:36px 0;color:var(--wds-gray-500)">등록한 공연이 없습니다.<br>첫 공연을 등록해보세요!</p>';
+            } else {
+                html += out.events.map(ev => {
+                    const chip = _EV_STATUS_CHIP[ev.status] || _EV_STATUS_CHIP.hidden;
+                    const s = ev.stats || { taken: 0, pending: 0, confirmed: 0, checked_in: 0 };
+                    const toggle = ev.status === 'published'
+                        ? _hbtn('예매 마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
+                        : _hbtn('예매 오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
+                    return `<div class="host-card">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
+                            <span style="font-size:0.95rem;font-weight:700;color:var(--wds-black)">${escapeHtml(ev.title)}</span>
+                            <span style="margin-left:auto;font-size:0.75rem;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
+                        </div>
+                        <div style="font-size:0.8rem;color:var(--wds-gray-700);margin:6px 0 8px">📅 ${_showDateStr(ev.starts_at)} · 📍 ${escapeHtml(ev.venue)}</div>
+                        <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:10px">
+                            🎟 예매 <strong>${s.taken}</strong>/${ev.capacity}석 · 확정 ${s.confirmed} · 입금대기 ${s.pending} · 입장 ${s.checked_in}
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+                            ${_hbtn('예매 페이지', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                            ${_hbtn('수정', `hostEditEvent('${jsStr(ev.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                            ${toggle}
+                            ${ev.status !== 'hidden' ? _hbtn('숨김', `hostSetEventStatus('${jsStr(ev.id)}','hidden')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)') : ''}
+                            <button onclick="renderHostAttendees('${jsStr(ev.id)}')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">예매자 관리</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            _hostState.dashEvents = out.events;
+            c.innerHTML = html;
+        }
+
+        async function hostSetEventStatus(id, status) {
+            if (status === 'hidden' && !confirm('공연을 목록에서 숨기시겠습니까?')) return;
+            const out = await eventApi({ action: 'set_event_status', kakao_token: _hostState.token, event_id: id, status });
+            if (!out.ok) { alert(out.message || '변경에 실패했습니다.'); return; }
+            showToast(status === 'published' ? '예매가 오픈되었습니다.' : status === 'closed' ? '예매를 마감했습니다.' : '공연을 숨겼습니다.');
+            renderHostDashboard();
+        }
+
+        function hostEditEvent(id) {
+            const ev = (_hostState.dashEvents || []).find(e => e.id === id);
+            if (ev) renderHostEventForm(ev);
+        }
+
+        function _isoToLocalInput(iso) {
+            const d = iso ? new Date(iso) : null;
+            if (!d || isNaN(d)) return '';
+            const p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+
+        function renderHostEventForm(ev) {
+            const c = document.getElementById('host-container');
+            const h = _hostState.host || {};
+            _hostState.posterUrl = (ev && ev.poster_url) || '';
+            const isPaid = ev ? ev.price > 0 : false;
+            c.innerHTML = `
+                <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
+                <div class="perf-section-title">${ev ? '공연 수정' : '새 공연 등록'}</div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">공연명 *</label>
+                    <input type="text" class="perf-form-input" id="evTitle" maxlength="80" placeholder="예: 한여름 밤의 락" value="${escapeHtml(ev?.title || '')}">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">공연 일시 *</label>
+                    <input type="datetime-local" class="perf-form-input" id="evStartsAt" value="${_isoToLocalInput(ev?.starts_at)}">
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">장소 *</label>
+                    <input type="text" class="perf-form-input" id="evVenue" maxlength="120" value="${escapeHtml(ev?.venue || '게더 올 어라운드 (신촌)')}">
+                </div>
+                <div style="display:flex;gap:10px">
+                    <div class="perf-form-group" style="flex:1">
+                        <label class="perf-form-label">정원 *</label>
+                        <input type="number" class="perf-form-input" id="evCapacity" min="1" max="1000" value="${ev?.capacity || 30}">
+                    </div>
+                    <div class="perf-form-group" style="flex:1">
+                        <label class="perf-form-label">1인 최대 매수</label>
+                        <select class="perf-form-input" id="evMaxPer">${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}"${(ev?.max_per_booking || 4) === n ? ' selected' : ''}>${n}매</option>`).join('')}</select>
+                    </div>
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">티켓 가격 *</label>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <label style="display:flex;align-items:center;gap:5px;font-size:0.86rem;cursor:pointer"><input type="radio" name="evPriceType" value="free"${isPaid ? '' : ' checked'} onchange="document.getElementById('evPaidRow').style.display='none'"> 무료</label>
+                        <label style="display:flex;align-items:center;gap:5px;font-size:0.86rem;cursor:pointer"><input type="radio" name="evPriceType" value="paid"${isPaid ? ' checked' : ''} onchange="document.getElementById('evPaidRow').style.display='block'"> 유료</label>
+                    </div>
+                    <div id="evPaidRow" style="display:${isPaid ? 'block' : 'none'};margin-top:10px">
+                        <input type="number" class="perf-form-input" id="evPrice" min="1000" max="1000000" step="500" placeholder="1매 가격 (원)" value="${isPaid ? ev.price : ''}" style="margin-bottom:8px">
+                        <input type="text" class="perf-form-input" id="evBank" maxlength="120" placeholder="입금 계좌 (예: 토스뱅크 0000-0000-0000 홍길동)" value="${escapeHtml(ev?.bank_info || h.bank_info || '')}">
+                        <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">관객이 이 계좌로 입금하면 예매자 관리에서 [입금 확인]을 눌러 확정합니다.</div>
+                    </div>
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">공연 소개 (선택)</label>
+                    <textarea class="perf-form-input" id="evDesc" style="height:110px;padding:10px 12px;resize:vertical" placeholder="라인업, 시간표, 관람 안내 등">${escapeHtml(ev?.description || '')}</textarea>
+                </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">포스터 이미지 (선택)</label>
+                    <input type="file" id="evPoster" accept="image/*" onchange="uploadEventPoster(this)" style="font-size:0.84rem">
+                    <div id="evPosterStatus" style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.posterUrl ? '✅ 현재 포스터 유지 (새 파일 선택 시 교체)' : ''}</div>
+                </div>
+                <div id="evFormResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                <button id="evSaveBtn" onclick="saveHostEvent(${ev ? `'${jsStr(ev.id)}'` : 'null'})" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">${ev ? '수정 저장' : '공연 등록'}</button>`;
+        }
+
+        async function uploadEventPoster(input) {
+            const st = document.getElementById('evPosterStatus');
+            const file = input.files && input.files[0];
+            if (!file) return;
+            if (!/^image\//.test(file.type)) { if (st) st.textContent = '이미지 파일만 올릴 수 있습니다.'; input.value = ''; return; }
+            if (file.size > 5 * 1024 * 1024) { if (st) st.textContent = '5MB 이하 이미지만 올릴 수 있습니다.'; input.value = ''; return; }
+            if (st) st.textContent = '업로드 중…';
+            try {
+                const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+                const path = `events/${Date.now()}.${ext}`;
+                const { error } = await supabaseClient.storage.from('community-images').upload(path, file, { cacheControl: '3600', upsert: false });
+                if (error) throw error;
+                const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
+                _hostState.posterUrl = urlData.publicUrl;
+                if (st) st.textContent = '✅ 업로드 완료';
+            } catch (e) {
+                if (st) st.textContent = '업로드 실패: ' + (e.message || e);
+                input.value = '';
+            }
+        }
+
+        async function saveHostEvent(evId) {
+            const res = document.getElementById('evFormResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (_hostState.busy) return;
+            const title = document.getElementById('evTitle')?.value.trim();
+            const startsLocal = document.getElementById('evStartsAt')?.value;
+            const venue = document.getElementById('evVenue')?.value.trim();
+            const capacity = parseInt(document.getElementById('evCapacity')?.value, 10);
+            const maxPer = parseInt(document.getElementById('evMaxPer')?.value, 10) || 4;
+            const paid = document.querySelector('input[name="evPriceType"]:checked')?.value === 'paid';
+            const price = paid ? (parseInt(document.getElementById('evPrice')?.value, 10) || 0) : 0;
+            const bank = paid ? (document.getElementById('evBank')?.value.trim() || '') : '';
+            const desc = document.getElementById('evDesc')?.value || '';
+            if (!title) { showErr('공연명을 입력해주세요.'); return; }
+            if (!startsLocal) { showErr('공연 일시를 선택해주세요.'); return; }
+            const startsAt = new Date(startsLocal);
+            if (isNaN(startsAt)) { showErr('공연 일시를 확인해주세요.'); return; }
+            if (!evId && startsAt <= new Date()) { showErr('공연 일시는 미래여야 합니다.'); return; }
+            if (!venue) { showErr('장소를 입력해주세요.'); return; }
+            if (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000) { showErr('정원은 1~1000명 사이여야 합니다.'); return; }
+            if (paid && price < 1000) { showErr('유료 공연 가격은 1,000원 이상이어야 합니다.'); return; }
+            if (paid && !bank) { showErr('유료 공연은 입금 계좌가 필요합니다.'); return; }
+            const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
+                max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '' };
+            const btn = document.getElementById('evSaveBtn');
+            _hostState.busy = true;
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+            try {
+                const out = evId
+                    ? await eventApi({ action: 'update_event', kakao_token: _hostState.token, event_id: evId, patch: event })
+                    : await eventApi({ action: 'create_event', kakao_token: _hostState.token, event });
+                if (!out.ok) { showErr(out.message || '저장에 실패했습니다.'); return; }
+                showToast(evId ? '공연이 수정되었습니다.' : '공연이 등록되었습니다!');
+                renderHostDashboard();
+            } finally {
+                _hostState.busy = false;
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+            }
+        }
+
+        const _TICKET_STATUS_CHIP = (t) => {
+            if (t.status === 'cancelled') return _showChip('취소', '#FEE2E2', '#991B1B');
+            if (t.checked_in_at) return _showChip('입장', '#DBEAFE', '#1E40AF');
+            if (t.status === 'confirmed') return _showChip('확정', '#DCFCE7', '#166534');
+            return _showChip('입금대기', '#FEF3C7', '#92400E');
+        };
+
+        async function renderHostAttendees(eventId) {
+            const c = document.getElementById('host-container');
+            _hostState.curEventId = eventId;
+            _pushNav('host/event/' + eventId); // 대시보드에서 직접 진입해도 딥링크·뒤로가기 유지 (같은 경로면 no-op)
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">명단을 불러오는 중…</div>';
+            const out = await eventApi({ action: 'attendees', kakao_token: _hostState.token, event_id: eventId });
+            if (!out.ok) {
+                if (out.error === 'auth') { _hostState.token = null; renderHostLogin(); return; }
+                c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
+                return;
+            }
+            _hostState.attEvent = out.event;
+            _hostState.attendees = out.tickets;
+            _renderAttendeeList();
+        }
+
+        function _renderAttendeeList() {
+            const c = document.getElementById('host-container');
+            const ev = _hostState.attEvent;
+            const q = (_hostState.attQuery || '').trim().toLowerCase();
+            const list = _hostState.attendees.filter(t => !q
+                || t.buyer_name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q) || t.buyer_phone.includes(q.replace(/\D/g, '') || ' '));
+            const act = _hostState.attendees.filter(t => t.status !== 'cancelled');
+            const sum = {
+                taken: act.reduce((n, t) => n + t.qty, 0),
+                confirmed: act.filter(t => t.status === 'confirmed').reduce((n, t) => n + t.qty, 0),
+                pending: act.filter(t => t.status === 'pending_payment').reduce((n, t) => n + t.qty, 0),
+                checked: act.filter(t => t.checked_in_at).reduce((n, t) => n + t.qty, 0),
+            };
+            const rows = list.map(t => {
+                const phone = t.buyer_phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+                let btns = '';
+                if (t.status === 'pending_payment') {
+                    btns = _hbtn('입금 확인', `hostTicketAction('confirm_payment','${jsStr(t.id)}')`, '#166534', '#B7E4C7')
+                         + _hbtn('취소', `hostCancelTicket('${jsStr(t.id)}')`, '#EF4444', '#F5B5B5');
+                } else if (t.status === 'confirmed' && !t.checked_in_at) {
+                    btns = _hbtn('체크인', `hostCheckinByCode('${jsStr(t.code)}')`, '#1E40AF', '#BFDBFE')
+                         + _hbtn('확정 취소', `hostTicketAction('revert_payment','${jsStr(t.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')
+                         + _hbtn('취소', `hostCancelTicket('${jsStr(t.id)}')`, '#EF4444', '#F5B5B5');
+                } else if (t.checked_in_at) {
+                    btns = _hbtn('입장 취소', `hostTicketAction('uncheckin','${jsStr(t.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)');
+                }
+                return `<div class="host-card" style="padding:12px${t.status === 'cancelled' ? ';opacity:0.55' : ''}">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        ${_TICKET_STATUS_CHIP(t)}
+                        <span style="font-size:0.9rem;font-weight:700;color:var(--wds-black)">${escapeHtml(t.buyer_name)}</span>
+                        <span style="font-size:0.8rem;color:var(--wds-gray-700)">${t.qty}매 · <span style="letter-spacing:0.12em">${escapeHtml(t.code)}</span></span>
+                        <a href="tel:${t.buyer_phone}" style="margin-left:auto;font-size:0.8rem;color:var(--wds-gray-700);text-decoration:none">📞 ${phone}</a>
+                    </div>
+                    ${btns ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px">${btns}</div>` : ''}
+                </div>`;
+            }).join('');
+            c.innerHTML = `
+                <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
+                <div class="perf-section-title" style="margin-bottom:6px">${escapeHtml(ev.title)} — 예매자 관리</div>
+                <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                    🎟 예매 <strong>${sum.taken}</strong>/${ev.capacity}석 · 확정 ${sum.confirmed} · 입금대기 ${sum.pending} · 입장 ${sum.checked}
+                </div>
+                <div style="font-size:0.76rem;color:var(--wds-gray-500);margin-bottom:12px;line-height:1.6">📷 공연 당일: 관객의 QR을 <strong>폰 기본 카메라</strong>로 스캔하면 자동 체크인됩니다. QR이 안 되면 아래 검색창에 예매번호를 입력해 [체크인]을 눌러주세요.</div>
+                <input type="text" class="perf-form-input" placeholder="이름 / 예매번호 / 전화번호 검색" value="${escapeHtml(_hostState.attQuery || '')}"
+                    oninput="_hostState.attQuery=this.value;_renderAttendeeList();requestAnimationFrame(()=>{const i=document.querySelector('#host-container input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}})" style="margin-bottom:12px">
+                ${rows || '<p style="text-align:center;padding:24px;color:var(--wds-gray-500)">표시할 예매가 없습니다.</p>'}`;
+        }
+
+        async function hostTicketAction(action, ticketId) {
+            if (_hostState.busy) return;
+            _hostState.busy = true;
+            try {
+                const out = await eventApi({ action, kakao_token: _hostState.token, ticket_id: ticketId });
+                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+            } finally { _hostState.busy = false; }
+            renderHostAttendees(_hostState.curEventId);
+        }
+
+        function hostCancelTicket(ticketId) {
+            if (!confirm('이 예매를 취소하시겠습니까?\n(입금된 건이면 환불은 별도로 진행해주세요.)')) return;
+            hostTicketAction('host_cancel', ticketId);
+        }
+
+        async function hostCheckinByCode(code) {
+            if (_hostState.busy) return;
+            _hostState.busy = true;
+            try {
+                const out = await eventApi({ action: 'checkin', kakao_token: _hostState.token, code });
+                if (out.ok) showToast(`✅ ${out.ticket.buyer_name || ''} ${out.ticket.qty || ''}매 입장 처리`);
+                else alert(out.message || '체크인에 실패했습니다.');
+            } finally { _hostState.busy = false; }
+            if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
+        }
+
+        // QR 딥링크(#host/checkin/CODE) 체크인 — 결과를 큰 패널로 표시
+        async function hostDoCheckin(code) {
+            const c = document.getElementById('host-container');
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">체크인 처리 중…</div>';
+            const out = await eventApi({ action: 'checkin', kakao_token: _hostState.token, code });
+            if (!out.ok && out.error === 'auth') { _hostState.token = null; _hostState.pendingCheckin = code; renderHostLogin(); return; }
+            renderCheckinResult(out, code);
+        }
+
+        function renderCheckinResult(out, code) {
+            const c = document.getElementById('host-container');
+            const t = out.ticket || {};
+            let panel;
+            if (out.ok) {
+                panel = `<div style="background:#DCFCE7;border-radius:16px;padding:34px 20px;text-align:center">
+                    <div style="font-size:3rem;margin-bottom:8px">✅</div>
+                    <div style="font-size:1.25rem;font-weight:800;color:#166534;margin-bottom:6px">입장 확인</div>
+                    <div style="font-size:1.05rem;font-weight:700;color:#166534">${escapeHtml(t.buyer_name || '')} · ${t.qty || 1}매</div>
+                    <div style="font-size:0.82rem;color:#166534;opacity:0.8;margin-top:6px">${escapeHtml(t.event_title || '')} · ${escapeHtml(code)}</div>
+                </div>`;
+            } else if (out.error === 'already_checked_in') {
+                const when = out.checked_in_at ? new Date(out.checked_in_at) : null;
+                const hm = when && !isNaN(when) ? `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}` : '';
+                panel = `<div style="background:#FEF3C7;border-radius:16px;padding:34px 20px;text-align:center">
+                    <div style="font-size:3rem;margin-bottom:8px">⚠️</div>
+                    <div style="font-size:1.15rem;font-weight:800;color:#92400E;margin-bottom:6px">이미 입장한 티켓입니다</div>
+                    <div style="font-size:0.9rem;color:#92400E">${escapeHtml(t.buyer_name || '')} · ${t.qty || 1}매${hm ? ` · ${hm} 입장` : ''}</div>
+                </div>`;
+            } else if (out.error === 'not_confirmed') {
+                panel = `<div style="background:#FEE2E2;border-radius:16px;padding:34px 20px;text-align:center">
+                    <div style="font-size:3rem;margin-bottom:8px">💳</div>
+                    <div style="font-size:1.15rem;font-weight:800;color:#991B1B;margin-bottom:6px">입금 미확인 티켓</div>
+                    <div style="font-size:0.9rem;color:#991B1B;margin-bottom:14px">${escapeHtml(t.buyer_name || '')} · ${t.qty || 1}매 · ${escapeHtml(code)}</div>
+                    <button onclick="hostConfirmAndCheckin('${jsStr(t.id || '')}','${jsStr(code)}')" style="padding:12px 22px;border-radius:10px;border:none;background:#991B1B;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem">입금 확인 후 바로 체크인</button>
+                </div>`;
+            } else {
+                panel = `<div style="background:#FEE2E2;border-radius:16px;padding:34px 20px;text-align:center">
+                    <div style="font-size:3rem;margin-bottom:8px">❌</div>
+                    <div style="font-size:1.15rem;font-weight:800;color:#991B1B;margin-bottom:6px">${escapeHtml(out.error === 'cancelled' ? '취소된 티켓입니다' : out.error === 'not_found' ? '없는 예매번호입니다' : '체크인 불가')}</div>
+                    <div style="font-size:0.9rem;color:#991B1B">${escapeHtml(out.message || '')} (${escapeHtml(code)})</div>
+                </div>`;
+            }
+            c.innerHTML = `${panel}
+                <div style="font-size:0.82rem;color:var(--wds-gray-500);text-align:center;margin-top:16px">📷 다음 관객의 QR을 폰 카메라로 스캔하세요</div>
+                <div style="display:flex;gap:8px;margin-top:14px">
+                    ${t.event_id ? `<button onclick="renderHostAttendees('${jsStr(t.event_id)}')" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">예매자 명단</button>` : ''}
+                    <button onclick="showHostSection()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-size:0.9rem;font-family:inherit">대시보드</button>
+                </div>`;
+        }
+
+        async function hostConfirmAndCheckin(ticketId, code) {
+            if (!ticketId) return;
+            const o1 = await eventApi({ action: 'confirm_payment', kakao_token: _hostState.token, ticket_id: ticketId });
+            if (!o1.ok) { alert(o1.message || '입금 확인에 실패했습니다.'); return; }
+            hostDoCheckin(code);
         }
     </script>
 

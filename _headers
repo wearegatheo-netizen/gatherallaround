@@ -3,3 +3,7 @@
 # 폰트 교체 시 반드시 파일명을 바꿀 것 (예: -latin.v2.woff2) — 안 그러면 캐시가 갱신되지 않음.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# vendor 라이브러리도 버전을 파일명에 박아 불변 캐시 (예: qrcode.v1.4.4.js)
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
