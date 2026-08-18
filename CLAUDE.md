@@ -3,9 +3,16 @@
 이 저장소에서 작업할 때 지켜야 할 규칙과 과거 실수에서 얻은 교훈을 기록합니다.
 
 ## 프로젝트 개요
-- `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 12,000줄)
-- 백엔드: Supabase (`profiles`, `reservations`, `schedules`, `schedule_attendees`, `performance_bookings`)
-- 개발 브랜치: `claude/complete-index-modification-siszr`
+- `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 14,000줄)
+- 백엔드: Supabase (`profiles`, `reservations`, `schedules`, `schedule_attendees`, `performance_bookings`,
+  공연 예매: `event_hosts`/`events`/`event_tickets` + `event_seats` 뷰)
+- 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
+  (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
+  PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
+  QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
+- 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송)
+- 테스트: `tests/` (event-api 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
+- 개발 브랜치: `claude/remove-main-page-button-oi3bml`
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)
 
