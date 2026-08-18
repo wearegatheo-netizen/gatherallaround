@@ -291,8 +291,8 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.click('button:has-text("카카오톡으로 공동호스트 초대")');
   await p.waitForTimeout(200);
   s = await p.evaluate(() => ({ shared: window.__shared, call: window.__apiCalls.filter(c => c.action === 'create_invite').pop() }));
-  chk('초대: create_invite + 카카오톡 공유에 합류 딥링크', s.call && s.call.host_id === 'h1'
-    && s.shared && s.shared.link.webUrl.includes('/#host/join/' + 'ab'.repeat(16)), s.shared && s.shared.link.webUrl);
+  chk('초대: create_invite + 카카오톡 공유(쿼리 링크 — 해시 잘림 회피)', s.call && s.call.host_id === 'h1'
+    && s.shared && s.shared.link.webUrl.includes('?hostjoin=' + 'ab'.repeat(16)), s.shared && s.shared.link.webUrl);
 
   // ── 7c. 초대 수락 딥링크 → 새 팀 합류
   await p.evaluate(() => {
@@ -351,6 +351,25 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     return { hasSvg: !!svg, lib: typeof qrcode !== 'undefined' };
   });
   chk('QR: vendor 라이브러리 로드 + SVG 생성', s.lib && s.hasSvg);
+
+  // ── 9. ?hostjoin= 쿼리 진입(카카오톡 공유 경유) — 포털이 아니라 호스트 존으로
+  const p2 = await br.newPage({ viewport: { width: 420, height: 900 } });
+  await p2.route('**://**', async r => {
+    const u = new URL(r.request().url());
+    return u.hostname === '127.0.0.1' ? r.continue() : r.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+  });
+  await p2.goto('http://127.0.0.1:8765/index.html?hostjoin=' + 'ef'.repeat(16), { waitUntil: 'domcontentloaded' });
+  await p2.waitForTimeout(1800);
+  s = await p2.evaluate(() => ({
+    hostShown: !document.getElementById('host-page').classList.contains('hidden'),
+    portalHidden: document.getElementById('portal-page').classList.contains('hidden'),
+    notice: document.getElementById('host-container').textContent.includes('초대를 받았습니다'),
+    cleanUrl: !location.search,
+    loadingGone: !document.getElementById('portalLoadingScreen'),
+  }));
+  chk('?hostjoin 진입: 포털 대신 호스트 존 + 초대 안내 + URL 정리 + 로딩 해제',
+    s.hostShown && s.portalHidden && s.notice && s.cleanUrl && s.loadingGone, JSON.stringify(s));
+  await p2.close();
 
   chk('pageerror 없음', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

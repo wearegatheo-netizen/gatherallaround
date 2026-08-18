@@ -3494,6 +3494,15 @@
                 });
                 return;
             }
+            // 공동호스트 초대 링크 (?hostjoin=토큰) — 카카오톡 공유는 URL의 해시(#)를
+            // 유지하지 않는 경우가 있어 쿼리 방식으로 받는다. 호스트 존은 GatheO 로그인과
+            // 무관하므로 initSession 없이 바로 진입.
+            const _hostJoin = _sp.get('hostjoin');
+            if (_hostJoin && /^[0-9a-f]{32}$/i.test(_hostJoin)) {
+                history.replaceState({}, '', location.pathname);
+                showHostSection(['join', _hostJoin.toLowerCase()]);
+                return;
+            }
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
             if (_isShareEntry) {
                 window.__shareEntryMode = true; // loginUI/logoutUI에서 포털 재노출 차단용
@@ -13490,9 +13499,13 @@
                     <div class="show-info-row"><span class="ico">🎤</span><span>${escapeHtml(ev.host_name || '')}</span></div>
                     <div class="show-info-row"><span class="ico">💳</span><span><strong>${priceStr}</strong>${ev.price > 0 ? ' <span class="sub">1매 기준 · 계좌이체</span>' : ''}</span></div>
                 </div>
-                ${hostProf && (hostProf.bio || snsUrl) ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6;background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px">
-                    ${hostProf.bio ? escapeHtml(hostProf.bio).replace(/\n/g, '<br>') : ''}
-                    ${snsUrl ? `${hostProf.bio ? '<br>' : ''}<a href="${escapeHtml(snsUrl)}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">🔗 ${escapeHtml(String(hostProf.sns).replace(/^https?:\/\//i, ''))}</a>` : ''}
+                ${hostProf && (hostProf.bio || snsUrl || hostProf.logo_url) ? `<div style="display:flex;gap:11px;align-items:flex-start;background:var(--wds-gray-100);border-radius:12px;padding:11px 13px;margin-bottom:12px">
+                    ${_teamLogoHTML(hostProf.logo_url, 38)}
+                    <div style="flex:1;min-width:0;font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6">
+                        <div style="font-weight:700;color:var(--wds-black);font-size:0.84rem">${escapeHtml(hostProf.name || ev.host_name || '')}</div>
+                        ${hostProf.bio ? escapeHtml(hostProf.bio).replace(/\n/g, '<br>') : ''}
+                        ${snsUrl ? `${hostProf.bio ? '<br>' : ''}<a href="${escapeHtml(snsUrl)}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">🔗 ${escapeHtml(String(hostProf.sns).replace(/^https?:\/\//i, ''))}</a>` : ''}
+                    </div>
                 </div>` : ''}
                 ${hasCoords ? `<div style="margin-bottom:14px">
                     <div id="showMap" style="height:180px;border-radius:12px;background:var(--wds-gray-100)"></div>
@@ -13855,10 +13868,41 @@
                 </div>`;
         }
 
+        // 팀 로고 표시 (없으면 🎤 이모지)
+        function _teamLogoHTML(url, size) {
+            return url
+                ? `<img src="${escapeHtml(url)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex:none;background:var(--wds-gray-100)">`
+                : `<span style="font-size:${Math.round(size * 0.62)}px;line-height:1">🎤</span>`;
+        }
+
+        async function uploadTeamLogo(input) {
+            const st = document.getElementById('teamLogoStatus');
+            const file = input.files && input.files[0];
+            if (!file) return;
+            if (!/^image\//.test(file.type)) { if (st) st.textContent = '이미지 파일만 올릴 수 있습니다.'; input.value = ''; return; }
+            if (file.size > 2 * 1024 * 1024) { if (st) st.textContent = '2MB 이하 이미지만 올릴 수 있습니다.'; input.value = ''; return; }
+            if (st) st.textContent = '업로드 중…';
+            try {
+                const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+                const path = `events/logo-${Date.now()}.${ext}`;
+                const { error } = await supabaseClient.storage.from('community-images').upload(path, file, { cacheControl: '3600', upsert: false });
+                if (error) throw error;
+                const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
+                _hostState.teamLogoUrl = urlData.publicUrl;
+                const pv = document.getElementById('teamLogoPreview');
+                if (pv) pv.innerHTML = `<img src="${escapeHtml(_hostState.teamLogoUrl)}" style="width:100%;height:100%;object-fit:cover" alt="">`;
+                if (st) st.textContent = '✅ 업로드 완료';
+            } catch (e) {
+                if (st) st.textContent = '업로드 실패: ' + (e.message || e);
+                input.value = '';
+            }
+        }
+
         // 팀 등록/수정 폼 — team이 null이면 새 팀 생성
         function renderTeamForm(team) {
             const c = document.getElementById('host-container');
             const t = team || {};
+            _hostState.teamLogoUrl = t.logo_url || '';
             const hasTeams = (_hostState.teams || []).length > 0;
             c.innerHTML = `
                 ${hasTeams ? '<button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>' : ''}
@@ -13876,6 +13920,16 @@
                     <label class="perf-form-label">SNS / 링크 (선택)</label>
                     <input type="text" class="perf-form-input" id="hostSns" maxlength="200" placeholder="예: instagram.com/ourband" value="${escapeHtml(t.sns || '')}">
                 </div>
+                <div class="perf-form-group">
+                    <label class="perf-form-label">팀 로고 (선택)</label>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div id="teamLogoPreview" style="width:46px;height:46px;border-radius:50%;background:var(--wds-gray-100);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.15rem">${t.logo_url ? `<img src="${escapeHtml(t.logo_url)}" style="width:100%;height:100%;object-fit:cover" alt="">` : '🎤'}</div>
+                        <div style="flex:1;min-width:0">
+                            <input type="file" id="teamLogo" accept="image/*" onchange="uploadTeamLogo(this)" style="font-size:0.82rem;max-width:100%">
+                            <div id="teamLogoStatus" style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:4px">정사각형 이미지 권장 · 2MB 이하</div>
+                        </div>
+                    </div>
+                </div>
                 <div id="hostRegResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <div style="display:flex;gap:8px">
                     ${t.id ? `<button onclick="renderTeamManage('${jsStr(t.id)}')" style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-family:inherit">취소</button>` : ''}
@@ -13891,9 +13945,10 @@
             const bio = document.getElementById('hostBio')?.value.trim();
             const sns = document.getElementById('hostSns')?.value.trim();
             if (!name) { showErr('팀 이름을 입력해주세요.'); return; }
+            const logo_url = _hostState.teamLogoUrl || '';
             const out = teamId
-                ? await eventApi({ action: 'update_team', kakao_token: _hostState.token, host_id: teamId, name, bio, sns })
-                : await eventApi({ action: 'create_team', kakao_token: _hostState.token, name, bio, sns });
+                ? await eventApi({ action: 'update_team', kakao_token: _hostState.token, host_id: teamId, name, bio, sns, logo_url })
+                : await eventApi({ action: 'create_team', kakao_token: _hostState.token, name, bio, sns, logo_url });
             if (!out.ok) { showErr(out.message || '저장에 실패했습니다.'); return; }
             showToast(teamId ? '팀 정보가 저장되었습니다.' : `'${out.team.name}' 팀이 만들어졌습니다!`);
             _hostState.curTeamId = out.team.id;
@@ -13922,8 +13977,9 @@
                 </div>`).join('');
             c.innerHTML = `
                 <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                    <div class="perf-section-title" style="margin:0">🎤 ${escapeHtml(team.name)}</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    ${_teamLogoHTML(team.logo_url, 38)}
+                    <div class="perf-section-title" style="margin:0">${escapeHtml(team.name)}</div>
                     ${amOwner ? `<button onclick="renderTeamForm(_hostState.teams.find(t=>t.id==='${jsStr(teamId)}'))" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">✏️ 팀 정보 수정</button>` : ''}
                 </div>
                 ${team.bio ? `<p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">${escapeHtml(team.bio)}</p>` : ''}
@@ -13952,7 +14008,8 @@
             const team = (_hostState.teams || []).find(t => t.id === teamId);
             const out = await eventApi({ action: 'create_invite', kakao_token: _hostState.token, host_id: teamId });
             if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
-            const url = location.origin + '/#host/join/' + out.token;
+            // 해시(#) 경로는 카카오톡 공유에서 잘리는 경우가 있어 쿼리 방식 사용
+            const url = location.origin + location.pathname + '?hostjoin=' + out.token;
             const box = document.getElementById('inviteLinkBox');
             const copyLink = async () => {
                 try { await navigator.clipboard.writeText(url); showToast('초대 링크가 복사되었습니다. 카카오톡에 붙여넣어 보내주세요.'); }
@@ -14000,7 +14057,7 @@
             let html = `
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${teamChips}</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-                    <div style="font-size:1rem;font-weight:800;color:var(--wds-black)">🎤 ${escapeHtml(team ? team.name : '전체 공연')}${_hostState.isAdmin ? ' <span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자</span>' : ''}</div>
+                    <div style="display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:800;color:var(--wds-black)">${_teamLogoHTML(team && team.logo_url, 30)} ${escapeHtml(team ? team.name : '전체 공연')}${_hostState.isAdmin ? ' <span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자</span>' : ''}</div>
                     <span style="margin-left:auto;display:flex;gap:6px">
                         ${team ? _hbtn('👥 팀 관리', `renderTeamManage('${jsStr(team.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : ''}
                         <button onclick="renderHostEventForm()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>

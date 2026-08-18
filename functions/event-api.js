@@ -329,10 +329,15 @@ export async function onRequest(context) {
                 if (!name || name.length > 40) return fail(400, 'bad_name', '팀 이름을 확인해주세요. (40자 이내)');
                 const bio = String(body.bio || '').trim().slice(0, 500) || null;
                 const sns = String(body.sns || '').trim().slice(0, 200) || null;
+                // 로고는 우리 스토리지 업로드 산출물만 허용
+                if (body.logo_url && !String(body.logo_url).startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/community-images/`)) {
+                    return fail(400, 'bad_logo', '로고 이미지가 올바르지 않습니다.');
+                }
+                const logo_url = body.logo_url ? String(body.logo_url) : null;
                 if (action === 'create_team') {
                     const r = await sbFetch(env, 'event_hosts', {
                         method: 'POST', headers: { Prefer: 'return=representation' },
-                        body: JSON.stringify({ kakao_id: kakaoId, name, bio, sns }),
+                        body: JSON.stringify({ kakao_id: kakaoId, name, bio, sns, logo_url }),
                     });
                     if (!r.ok) return json({ ok: false, error: 'db', message: '팀 생성에 실패했습니다.',
                         detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
@@ -351,7 +356,7 @@ export async function onRequest(context) {
                 if (!r.ok) { /* host_name 동기화 실패는 치명적이지 않음 */ }
                 const tr = await sbFetch(env, `event_hosts?id=eq.${body.host_id}`, {
                     method: 'PATCH', headers: { Prefer: 'return=representation' },
-                    body: JSON.stringify({ name, bio, sns }),
+                    body: JSON.stringify({ name, bio, sns, logo_url }),
                 });
                 if (!tr.ok) return fail(502, 'db', '팀 수정에 실패했습니다.');
                 const [team] = await tr.json();
