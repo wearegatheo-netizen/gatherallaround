@@ -140,10 +140,8 @@ async function getTicketOwned(env, ticketId, kakaoId) {
     return { t };
 }
 
-const newToken = () => {
-    const b = crypto.getRandomValues(new Uint8Array(16));
-    return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
-};
+// 초대 코드 — 예매번호와 같은 6자리 규격(혼동 문자 제외). 직접 입력하기 쉽도록 짧게.
+const newInviteCode = () => newCode();
 
 // 공연 필드 검증 (create/update 공용). partial=true면 존재하는 필드만 검증.
 function validateEventFields(e, { partial = false } = {}) {
@@ -314,7 +312,7 @@ export async function onRequest(context) {
         const HOST_ACTIONS = ['host_me', 'create_team', 'update_team', 'list_members', 'remove_member',
             'create_invite', 'accept_invite', 'create_event', 'update_event', 'set_event_status',
             'my_events', 'attendees', 'confirm_payment', 'revert_payment', 'host_cancel', 'checkin', 'uncheckin',
-            'create_event_invite', 'event_invite_info', 'accept_event_invite', 'remove_co_team'];
+            'create_event_invite', 'event_invite_info', 'accept_event_invite', 'remove_co_team', 'lookup_invite'];
         if (HOST_ACTIONS.includes(action)) {
             const kk = await verifyKakao(body.kakao_token);
             if (!kk) return fail(401, 'auth', '카카오 로그인이 만료되었습니다. 다시 로그인해주세요.');
@@ -403,7 +401,7 @@ export async function onRequest(context) {
                 if (gate.err) return fail(...gate.err);
                 // 기존 토큰은 대체(취소) — 팀당 유효 토큰 1개
                 await sbFetch(env, `event_host_invites?host_id=eq.${body.host_id}`, { method: 'DELETE' }).catch(() => {});
-                const token = newToken();
+                const token = newInviteCode();
                 const expires = new Date(Date.now() + 7 * 86400e3).toISOString();
                 const r = await sbFetch(env, 'event_host_invites', {
                     method: 'POST', headers: { Prefer: 'return=representation' },
@@ -414,8 +412,8 @@ export async function onRequest(context) {
             }
 
             if (action === 'accept_invite') {
-                const token = String(body.token || '');
-                if (!/^[0-9a-f]{32}$/.test(token)) return fail(400, 'bad_token', '초대 링크가 올바르지 않습니다.');
+                const token = normCode(body.token);
+                if (!token) return fail(400, 'bad_token', '초대 코드를 확인해주세요.');
                 const sel = '*,event_hosts(id,name)';
                 const r = await sbFetch(env, `event_host_invites?token=eq.${token}&select=${encodeURIComponent(sel)}&limit=1`);
                 if (!r.ok) return fail(502, 'db', '초대 확인에 실패했습니다.');
@@ -564,7 +562,7 @@ export async function onRequest(context) {
                     return fail(403, 'not_host_team', '주최팀만 관리팀을 초대할 수 있습니다.');
                 }
                 await sbFetch(env, `event_co_invites?event_id=eq.${ev.id}`, { method: 'DELETE' }).catch(() => {});
-                const token = newToken();
+                const token = newInviteCode();
                 const expires = new Date(Date.now() + 7 * 86400e3).toISOString();
                 const ir = await sbFetch(env, 'event_co_invites', {
                     method: 'POST', headers: { Prefer: 'return=representation' },
@@ -574,9 +572,34 @@ export async function onRequest(context) {
                 return json({ ok: true, token, expires_at: expires, event: { id: ev.id, title: ev.title } });
             }
 
+            // 초대 코드 조회 — 공연 관리팀 초대(event) / 팀원 초대(team) 어느 쪽인지 판별
+            if (action === 'lookup_invite') {
+                const token = normCode(body.token);
+                if (!token) return fail(400, 'bad_token', '초대 코드를 확인해주세요. (6자리)');
+                const sel1 = '*,events(id,title,starts_at,host_name)';
+                const r1 = await sbFetch(env, `event_co_invites?token=eq.${token}&select=${encodeURIComponent(sel1)}&limit=1`);
+                if (r1.ok) {
+                    const [inv] = await r1.json();
+                    if (inv && inv.events) {
+                        if (new Date(inv.expires_at) <= new Date()) return fail(409, 'expired', '만료된 초대 코드입니다.');
+                        return json({ ok: true, type: 'event', event: inv.events });
+                    }
+                }
+                const sel2 = '*,event_hosts(id,name)';
+                const r2 = await sbFetch(env, `event_host_invites?token=eq.${token}&select=${encodeURIComponent(sel2)}&limit=1`);
+                if (r2.ok) {
+                    const [inv] = await r2.json();
+                    if (inv && inv.event_hosts) {
+                        if (new Date(inv.expires_at) <= new Date()) return fail(409, 'expired', '만료된 초대 코드입니다.');
+                        return json({ ok: true, type: 'team', team: { id: inv.event_hosts.id, name: inv.event_hosts.name } });
+                    }
+                }
+                return fail(404, 'not_found', '유효하지 않은 초대 코드입니다. 코드를 다시 확인해주세요.');
+            }
+
             if (action === 'event_invite_info') {
-                const token = String(body.token || '');
-                if (!/^[0-9a-f]{32}$/.test(token)) return fail(400, 'bad_token', '초대 링크가 올바르지 않습니다.');
+                const token = normCode(body.token);
+                if (!token) return fail(400, 'bad_token', '초대 코드를 확인해주세요.');
                 const sel = '*,events(id,title,starts_at,host_name)';
                 const r = await sbFetch(env, `event_co_invites?token=eq.${token}&select=${encodeURIComponent(sel)}&limit=1`);
                 if (!r.ok) return fail(502, 'db', '초대 확인에 실패했습니다.');
@@ -587,8 +610,8 @@ export async function onRequest(context) {
             }
 
             if (action === 'accept_event_invite') {
-                const token = String(body.token || '');
-                if (!/^[0-9a-f]{32}$/.test(token)) return fail(400, 'bad_token', '초대 링크가 올바르지 않습니다.');
+                const token = normCode(body.token);
+                if (!token) return fail(400, 'bad_token', '초대 코드를 확인해주세요.');
                 const gate = await requireTeam(body.host_id, true); // 팀을 대표해 수락 — 팀 소유자만
                 if (gate.err) return fail(...gate.err);
                 const sel = '*,events(id,title,host_id)';

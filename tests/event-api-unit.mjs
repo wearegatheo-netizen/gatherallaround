@@ -317,14 +317,14 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['event_host_invites', { method: 'POST', body: [] }]]);
   const j2 = await (await run({ action: 'create_invite', kakao_token: 't', host_id: HOST_ID })).json();
   const del = calls.find(c => c.method === 'DELETE');
-  chk('create_invite: 기존 토큰 대체 + 32hex + 7일 만료', j2.ok === true && /^[0-9a-f]{32}$/.test(j2.token)
+  chk('create_invite: 기존 코드 대체 + 6자리 + 7일 만료', j2.ok === true && /^[A-HJ-NP-Z2-9]{6}$/.test(j2.token)
     && !!del && new Date(j2.expires_at) > new Date(Date.now() + 6 * 86400e3));
 
   mockFetch([KAPI_OK]);
   const r3 = await run({ action: 'accept_invite', kakao_token: 't', token: 'zzz' });
   chk('accept_invite: 형식 오류 → 400 + DB 미조회', r3.status === 400 && calls.length === 1);
 
-  const TOKEN = 'ab'.repeat(16);
+  const TOKEN = 'HJKMNP';
   mockFetch([KAPI_OK, [`event_host_invites?token=eq.${TOKEN}`, { body: [] }]]);
   chk('accept_invite: 없는 토큰 → 404', (await run({ action: 'accept_invite', kakao_token: 't', token: TOKEN })).status === 404);
 
@@ -380,10 +380,10 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     [`event_co_invites?event_id=eq.${EV_ID}`, { method: 'DELETE', body: [] }],
     ['event_co_invites', { method: 'POST', body: [] }]]);
   const j3 = await (await run({ action: 'create_event_invite', kakao_token: 't', event_id: EV_ID })).json();
-  chk('create_event_invite: 성공 + 32hex + 공연명', j3.ok === true && /^[0-9a-f]{32}$/.test(j3.token) && j3.event.title === '연합공연');
+  chk('create_event_invite: 성공 + 6자리 코드 + 공연명', j3.ok === true && /^[A-HJ-NP-Z2-9]{6}$/.test(j3.token) && j3.event.title === '연합공연');
 
   // accept_event_invite — 주최팀 자신 → 409 own_team
-  const TOKEN = 'cd'.repeat(16);
+  const TOKEN = 'QRSTUV';
   const INV = (hostId) => [`event_co_invites?token=eq.${TOKEN}`, { body: [{ token: TOKEN, expires_at: FUTURE, events: { id: EV_ID, title: '연합공연', host_id: hostId } }] }];
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), INV(HOST_ID)]);
   const r4 = await run({ action: 'accept_event_invite', kakao_token: 't', token: TOKEN, host_id: HOST_ID });

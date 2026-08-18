@@ -89,6 +89,27 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('목록: 잔여 3석/매진/무료 배지', s.text.includes('잔여 3석') && s.text.includes('매진') && s.text.includes('무료') && s.text.includes('₩15,000'));
   chk('목록: 지난 공연 접힘 + 호스트 링크', s.text.includes('지난 공연 1개 보기') && s.text.includes('호스트 센터'));
 
+  // ── 1b. 목록 검색: 제목/팀/장소 부분일치 + 입력 포커스 유지(본문만 재렌더)
+  await p.fill('#showSearch', '재즈');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => ({
+    cards: document.querySelectorAll('#showsListBody .show-card').length,
+    text: document.getElementById('showsListBody').textContent,
+    focus: document.activeElement && document.activeElement.id,
+  }));
+  chk('목록 검색: "재즈" → 1건(팀·제목 일치) + 포커스 유지', s.cards === 1 && s.text.includes('재즈의 밤') && s.focus === 'showSearch', `${s.cards}개·${s.focus}`);
+  await p.fill('#showSearch', 'zzz없는공연');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => ({
+    cards: document.querySelectorAll('#showsListBody .show-card').length,
+    empty: document.getElementById('showsListBody').textContent.includes('검색 결과가 없습니다'),
+  }));
+  chk('목록 검색: 결과 없음 안내', s.cards === 0 && s.empty);
+  await p.fill('#showSearch', '');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => document.querySelectorAll('#showsListBody .show-card').length);
+  chk('목록 검색: 지우면 전체 복원(4카드)', s === 4, `${s}개`);
+
   // ── 2. 상세 진입 (pushState) + 뒤로가기 복귀
   const lenBefore = await p.evaluate(() => history.length);
   await p.click(`#shows-container .show-card >> nth=0`);

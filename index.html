@@ -384,6 +384,7 @@
         .show-info-row { display: flex; gap: 10px; align-items: baseline; font-size: 0.87rem; color: var(--wds-gray-900); padding: 9px 0; }
         .show-info-row + .show-info-row { border-top: 1px solid var(--wds-gray-100); }
         .show-info-row .ico { flex: none; width: 22px; text-align: center; }
+        .show-info-row .lbl { flex: none; width: 40px; font-size: 0.75rem; font-weight: 700; color: var(--wds-gray-500); padding-top: 2px; }
         .show-info-row .sub { color: var(--wds-gray-500); font-size: 0.76rem; }
         .show-book-card { border: 1px solid var(--wds-gray-300); border-radius: 16px; padding: 18px 16px 16px; background: var(--wds-white); }
         .ticket-box { border: 2px dashed var(--wds-gray-300); border-radius: 16px; padding: 24px 18px; text-align: center; background: var(--wds-white); }
@@ -3498,16 +3499,16 @@
             // 유지하지 않는 경우가 있어 쿼리 방식으로 받는다. 호스트 존은 GatheO 로그인과
             // 무관하므로 initSession 없이 바로 진입.
             const _hostJoin = _sp.get('hostjoin');
-            if (_hostJoin && /^[0-9a-f]{32}$/i.test(_hostJoin)) {
+            if (_hostJoin && /^[A-HJ-NP-Z2-9]{6}$/i.test(_hostJoin)) {
                 history.replaceState({}, '', location.pathname);
-                showHostSection(['join', _hostJoin.toLowerCase()]);
+                showHostSection(['join', _hostJoin.toUpperCase()]);
                 return;
             }
-            // 공연 공동 관리팀 초대 링크 (?eventjoin=토큰)
+            // 공연 공동 관리팀 초대 링크 (?eventjoin=코드)
             const _eventJoin = _sp.get('eventjoin');
-            if (_eventJoin && /^[0-9a-f]{32}$/i.test(_eventJoin)) {
+            if (_eventJoin && /^[A-HJ-NP-Z2-9]{6}$/i.test(_eventJoin)) {
                 history.replaceState({}, '', location.pathname);
-                showHostSection(['eventjoin', _eventJoin.toLowerCase()]);
+                showHostSection(['eventjoin', _eventJoin.toUpperCase()]);
                 return;
             }
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
@@ -6923,8 +6924,8 @@
             if (segs[0] === 'host' && segs[1]) {
                 if (segs[1] === 'checkin' && _SHOW_CODE_RE.test(segs[2] || '')) return 'host/checkin/' + segs[2].toUpperCase();
                 if (segs[1] === 'event' && _UUID_RE.test(segs[2] || '')) return 'host/event/' + segs[2].toLowerCase();
-                if (segs[1] === 'join' && /^[0-9a-f]{32}$/i.test(segs[2] || '')) return 'host/join/' + segs[2].toLowerCase();
-                if (segs[1] === 'eventjoin' && /^[0-9a-f]{32}$/i.test(segs[2] || '')) return 'host/eventjoin/' + segs[2].toLowerCase();
+                if (segs[1] === 'join' && _SHOW_CODE_RE.test(segs[2] || '')) return 'host/join/' + segs[2].toUpperCase();
+                if (segs[1] === 'eventjoin' && _SHOW_CODE_RE.test(segs[2] || '')) return 'host/eventjoin/' + segs[2].toUpperCase();
                 return 'host';
             }
             return segs[0];
@@ -13419,9 +13420,9 @@
                     </div>
                     <div class="show-card-title">${escapeHtml(ev.title)}</div>
                     <div class="show-card-meta">
-                        🎤 ${escapeHtml(ev.host_name || '')}<br>
-                        📅 ${_showDateStr(ev.starts_at)}<br>
-                        📍 ${escapeHtml(ev.venue)}
+                        <span style="font-weight:600;color:var(--wds-gray-900)">${escapeHtml(ev.host_name || '')}</span><br>
+                        ${_showDateStr(ev.starts_at)}<br>
+                        ${escapeHtml(ev.venue)}
                     </div>
                 </div>
             </div>`;
@@ -13434,29 +13435,45 @@
                 c.innerHTML = '<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>';
                 return;
             }
+            const upcomingAll = _showsState.events.filter(ev => new Date(ev.starts_at) > new Date());
+            c.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <div class="show-section-title" style="margin:0">다가오는 공연 ${upcomingAll.length ? `<span style="color:var(--wds-primary)">${upcomingAll.length}</span>` : ''}</div>
+                <button onclick="showShowsSection(['find'])" style="margin-left:auto;padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">내 티켓 조회</button>
+            </div>
+            <input type="search" class="perf-form-input" id="showSearch" placeholder="공연명 · 팀 · 장소 검색" value="${escapeHtml(_showsState.q || '')}"
+                oninput="_showsState.q=this.value;_renderShowsListBody()" style="margin-bottom:14px">
+            <div id="showsListBody"></div>
+            <p style="text-align:center;margin-top:30px;font-size:0.82rem">
+                <a href="javascript:void(0)" onclick="showHostSection()" style="color:var(--wds-gray-500);text-decoration:underline">공연 호스트이신가요? 호스트 센터 →</a></p>`;
+            _renderShowsListBody();
+        }
+
+        // 목록 본문만 재렌더 — 검색 입력의 포커스를 유지하기 위해 분리
+        function _renderShowsListBody() {
+            const el = document.getElementById('showsListBody');
+            if (!el) return;
+            const q = (_showsState.q || '').trim().toLowerCase();
+            const match = (ev) => !q || [ev.title, ev.host_name, ev.venue].some(v => String(v || '').toLowerCase().includes(q));
             const now = new Date();
-            const upcoming = _showsState.events.filter(ev => new Date(ev.starts_at) > now);
-            const past = _showsState.events.filter(ev => new Date(ev.starts_at) <= now).reverse();
-            let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-                <div class="show-section-title" style="margin:0">다가오는 공연 ${upcoming.length ? `<span style="color:var(--wds-primary)">${upcoming.length}</span>` : ''}</div>
-                <button onclick="showShowsSection(['find'])" style="margin-left:auto;padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">🎟 내 티켓</button>
-            </div>`;
+            const upcoming = _showsState.events.filter(ev => new Date(ev.starts_at) > now && match(ev));
+            const past = _showsState.events.filter(ev => new Date(ev.starts_at) <= now && match(ev)).reverse();
+            let html = '';
             if (!upcoming.length) {
-                html += `<div style="text-align:center;padding:48px 0 40px;color:var(--wds-gray-500)">
-                    <div style="font-size:2.4rem;margin-bottom:10px">🎸</div>
-                    <div style="font-size:0.92rem;font-weight:600">아직 예정된 공연이 없어요</div>
-                    <div style="font-size:0.8rem;margin-top:4px">곧 새로운 공연이 올라올 거예요!</div>
-                </div>`;
+                html += q
+                    ? '<p style="text-align:center;padding:32px 0;color:var(--wds-gray-500);font-size:0.88rem">검색 결과가 없습니다.</p>'
+                    : `<div style="text-align:center;padding:44px 0 36px;color:var(--wds-gray-500)">
+                        <div style="font-size:2.2rem;margin-bottom:10px">🎸</div>
+                        <div style="font-size:0.92rem;font-weight:600">아직 예정된 공연이 없어요</div>
+                        <div style="font-size:0.8rem;margin-top:4px">곧 새로운 공연이 올라올 거예요!</div>
+                    </div>`;
             } else {
                 html += upcoming.map(_showCardHTML).join('');
             }
             if (past.length) {
-                html += `<details style="margin-top:22px"><summary style="cursor:pointer;font-size:0.84rem;font-weight:700;color:var(--wds-gray-500);user-select:none;padding:6px 0">지난 공연 ${past.length}개 보기</summary>
+                html += `<details${q ? ' open' : ''} style="margin-top:22px"><summary style="cursor:pointer;font-size:0.84rem;font-weight:700;color:var(--wds-gray-500);user-select:none;padding:6px 0">지난 공연 ${past.length}개 보기</summary>
                     <div style="margin-top:10px;opacity:0.72">${past.map(_showCardHTML).join('')}</div></details>`;
             }
-            html += `<p style="text-align:center;margin-top:30px;font-size:0.82rem">
-                <a href="javascript:void(0)" onclick="showHostSection()" style="color:var(--wds-gray-500);text-decoration:underline">공연 호스트이신가요? 호스트 센터 →</a></p>`;
-            c.innerHTML = html;
+            el.innerHTML = html;
         }
 
         async function renderShowDetail(id) {
@@ -13506,10 +13523,10 @@
                 </div>
                 <h2 style="font-size:1.3rem;font-weight:800;color:var(--wds-black);margin:0 0 12px;line-height:1.3;letter-spacing:-0.01em">${escapeHtml(ev.title)}</h2>
                 <div class="show-info-card">
-                    <div class="show-info-row"><span class="ico">📅</span><span>${_showDateStr(ev.starts_at)}</span></div>
-                    <div class="show-info-row"><span class="ico">📍</span><span>${escapeHtml(ev.venue)}${ev.venue_address ? ` <span class="sub">${escapeHtml(ev.venue_address)}</span>` : ''}</span></div>
-                    <div class="show-info-row"><span class="ico">🎤</span><span>${escapeHtml(ev.host_name || '')}</span></div>
-                    <div class="show-info-row"><span class="ico">💳</span><span><strong>${priceStr}</strong>${ev.price > 0 ? ' <span class="sub">1매 기준 · 계좌이체</span>' : ''}</span></div>
+                    <div class="show-info-row"><span class="lbl">일시</span><span>${_showDateStr(ev.starts_at)}</span></div>
+                    <div class="show-info-row"><span class="lbl">장소</span><span>${escapeHtml(ev.venue)}${ev.venue_address ? ` <span class="sub">${escapeHtml(ev.venue_address)}</span>` : ''}</span></div>
+                    <div class="show-info-row"><span class="lbl">주최</span><span>${escapeHtml(ev.host_name || '')}${coTeams.length ? ` <span class="sub">with ${coTeams.map(t => escapeHtml(t.name)).join(', ')}</span>` : ''}</span></div>
+                    <div class="show-info-row"><span class="lbl">가격</span><span><strong>${priceStr}</strong>${ev.price > 0 ? ' <span class="sub">1매 기준 · 계좌이체</span>' : ''}</span></div>
                 </div>
                 ${hostProf && (hostProf.bio || snsUrl || hostProf.logo_url) ? `<div style="display:flex;gap:11px;align-items:flex-start;background:var(--wds-gray-100);border-radius:12px;padding:11px 13px;margin-bottom:12px">
                     ${_teamLogoHTML(hostProf.logo_url, 38)}
@@ -13518,10 +13535,6 @@
                         ${hostProf.bio ? escapeHtml(hostProf.bio).replace(/\n/g, '<br>') : ''}
                         ${snsUrl ? `${hostProf.bio ? '<br>' : ''}<a href="${escapeHtml(snsUrl)}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">🔗 ${escapeHtml(String(hostProf.sns).replace(/^https?:\/\//i, ''))}</a>` : ''}
                     </div>
-                </div>` : ''}
-                ${coTeams.length ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px">
-                    <span style="font-size:0.76rem;font-weight:700;color:var(--wds-gray-500)">🤝 함께하는 팀</span>
-                    ${coTeams.map(t => `<span class="show-chip" style="background:var(--wds-gray-100);color:var(--wds-gray-700)">${escapeHtml(t.name)}</span>`).join('')}
                 </div>` : ''}
                 ${hasCoords ? `<div style="margin-bottom:14px">
                     <div id="showMap" style="height:180px;border-radius:12px;background:var(--wds-gray-100)"></div>
@@ -13534,8 +13547,8 @@
                 const qtyOpts = Array.from({ length: maxQty }, (_, i) => `<option value="${i + 1}">${i + 1}매</option>`).join('');
                 html += `
                 <div class="show-book-card" style="margin-top:4px">
-                <div class="perf-section-title" style="margin-top:0">🎟 예매하기</div>
-                ${ev.price > 0 ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.55">💳 계좌이체 예매 — 예매 후 안내되는 계좌로 입금하시면 호스트 확인 후 확정됩니다.</div>` : ''}
+                <div class="perf-section-title" style="margin-top:0">예매하기</div>
+                ${ev.price > 0 ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.55">계좌이체 예매 — 예매 후 안내되는 계좌로 입금하시면 호스트 확인 후 확정됩니다.</div>` : ''}
                 <div class="perf-form-group">
                     <label class="perf-form-label">이름 *</label>
                     <input type="text" class="perf-form-input" id="showName" placeholder="실명 입력">
@@ -13634,13 +13647,13 @@
                     <div style="font-size:0.78rem;color:var(--wds-gray-500)">예매번호</div>
                     <div class="ticket-code">${escapeHtml(t.code)}</div>
                     <div id="ticketQrSlot"></div>
-                    <button id="qrSaveBtn" onclick="downloadTicketQR('${jsStr(t.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">🖼 QR 이미지 저장</button>
+                    <button id="qrSaveBtn" onclick="downloadTicketQR('${jsStr(t.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">QR 이미지 저장</button>
                     <div style="font-size:0.82rem;color:var(--wds-gray-700);margin-top:8px">${escapeHtml(t.buyer_name)} · ${t.qty}매${amount > 0 ? ` · ₩${amount.toLocaleString()}` : ''}</div>
                 </div>`;
             if (t.status === 'pending_payment') {
                 html += `
                 <div style="background:#FEF3C7;color:#92400E;border-radius:12px;padding:14px 16px;margin-top:14px;font-size:0.84rem;line-height:1.7">
-                    <div style="font-weight:800;margin-bottom:6px">💳 입금 안내</div>
+                    <div style="font-weight:800;margin-bottom:6px">입금 안내</div>
                     입금 금액: <strong>₩${amount.toLocaleString()}</strong><br>
                     입금 계좌: <strong id="ticketBankInfo">${escapeHtml(ev.bank_info || '호스트에게 문의')}</strong>
                     ${ev.bank_info ? `<button onclick="copyBankInfo()" style="margin-left:6px;padding:3px 10px;border-radius:6px;border:1px solid #92400E;background:none;color:#92400E;cursor:pointer;font-size:0.74rem;font-weight:700;font-family:inherit">복사</button>` : ''}<br>
@@ -13778,9 +13791,9 @@
             if (subArr[0] === 'checkin' && subArr[1]) {
                 _hostState.pendingCheckin = String(subArr[1]).toUpperCase();
             } else if (subArr[0] === 'join' && subArr[1]) {
-                _hostState.pendingJoin = String(subArr[1]).toLowerCase();
+                _hostState.pendingJoin = String(subArr[1]).toUpperCase();
             } else if (subArr[0] === 'eventjoin' && subArr[1]) {
-                _hostState.pendingEventJoin = String(subArr[1]).toLowerCase();
+                _hostState.pendingEventJoin = String(subArr[1]).toUpperCase();
             } else if (subArr[0] === 'event' && subArr[1] && _UUID_RE.test(subArr[1])) {
                 _hostState.curEventId = subArr[1].toLowerCase();
             }
@@ -14059,9 +14072,9 @@
                     ${rows}
                     ${amOwner ? `
                     <div style="margin-top:14px">
-                        <button onclick="hostInvite('${jsStr(teamId)}')" style="width:100%;padding:12px;border-radius:10px;border:none;background:#FEE500;color:#3C1E1E;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">💬 카카오톡으로 공동호스트 초대</button>
+                        <button onclick="hostInvite('${jsStr(teamId)}')" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">공동호스트 초대 코드 만들기</button>
                         <div id="inviteLinkBox" style="margin-top:8px"></div>
-                        <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">초대 링크는 7일간 유효하며, 새로 만들면 이전 링크는 무효가 됩니다. 링크로 합류한 멤버는 이 팀의 공연 등록·입금 확인·체크인을 함께 할 수 있습니다.</div>
+                        <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">초대 코드는 7일간 유효하며, 새로 만들면 이전 코드는 무효가 됩니다. 합류한 멤버는 이 팀의 공연 등록·입금 확인·체크인을 함께 할 수 있습니다.</div>
                     </div>` : ''}
                 </div>`;
         }
@@ -14074,31 +14087,41 @@
             renderTeamManage(teamId);
         }
 
-        // 공동호스트 초대 — 초대 링크 생성 후 카카오톡 공유 (미지원 시 링크 복사 폴백)
+        // 초대 코드 박스 — 코드를 크게 보여주고 카카오톡 공유/복사는 보조 수단
+        function _renderInviteBox(boxId, code, url, shareText) {
+            const box = document.getElementById(boxId);
+            if (!box) return;
+            const shareApi = (typeof Kakao !== 'undefined') ? ((Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : (Kakao.Link && Kakao.Link.sendDefault ? Kakao.Link : null)) : null;
+            box.innerHTML = `
+                <div style="border:1.5px dashed var(--wds-gray-300);border-radius:12px;padding:14px;text-align:center;margin:8px 0 10px;background:var(--wds-white)">
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);font-weight:700;margin-bottom:4px">초대 코드 · 7일 유효</div>
+                    <div style="font-size:1.5rem;font-weight:800;letter-spacing:0.3em;padding-left:0.3em;color:var(--wds-black)">${escapeHtml(code)}</div>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">받는 분이 호스트 센터 → [초대 코드 입력]에 이 코드를 넣으면 됩니다.</div>
+                    <div style="display:flex;gap:6px;margin-top:10px">
+                        ${shareApi ? `<button id="${boxId}-share" style="flex:1;padding:9px;border-radius:8px;border:none;background:#FEE500;color:#3C1E1E;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit">카카오톡 공유</button>` : ''}
+                        <button id="${boxId}-copy" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit">코드 복사</button>
+                    </div>
+                </div>`;
+            const shareBtn = document.getElementById(boxId + '-share');
+            if (shareBtn && shareApi) shareBtn.onclick = () => {
+                try { shareApi.sendDefault({ objectType: 'text', text: shareText, link: { webUrl: url, mobileWebUrl: url } }); }
+                catch (_) { showToast('카카오톡 공유를 열지 못했습니다. 코드를 복사해 보내주세요.'); }
+            };
+            const copyBtn = document.getElementById(boxId + '-copy');
+            if (copyBtn) copyBtn.onclick = async () => {
+                try { await navigator.clipboard.writeText(code); showToast('초대 코드가 복사되었습니다.'); }
+                catch (_) { showToast('복사에 실패했습니다. 코드를 직접 전달해주세요.'); }
+            };
+        }
+
+        // 공동호스트(팀원) 초대 — 6자리 초대 코드 생성
         async function hostInvite(teamId) {
             const team = (_hostState.teams || []).find(t => t.id === teamId);
             const out = await eventApi({ action: 'create_invite', kakao_token: _hostState.token, host_id: teamId });
             if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
-            // 해시(#) 경로는 카카오톡 공유에서 잘리는 경우가 있어 쿼리 방식 사용
             const url = location.origin + location.pathname + '?hostjoin=' + out.token;
-            const box = document.getElementById('inviteLinkBox');
-            const copyLink = async () => {
-                try { await navigator.clipboard.writeText(url); showToast('초대 링크가 복사되었습니다. 카카오톡에 붙여넣어 보내주세요.'); }
-                catch (_) { if (box) box.innerHTML = `<input class="perf-form-input" value="${escapeHtml(url)}" readonly onclick="this.select()" style="font-size:0.78rem">`; }
-            };
-            const shareApi = (typeof Kakao !== 'undefined') ? ((Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : (Kakao.Link && Kakao.Link.sendDefault ? Kakao.Link : null)) : null;
-            if (shareApi) {
-                try {
-                    shareApi.sendDefault({
-                        objectType: 'text',
-                        text: `🎤 '${(team && team.name) || '우리 팀'}' 공연 팀의 공동호스트로 초대합니다!\n아래 링크를 열고 카카오 로그인하면 바로 합류됩니다. (7일간 유효)`,
-                        link: { webUrl: url, mobileWebUrl: url },
-                    });
-                    if (box) box.innerHTML = `<button onclick="navigator.clipboard.writeText('${jsStr(url)}').then(()=>showToast('복사되었습니다.'))" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-family:inherit">🔗 초대 링크 복사 (직접 전달용)</button>`;
-                    return;
-                } catch (_) { /* 공유 실패 → 복사 폴백 */ }
-            }
-            copyLink();
+            _renderInviteBox('inviteLinkBox', out.token,url,
+                `'${(team && team.name) || '우리 팀'}' 팀의 공동호스트로 초대합니다!\n호스트 센터 → [초대 코드 입력]에 ${out.token} 를 넣거나, 아래 링크를 열어주세요. (7일간 유효)`);
         }
 
         const _EV_STATUS_CHIP = {
@@ -14121,16 +14144,22 @@
                 c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
                 return;
             }
-            // 팀 전환 칩 (여러 팀일 때) + 새 팀
-            const teamChips = (_hostState.teams || []).map(t =>
-                `<button onclick="_hostState.curTeamId='${jsStr(t.id)}';renderHostDashboard()" style="padding:6px 12px;border-radius:16px;border:1px solid ${t.id === _hostState.curTeamId ? 'var(--wds-primary)' : 'var(--wds-gray-300)'};background:${t.id === _hostState.curTeamId ? 'var(--wds-primary)' : 'var(--wds-white)'};color:${t.id === _hostState.curTeamId ? '#fff' : 'var(--wds-gray-700)'};cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit">${escapeHtml(t.name)}</button>`).join('')
-                + `<button onclick="renderTeamForm(null)" title="새 팀 만들기" style="padding:6px 11px;border-radius:16px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit">+ 새 팀</button>`;
+            // 팀 선택 — 목록형(select) + 새 팀
+            const teamSelect = `
+                <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <select class="perf-form-input" style="flex:1;height:44px;font-weight:700" onchange="_hostState.curTeamId=this.value;renderHostDashboard()">
+                        ${(_hostState.teams || []).map(t => `<option value="${jsStr(t.id)}"${t.id === _hostState.curTeamId ? ' selected' : ''}>${escapeHtml(t.name)}${t.my_role === 'owner' ? '' : ' · 공동호스트'}</option>`).join('')}
+                        ${_hostState.isAdmin && !_hostState.teams.length ? '<option value="" selected>전체 공연 (관리자)</option>' : ''}
+                    </select>
+                    <button onclick="renderTeamForm(null)" title="새 팀 만들기" style="flex:none;padding:0 14px;border-radius:8px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 팀</button>
+                </div>`;
             let html = `
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${teamChips}</div>
+                ${teamSelect}
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
                     <div style="display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:800;color:var(--wds-black)">${_teamLogoHTML(team && team.logo_url, 30)} ${escapeHtml(team ? team.name : '전체 공연')}${_hostState.isAdmin ? ' <span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자</span>' : ''}</div>
-                    <span style="margin-left:auto;display:flex;gap:6px">
-                        ${team ? _hbtn('👥 팀 관리', `renderTeamManage('${jsStr(team.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : ''}
+                    <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+                        ${_hbtn('초대 코드 입력', 'renderInviteCodeEntry()', 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        ${team ? _hbtn('팀 관리', `renderTeamManage('${jsStr(team.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : ''}
                         <button onclick="renderHostEventForm()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
                     </span>
                 </div>`;
@@ -14442,26 +14471,41 @@
             _renderAttendeeList();
         }
 
-        // 공연 공동 관리팀 초대 — 초대 링크를 카카오톡으로 (팀 소유자가 열어 팀 선택 후 수락)
+        // 공연 공동 관리팀 초대 — 6자리 초대 코드 생성 (받는 팀 소유자가 코드 입력 또는 링크로 수락)
         async function hostEventInvite(eventId) {
             const out = await eventApi({ action: 'create_event_invite', kakao_token: _hostState.token, event_id: eventId });
             if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
             const url = location.origin + location.pathname + '?eventjoin=' + out.token;
-            const box = document.getElementById('coInviteBox');
-            const shareApi = (typeof Kakao !== 'undefined') ? ((Kakao.Share && Kakao.Share.sendDefault) ? Kakao.Share : (Kakao.Link && Kakao.Link.sendDefault ? Kakao.Link : null)) : null;
-            if (shareApi) {
-                try {
-                    shareApi.sendDefault({
-                        objectType: 'text',
-                        text: `🤝 '${out.event.title}' 공연의 공동 관리팀으로 초대합니다!\n초대받은 팀의 소유자가 링크를 열고 팀을 선택하면, 그 팀 전체가 공연을 함께 관리할 수 있어요. (7일간 유효)`,
-                        link: { webUrl: url, mobileWebUrl: url },
-                    });
-                    if (box) box.innerHTML = `<button onclick="navigator.clipboard.writeText('${jsStr(url)}').then(()=>showToast('복사되었습니다.'))" style="width:100%;margin-bottom:10px;padding:9px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-family:inherit">🔗 팀 초대 링크 복사 (직접 전달용)</button>`;
-                    return;
-                } catch (_) { /* 공유 실패 → 복사 폴백 */ }
+            _renderInviteBox('coInviteBox', out.token, url,
+                `'${out.event.title}' 공연의 공동 관리팀으로 초대합니다!\n초대받은 팀의 소유자가 호스트 센터 → [초대 코드 입력]에 ${out.token} 를 넣고 팀을 선택하면 함께 관리할 수 있어요. (7일간 유효)`);
+        }
+
+        // 초대 코드 직접 입력 — 팀원 초대/공연 관리팀 초대 모두 이 입구로 수락
+        function renderInviteCodeEntry() {
+            const c = document.getElementById('host-container');
+            c.innerHTML = `
+                <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
+                <div class="perf-section-title">초대 코드 입력</div>
+                <p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">받은 <strong>6자리 초대 코드</strong>를 입력하세요.<br>팀 합류 초대와 공연 공동 관리 초대 모두 여기서 수락할 수 있습니다.</p>
+                <input type="text" class="perf-form-input" id="inviteCodeInput" maxlength="6" placeholder="예: AB3XKP" style="text-transform:uppercase;letter-spacing:0.3em;text-align:center;font-size:1.1rem;font-weight:700">
+                <div id="inviteCodeResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:6px 0 2px;color:#e74c3c"></div>
+                <button onclick="submitInviteCode()" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">확인</button>`;
+        }
+
+        async function submitInviteCode() {
+            const res = document.getElementById('inviteCodeResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const code = (document.getElementById('inviteCodeInput')?.value || '').trim().toUpperCase();
+            if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) { showErr('6자리 초대 코드를 확인해주세요.'); return; }
+            const out = await eventApi({ action: 'lookup_invite', kakao_token: _hostState.token, token: code });
+            if (!out.ok) { showErr(out.message || '초대를 확인하지 못했습니다.'); return; }
+            if (out.type === 'team') {
+                if (!confirm(`'${out.team.name}' 팀의 공동호스트로 합류할까요?`)) return;
+                hostAcceptJoin(code);
+                return;
             }
-            try { await navigator.clipboard.writeText(url); showToast('팀 초대 링크가 복사되었습니다. 카카오톡에 붙여넣어 보내주세요.'); }
-            catch (_) { if (box) box.innerHTML = `<input class="perf-form-input" value="${escapeHtml(url)}" readonly onclick="this.select()" style="font-size:0.78rem;margin-bottom:10px">`; }
+            renderEventJoin(code); // 공연 관리팀 초대 → 참여할 팀 선택 화면
         }
 
         async function hostRemoveCoTeam(eventId, hostId, name) {
