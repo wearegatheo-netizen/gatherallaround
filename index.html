@@ -13433,10 +13433,20 @@
                 }
             }
             _showsState.event = ev;
+            // 팀 프로필(공개 뷰) — 부가 정보라 실패해도 상세는 뜬다
+            let hostProf = null;
+            try {
+                const { data: hp } = await supabaseClient.from('event_host_profiles').select('*').eq('id', ev.host_id).maybeSingle();
+                hostProf = hp || null;
+            } catch (_) {}
             const seat = _seatInfo(ev);
             const priceStr = ev.price > 0 ? `₩${Number(ev.price).toLocaleString()}` : '무료';
             const maxQty = Math.max(1, Math.min(ev.max_per_booking || 4, seat.remaining == null ? (ev.max_per_booking || 4) : seat.remaining));
-            const descHtml = ev.description ? escapeHtml(ev.description).replace(/\n/g, '<br>') : '';
+            const descHtml = ev.description ? renderMarkdown(ev.description) : '';
+            const hasCoords = ev.venue_lat != null && ev.venue_lng != null;
+            const mapLink = hasCoords
+                ? `https://map.kakao.com/link/map/${encodeURIComponent(ev.venue)},${ev.venue_lat},${ev.venue_lng}` : '';
+            const snsUrl = hostProf && hostProf.sns ? (/^https?:\/\//i.test(hostProf.sns) ? hostProf.sns : 'https://' + hostProf.sns) : '';
             let html = `
                 <button onclick="showShowsSection()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 공연 목록</button>
                 ${ev.poster_url ? `<img class="show-poster-lg" src="${escapeHtml(ev.poster_url)}" alt="공연 포스터">` : ''}
@@ -13444,12 +13454,22 @@
                     ${_showChip(seat.label, seat.bg, seat.fg)}${_showChip(priceStr, 'var(--wds-gray-100)', 'var(--wds-gray-700)')}
                 </div>
                 <h2 style="font-size:1.25rem;font-weight:800;color:var(--wds-black);margin:0 0 6px">${escapeHtml(ev.title)}</h2>
-                <div style="font-size:0.86rem;color:var(--wds-gray-700);line-height:1.8;margin-bottom:14px">
+                <div style="font-size:0.86rem;color:var(--wds-gray-700);line-height:1.8;margin-bottom:10px">
                     🎤 ${escapeHtml(ev.host_name || '')}<br>
                     📅 ${_showDateStr(ev.starts_at)}<br>
-                    📍 ${escapeHtml(ev.venue)}
+                    📍 ${escapeHtml(ev.venue)}${ev.venue_address ? ` <span style="color:var(--wds-gray-500);font-size:0.78rem">(${escapeHtml(ev.venue_address)})</span>` : ''}
                 </div>
-                ${descHtml ? `<div style="font-size:0.86rem;color:var(--wds-gray-900);line-height:1.7;background:var(--wds-gray-100);border-radius:12px;padding:14px 16px;margin-bottom:18px">${descHtml}</div>` : ''}`;
+                ${hostProf && (hostProf.bio || snsUrl) ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6;background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+                    ${hostProf.bio ? escapeHtml(hostProf.bio).replace(/\n/g, '<br>') : ''}
+                    ${snsUrl ? `${hostProf.bio ? '<br>' : ''}<a href="${escapeHtml(snsUrl)}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">🔗 ${escapeHtml(String(hostProf.sns).replace(/^https?:\/\//i, ''))}</a>` : ''}
+                </div>` : ''}
+                ${hasCoords ? `<div style="margin-bottom:14px">
+                    <div id="showMap" style="height:180px;border-radius:12px;background:var(--wds-gray-100)"></div>
+                    <div style="font-size:0.78rem;margin-top:6px;display:flex;justify-content:flex-end">
+                        <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:600">카카오맵에서 보기 →</a>
+                    </div>
+                </div>` : ''}
+                ${descHtml ? `<div class="docs-card-content" style="font-size:0.86rem;color:var(--wds-gray-900);line-height:1.7;background:var(--wds-gray-100);border-radius:12px;padding:14px 16px;margin-bottom:18px">${descHtml}</div>` : ''}`;
             if (seat.bookable) {
                 const qtyOpts = Array.from({ length: maxQty }, (_, i) => `<option value="${i + 1}">${i + 1}매</option>`).join('');
                 html += `
@@ -13483,6 +13503,21 @@
                 html += `<div style="text-align:center;padding:18px;background:var(--wds-gray-100);border-radius:12px;color:var(--wds-gray-500);font-size:0.9rem;font-weight:600">${seat.label}인 공연입니다.</div>`;
             }
             c.innerHTML = html;
+            if (hasCoords) _renderShowMap(ev);
+        }
+
+        // 상세 페이지 지도 — SDK 로드 실패 시 지도 영역만 숨김(카카오맵 링크는 항상 동작)
+        async function _renderShowMap(ev) {
+            if (!document.getElementById('showMap')) return;
+            const kk = await loadKakaoMaps();
+            const el = document.getElementById('showMap'); // 로드 대기 중 화면 전환 대비 재조회
+            if (!el) return;
+            if (!kk || !kk.maps || !kk.maps.Map) { el.style.display = 'none'; return; }
+            try {
+                const pos = new kk.maps.LatLng(ev.venue_lat, ev.venue_lng);
+                const map = new kk.maps.Map(el, { center: pos, level: 4, draggable: false, scrollwheel: false, disableDoubleClickZoom: true });
+                new kk.maps.Marker({ map, position: pos });
+            } catch (_) { el.style.display = 'none'; }
         }
 
         async function submitShowBooking(eventId) {
@@ -13674,7 +13709,21 @@
             if (!out.ok) { _hostState.token = null; renderHostLogin(out.error === 'auth' ? '' : (out.message || '')); return; }
             _hostState.host = out.host;
             _hostState.isAdmin = !!out.is_admin;
-            if (!out.host && !out.is_admin) { renderHostRegister(); return; }
+            if (!out.host && !out.is_admin) {
+                renderHostRegister();
+                // 최초 등록: 카카오 닉네임을 팀 이름 초안으로 프리필 (비동기 — 실패해도 무시)
+                if (!_hostState.kakaoNick && typeof Kakao !== 'undefined' && Kakao.API && Kakao.API.request) {
+                    try {
+                        Kakao.API.request({ url: '/v2/user/me', success: (res) => {
+                            _hostState.kakaoNick = (res.kakao_account && res.kakao_account.profile && res.kakao_account.profile.nickname)
+                                || (res.properties && res.properties.nickname) || '';
+                            const el = document.getElementById('hostName');
+                            if (el && !el.value && _hostState.kakaoNick) el.value = _hostState.kakaoNick;
+                        }, fail: () => {} });
+                    } catch (_) {}
+                }
+                return;
+            }
             renderHostDashboard();
         }
 
@@ -13707,19 +13756,19 @@
             const c = document.getElementById('host-container');
             const h = _hostState.host || {};
             c.innerHTML = `
-                <div class="perf-section-title">${h.id ? '내 정보 수정' : '호스트 등록'}</div>
-                <p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">공연 페이지에 표시될 호스트(팀) 정보를 입력해주세요.</p>
+                <div class="perf-section-title">${h.id ? '팀 정보 수정' : '호스트(팀) 등록'}</div>
+                <p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">예매 페이지에 표시될 <strong>공연 주최팀</strong> 정보를 입력해주세요. 입금 계좌는 공연 등록 시 입력합니다.</p>
                 <div class="perf-form-group">
-                    <label class="perf-form-label">호스트/팀 이름 *</label>
-                    <input type="text" class="perf-form-input" id="hostName" maxlength="40" placeholder="예: 밴드 스컬" value="${escapeHtml(h.name || '')}">
+                    <label class="perf-form-label">팀 이름 *</label>
+                    <input type="text" class="perf-form-input" id="hostName" maxlength="40" placeholder="예: 밴드 스컬" value="${escapeHtml(h.name || _hostState.kakaoNick || '')}">
                 </div>
                 <div class="perf-form-group">
-                    <label class="perf-form-label">연락처 (선택)</label>
-                    <input type="tel" class="perf-form-input" id="hostPhone" placeholder="010-0000-0000" value="${escapeHtml(h.contact_phone || '')}">
+                    <label class="perf-form-label">팀 소개 (선택)</label>
+                    <textarea class="perf-form-input" id="hostBio" maxlength="500" style="height:84px;padding:10px 12px;resize:vertical" placeholder="예: 신촌에서 활동하는 5인조 밴드입니다.">${escapeHtml(h.bio || '')}</textarea>
                 </div>
                 <div class="perf-form-group">
-                    <label class="perf-form-label">기본 입금 계좌 (선택 — 유료 공연용)</label>
-                    <input type="text" class="perf-form-input" id="hostBank" maxlength="120" placeholder="예: 토스뱅크 0000-0000-0000 홍길동" value="${escapeHtml(h.bank_info || '')}">
+                    <label class="perf-form-label">SNS / 링크 (선택)</label>
+                    <input type="text" class="perf-form-input" id="hostSns" maxlength="200" placeholder="예: instagram.com/ourband" value="${escapeHtml(h.sns || '')}">
                 </div>
                 <div id="hostRegResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <div style="display:flex;gap:8px">
@@ -13733,14 +13782,13 @@
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
             const name = document.getElementById('hostName')?.value.trim();
-            const phone = document.getElementById('hostPhone')?.value.trim();
-            const bank = document.getElementById('hostBank')?.value.trim();
-            if (!name) { showErr('호스트/팀 이름을 입력해주세요.'); return; }
-            if (phone && !/^01[016789][0-9]{7,8}$/.test(phone.replace(/\D/g, ''))) { showErr('연락처 형식을 확인해주세요.'); return; }
-            const out = await eventApi({ action: 'register_host', kakao_token: _hostState.token, name, contact_phone: phone, bank_info: bank });
+            const bio = document.getElementById('hostBio')?.value.trim();
+            const sns = document.getElementById('hostSns')?.value.trim();
+            if (!name) { showErr('팀 이름을 입력해주세요.'); return; }
+            const out = await eventApi({ action: 'register_host', kakao_token: _hostState.token, name, bio, sns });
             if (!out.ok) { showErr(out.message || '등록에 실패했습니다.'); return; }
             _hostState.host = out.host;
-            showToast('호스트 정보가 저장되었습니다.');
+            showToast('팀 정보가 저장되었습니다.');
             renderHostDashboard();
         }
 
@@ -13826,11 +13874,97 @@
             return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
         }
 
+        // ── 카카오 지도 SDK 지연 로더 — 필요 화면(장소 검색·상세 지도)에서만 로드.
+        // 실패 시 null 반환 + 캐시 리셋(다음 시도 허용). 로그인 SDK(window.Kakao)와 별개 네임스페이스(window.kakao).
+        let _kakaoMapsPromise = null;
+        function loadKakaoMaps() {
+            if (window.kakao && window.kakao.maps && window.kakao.maps.services) return Promise.resolve(window.kakao);
+            if (_kakaoMapsPromise) return _kakaoMapsPromise;
+            _kakaoMapsPromise = new Promise((resolve) => {
+                const done = (v) => { if (!v) _kakaoMapsPromise = null; resolve(v); };
+                const to = setTimeout(() => done(null), 8000);
+                const s = document.createElement('script');
+                s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + KAKAO_KEY + '&libraries=services&autoload=false';
+                s.onload = () => { try { window.kakao.maps.load(() => { clearTimeout(to); done(window.kakao); }); } catch (_) { clearTimeout(to); done(null); } };
+                s.onerror = () => { clearTimeout(to); done(null); };
+                document.head.appendChild(s);
+            });
+            return _kakaoMapsPromise;
+        }
+
+        // 가격 입력 콤마 표기 (숫자만 추출 → 1,000 단위 콤마)
+        function _fmtCommaInput(el) {
+            const d = el.value.replace(/[^\d]/g, '').slice(0, 7);
+            el.value = d ? Number(d).toLocaleString() : '';
+        }
+
+        // 입금 계좌: 폼은 은행/계좌번호/예금주 분리, 저장은 기존 형식("은행 계좌번호 예금주") 유지
+        const _BANKS = ['카카오뱅크', '토스뱅크', '국민은행', '신한은행', '우리은행', '하나은행', '농협은행', '기업은행', 'SC제일은행', '케이뱅크', '새마을금고', '우체국'];
+        function _parseBankInfo(str) {
+            const parts = String(str || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return { bank: '', custom: '', acct: '', holder: '' };
+            const known = _BANKS.includes(parts[0]);
+            if (parts.length === 1) return known ? { bank: parts[0], custom: '', acct: '', holder: '' } : { bank: '기타', custom: '', acct: parts[0], holder: '' };
+            const holder = parts.length >= 3 ? parts[parts.length - 1] : '';
+            const acct = parts.slice(1, parts.length >= 3 ? -1 : undefined).join(' ');
+            return known ? { bank: parts[0], custom: '', acct, holder } : { bank: '기타', custom: parts[0], acct, holder };
+        }
+
+        // 장소 검색 (카카오 Places) — 선택 시 좌표 저장, 직접 입력하면 좌표 없이 텍스트만
+        async function hostVenueSearch() {
+            const q = document.getElementById('evVenue')?.value.trim();
+            const box = document.getElementById('evVenueResults');
+            if (!box) return;
+            if (!q) { box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">장소 이름을 입력한 뒤 검색을 눌러주세요.</div>'; return; }
+            box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">검색 중…</div>';
+            const kk = await loadKakaoMaps();
+            if (!kk || !kk.maps.services) {
+                box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">장소 검색을 사용할 수 없습니다. 장소명을 직접 입력하셔도 됩니다.</div>';
+                return;
+            }
+            new kk.maps.services.Places().keywordSearch(q, (data, status) => {
+                if (status !== kk.maps.services.Status.OK || !data.length) {
+                    box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">검색 결과가 없습니다. 장소명을 직접 입력하셔도 됩니다.</div>';
+                    return;
+                }
+                window.__venueResults = data.slice(0, 5);
+                box.innerHTML = window.__venueResults.map((p, i) =>
+                    `<div onclick="hostVenuePick(${i})" style="padding:9px 12px;border:1px solid var(--wds-gray-300);border-radius:8px;margin-top:6px;cursor:pointer;background:var(--wds-white)">
+                        <div style="font-size:0.85rem;font-weight:600;color:var(--wds-black)">${escapeHtml(p.place_name)}</div>
+                        <div style="font-size:0.74rem;color:var(--wds-gray-500)">${escapeHtml(p.road_address_name || p.address_name || '')}</div>
+                    </div>`).join('');
+            });
+        }
+        function hostVenuePick(i) {
+            const p = (window.__venueResults || [])[i];
+            if (!p) return;
+            _hostState.venuePick = { name: p.place_name, address: p.road_address_name || p.address_name || '', lat: parseFloat(p.y), lng: parseFloat(p.x) };
+            const inp = document.getElementById('evVenue');
+            if (inp) inp.value = p.place_name;
+            const box = document.getElementById('evVenueResults');
+            if (box) box.innerHTML = '';
+            const addr = document.getElementById('evVenueAddr');
+            if (addr) addr.textContent = '📍 ' + _hostState.venuePick.address + ' (예매 페이지에 지도로 표시됩니다)';
+        }
+        function _hostVenueTyped(el) {
+            if (_hostState.venuePick && el.value.trim() !== _hostState.venuePick.name) {
+                _hostState.venuePick = null; // 직접 수정하면 검색 좌표 무효화
+                const addr = document.getElementById('evVenueAddr');
+                if (addr) addr.textContent = '';
+            }
+        }
+
         function renderHostEventForm(ev) {
             const c = document.getElementById('host-container');
             const h = _hostState.host || {};
             _hostState.posterUrl = (ev && ev.poster_url) || '';
+            _hostState.venuePick = (ev && ev.venue_lat != null && ev.venue_lng != null)
+                ? { name: ev.venue, address: ev.venue_address || '', lat: ev.venue_lat, lng: ev.venue_lng } : null;
             const isPaid = ev ? ev.price > 0 : false;
+            const bank = _parseBankInfo(ev?.bank_info || h.bank_info || '');
+            const bankOpts = `<option value="">은행 선택</option>`
+                + _BANKS.map(b => `<option value="${b}"${bank.bank === b ? ' selected' : ''}>${b}</option>`).join('')
+                + `<option value="기타"${bank.bank === '기타' ? ' selected' : ''}>기타 (직접 입력)</option>`;
             c.innerHTML = `
                 <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
                 <div class="perf-section-title">${ev ? '공연 수정' : '새 공연 등록'}</div>
@@ -13844,7 +13978,12 @@
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">장소 *</label>
-                    <input type="text" class="perf-form-input" id="evVenue" maxlength="120" value="${escapeHtml(ev?.venue || '게더 올 어라운드 (신촌)')}">
+                    <div style="display:flex;gap:8px">
+                        <input type="text" class="perf-form-input" id="evVenue" maxlength="120" placeholder="장소 이름 (검색 가능)" style="flex:1" value="${escapeHtml(ev?.venue || '게더 올 어라운드')}" oninput="_hostVenueTyped(this)">
+                        <button type="button" onclick="hostVenueSearch()" style="flex:none;padding:0 16px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit">🔍 검색</button>
+                    </div>
+                    <div id="evVenueResults"></div>
+                    <div id="evVenueAddr" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.venuePick && _hostState.venuePick.address ? '📍 ' + escapeHtml(_hostState.venuePick.address) + ' (예매 페이지에 지도로 표시됩니다)' : ''}</div>
                 </div>
                 <div style="display:flex;gap:10px">
                     <div class="perf-form-group" style="flex:1">
@@ -13863,14 +14002,19 @@
                         <label style="display:flex;align-items:center;gap:5px;font-size:0.86rem;cursor:pointer"><input type="radio" name="evPriceType" value="paid"${isPaid ? ' checked' : ''} onchange="document.getElementById('evPaidRow').style.display='block'"> 유료</label>
                     </div>
                     <div id="evPaidRow" style="display:${isPaid ? 'block' : 'none'};margin-top:10px">
-                        <input type="number" class="perf-form-input" id="evPrice" min="1000" max="1000000" step="500" placeholder="1매 가격 (원)" value="${isPaid ? ev.price : ''}" style="margin-bottom:8px">
-                        <input type="text" class="perf-form-input" id="evBank" maxlength="120" placeholder="입금 계좌 (예: 토스뱅크 0000-0000-0000 홍길동)" value="${escapeHtml(ev?.bank_info || h.bank_info || '')}">
+                        <input type="text" inputmode="numeric" class="perf-form-input" id="evPrice" placeholder="1매 가격 (원)" value="${isPaid ? Number(ev.price).toLocaleString() : ''}" oninput="_fmtCommaInput(this)" style="margin-bottom:8px">
+                        <div style="display:flex;gap:8px;margin-bottom:8px">
+                            <select class="perf-form-input" id="evBankSel" style="flex:1.2" onchange="document.getElementById('evBankCustom').style.display=this.value==='기타'?'block':'none'">${bankOpts}</select>
+                            <input type="text" class="perf-form-input" id="evBankHolder" maxlength="20" placeholder="예금주" style="flex:1" value="${escapeHtml(bank.holder)}">
+                        </div>
+                        <input type="text" class="perf-form-input" id="evBankCustom" maxlength="20" placeholder="은행/기관명 직접 입력" style="display:${bank.bank === '기타' ? 'block' : 'none'};margin-bottom:8px" value="${escapeHtml(bank.custom)}">
+                        <input type="text" inputmode="numeric" class="perf-form-input" id="evBankAcct" maxlength="30" placeholder="계좌번호" oninput="this.value=this.value.replace(/[^\d-]/g,'')" value="${escapeHtml(bank.acct)}">
                         <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">관객이 이 계좌로 입금하면 예매자 관리에서 [입금 확인]을 눌러 확정합니다.</div>
                     </div>
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">공연 소개 (선택)</label>
-                    <textarea class="perf-form-input" id="evDesc" style="height:110px;padding:10px 12px;resize:vertical" placeholder="라인업, 시간표, 관람 안내 등">${escapeHtml(ev?.description || '')}</textarea>
+                    ${docEditorHTML('evDescRte', renderMarkdown(ev?.description || ''), '라인업, 시간표, 관람 안내 등 — 서식(제목·굵게·목록)을 자유롭게 사용하세요')}
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">포스터 이미지 (선택)</label>
@@ -13913,9 +14057,18 @@
             const capacity = parseInt(document.getElementById('evCapacity')?.value, 10);
             const maxPer = parseInt(document.getElementById('evMaxPer')?.value, 10) || 4;
             const paid = document.querySelector('input[name="evPriceType"]:checked')?.value === 'paid';
-            const price = paid ? (parseInt(document.getElementById('evPrice')?.value, 10) || 0) : 0;
-            const bank = paid ? (document.getElementById('evBank')?.value.trim() || '') : '';
-            const desc = document.getElementById('evDesc')?.value || '';
+            const price = paid ? (parseInt((document.getElementById('evPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0) : 0;
+            let bank = '';
+            if (paid) {
+                const sel = document.getElementById('evBankSel')?.value || '';
+                const bankName = sel === '기타' ? (document.getElementById('evBankCustom')?.value.trim() || '') : sel;
+                const acct = document.getElementById('evBankAcct')?.value.trim() || '';
+                const holder = document.getElementById('evBankHolder')?.value.trim() || '';
+                if (!bankName || !acct || !holder) { showErr('입금 계좌의 은행·계좌번호·예금주를 모두 입력해주세요.'); return; }
+                bank = `${bankName} ${acct} ${holder}`;
+            }
+            const desc = rteValue('evDescRte');
+            if (desc.length > 12000) { showErr('공연 소개가 너무 깁니다. 내용을 조금 줄여주세요.'); return; }
             if (!title) { showErr('공연명을 입력해주세요.'); return; }
             if (!startsLocal) { showErr('공연 일시를 선택해주세요.'); return; }
             const startsAt = new Date(startsLocal);
@@ -13924,9 +14077,13 @@
             if (!venue) { showErr('장소를 입력해주세요.'); return; }
             if (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000) { showErr('정원은 1~1000명 사이여야 합니다.'); return; }
             if (paid && price < 1000) { showErr('유료 공연 가격은 1,000원 이상이어야 합니다.'); return; }
-            if (paid && !bank) { showErr('유료 공연은 입금 계좌가 필요합니다.'); return; }
+            // 검색으로 고른 장소(이름이 그대로면)만 좌표 저장 — 직접 입력·수정 시 좌표 제거
+            const pick = (_hostState.venuePick && _hostState.venuePick.name === venue) ? _hostState.venuePick : null;
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
-                max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '' };
+                max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
+                venue_address: pick ? pick.address : null,
+                venue_lat: pick ? pick.lat : null,
+                venue_lng: pick ? pick.lng : null };
             const btn = document.getElementById('evSaveBtn');
             _hostState.busy = true;
             if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }

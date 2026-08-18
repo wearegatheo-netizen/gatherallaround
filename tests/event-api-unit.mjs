@@ -185,11 +185,14 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST.id, host_name: '밴
   mockFetch([KAPI_OK, ['event_hosts?kakao_id=eq.777', { body: [] }]]);
   const j = await (await run({ action: 'host_me', kakao_token: 't' })).json();
   chk('host_me: 미등록 → host null', j.ok === true && j.host === null && j.is_admin === false);
-  mockFetch([KAPI_OK, ['event_hosts?on_conflict=kakao_id', { method: 'POST', body: [HOST] }]]);
-  const j2 = await (await run({ action: 'register_host', kakao_token: 't', name: ' 밴드X ', contact_phone: '010-1111-2222', bank_info: '토스 111' })).json();
+  mockFetch([KAPI_OK, ['event_hosts?on_conflict=kakao_id', { method: 'POST', body: [HOST] }],
+    [`events?host_id=eq.${HOST.id}`, { method: 'PATCH', body: [] }]]);
+  const j2 = await (await run({ action: 'register_host', kakao_token: 't', name: ' 밴드X ', bio: ' 신촌 5인조 밴드 ', sns: 'instagram.com/bandx' })).json();
   const post = calls.find(c => c.url.includes('on_conflict'));
-  chk('register_host: upsert(merge-duplicates) + 정규화', j2.ok === true && post.headers.Prefer.includes('merge-duplicates')
-    && JSON.parse(post.body).name === '밴드X' && JSON.parse(post.body).contact_phone === '01011112222');
+  const nameSync = calls.find(c => c.url.includes('events?host_id=eq.') && c.method === 'PATCH');
+  chk('register_host: upsert(팀 소개·SNS) + 정규화', j2.ok === true && post.headers.Prefer.includes('merge-duplicates')
+    && JSON.parse(post.body).name === '밴드X' && JSON.parse(post.body).bio === '신촌 5인조 밴드' && JSON.parse(post.body).sns === 'instagram.com/bandx');
+  chk('register_host: events.host_name 동기화 PATCH', !!nameSync && JSON.parse(nameSync.body).host_name === '밴드X');
   mockFetch([KAPI_OK]);
   const r3 = await run({ action: 'register_host', kakao_token: 't', name: '' });
   chk('register_host: 이름 없음 → 400', r3.status === 400);
@@ -216,10 +219,16 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST.id, host_name: '밴
   mockFetch([KAPI_OK, ['event_hosts?kakao_id=eq.777', { body: [HOST] }],
     ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
   const poster = 'https://sb.test/storage/v1/object/public/community-images/events/1.jpg';
-  const j5 = await (await run({ action: 'create_event', kakao_token: 't', event: { ...base, description: '소개', poster_url: poster } })).json();
+  const j5 = await (await run({ action: 'create_event', kakao_token: 't', event: { ...base, description: '소개', poster_url: poster,
+    venue_address: '서울 마포구 와우산로 12', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
   const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
   chk('create_event: 성공 + host_id/host_name/계좌 폴백', j5.ok === true && ins.host_id === HOST.id && ins.host_name === '밴드X'
     && ins.bank_info === '토스 111' && ins.poster_url === poster);
+  chk('create_event: 장소 좌표·주소 저장', ins.venue_address === '서울 마포구 와우산로 12' && ins.venue_lat === 37.5511 && ins.venue_lng === 126.9203);
+
+  mockFetch([KAPI_OK, ['event_hosts?kakao_id=eq.777', { body: [HOST] }]]);
+  const rBad = await run({ action: 'create_event', kakao_token: 't', event: { ...base, venue_lat: 999, venue_lng: 126.9 } });
+  chk('create_event: 좌표 범위 밖 → 400', rBad.status === 400);
 }
 // ── 15. update_event 소유권·정원 축소
 {

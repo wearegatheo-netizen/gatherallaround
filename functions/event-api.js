@@ -148,8 +148,17 @@ function validateEventFields(e, { partial = false } = {}) {
         if (v < 1 || v > 10) return bad('1인 최대 매수는 1~10 사이여야 합니다.');
         out.max_per_booking = v;
     }
-    if (has('description')) out.description = String(e.description || '').slice(0, 4000);
+    if (has('description')) out.description = String(e.description || '').slice(0, 12000);
     if (has('bank_info')) out.bank_info = String(e.bank_info || '').trim().slice(0, 120) || null;
+    if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
+    if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
+        const lat = (e.venue_lat === null || e.venue_lat === undefined || e.venue_lat === '') ? null : Number(e.venue_lat);
+        const lng = (e.venue_lng === null || e.venue_lng === undefined || e.venue_lng === '') ? null : Number(e.venue_lng);
+        if (lat === null && lng === null) { out.venue_lat = null; out.venue_lng = null; }
+        else if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            return bad('장소 좌표가 올바르지 않습니다.');
+        } else { out.venue_lat = lat; out.venue_lng = lng; }
+    }
     return { fields: out };
 }
 
@@ -286,20 +295,22 @@ export async function onRequest(context) {
             if (action === 'register_host') {
                 const name = String(body.name || '').trim();
                 if (!name || name.length > 40) return fail(400, 'bad_name', '호스트(팀) 이름을 확인해주세요. (40자 이내)');
-                let contact = null;
-                if (body.contact_phone && String(body.contact_phone).trim()) {
-                    contact = normPhone(body.contact_phone);
-                    if (!contact) return fail(400, 'bad_phone', '연락처 형식을 확인해주세요.');
-                }
-                const bank = String(body.bank_info || '').trim().slice(0, 120) || null;
+                const bio = String(body.bio || '').trim().slice(0, 500) || null;
+                const sns = String(body.sns || '').trim().slice(0, 200) || null;
                 const r = await sbFetch(env, 'event_hosts?on_conflict=kakao_id', {
                     method: 'POST',
                     headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-                    body: JSON.stringify({ kakao_id: kakaoId, name, contact_phone: contact, bank_info: bank }),
+                    body: JSON.stringify({ kakao_id: kakaoId, name, bio, sns }),
                 });
                 if (!r.ok) return json({ ok: false, error: 'db', message: '호스트 등록에 실패했습니다.',
                     detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
                 const [host] = await r.json();
+                // 팀 이름이 바뀌면 기존 공연 카드의 표시명(events.host_name)도 함께 갱신
+                if (host && host.id) {
+                    await sbFetch(env, `events?host_id=eq.${host.id}`, {
+                        method: 'PATCH', body: JSON.stringify({ host_name: host.name }),
+                    }).catch(() => {});
+                }
                 return json({ ok: true, host, is_admin: isAdmin });
             }
 
@@ -311,7 +322,7 @@ export async function onRequest(context) {
                 if (v.error) return fail(400, 'bad_event', v.error);
                 if (!posterOk(e.poster_url)) return fail(400, 'bad_poster', '포스터 이미지가 올바르지 않습니다.');
                 const fields = v.fields;
-                if (e.description !== undefined) fields.description = String(e.description || '').slice(0, 4000);
+                if (e.description !== undefined) fields.description = String(e.description || '').slice(0, 12000);
                 if (fields.price > 0) {
                     fields.bank_info = String(e.bank_info || '').trim().slice(0, 120) || host.bank_info || null;
                     if (!fields.bank_info) return fail(400, 'need_bank', '유료 공연은 입금 계좌가 필요합니다.');

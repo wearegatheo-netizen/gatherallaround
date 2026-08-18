@@ -35,7 +35,20 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
         login: ({ success }) => { window.__kakaoToken = 'tok-123'; success(); },
         logout: () => {},
       },
+      API: { request: ({ success }) => success({ id: 777, kakao_account: { profile: { nickname: '카카오닉' } } }) },
     };
+    // 카카오 지도 SDK 스텁 (장소 검색용)
+    window.kakao = { maps: {
+      load: (cb) => cb(),
+      services: {
+        Status: { OK: 'OK' },
+        Places: function () { this.keywordSearch = (q, cb) => cb([
+          { place_name: '홍대 클럽 FF', road_address_name: '서울 마포구 와우산로 12', address_name: '', y: '37.5511', x: '126.9203' },
+          { place_name: '게더 올 어라운드', road_address_name: '서울 서대문구 신촌로 1', address_name: '', y: '37.5559', x: '126.9368' },
+        ], 'OK'); },
+      },
+      Map: function () {}, LatLng: function () {}, Marker: function () {},
+    } };
     // /event-api 목
     window.__apiCalls = []; window.__apiQueue = [];
     const realFetch = window.fetch.bind(window);
@@ -68,13 +81,19 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   s = await p.evaluate(() => ({
     me: window.__apiCalls[0],
     regForm: !!document.getElementById('hostName'),
+    teamFields: !!document.getElementById('hostBio') && !!document.getElementById('hostSns'),
+    noLegacy: !document.getElementById('hostPhone') && !document.getElementById('hostBank'),
+    nickPrefill: document.getElementById('hostName')?.value,
   }));
   chk('로그인 → host_me 검증 호출 → 등록 폼', s.me && s.me.action === 'host_me' && s.me.kakao_token === 'tok-123' && s.regForm);
+  chk('등록 폼: 팀 중심(소개·SNS) + 연락처·계좌 필드 없음', s.teamFields && s.noLegacy);
+  chk('팀 이름에 카카오 닉네임 자동 적용', s.nickPrefill === '카카오닉', s.nickPrefill);
 
   await p.fill('#hostName', '밴드 스컬');
-  await p.fill('#hostBank', '토스뱅크 1002-1111-2222 김호스트');
+  await p.fill('#hostBio', '신촌 5인조 밴드');
+  await p.fill('#hostSns', 'instagram.com/bandskull');
   await p.evaluate(() => {
-    window.__apiQueue.push({ ok: true, host: { id: 'h1', kakao_id: '777', name: '밴드 스컬', bank_info: '토스뱅크 1002-1111-2222 김호스트' } }); // register_host
+    window.__apiQueue.push({ ok: true, host: { id: 'h1', kakao_id: '777', name: '밴드 스컬', bio: '신촌 5인조 밴드', sns: 'instagram.com/bandskull', bank_info: '토스뱅크 1002-1111-2222 김호스트' } }); // register_host
     window.__apiQueue.push({ ok: true, host: { id: 'h1', name: '밴드 스컬', bank_info: '토스뱅크 1002-1111-2222 김호스트' }, is_admin: false, events: [] }); // my_events
   });
   await p.click('button:has-text("등록하고 시작하기")');
@@ -83,9 +102,10 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     reg: window.__apiCalls[1],
     dash: document.getElementById('host-container').textContent,
   }));
-  chk('호스트 등록 → 대시보드(빈 목록)', s.reg.action === 'register_host' && s.reg.name === '밴드 스컬' && s.dash.includes('등록한 공연이 없습니다'));
+  chk('호스트 등록(팀 소개·SNS payload) → 대시보드', s.reg.action === 'register_host' && s.reg.name === '밴드 스컬'
+    && s.reg.bio === '신촌 5인조 밴드' && s.reg.sns === 'instagram.com/bandskull' && s.dash.includes('등록한 공연이 없습니다'));
 
-  // ── 3. 새 공연 등록 폼 → 제출 payload 검증
+  // ── 3. 새 공연 등록 폼 → 장소 검색·콤마 가격·분리 계좌·서식 소개 → payload 검증
   await p.click('button:has-text("+ 새 공연 등록")');
   await p.waitForTimeout(150);
   await p.fill('#evTitle', '한여름 밤의 락');
@@ -93,13 +113,38 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.fill('#evCapacity', '50');
   await p.check('input[name="evPriceType"][value="paid"]');
   await p.fill('#evPrice', '15000');
-  s = await p.evaluate(() => ({ bankPrefill: document.getElementById('evBank').value }));
-  chk('유료 선택: 호스트 기본 계좌 프리필', s.bankPrefill.includes('토스뱅크'), s.bankPrefill);
+  s = await p.evaluate(() => ({
+    priceFmt: document.getElementById('evPrice').value,
+    bankSel: document.getElementById('evBankSel').value,
+    bankAcct: document.getElementById('evBankAcct').value,
+    bankHolder: document.getElementById('evBankHolder').value,
+    rte: !!document.getElementById('evDescRte') && document.getElementById('evDescRte').isContentEditable,
+  }));
+  chk('가격 입력: 콤마 자동 표기', s.priceFmt === '15,000', s.priceFmt);
+  chk('계좌 분리 프리필(호스트 기본값 파싱)', s.bankSel === '토스뱅크' && s.bankAcct === '1002-1111-2222' && s.bankHolder === '김호스트',
+    `${s.bankSel}|${s.bankAcct}|${s.bankHolder}`);
+  chk('공연 소개: 서식 에디터(contenteditable)', s.rte);
+
+  // 장소 검색 → 선택
+  await p.fill('#evVenue', '홍대 클럽');
+  await p.click('button:has-text("🔍 검색")');
+  await p.waitForTimeout(200);
+  s = await p.evaluate(() => document.getElementById('evVenueResults').textContent);
+  chk('장소 검색: 결과 목록 표시', s.includes('홍대 클럽 FF') && s.includes('와우산로'));
+  await p.click('#evVenueResults div >> nth=0');
+  s = await p.evaluate(() => ({
+    v: document.getElementById('evVenue').value,
+    addr: document.getElementById('evVenueAddr').textContent,
+  }));
+  chk('장소 선택: 입력값·주소 반영', s.v === '홍대 클럽 FF' && s.addr.includes('와우산로'));
+
+  // 소개에 서식 입력 후 저장
   await p.evaluate(() => {
+    document.getElementById('evDescRte').innerHTML = '<h2>라인업</h2><p>밴드A · 밴드B</p>';
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111' } });  // create_event
-    window.__apiQueue.push({ ok: true, host: { id: 'h1', name: '밴드 스컬' }, is_admin: false, events: [
-      { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', venue: '게더 올 어라운드 (신촌)',
-        starts_at: new Date('2026-12-24T19:30').toISOString(), capacity: 50, price: 15000, bank_info: '토스', max_per_booking: 4,
+    window.__apiQueue.push({ ok: true, host: { id: 'h1', name: '밴드 스컬', bank_info: '토스뱅크 1002-1111-2222 김호스트' }, is_admin: false, events: [
+      { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', venue: '홍대 클럽 FF',
+        starts_at: new Date('2026-12-24T19:30').toISOString(), capacity: 50, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4,
         status: 'published', stats: { taken: 5, pending: 3, confirmed: 2, checked_in: 0 } },
     ] }); // my_events (재렌더)
   });
@@ -109,9 +154,13 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     const call = window.__apiCalls.find(c => c.action === 'create_event');
     return { call, dash: document.getElementById('host-container').textContent };
   });
-  chk('공연 등록 payload(제목·ISO일시·정원·가격)', s.call && s.call.event.title === '한여름 밤의 락'
-    && s.call.event.starts_at === new Date('2026-12-24T19:30').toISOString() && s.call.event.capacity === 50 && s.call.event.price === 15000,
-    JSON.stringify(s.call && s.call.event).slice(0, 120));
+  const e3 = s.call && s.call.event;
+  chk('공연 등록 payload(제목·ISO일시·정원·콤마 가격 파싱)', e3 && e3.title === '한여름 밤의 락'
+    && e3.starts_at === new Date('2026-12-24T19:30').toISOString() && e3.capacity === 50 && e3.price === 15000,
+    JSON.stringify(e3).slice(0, 120));
+  chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
+  chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
+  chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
   chk('대시보드: 공연 카드 + 집계 표시', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3'));
 
   // ── 4. 예매자 명단: 상태별 버튼 + 입금 확인
