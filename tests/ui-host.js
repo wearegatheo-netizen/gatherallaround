@@ -107,11 +107,12 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     myev: window.__apiCalls.find(c => c.action === 'my_events'),
     dash: document.getElementById('host-container').textContent,
     sel: !!document.querySelector('#host-container select'),
+    tabs: [...document.querySelectorAll('#host-container .community-tab')].map(b => b.textContent.trim()).join(','),
   }));
   chk('팀 생성(create_team payload) → 대시보드', s.reg.action === 'create_team' && s.reg.name === '밴드 스컬'
     && s.reg.bio === '신촌 5인조 밴드' && s.reg.sns === 'instagram.com/bandskull' && s.dash.includes('등록한 공연이 없습니다'));
-  chk('대시보드: my_events 팀 스코프 + 목록형 팀 select + 초대 코드 입력·팀 관리', s.myev.host_id === 'h1'
-    && s.sel && s.dash.includes('밴드 스컬') && s.dash.includes('+ 새 팀') && s.dash.includes('팀 관리') && s.dash.includes('초대 코드 입력'));
+  chk('대시보드: my_events 팀 스코프 + 목록형 select + 공연/팀 관리 탭', s.myev.host_id === 'h1'
+    && s.sel && s.dash.includes('밴드 스컬') && s.dash.includes('+ 새 공연 등록') && s.tabs === '공연 관리,팀 관리', s.tabs);
 
   // ── 3. 새 공연 등록 폼 → 장소 검색·콤마 가격·분리 계좌·서식 소개 → payload 검증
   await p.click('button:has-text("+ 새 공연 등록")');
@@ -273,7 +274,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('로그인 후 보류 체크인 자동 이어감', s.last.action === 'checkin' && s.last.code === 'TT2WXY' && s.ok);
 
-  // ── 7b. 팀 관리: 멤버 목록 + 카카오톡 초대
+  // ── 7b. 팀 관리 탭: 멤버 목록 + 초대 코드 생성
   await p.evaluate(() => {
     window.__kakaoToken = 'tok-123'; _hostState.token = 'tok-123';
     _hostState.teams = [{ id: 'h1', name: '밴드 스컬', bio: '소개', my_role: 'owner' }];
@@ -285,9 +286,14 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     renderTeamManage('h1');
   });
   await p.waitForTimeout(200);
-  s = await p.evaluate(() => document.getElementById('host-container').textContent);
-  chk('팀 관리: 멤버 목록 + 역할 배지 + 내보내기', s.includes('카카오닉') && s.includes('팀 소유자')
-    && s.includes('기타리스트') && s.includes('공동호스트') && s.includes('내보내기'));
+  s = await p.evaluate(() => ({
+    txt: document.getElementById('host-container').textContent,
+    activeTab: document.querySelector('#host-container .community-tab.active')?.textContent.trim(),
+  }));
+  chk('팀 관리 탭: 멤버 목록 + 역할 배지 + 초대 코드 입력 진입', s.activeTab === '팀 관리'
+    && s.txt.includes('카카오닉') && s.txt.includes('팀 소유자') && s.txt.includes('기타리스트')
+    && s.txt.includes('공동호스트') && s.txt.includes('내보내기') && s.txt.includes('초대 코드 입력'), s.activeTab);
+  s = s.txt;
   await p.evaluate(() => { window.__shared = null;
     window.__apiQueue.push({ ok: true, token: 'HJ3KMP', expires_at: new Date(Date.now() + 7 * 86400e3).toISOString() }); });
   await p.click('button:has-text("공동호스트 초대 코드 만들기")');
@@ -302,25 +308,27 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('초대: [카카오톡 공유] → ?hostjoin= 코드 링크(해시 잘림 회피)', s && s.link.webUrl.includes('?hostjoin=HJ3KMP')
     && String(s.text).includes('HJ3KMP'), s && s.link.webUrl);
 
-  // ── 7c. 초대 수락 딥링크 → 새 팀 합류
+  // ── 7c. 초대 수락 딥링크 → 새 팀 합류 → 팀 관리 탭 랜딩
   await p.evaluate(() => {
     window.__apiQueue.push({ ok: true, team: { id: 'h2', name: '어쿠스틱 팀' } });      // accept_invite
     window.__apiQueue.push({ ok: true, teams: [
       { id: 'h1', name: '밴드 스컬', my_role: 'owner' },
       { id: 'h2', name: '어쿠스틱 팀', my_role: 'member' }], is_admin: false });         // host_me
-    window.__apiQueue.push({ ok: true, is_admin: false, events: [] });                   // my_events (h2)
+    window.__apiQueue.push({ ok: true, members: [
+      { kakao_id: '999', name: '팀장', role: 'owner' },
+      { kakao_id: '777', name: '카카오닉', role: 'member' }], my_role: 'member', my_kakao_id: '777' }); // list_members (팀 탭)
     _routeToPage('host/join/CDEFGH');
   });
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({
     acc: window.__apiCalls.filter(c => c.action === 'accept_invite').pop(),
-    myev: window.__apiCalls.filter(c => c.action === 'my_events').pop(),
+    mem: window.__apiCalls.filter(c => c.action === 'list_members').pop(),
     dash: document.getElementById('host-container').textContent,
     selVal: (document.querySelector('#host-container select') || {}).value,
   }));
-  chk('초대 수락: accept_invite → 합류한 팀이 select에 선택됨(공동호스트 표기)', s.acc && s.acc.token === 'CDEFGH'
-    && s.myev.host_id === 'h2' && s.selVal === 'h2' && s.dash.includes('어쿠스틱 팀') && s.dash.includes('밴드 스컬')
-    && s.dash.includes('공동호스트'), s.selVal);
+  chk('초대 수락: accept_invite → 팀 탭 랜딩(합류 팀 선택 + 멤버 표시)', s.acc && s.acc.token === 'CDEFGH'
+    && s.mem.host_id === 'h2' && s.selVal === 'h2' && s.dash.includes('어쿠스틱 팀') && s.dash.includes('밴드 스컬')
+    && s.dash.includes('팀장') && s.dash.includes('공동호스트'), s.selVal);
 
   // ── 7c2. 공연 관리팀(연합) — 명단 화면 관리팀 행 + 팀 초대 공유
   await p.evaluate(() => {
@@ -384,7 +392,8 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     window.__apiQueue.push({ ok: true, teams: [
       { id: 'h1', name: '밴드 스컬', my_role: 'owner' },
       { id: 'h3', name: '코드팀', my_role: 'member' }], is_admin: false });                     // host_me
-    window.__apiQueue.push({ ok: true, is_admin: false, events: [] });                          // my_events
+    window.__apiQueue.push({ ok: true, members: [
+      { kakao_id: '777', name: '카카오닉', role: 'member' }], my_role: 'member', my_kakao_id: '777' }); // list_members (팀 탭 랜딩)
   });
   await p.fill('#inviteCodeInput', 'gh3kmp');   // 소문자 입력 → 대문자 정규화 확인
   await p.click('button:has-text("확인")');
@@ -394,7 +403,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     acc: window.__apiCalls.filter(c => c.action === 'accept_invite').pop(),
     dash: document.getElementById('host-container').textContent,
   }));
-  chk('코드 입력: lookup_invite(대문자 정규화) → 팀 합류 → 대시보드', s.lk && s.lk.token === 'GH3KMP'
+  chk('코드 입력: lookup_invite(대문자 정규화) → 팀 합류 → 팀 탭', s.lk && s.lk.token === 'GH3KMP'
     && s.acc && s.acc.token === 'GH3KMP' && s.dash.includes('코드팀'));
 
   // ── 7d. 예매자 명단 CSV 다운로드

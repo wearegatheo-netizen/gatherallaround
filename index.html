@@ -13876,6 +13876,7 @@
             }
             showToast(`🎉 '${out.team.name}' 팀의 공동호스트가 되었습니다!`);
             _hostState.curTeamId = out.team.id;
+            _hostState.tab = 'teams'; // 합류한 팀을 팀 관리 탭에서 바로 확인
             hostLoadTeams();
         }
 
@@ -13923,6 +13924,7 @@
             if (!out.ok) { if (res) res.textContent = out.message || '수락에 실패했습니다.'; return; }
             showToast(`🎉 '${out.event.title}' 공연을 함께 관리합니다!`);
             _hostState.curTeamId = hostId;
+            _hostState.tab = 'events'; // 함께 관리하게 된 공연을 공연 관리 탭에서 바로 확인
             hostLoadTeams();
         }
 
@@ -14019,7 +14021,9 @@
                 <div style="display:flex;gap:8px">
                     ${t.id ? `<button onclick="renderTeamManage('${jsStr(t.id)}')" style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-weight:600;font-family:inherit">취소</button>` : ''}
                     <button onclick="submitTeamForm(${t.id ? `'${jsStr(t.id)}'` : 'null'})" style="flex:2;padding:13px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">${t.id ? '저장' : '팀 만들고 시작하기'}</button>
-                </div>`;
+                </div>
+                ${!hasTeams ? `<p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--wds-gray-500)">팀 초대 코드를 받으셨나요?
+                    <a href="javascript:void(0)" onclick="renderInviteCodeEntry()" style="color:var(--wds-primary);font-weight:700;text-decoration:underline">초대 코드 입력</a></p>` : ''}`;
         }
 
         async function submitTeamForm(teamId) {
@@ -14040,16 +14044,33 @@
             hostLoadTeams();
         }
 
-        // 팀 관리 — 정보 수정·멤버 목록·공동호스트 초대
-        async function renderTeamManage(teamId) {
+        // 팀 관리 진입 (기존 호출부 호환) — 팀 관리 탭으로 전환
+        function renderTeamManage(teamId) {
+            if (teamId) _hostState.curTeamId = teamId;
+            _hostState.tab = 'teams';
+            renderHostDashboard();
+        }
+
+        // 팀 관리 탭 — 팀 정보·멤버·초대 (공연 관리와 분리)
+        async function renderHostTeamsTab() {
             const c = document.getElementById('host-container');
-            const team = (_hostState.teams || []).find(t => t.id === teamId);
-            if (!team) { renderHostDashboard(); return; }
-            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
-            const out = await eventApi({ action: 'list_members', kakao_token: _hostState.token, host_id: teamId });
+            const team = _curTeam();
+            const inviteEntry = `
+                <button onclick="renderInviteCodeEntry()" style="width:100%;padding:13px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:14px">초대 코드 입력</button>
+                <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5;text-align:center">받은 6자리 코드로 팀 합류·공연 공동 관리 초대를 여기서 수락합니다.</div>`;
+            const newTeamBtn = `<button onclick="renderTeamForm(null)" title="새 팀 만들기" style="flex:none;align-self:stretch;padding:0 14px;border-radius:10px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 팀</button>`;
+            if (!team) { // 관리자 계정인데 소속 팀 없음
+                c.innerHTML = `${_hostTabBar()}
+                    <p style="text-align:center;padding:26px 0 18px;color:var(--wds-gray-500);font-size:0.88rem">아직 소속된 팀이 없습니다.</p>
+                    <button onclick="renderTeamForm(null)" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">+ 새 팀 만들기</button>
+                    ${inviteEntry}`;
+                return;
+            }
+            c.innerHTML = `${_hostTabBar()}${_hostTeamSelectRow(newTeamBtn)}<div style="text-align:center;padding:30px;color:var(--wds-gray-500)">불러오는 중…</div>`;
+            const out = await eventApi({ action: 'list_members', kakao_token: _hostState.token, host_id: team.id });
             if (!out.ok) {
                 if (out.error === 'auth') { _hostState.token = null; renderHostLogin(); return; }
-                c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
+                c.innerHTML = `${_hostTabBar()}<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
                 return;
             }
             const amOwner = out.my_role === 'owner' || _hostState.isAdmin;
@@ -14058,26 +14079,32 @@
                     <span style="font-size:0.88rem;font-weight:600;color:var(--wds-black)">${escapeHtml(m.name || '이름 없음')}</span>
                     ${m.role === 'owner' ? _showChip('팀 소유자', '#DBEAFE', '#1E40AF') : _showChip('공동호스트', 'var(--wds-gray-100)', 'var(--wds-gray-700)')}
                     ${m.kakao_id === out.my_kakao_id ? '<span style="font-size:0.72rem;color:var(--wds-gray-500)">(나)</span>' : ''}
-                    ${amOwner && m.role !== 'owner' ? `<button onclick="hostRemoveMember('${jsStr(teamId)}','${jsStr(m.kakao_id)}','${jsStr(m.name || '')}')" style="margin-left:auto;padding:5px 10px;border-radius:7px;border:1px solid #F5B5B5;background:none;color:#EF4444;cursor:pointer;font-size:0.74rem;font-weight:600;font-family:inherit">내보내기</button>` : ''}
+                    ${amOwner && m.role !== 'owner' ? `<button onclick="hostRemoveMember('${jsStr(team.id)}','${jsStr(m.kakao_id)}','${jsStr(m.name || '')}')" style="margin-left:auto;padding:5px 10px;border-radius:7px;border:1px solid #F5B5B5;background:none;color:#EF4444;cursor:pointer;font-size:0.74rem;font-weight:600;font-family:inherit">내보내기</button>` : ''}
                 </div>`).join('');
             c.innerHTML = `
-                <button onclick="renderHostDashboard()" style="margin-bottom:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-                    ${_teamLogoHTML(team.logo_url, 38)}
-                    <div class="perf-section-title" style="margin:0">${escapeHtml(team.name)}</div>
-                    ${amOwner ? `<button onclick="renderTeamForm(_hostState.teams.find(t=>t.id==='${jsStr(teamId)}'))" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">팀 정보 수정</button>` : ''}
+                ${_hostTabBar()}
+                ${_hostTeamSelectRow(newTeamBtn)}
+                <div class="host-card">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        ${_teamLogoHTML(team.logo_url, 40)}
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:0.95rem;font-weight:800;color:var(--wds-black)">${escapeHtml(team.name)}</div>
+                            ${team.bio ? `<div style="font-size:0.78rem;color:var(--wds-gray-700);margin-top:2px;line-height:1.5">${escapeHtml(team.bio)}</div>` : ''}
+                        </div>
+                        ${amOwner ? `<button onclick="renderTeamForm(_hostState.teams.find(t=>t.id==='${jsStr(team.id)}'))" style="flex:none;padding:8px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">팀 정보 수정</button>` : ''}
+                    </div>
                 </div>
-                ${team.bio ? `<p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">${escapeHtml(team.bio)}</p>` : ''}
                 <div class="host-card">
                     <div style="font-size:0.85rem;font-weight:700;color:var(--wds-black);margin-bottom:4px">멤버 (${out.members.length})</div>
                     ${rows}
                     ${amOwner ? `
                     <div style="margin-top:14px">
-                        <button onclick="hostInvite('${jsStr(teamId)}')" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">공동호스트 초대 코드 만들기</button>
+                        <button onclick="hostInvite('${jsStr(team.id)}')" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">공동호스트 초대 코드 만들기</button>
                         <div id="inviteLinkBox" style="margin-top:8px"></div>
                         <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">초대 코드는 7일간 유효하며, 새로 만들면 이전 코드는 무효가 됩니다. 합류한 멤버는 이 팀의 공연 등록·입금 확인·체크인을 함께 할 수 있습니다.</div>
                     </div>` : ''}
-                </div>`;
+                </div>
+                ${inviteEntry}`;
         }
 
         async function hostRemoveMember(teamId, memberKakaoId, memberName) {
@@ -14133,36 +14160,44 @@
         const _hbtn = (label, onclick, color, border) =>
             `<button onclick="${onclick}" style="padding:7px 12px;border-radius:8px;border:1px solid ${border};background:none;color:${color};cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">${label}</button>`;
 
-        async function renderHostDashboard() {
-            const c = document.getElementById('host-container');
-            _hostState.curEventId = null;
-            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
+        // 호스트 센터 탭 — 공연 관리 / 팀 관리 분리
+        function _hostTabBar() {
+            const cur = _hostState.tab || 'events';
+            const tb = (key, label) => `<button class="community-tab${cur === key ? ' active' : ''}" style="flex:1;padding:11px 0" onclick="_hostState.tab='${key}';renderHostDashboard()">${label}</button>`;
+            return `<div class="community-tab-bar" style="margin-bottom:16px">${tb('events', '공연 관리')}${tb('teams', '팀 관리')}</div>`;
+        }
+
+        // 팀 선택 줄 (두 탭 공용) — extra: 오른쪽 추가 버튼
+        function _hostTeamSelectRow(extra) {
             const team = _curTeam();
-            if (!team && !_hostState.isAdmin) { renderTeamForm(null); _prefillKakaoNick(); return; }
-            const out = await eventApi({ action: 'my_events', kakao_token: _hostState.token, host_id: team ? team.id : undefined });
-            if (!out.ok) {
-                if (out.error === 'auth') { _hostState.token = null; renderHostLogin(); return; }
-                c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
-                return;
-            }
-            // 팀 선택 — 로고+목록형(select)+새 팀 한 줄, 아래에 균등 폭 액션 버튼 줄
-            const dashBtn = (label, onclick) =>
-                `<button onclick="${onclick}" style="flex:1;padding:11px 0;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit">${label}</button>`;
-            let html = `
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+            return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
                     ${team && team.logo_url ? _teamLogoHTML(team.logo_url, 34) : ''}
                     <select class="perf-form-input" style="flex:1;height:44px;font-weight:700;margin:0" onchange="_hostState.curTeamId=this.value;renderHostDashboard()">
                         ${(_hostState.teams || []).map(t => `<option value="${jsStr(t.id)}"${t.id === _hostState.curTeamId ? ' selected' : ''}>${escapeHtml(t.name)}${t.my_role === 'owner' ? '' : ' · 공동호스트'}</option>`).join('')}
                         ${_hostState.isAdmin && !_hostState.teams.length ? '<option value="" selected>전체 공연 (관리자)</option>' : ''}
                     </select>
-                    <button onclick="renderTeamForm(null)" title="새 팀 만들기" style="flex:none;align-self:stretch;padding:0 14px;border-radius:10px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 팀</button>
-                </div>
-                ${_hostState.isAdmin ? '<div style="margin-bottom:10px"><span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 계정</span></div>' : ''}
-                <div style="display:flex;gap:6px;margin-bottom:18px">
-                    ${dashBtn('초대 코드 입력', 'renderInviteCodeEntry()')}
-                    ${team ? dashBtn('팀 관리', `renderTeamManage('${jsStr(team.id)}')`) : ''}
-                    <button onclick="renderHostEventForm()" style="flex:1;padding:11px 0;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.84rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
+                    ${extra || ''}
                 </div>`;
+        }
+
+        async function renderHostDashboard() {
+            const c = document.getElementById('host-container');
+            _hostState.curEventId = null;
+            const team = _curTeam();
+            if (!team && !_hostState.isAdmin) { renderTeamForm(null); _prefillKakaoNick(); return; }
+            if ((_hostState.tab || 'events') === 'teams') { renderHostTeamsTab(); return; }
+            c.innerHTML = _hostTabBar() + '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            const out = await eventApi({ action: 'my_events', kakao_token: _hostState.token, host_id: team ? team.id : undefined });
+            if (!out.ok) {
+                if (out.error === 'auth') { _hostState.token = null; renderHostLogin(); return; }
+                c.innerHTML = `${_hostTabBar()}<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
+                return;
+            }
+            let html = `
+                ${_hostTabBar()}
+                ${_hostState.isAdmin ? '<div style="margin-bottom:10px"><span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 계정</span></div>' : ''}
+                ${_hostTeamSelectRow()}
+                <button onclick="renderHostEventForm()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;margin-bottom:18px">+ 새 공연 등록</button>`;
             if (!out.events.length) {
                 html += '<p style="text-align:center;padding:36px 0;color:var(--wds-gray-500)">등록한 공연이 없습니다.<br>첫 공연을 등록해보세요!</p>';
             } else {
