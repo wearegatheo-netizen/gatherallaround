@@ -13438,13 +13438,14 @@
             const upcomingAll = _showsState.events.filter(ev => new Date(ev.starts_at) > new Date());
             c.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
                 <div class="show-section-title" style="margin:0">다가오는 공연 ${upcomingAll.length ? `<span style="color:var(--wds-primary)">${upcomingAll.length}</span>` : ''}</div>
-                <button onclick="showShowsSection(['find'])" style="margin-left:auto;padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">내 티켓 조회</button>
+                <span style="margin-left:auto;display:flex;gap:6px;flex:none">
+                    <button onclick="showShowsSection(['find'])" style="padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">내 티켓 조회</button>
+                    <button onclick="showHostSection()" style="padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">호스트 센터</button>
+                </span>
             </div>
             <input type="search" class="perf-form-input" id="showSearch" placeholder="공연명 · 팀 · 장소 검색" value="${escapeHtml(_showsState.q || '')}"
                 oninput="_showsState.q=this.value;_renderShowsListBody()" style="margin-bottom:14px">
-            <div id="showsListBody"></div>
-            <p style="text-align:center;margin-top:30px;font-size:0.82rem">
-                <a href="javascript:void(0)" onclick="showHostSection()" style="color:var(--wds-gray-500);text-decoration:underline">공연 호스트이신가요? 호스트 센터 →</a></p>`;
+            <div id="showsListBody"></div>`;
             _renderShowsListBody();
         }
 
@@ -14064,7 +14065,7 @@
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
                     ${_teamLogoHTML(team.logo_url, 38)}
                     <div class="perf-section-title" style="margin:0">${escapeHtml(team.name)}</div>
-                    ${amOwner ? `<button onclick="renderTeamForm(_hostState.teams.find(t=>t.id==='${jsStr(teamId)}'))" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">✏️ 팀 정보 수정</button>` : ''}
+                    ${amOwner ? `<button onclick="renderTeamForm(_hostState.teams.find(t=>t.id==='${jsStr(teamId)}'))" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">팀 정보 수정</button>` : ''}
                 </div>
                 ${team.bio ? `<p style="font-size:0.82rem;color:var(--wds-gray-700);margin:0 0 14px;line-height:1.6">${escapeHtml(team.bio)}</p>` : ''}
                 <div class="host-card">
@@ -14144,24 +14145,23 @@
                 c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">${escapeHtml(out.message || '불러오지 못했습니다.')}</p>`;
                 return;
             }
-            // 팀 선택 — 목록형(select) + 새 팀
-            const teamSelect = `
-                <div style="display:flex;gap:8px;margin-bottom:14px">
-                    <select class="perf-form-input" style="flex:1;height:44px;font-weight:700" onchange="_hostState.curTeamId=this.value;renderHostDashboard()">
+            // 팀 선택 — 로고+목록형(select)+새 팀 한 줄, 아래에 균등 폭 액션 버튼 줄
+            const dashBtn = (label, onclick) =>
+                `<button onclick="${onclick}" style="flex:1;padding:11px 0;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit">${label}</button>`;
+            let html = `
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+                    ${team && team.logo_url ? _teamLogoHTML(team.logo_url, 34) : ''}
+                    <select class="perf-form-input" style="flex:1;height:44px;font-weight:700;margin:0" onchange="_hostState.curTeamId=this.value;renderHostDashboard()">
                         ${(_hostState.teams || []).map(t => `<option value="${jsStr(t.id)}"${t.id === _hostState.curTeamId ? ' selected' : ''}>${escapeHtml(t.name)}${t.my_role === 'owner' ? '' : ' · 공동호스트'}</option>`).join('')}
                         ${_hostState.isAdmin && !_hostState.teams.length ? '<option value="" selected>전체 공연 (관리자)</option>' : ''}
                     </select>
-                    <button onclick="renderTeamForm(null)" title="새 팀 만들기" style="flex:none;padding:0 14px;border-radius:8px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 팀</button>
-                </div>`;
-            let html = `
-                ${teamSelect}
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-                    <div style="display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:800;color:var(--wds-black)">${_teamLogoHTML(team && team.logo_url, 30)} ${escapeHtml(team ? team.name : '전체 공연')}${_hostState.isAdmin ? ' <span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자</span>' : ''}</div>
-                    <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-                        ${_hbtn('초대 코드 입력', 'renderInviteCodeEntry()', 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
-                        ${team ? _hbtn('팀 관리', `renderTeamManage('${jsStr(team.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : ''}
-                        <button onclick="renderHostEventForm()" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
-                    </span>
+                    <button onclick="renderTeamForm(null)" title="새 팀 만들기" style="flex:none;align-self:stretch;padding:0 14px;border-radius:10px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 새 팀</button>
+                </div>
+                ${_hostState.isAdmin ? '<div style="margin-bottom:10px"><span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 계정</span></div>' : ''}
+                <div style="display:flex;gap:6px;margin-bottom:18px">
+                    ${dashBtn('초대 코드 입력', 'renderInviteCodeEntry()')}
+                    ${team ? dashBtn('팀 관리', `renderTeamManage('${jsStr(team.id)}')`) : ''}
+                    <button onclick="renderHostEventForm()" style="flex:1;padding:11px 0;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.84rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
                 </div>`;
             if (!out.events.length) {
                 html += '<p style="text-align:center;padding:36px 0;color:var(--wds-gray-500)">등록한 공연이 없습니다.<br>첫 공연을 등록해보세요!</p>';
@@ -14172,16 +14172,24 @@
                     const toggle = ev.status === 'published'
                         ? _hbtn('예매 마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
                         : _hbtn('예매 오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
+                    const poster = ev.poster_url
+                        ? `<img src="${escapeHtml(ev.poster_url)}" alt="" loading="lazy" style="width:56px;height:75px;border-radius:8px;object-fit:cover;flex:none;background:var(--wds-gray-100)">`
+                        : `<div style="width:56px;height:75px;border-radius:8px;background:linear-gradient(135deg,var(--wds-gray-100),var(--wds-gray-300));flex:none;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--wds-gray-500)">🎸</div>`;
                     return `<div class="host-card">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                            <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
-                            ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">🤝 공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
-                            <span style="font-size:0.95rem;font-weight:700;color:var(--wds-black)">${escapeHtml(ev.title)}</span>
-                            <span style="margin-left:auto;font-size:0.75rem;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
+                        <div style="display:flex;gap:12px;margin-bottom:10px">
+                            ${poster}
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                                    <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
+                                    ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
+                                    <span style="margin-left:auto;font-size:0.78rem;font-weight:700;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
+                                </div>
+                                <div style="font-size:0.95rem;font-weight:800;color:var(--wds-black);line-height:1.35;margin:5px 0 3px">${escapeHtml(ev.title)}</div>
+                                <div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6">${_showDateStr(ev.starts_at)} · ${escapeHtml(ev.venue)}</div>
+                            </div>
                         </div>
-                        <div style="font-size:0.8rem;color:var(--wds-gray-700);margin:6px 0 8px">📅 ${_showDateStr(ev.starts_at)} · 📍 ${escapeHtml(ev.venue)}</div>
                         <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:10px">
-                            🎟 예매 <strong>${s.taken}</strong>/${ev.capacity}석 · 확정 ${s.confirmed} · 입금대기 ${s.pending} · 입장 ${s.checked_in}
+                            예매 <strong>${s.taken}</strong>/${ev.capacity}석 · 확정 ${s.confirmed} · 입금대기 ${s.pending} · 입장 ${s.checked_in}
                         </div>
                         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
                             ${_hbtn('예매 페이지', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
@@ -14555,11 +14563,11 @@
             c.innerHTML = `
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
                     <button onclick="renderHostDashboard()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">← 대시보드</button>
-                    <button onclick="downloadAttendeesCSV()" style="margin-left:auto;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">📥 명단 다운로드</button>
+                    <button onclick="downloadAttendeesCSV()" style="margin-left:auto;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit">명단 다운로드</button>
                 </div>
                 <div class="perf-section-title" style="margin-bottom:6px">${escapeHtml(ev.title)} — 예매자 관리</div>
                 <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:10px">
-                    🎟 예매 <strong>${sum.taken}</strong>/${ev.capacity}석 · 확정 ${sum.confirmed} · 입금대기 ${sum.pending} · 입장 ${sum.checked}
+                    예매 <strong>${sum.taken}</strong>/${ev.capacity}석 · 확정 ${sum.confirmed} · 입금대기 ${sum.pending} · 입장 ${sum.checked}
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
                     <span style="font-size:0.74rem;font-weight:700;color:var(--wds-gray-500)">관리팀</span>
@@ -14568,7 +14576,7 @@
                     ${_hostState.attIsHostTeam ? `<button onclick="hostEventInvite('${jsStr(ev.id)}')" style="padding:4px 11px;border-radius:12px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.74rem;font-weight:700;font-family:inherit">+ 팀 초대</button>` : ''}
                 </div>
                 <div id="coInviteBox"></div>
-                <div style="font-size:0.76rem;color:var(--wds-gray-500);margin-bottom:12px;line-height:1.6">📷 공연 당일: 관객의 QR을 <strong>폰 기본 카메라</strong>로 스캔하면 자동 체크인됩니다. QR이 안 되면 아래 검색창에 예매번호를 입력해 [체크인]을 눌러주세요.</div>
+                <div style="font-size:0.76rem;color:var(--wds-gray-500);margin-bottom:12px;line-height:1.6">공연 당일: 관객의 QR을 <strong>폰 기본 카메라</strong>로 스캔하면 자동 체크인됩니다. QR이 안 되면 아래 검색창에 예매번호를 입력해 [체크인]을 눌러주세요.</div>
                 <input type="text" class="perf-form-input" placeholder="이름 / 예매번호 / 전화번호 검색" value="${escapeHtml(_hostState.attQuery || '')}"
                     oninput="_hostState.attQuery=this.value;_renderAttendeeList();requestAnimationFrame(()=>{const i=document.querySelector('#host-container input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}})" style="margin-bottom:12px">
                 ${rows || '<p style="text-align:center;padding:24px;color:var(--wds-gray-500)">표시할 예매가 없습니다.</p>'}`;

@@ -160,7 +160,8 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.waitForTimeout(250);
   s = await p.evaluate(() => {
     const call = window.__apiCalls.find(c => c.action === 'create_event');
-    return { call, dash: document.getElementById('host-container').textContent };
+    return { call, dash: document.getElementById('host-container').textContent,
+      poster: /width:56px/.test(document.querySelector('#host-container .host-card').innerHTML) };
   });
   const e3 = s.call && s.call.event;
   chk('공연 등록 payload(제목·ISO일시·정원·콤마 가격 파싱)', e3 && e3.title === '한여름 밤의 락'
@@ -170,7 +171,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
-  chk('대시보드: 공연 카드 + 집계 표시', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3'));
+  chk('대시보드: 공연 카드 + 집계 + 포스터 썸네일(폴백)', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3') && s.poster);
 
   // ── 4. 예매자 명단: 상태별 버튼 + 입금 확인
   await p.evaluate(() => {
