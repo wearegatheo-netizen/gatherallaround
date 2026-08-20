@@ -63,6 +63,28 @@ async function findTicketByCodePhone(env, code, phone) {
     return t;
 }
 
+// ── 매수별 QR: 티켓(qty N)의 좌석 N개 보장 — 1번 좌석 코드 = 예매번호, 없거나 모자라면 생성 ──
+async function ensureSeats(env, ticket) {
+    const fetchSeats = async () => {
+        const r = await sbFetch(env, `event_ticket_seats?ticket_id=eq.${ticket.id}&select=code,seat_no,checked_in_at&order=seat_no.asc`);
+        return r.ok ? await r.json() : [];
+    };
+    let seats = await fetchSeats();
+    if (ticket.status === 'cancelled') return seats;
+    for (let attempt = 0; attempt < 5 && seats.length < ticket.qty; attempt++) {
+        const have = new Set(seats.map(s => s.seat_no));
+        const rows = [];
+        for (let n = 1; n <= ticket.qty; n++) {
+            if (!have.has(n)) rows.push({ code: n === 1 ? ticket.code : newCode(), ticket_id: ticket.id, seat_no: n });
+        }
+        if (!rows.length) break;
+        // 코드(PK)·좌석번호 충돌 시 전체 실패 → 새 코드로 재시도 (동시 생성도 재조회로 수습)
+        await sbFetch(env, 'event_ticket_seats', { method: 'POST', body: JSON.stringify(rows) }).catch(() => {});
+        seats = await fetchSeats();
+    }
+    return seats;
+}
+
 // ── 호스트 인증 — 카카오 access token을 카카오 서버에서 직접 검증 ──
 // 이 사이트의 카카오 로그인은 Supabase auth 없이 동작하므로, 서버가 신뢰할 수 있는
 // 유일한 근거는 카카오 API가 토큰 주인의 id를 확인해주는 것뿐이다.
@@ -221,6 +243,8 @@ export async function onRequest(context) {
                 if (!ev.ok) out.events_오류 = (await ev.text().catch(() => '')).slice(0, 200);
                 const tk = await sbFetch(env, 'event_tickets?select=id&limit=1');
                 out.event_tickets_테이블 = tk.ok;
+                const st = await sbFetch(env, 'event_ticket_seats?select=code&limit=1');
+                out.event_ticket_seats_테이블 = st.ok; // 20260823 마이그레이션 확인용
                 // 존재하지 않는 uuid로 RPC 존재 여부만 확인 (부작용 없음)
                 const rpc = await sbFetch(env, 'rpc/book_event_ticket', {
                     method: 'POST',
@@ -252,6 +276,15 @@ export async function onRequest(context) {
             if (!phone) return fail(400, 'bad_phone', '휴대폰 번호를 확인해주세요.');
             if (!Number.isInteger(qty) || qty < 1 || qty > 10) return fail(400, 'bad_qty', '매수를 확인해주세요.');
 
+            // 공연 시작 시간이 지나면 예매 자동 마감 (클라이언트 화면과 무관하게 서버에서 차단)
+            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at&limit=1`);
+            if (evr.ok) {
+                const [ev0] = await evr.json();
+                if (ev0 && new Date(ev0.starts_at) <= new Date()) {
+                    return fail(409, 'started', '공연이 시작되어 예매가 마감되었습니다.');
+                }
+            }
+
             for (let attempt = 0; attempt < 5; attempt++) {
                 const r = await sbFetch(env, 'rpc/book_event_ticket', {
                     method: 'POST',
@@ -262,7 +295,10 @@ export async function onRequest(context) {
                         detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
                 }
                 const out = await r.json();
-                if (out.ok) return json({ ok: true, ticket: out.ticket, event: out.event });
+                if (out.ok) {
+                    const seats = await ensureSeats(env, out.ticket); // 매수별 QR — 좌석 코드 발급
+                    return json({ ok: true, ticket: out.ticket, event: out.event, seats });
+                }
                 if (out.error === 'code_collision') continue; // 새 코드로 재시도
                 if (out.error === 'sold_out') {
                     return json({ ok: false, error: 'sold_out', remaining: out.remaining,
@@ -282,7 +318,8 @@ export async function onRequest(context) {
             const t = await findTicketByCodePhone(env, code, phone);
             if (!t) return fail(404, 'not_found', '일치하는 예매가 없습니다. 예매번호와 전화번호를 확인해주세요.');
             const { events: ev, ...ticket } = t;
-            return json({ ok: true, ticket, event: ev });
+            const seats = await ensureSeats(env, ticket); // 매수별 QR — 과거 예매도 여기서 좌석 보충
+            return json({ ok: true, ticket, event: ev, seats });
         }
 
         // ── 공개: 관객 직접 취소 ───────────────────────────────────
@@ -525,13 +562,22 @@ export async function onRequest(context) {
                 const stats = {};
                 if (events.length) {
                     const ids = events.map(e => e.id).join(',');
-                    const tr = await sbFetch(env, `event_tickets?event_id=in.(${ids})&select=event_id,qty,status,checked_in_at`);
+                    const tr = await sbFetch(env, `event_tickets?event_id=in.(${ids})&select=event_id,qty,status`);
                     if (tr.ok) {
                         for (const t of await tr.json()) {
                             const s = stats[t.event_id] || (stats[t.event_id] = { taken: 0, pending: 0, confirmed: 0, checked_in: 0 });
                             if (t.status === 'pending_payment') { s.pending += t.qty; s.taken += t.qty; }
                             else if (t.status === 'confirmed') { s.confirmed += t.qty; s.taken += t.qty; }
-                            if (t.checked_in_at) s.checked_in += t.qty;
+                        }
+                    }
+                    // 입장 수는 좌석 단위 체크인 기준
+                    const sq = 'checked_in_at,event_tickets!inner(event_id)';
+                    const sr = await sbFetch(env, `event_ticket_seats?select=${encodeURIComponent(sq)}&checked_in_at=not.is.null&event_tickets.event_id=in.(${ids})`);
+                    if (sr.ok) {
+                        for (const s of await sr.json()) {
+                            const eid = s.event_tickets && s.event_tickets.event_id;
+                            if (!eid) continue;
+                            (stats[eid] || (stats[eid] = { taken: 0, pending: 0, confirmed: 0, checked_in: 0 })).checked_in += 1;
                         }
                     }
                 }
@@ -544,11 +590,25 @@ export async function onRequest(context) {
                 if (err) return fail(...err);
                 const r = await sbFetch(env, `event_tickets?event_id=eq.${ev.id}&select=*&order=created_at.desc`);
                 if (!r.ok) return fail(502, 'db', '예매자 명단 조회에 실패했습니다.');
+                const tickets = await r.json();
+                // 매수별 QR: 티켓마다 좌석 배열 첨부 (좌석이 모자란 과거 예매는 여기서 보충 생성)
+                let seatRows = [];
+                if (tickets.length) {
+                    const tids = tickets.map(t => t.id).join(',');
+                    const sr = await sbFetch(env, `event_ticket_seats?ticket_id=in.(${tids})&select=ticket_id,code,seat_no,checked_in_at&order=seat_no.asc`);
+                    seatRows = sr.ok ? await sr.json() : [];
+                }
+                const byTicket = {};
+                for (const s of seatRows) (byTicket[s.ticket_id] = byTicket[s.ticket_id] || []).push(s);
+                for (const t of tickets) {
+                    if (t.status !== 'cancelled' && (byTicket[t.id] || []).length < t.qty) byTicket[t.id] = await ensureSeats(env, t);
+                    t.seats = byTicket[t.id] || [];
+                }
                 // 공동 관리팀 목록 + 요청자가 주최팀 소속인지 (초대·제외 버튼 노출 판단용)
                 const ct = await sbFetch(env, `event_co_teams?event_id=eq.${ev.id}&select=${encodeURIComponent('host_id,event_hosts(id,name,logo_url)')}`);
                 const co_teams = ct.ok ? (await ct.json()).map(x => x.event_hosts).filter(Boolean) : [];
                 const is_host_team = isAdmin || !!(await getMembership(env, ev.host_id, kakaoId));
-                return json({ ok: true, event: ev, tickets: await r.json(), co_teams, is_host_team });
+                return json({ ok: true, event: ev, tickets, co_teams, is_host_team });
             }
 
             // ── 공연 공동 관리팀 초대 (팀 단위 — 연합공연) ──────────
@@ -651,7 +711,7 @@ export async function onRequest(context) {
                 return json({ ok: true });
             }
 
-            if (action === 'confirm_payment' || action === 'revert_payment' || action === 'host_cancel' || action === 'uncheckin') {
+            if (action === 'confirm_payment' || action === 'revert_payment' || action === 'host_cancel') {
                 const { t, err } = await getTicketOwned(env, body.ticket_id, kakaoId);
                 if (err) return fail(...err);
                 const now = new Date().toISOString();
@@ -662,7 +722,6 @@ export async function onRequest(context) {
                         msg: '확정 취소할 수 없는 상태입니다. (입장 완료 여부 확인)' },
                     host_cancel: { cond: 'status=in.(pending_payment,confirmed)&checked_in_at=is.null',
                         set: { status: 'cancelled', cancelled_at: now, cancelled_by: 'host' }, msg: '취소할 수 없는 상태입니다.' },
-                    uncheckin: { cond: 'checked_in_at=not.is.null', set: { checked_in_at: null }, msg: '입장 처리된 티켓이 아닙니다.' },
                 }[action];
                 const r = await sbFetch(env, `event_tickets?id=eq.${t.id}&${spec.cond}`, {
                     method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(spec.set),
@@ -673,32 +732,87 @@ export async function onRequest(context) {
                 return json({ ok: true, ticket: rows[0] });
             }
 
+            // 체크인 — 좌석 코드 단위 (QR 1장 = 1명 입장). 예매번호 = 1번 좌석 코드.
             if (action === 'checkin') {
                 const code = normCode(body.code);
                 if (!code) return fail(400, 'bad_code', '예매번호를 확인해주세요.');
-                const sel = '*,events(id,title,starts_at,host_id)';
-                const r = await sbFetch(env, `event_tickets?code=eq.${code}&select=${encodeURIComponent(sel)}&limit=1`);
-                if (!r.ok) return fail(502, 'db', '티켓 조회에 실패했습니다.');
-                const [t] = await r.json();
-                if (!t) return fail(404, 'not_found', '없는 예매번호입니다.');
+                const ssel = '*,event_tickets(*,events(id,title,starts_at,host_id))';
+                const fetchSeat = async () => {
+                    const r = await sbFetch(env, `event_ticket_seats?code=eq.${code}&select=${encodeURIComponent(ssel)}&limit=1`);
+                    return r.ok ? (await r.json())[0] : null;
+                };
+                let seat = await fetchSeat();
+                if (!seat) {
+                    // 좌석 미생성 과거 예매 — 티켓 코드로 찾아 좌석을 만들고 재시도
+                    const tsel = 'id,code,buyer_name,qty,status';
+                    const tr = await sbFetch(env, `event_tickets?code=eq.${code}&select=${encodeURIComponent(tsel)}&limit=1`);
+                    if (!tr.ok) return fail(502, 'db', '티켓 조회에 실패했습니다.');
+                    const [tk] = await tr.json();
+                    if (!tk) return fail(404, 'not_found', '없는 예매번호입니다.');
+                    await ensureSeats(env, tk);
+                    seat = await fetchSeat();
+                    if (!seat) return fail(404, 'not_found', '없는 예매번호입니다.');
+                }
+                const t = seat.event_tickets;
+                if (!t || !t.events) return fail(502, 'db', '티켓 조회에 실패했습니다.');
                 if (!isAdmin) {
-                    const ok = t.events ? await canManageEvent(env, t.events, kakaoId) : false;
+                    const ok = await canManageEvent(env, t.events, kakaoId);
                     if (!ok) return fail(403, 'not_owner', '이 공연의 티켓이 아닙니다. (다른 팀의 공연)');
                 }
-                const info = { id: t.id, code: t.code, buyer_name: t.buyer_name, qty: t.qty, event_id: t.events.id, event_title: t.events.title };
+                const info = { id: t.id, code, buyer_name: t.buyer_name, qty: t.qty, seat_no: seat.seat_no,
+                    event_id: t.events.id, event_title: t.events.title };
                 if (t.status === 'cancelled') return json({ ok: false, error: 'cancelled', message: '취소된 티켓입니다.', ticket: info }, 409);
-                if (t.checked_in_at) return json({ ok: false, error: 'already_checked_in',
-                    message: '이미 입장 처리된 티켓입니다.', checked_in_at: t.checked_in_at, ticket: info }, 409);
+                if (seat.checked_in_at) return json({ ok: false, error: 'already_checked_in',
+                    message: '이미 입장 처리된 티켓입니다.', checked_in_at: seat.checked_in_at, ticket: info }, 409);
                 if (t.status === 'pending_payment') return json({ ok: false, error: 'not_confirmed',
                     message: '입금 확인이 안 된 티켓입니다.', ticket: info }, 409);
-                const pr = await sbFetch(env, `event_tickets?id=eq.${t.id}&status=eq.confirmed&checked_in_at=is.null`, {
+                const nowIso = new Date().toISOString();
+                const pr = await sbFetch(env, `event_ticket_seats?code=eq.${code}&checked_in_at=is.null`, {
                     method: 'PATCH', headers: { Prefer: 'return=representation' },
-                    body: JSON.stringify({ checked_in_at: new Date().toISOString() }),
+                    body: JSON.stringify({ checked_in_at: nowIso }),
                 });
                 if (!pr.ok) return fail(502, 'db', '체크인 처리에 실패했습니다.');
                 const rows = await pr.json().catch(() => []);
                 if (!rows.length) return fail(409, 'conflict', '방금 다른 기기에서 처리되었습니다. 명단을 확인해주세요.');
-                return json({ ok: true, ticket: { ...rows[0], event_title: t.events.title } });
+                // 티켓의 첫 입장 표시 (revert/취소 가드용) + 이 예매의 입장 현황
+                await sbFetch(env, `event_tickets?id=eq.${t.id}&checked_in_at=is.null`, {
+                    method: 'PATCH', body: JSON.stringify({ checked_in_at: nowIso }) }).catch(() => {});
+                const cr = await sbFetch(env, `event_ticket_seats?ticket_id=eq.${t.id}&select=checked_in_at`);
+                const all = cr.ok ? await cr.json() : [];
+                const seats_checked = all.filter(s => s.checked_in_at).length;
+                const seats_total = Math.max(t.qty, all.length);
+                return json({ ok: true, ticket: { ...info, checked_in_at: nowIso, seats_checked, seats_total } });
+            }
+
+            // 입장 취소 — 좌석 코드 단위
+            if (action === 'uncheckin') {
+                const code = normCode(body.code);
+                if (!code) return fail(400, 'bad_code', '좌석 코드를 확인해주세요.');
+                const ssel = '*,event_tickets(*,events(id,title,starts_at,host_id))';
+                const r = await sbFetch(env, `event_ticket_seats?code=eq.${code}&select=${encodeURIComponent(ssel)}&limit=1`);
+                if (!r.ok) return fail(502, 'db', '조회에 실패했습니다.');
+                const [seat] = await r.json();
+                if (!seat || !seat.event_tickets) return fail(404, 'not_found', '해당 좌석을 찾을 수 없습니다.');
+                const t = seat.event_tickets;
+                if (!isAdmin) {
+                    const ok = t.events ? await canManageEvent(env, t.events, kakaoId) : false;
+                    if (!ok) return fail(403, 'not_owner', '이 공연의 티켓이 아닙니다.');
+                }
+                const pr = await sbFetch(env, `event_ticket_seats?code=eq.${code}&checked_in_at=not.is.null`, {
+                    method: 'PATCH', headers: { Prefer: 'return=representation' },
+                    body: JSON.stringify({ checked_in_at: null }),
+                });
+                if (!pr.ok) return fail(502, 'db', '처리 중 오류가 발생했습니다.');
+                const rows = await pr.json().catch(() => []);
+                if (!rows.length) return fail(409, 'conflict', '입장 처리된 좌석이 아닙니다.');
+                // 입장한 좌석이 하나도 안 남으면 티켓의 첫 입장 표시도 해제
+                const cr = await sbFetch(env, `event_ticket_seats?ticket_id=eq.${t.id}&checked_in_at=not.is.null&select=code&limit=1`);
+                const left = cr.ok ? await cr.json() : [{}];
+                if (!left.length) {
+                    await sbFetch(env, `event_tickets?id=eq.${t.id}`, {
+                        method: 'PATCH', body: JSON.stringify({ checked_in_at: null }) }).catch(() => {});
+                }
+                return json({ ok: true });
             }
         }
 

@@ -225,15 +225,52 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   s = await p.evaluate(() => document.querySelectorAll('#host-container .host-card').length);
   chk('명단 검색: 예매번호 필터', s === 1);
 
-  // ── 6. QR 체크인 딥링크 (로그인 상태) — 성공/미확인/중복
-  await p.evaluate(() => { window.__apiQueue.push({ ok: true, ticket: { id: 't1', code: 'QQ7MNP', buyer_name: '홍관객', qty: 2, event_id: '11111111-1111-4111-8111-111111111111', event_title: '한여름 밤의 락', checked_in_at: 'now' } }); });
+  // ── 5b. 매수>1 예매: 티켓(좌석)별 입장 토글 — QR 1장 = 1명
+  await p.evaluate(() => {
+    _hostState.attEvent = { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50, host_name: '밴드 스컬' };
+    _hostState.attCoTeams = []; _hostState.attIsHostTeam = true; _hostState.attQuery = '';
+    _hostState.curEventId = '11111111-1111-4111-8111-111111111111';
+    _hostState.attendees = [
+      { id: 't-multi', code: 'AB3XKP', buyer_name: '멀티예매', buyer_phone: '01011113333', qty: 2, status: 'confirmed', checked_in_at: 'x',
+        seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: 'x' }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] },
+    ];
+    _renderAttendeeList();
+  });
+  s = await p.evaluate(() => document.getElementById('host-container').textContent);
+  chk('명단: 부분 입장 칩(입장 1/2) + 티켓별 입장 토글', s.includes('입장 1/2') && s.includes('티켓별 입장'));
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true, ticket: { buyer_name: '멀티예매', qty: 2, seat_no: 2, seats_checked: 2, seats_total: 2 } }); // checkin(좌석2)
+    window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50 }, tickets: [], co_teams: [], is_host_team: true }); // 재조회
+  });
+  await p.click('button[title="체크인"]');
+  await p.waitForTimeout(250);
+  s = await p.evaluate(() => window.__apiCalls.filter(c => c.action === 'checkin').pop());
+  chk('좌석 토글: 미입장 좌석 클릭 → checkin(그 좌석 코드)', s && s.code === 'ZZ9PQR', s && s.code);
+  await p.evaluate(() => {
+    _hostState.attendees = [
+      { id: 't-multi', code: 'AB3XKP', buyer_name: '멀티예매', buyer_phone: '01011113333', qty: 2, status: 'confirmed', checked_in_at: 'x',
+        seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: 'x' }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] },
+    ];
+    _renderAttendeeList();
+    window.__apiQueue.push({ ok: true }); // uncheckin (confirm은 dialog 자동 수락)
+    window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50 }, tickets: [], co_teams: [], is_host_team: true }); // 재조회
+  });
+  await p.click('button[title="입장 취소"]');
+  await p.waitForTimeout(250);
+  s = await p.evaluate(() => window.__apiCalls.filter(c => c.action === 'uncheckin').pop());
+  chk('좌석 토글: 입장 좌석(✓) 클릭 → uncheckin(그 좌석 코드)', s && s.code === 'AB3XKP', s && s.code);
+
+  // ── 6. QR 체크인 딥링크 (로그인 상태) — 성공(좌석 단위)/미확인/중복
+  await p.evaluate(() => { window.__apiQueue.push({ ok: true, ticket: { id: 't1', code: 'QQ7MNP', buyer_name: '홍관객', qty: 2,
+    seat_no: 1, seats_checked: 1, seats_total: 2, event_id: '11111111-1111-4111-8111-111111111111', event_title: '한여름 밤의 락', checked_in_at: 'now' } }); });
   await p.evaluate(() => _routeToPage('host/checkin/QQ7MNP'));
   await p.waitForTimeout(250);
   s = await p.evaluate(() => ({
     call: window.__apiCalls.filter(c => c.action === 'checkin').pop(),
     txt: document.getElementById('host-container').textContent,
   }));
-  chk('QR 딥링크: checkin 호출 + 성공 패널(이름·매수)', s.call && s.call.code === 'QQ7MNP' && s.txt.includes('입장 확인') && s.txt.includes('홍관객 · 2매'));
+  chk('QR 딥링크: checkin 호출 + 좌석 단위 성공 패널(N번 티켓·입장 현황)', s.call && s.call.code === 'QQ7MNP'
+    && s.txt.includes('입장 확인') && s.txt.includes('홍관객 · 1번 티켓') && s.txt.includes('이 예매 입장 1/2'), s.txt.slice(0, 80));
   chk('성공 패널: 명단/대시보드 버튼', s.txt.includes('예매자 명단') && s.txt.includes('대시보드'));
 
   await p.evaluate(() => { window.__apiQueue.push({ ok: false, error: 'not_confirmed', message: '입금 확인이 안 된 티켓입니다.', ticket: { id: 't2', code: 'RR8PQS', buyer_name: '미입금', qty: 1, event_id: '11111111-1111-4111-8111-111111111111', event_title: 'x' } }); });

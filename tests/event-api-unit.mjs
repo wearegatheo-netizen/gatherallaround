@@ -56,10 +56,12 @@ const TICKET = (over = {}) => ({
   mockFetch([
     ['events?select=id', { body: [] }],
     ['event_tickets?select=id', { body: [] }],
+    ['event_ticket_seats?select=code', { body: [] }],
     ['rpc/book_event_ticket', { method: 'POST', body: { ok: false, error: 'not_found' } }],
   ]);
   const j = await (await run(null, 'GET')).json();
-  chk('진단: 테이블·RPC 확인', j['환경변수_SUPABASE'] === true && j['events_테이블'] === true && j['book_rpc'] === true, JSON.stringify(j).slice(0, 120));
+  chk('진단: 테이블(좌석 포함)·RPC 확인', j['환경변수_SUPABASE'] === true && j['events_테이블'] === true
+    && j['event_ticket_seats_테이블'] === true && j['book_rpc'] === true, JSON.stringify(j).slice(0, 120));
 }
 // ── 3. book 입력 검증 (fetch 0회)
 {
@@ -78,42 +80,62 @@ const TICKET = (over = {}) => ({
   }
   chk('book: 형식 검증 5종 → 400 + fetch 0회', ok && calls.length === 0);
 }
-// ── 4. book 성공 (RPC 패스스루 + 코드 형식)
+// ── 4. book 성공 (RPC 패스스루 + 코드 형식 + 매수별 좌석 QR)
 {
-  let sentCode = null;
-  mockFetch([['rpc/book_event_ticket', { method: 'POST', body: (rec) => {
-    sentCode = JSON.parse(rec.body).p_code;
-    return { ok: true, ticket: { code: sentCode, status: 'pending_payment' }, event: { id: EV_ID, price: 15000 } };
-  } }]]);
+  let sentCode = null, seatStore = [];
+  mockFetch([
+    ['events?id=eq.' + EV_ID + '&select=starts_at', { body: [{ starts_at: FUTURE }] }],
+    ['rpc/book_event_ticket', { method: 'POST', body: (rec) => {
+      sentCode = JSON.parse(rec.body).p_code;
+      return { ok: true, ticket: { id: TK_ID, code: sentCode, qty: 2, status: 'pending_payment' }, event: { id: EV_ID, price: 15000 } };
+    } }],
+    ['event_ticket_seats?ticket_id=', { method: 'GET', body: () => seatStore }],
+    ['event_ticket_seats', { method: 'POST', body: (rec) => {
+      seatStore = JSON.parse(rec.body).map(x => ({ code: x.code, seat_no: x.seat_no, checked_in_at: null }));
+      return seatStore;
+    } }],
+  ]);
   const j = await (await run({ action: 'book', event_id: EV_ID, name: ' 홍길동 ', phone: '010-1234-5678', qty: 2 })).json();
-  const sent = JSON.parse(calls[0].body);
+  const rpcCall = calls.find(c => c.url.includes('rpc/book_event_ticket'));
+  const sent = JSON.parse(rpcCall.body);
   chk('book: 성공 패스스루', j.ok === true && j.ticket.code === sentCode);
   chk('book: 코드 6자리(혼동문자 제외) 서버 생성', /^[A-HJ-NP-Z2-9]{6}$/.test(sentCode), sentCode);
   chk('book: 이름 trim + 전화 정규화', sent.p_name === '홍길동' && sent.p_phone === '01012345678');
-  chk('book: service key 헤더', calls[0].headers.apikey === 'sk-service');
+  chk('book: service key 헤더', rpcCall.headers.apikey === 'sk-service');
+  chk('book: 매수별 좌석 QR — 1번=예매번호, 2번=별도 6자리 코드', Array.isArray(j.seats) && j.seats.length === 2
+    && j.seats[0].code === sentCode && j.seats[1].code !== sentCode && /^[A-HJ-NP-Z2-9]{6}$/.test(j.seats[1].code),
+    JSON.stringify(j.seats));
 }
 // ── 5. book: code_collision 재시도 → 성공 / 5회 초과 포기
 {
   let n = 0;
-  mockFetch([['rpc/', { method: 'POST', body: () => (++n < 3 ? { ok: false, error: 'code_collision' } : { ok: true, ticket: {}, event: {} }) }]]);
+  mockFetch([
+    ['events?id=', { body: [] }],
+    ['rpc/', { method: 'POST', body: () => (++n < 3 ? { ok: false, error: 'code_collision' } : { ok: true, ticket: {}, event: {} }) }],
+    ['event_ticket_seats', { body: [] }],
+  ]);
   const j = await (await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 })).json();
   chk('book: 충돌 2회 후 3번째 성공', j.ok === true && n === 3);
-  mockFetch([['rpc/', { method: 'POST', body: { ok: false, error: 'code_collision' } }]]);
+  mockFetch([['events?id=', { body: [] }], ['rpc/', { method: 'POST', body: { ok: false, error: 'code_collision' } }]]);
   const r2 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
-  chk('book: 5회 모두 충돌 → 502 + 5회 시도', r2.status === 502 && calls.length === 5);
+  chk('book: 5회 모두 충돌 → 502 + 5회 시도', r2.status === 502 && calls.filter(c => c.url.includes('rpc/')).length === 5);
 }
-// ── 6. book: RPC 에러 매핑
+// ── 6. book: RPC 에러 매핑 + 시작 시간 마감
 {
-  mockFetch([['rpc/', { method: 'POST', body: { ok: false, error: 'sold_out', remaining: 3 } }]]);
+  mockFetch([['events?id=', { body: [] }], ['rpc/', { method: 'POST', body: { ok: false, error: 'sold_out', remaining: 3 } }]]);
   const r = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 5 });
   const j = await r.json();
   chk('book: sold_out → 409 + 잔여석 메시지', r.status === 409 && j.remaining === 3 && j.message.includes('잔여 3석'));
-  mockFetch([['rpc/', { method: 'POST', body: { ok: false, error: 'duplicate' } }]]);
+  mockFetch([['events?id=', { body: [] }], ['rpc/', { method: 'POST', body: { ok: false, error: 'duplicate' } }]]);
   const r2 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
   chk('book: duplicate → 409', r2.status === 409);
-  mockFetch([['rpc/', { method: 'POST', body: { ok: false, error: 'started' } }]]);
+  mockFetch([['events?id=', { body: [] }], ['rpc/', { method: 'POST', body: { ok: false, error: 'started' } }]]);
   const r3 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
-  chk('book: started → 409', r3.status === 409);
+  chk('book: started(RPC) → 409', r3.status === 409);
+  mockFetch([['events?id=', { body: [{ starts_at: PAST }] }]]);
+  const r4 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
+  chk('book: 공연 시작 후 → 409 started (RPC 미호출)', r4.status === 409 && (await r4.json()).error === 'started'
+    && !calls.some(c => c.url.includes('rpc/')));
 }
 // ── 7. lookup: 코드 존재+전화 불일치 = 코드 없음과 동일 404
 {
@@ -124,11 +146,21 @@ const TICKET = (over = {}) => ({
   const [jA, jB] = [await rA.json(), await rB.json()];
   chk('lookup: 전화 불일치와 코드 없음이 동일 응답', rA.status === 404 && rB.status === 404 && jA.message === jB.message);
 }
-// ── 8. lookup 성공 (소문자 code 정규화 + event 분리)
+// ── 8. lookup 성공 (소문자 code 정규화 + event 분리 + 좌석 지연 생성)
 {
-  mockFetch([['event_tickets?code=eq.ABCXYZ', { body: [TICKET()] }]]);
+  let seatStore = [];
+  mockFetch([
+    ['event_tickets?code=eq.ABCXYZ', { body: [TICKET()] }],
+    ['event_ticket_seats?ticket_id=', { method: 'GET', body: () => seatStore }],
+    ['event_ticket_seats', { method: 'POST', body: (rec) => {
+      seatStore = JSON.parse(rec.body).map(x => ({ code: x.code, seat_no: x.seat_no, checked_in_at: null }));
+      return seatStore;
+    } }],
+  ]);
   const j = await (await run({ action: 'lookup', code: ' abcxyz ', phone: '010-1234-5678' })).json();
   chk('lookup: 성공 + ticket/event 분리', j.ok === true && j.ticket.code === 'ABCXYZ' && j.event.title === '여름 공연' && !j.ticket.events);
+  chk('lookup: 과거 예매도 좌석 보충(qty 2 → 좌석 2, 1번=예매번호)', j.seats.length === 2
+    && j.seats[0].code === 'ABCXYZ' && j.seats[0].seat_no === 1 && j.seats[1].code !== 'ABCXYZ', JSON.stringify(j.seats));
 }
 // ── 9. cancel 성공 (조건부 PATCH)
 {
@@ -261,13 +293,17 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     [`events?host_id=eq.${HOST_ID}`, { body: [EVENT_ROW()] }],
     [`event_co_teams?host_id=eq.${HOST_ID}`, { body: [] }],
     ['event_tickets?event_id=in.', { body: [
-      { event_id: EV_ID, qty: 2, status: 'confirmed', checked_in_at: PAST },
-      { event_id: EV_ID, qty: 3, status: 'pending_payment', checked_in_at: null },
-      { event_id: EV_ID, qty: 1, status: 'cancelled', checked_in_at: null },
+      { event_id: EV_ID, qty: 2, status: 'confirmed' },
+      { event_id: EV_ID, qty: 3, status: 'pending_payment' },
+      { event_id: EV_ID, qty: 1, status: 'cancelled' },
+    ] }],
+    ['event_ticket_seats?select=', { body: [
+      { checked_in_at: PAST, event_tickets: { event_id: EV_ID } },
+      { checked_in_at: PAST, event_tickets: { event_id: EV_ID } },
     ] }]]);
   const j = await (await run({ action: 'my_events', kakao_token: 't', host_id: HOST_ID })).json();
   const s = j.events[0].stats;
-  chk('my_events: 팀 스코프 + 집계(taken 5/확정 2/대기 3/입장 2)', j.ok === true
+  chk('my_events: 팀 스코프 + 집계(taken 5/확정 2/대기 3/입장은 좌석 기준 2)', j.ok === true
     && s.taken === 5 && s.confirmed === 2 && s.pending === 3 && s.checked_in === 2, JSON.stringify(s));
   mockFetch([KAPI_OK, MEMBERSHIP(null)]);
   const r2 = await run({ action: 'my_events', kakao_token: 't', host_id: HOST_ID });
@@ -285,26 +321,65 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   const r2 = await run({ action: 'confirm_payment', kakao_token: 't', ticket_id: TK_ID });
   chk('confirm_payment: 경합 0행 → 409', r2.status === 409);
 }
-// ── 19. checkin 상태머신 (멤버십 기반)
+// ── 19. checkin 상태머신 (좌석 코드 단위 — QR 1장 = 1명)
 {
-  const tk = (over) => [`event_tickets?code=eq.ABCXYZ`, { body: [{ id: TK_ID, code: 'ABCXYZ', buyer_name: '홍길동', qty: 2,
-    status: 'confirmed', checked_in_at: null, events: { id: EV_ID, title: '공연', starts_at: FUTURE, host_id: HOST_ID }, ...over }] }];
-  mockFetch([KAPI_OK, ['event_tickets?code=eq.QQQQQQ', { body: [] }]]);
+  const seatBody = (tOver = {}, sOver = {}) => [{ code: 'ABCXYZ', seat_no: 1, checked_in_at: null, ...sOver,
+    event_tickets: { id: TK_ID, code: 'ABCXYZ', buyer_name: '홍길동', qty: 2, status: 'confirmed', checked_in_at: null,
+      events: { id: EV_ID, title: '공연', starts_at: FUTURE, host_id: HOST_ID }, ...tOver } }];
+  const seat = (tOver, sOver) => ['event_ticket_seats?code=eq.ABCXYZ&select', { method: 'GET', body: seatBody(tOver, sOver) }];
+
+  mockFetch([KAPI_OK, ['event_ticket_seats?code=eq.QQQQQQ', { body: [] }], ['event_tickets?code=eq.QQQQQQ', { body: [] }]]);
   chk('checkin: 없는 코드 → 404', (await run({ action: 'checkin', kakao_token: 't', code: 'QQQQQQ' })).status === 404);
-  mockFetch([KAPI_OK, tk({ status: 'cancelled' }), MEMBERSHIP('member')]);
+  mockFetch([KAPI_OK, seat({ status: 'cancelled' }), MEMBERSHIP('member')]);
   chk('checkin: 취소 티켓 → 409 cancelled', (await (await run({ action: 'checkin', kakao_token: 't', code: 'abcxyz' })).json()).error === 'cancelled');
-  mockFetch([KAPI_OK, tk({ status: 'pending_payment' }), MEMBERSHIP('member')]);
+  mockFetch([KAPI_OK, seat({ status: 'pending_payment' }), MEMBERSHIP('member')]);
   const jNC = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
   chk('checkin: 입금 미확인 → 409 + 티켓 id·event_id 동봉', jNC.error === 'not_confirmed' && jNC.ticket.id === TK_ID && jNC.ticket.event_id === EV_ID);
-  mockFetch([KAPI_OK, tk({ checked_in_at: PAST }), MEMBERSHIP('member')]);
+  mockFetch([KAPI_OK, seat({}, { checked_in_at: PAST }), MEMBERSHIP('member')]);
   const jAC = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
-  chk('checkin: 중복 → 409 + 시각', jAC.error === 'already_checked_in' && jAC.checked_in_at === PAST);
-  mockFetch([KAPI_OK, tk({}), MEMBERSHIP(null), ['event_co_teams?event_id=eq.', { body: [] }]]);
+  chk('checkin: 좌석 중복 → 409 + 시각', jAC.error === 'already_checked_in' && jAC.checked_in_at === PAST);
+  mockFetch([KAPI_OK, seat({}), MEMBERSHIP(null), ['event_co_teams?event_id=eq.', { body: [] }]]);
   chk('checkin: 타 팀 공연 → 403', (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).status === 403);
-  mockFetch([KAPI_OK, tk({}), MEMBERSHIP('member'),
-    ['status=eq.confirmed&checked_in_at=is.null', { method: 'PATCH', body: [{ id: TK_ID, event_id: EV_ID, checked_in_at: 'now' }] }]]);
+  mockFetch([KAPI_OK, seat({}), MEMBERSHIP('member'),
+    ['event_ticket_seats?code=eq.ABCXYZ&checked_in_at=is.null', { method: 'PATCH', body: [{ code: 'ABCXYZ', checked_in_at: 'now' }] }],
+    ['event_tickets?id=eq.' + TK_ID, { method: 'PATCH', body: [] }],
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=checked_in_at', { method: 'GET', body: [{ checked_in_at: 'now' }, { checked_in_at: null }] }]]);
   const jOK = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
-  chk('checkin: 성공(공동호스트) + 공연명', jOK.ok === true && jOK.ticket.event_title === '공연');
+  chk('checkin: 성공 — 좌석 PATCH + 입장 현황(1/2) + 공연명', jOK.ok === true && jOK.ticket.event_title === '공연'
+    && jOK.ticket.seat_no === 1 && jOK.ticket.seats_checked === 1 && jOK.ticket.seats_total === 2, JSON.stringify(jOK.ticket));
+
+  // 과거 예매(좌석 미생성) — 티켓 코드로 좌석 만들어 이어감 (1번 좌석 = 예매번호)
+  let seeded = false, seededRows = null;
+  mockFetch([KAPI_OK,
+    ['event_ticket_seats?code=eq.ABCXYZ&select', { method: 'GET', body: () => (seeded ? seatBody() : []) }],
+    ['event_tickets?code=eq.ABCXYZ', { method: 'GET', body: [{ id: TK_ID, code: 'ABCXYZ', buyer_name: '홍길동', qty: 2, status: 'confirmed' }] }],
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=code,seat_no', { method: 'GET',
+      body: () => (seeded ? [{ code: 'ABCXYZ', seat_no: 1 }, { code: 'QQ7MNP', seat_no: 2 }] : []) }],
+    ['event_ticket_seats', { method: 'POST', body: (rec) => { seeded = true; seededRows = JSON.parse(rec.body); return []; } }],
+    MEMBERSHIP('member'),
+    ['event_ticket_seats?code=eq.ABCXYZ&checked_in_at=is.null', { method: 'PATCH', body: [{ code: 'ABCXYZ', checked_in_at: 'now' }] }],
+    ['event_tickets?id=eq.' + TK_ID, { method: 'PATCH', body: [] }],
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=checked_in_at', { method: 'GET', body: [{ checked_in_at: 'now' }, { checked_in_at: null }] }]]);
+  const jLG = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
+  chk('checkin: 좌석 미생성 과거 예매 → 좌석 생성(1번=예매번호) 후 체크인', jLG.ok === true
+    && seededRows && seededRows[0].code === 'ABCXYZ' && seededRows[0].seat_no === 1 && seededRows.length === 2, JSON.stringify(seededRows));
+}
+// ── 19b. uncheckin — 좌석 단위 입장 취소
+{
+  const seatRow = [{ code: 'ABCXYZ', seat_no: 2, checked_in_at: PAST,
+    event_tickets: { id: TK_ID, qty: 2, status: 'confirmed', checked_in_at: PAST,
+      events: { id: EV_ID, title: '공연', starts_at: FUTURE, host_id: HOST_ID } } }];
+  mockFetch([KAPI_OK, ['event_ticket_seats?code=eq.ABCXYZ&select', { method: 'GET', body: seatRow }], MEMBERSHIP('member'),
+    ['event_ticket_seats?code=eq.ABCXYZ&checked_in_at=not.is.null', { method: 'PATCH', body: [{ code: 'ABCXYZ', checked_in_at: null }] }],
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&checked_in_at=not.is.null', { method: 'GET', body: [] }],
+    ['event_tickets?id=eq.' + TK_ID, { method: 'PATCH', body: [] }]]);
+  const j = await (await run({ action: 'uncheckin', kakao_token: 't', code: 'ABCXYZ' })).json();
+  const tkPatch = calls.find(c => c.method === 'PATCH' && c.url.includes('event_tickets?id=eq.'));
+  chk('uncheckin: 좌석 해제 + 남은 입장 0 → 티켓 표시도 해제', j.ok === true && !!tkPatch
+    && JSON.parse(tkPatch.body).checked_in_at === null);
+  mockFetch([KAPI_OK, ['event_ticket_seats?code=eq.ABCXYZ&select', { method: 'GET', body: seatRow }], MEMBERSHIP('member'),
+    ['event_ticket_seats?code=eq.ABCXYZ&checked_in_at=not.is.null', { method: 'PATCH', body: [] }]]);
+  chk('uncheckin: 경합 0행 → 409', (await run({ action: 'uncheckin', kakao_token: 't', code: 'ABCXYZ' })).status === 409);
 }
 // ── 20. 초대: 생성(owner만)·수락·만료
 {
@@ -409,12 +484,17 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   const j7 = await (await run({ action: 'remove_co_team', kakao_token: 't', event_id: EV_ID, host_id: HOST_ID })).json();
   chk('remove_co_team: 공동팀 owner 자진 탈퇴', j7.ok === true);
 
-  // attendees에 co_teams + is_host_team 포함
+  // attendees에 co_teams + is_host_team + 티켓별 좌석 첨부
   mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP('member'),
-    ['event_tickets?event_id=eq.', { body: [] }],
+    ['event_tickets?event_id=eq.', { body: [{ id: TK_ID, qty: 2, status: 'confirmed', checked_in_at: null }] }],
+    ['event_ticket_seats?ticket_id=in.', { body: [
+      { ticket_id: TK_ID, code: 'ABCXYZ', seat_no: 1, checked_in_at: PAST },
+      { ticket_id: TK_ID, code: 'QQ7MNP', seat_no: 2, checked_in_at: null }] }],
     ['event_co_teams?event_id=eq.', { body: [{ host_id: CO_ID, event_hosts: { id: CO_ID, name: '어쿠스틱 팀', logo_url: null } }] }]]);
   const j8 = await (await run({ action: 'attendees', kakao_token: 't', event_id: EV_ID })).json();
-  chk('attendees: co_teams 목록 + is_host_team', j8.ok === true && j8.co_teams[0].name === '어쿠스틱 팀' && j8.is_host_team === true);
+  chk('attendees: co_teams + 티켓별 좌석(입장 1/2) 첨부', j8.ok === true && j8.co_teams[0].name === '어쿠스틱 팀'
+    && j8.is_host_team === true && j8.tickets[0].seats.length === 2 && j8.tickets[0].seats[0].checked_in_at === PAST,
+    JSON.stringify(j8.tickets && j8.tickets[0] && j8.tickets[0].seats));
 }
 // ── 23. my_events: 공동 관리 공연 병합
 {
@@ -423,7 +503,8 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     [`events?host_id=eq.${HOST_ID}`, { body: [EVENT_ROW()] }],
     [`event_co_teams?host_id=eq.${HOST_ID}`, { body: [{ event_id: CO_EV }] }],
     [`events?id=in.(${CO_EV})`, { body: [EVENT_ROW({ id: CO_EV, title: '연합공연', host_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', host_name: '주최팀B' })] }],
-    ['event_tickets?event_id=in.', { body: [] }]]);
+    ['event_tickets?event_id=in.', { body: [] }],
+    ['event_ticket_seats?select=', { body: [] }]]);
   const j = await (await run({ action: 'my_events', kakao_token: 't', host_id: HOST_ID })).json();
   const co = j.events.find(e => e.id === CO_EV);
   chk('my_events: 공동 관리 공연 병합 + co_hosted 플래그', j.ok === true && j.events.length === 2 && co && co.co_hosted === true && co.host_name === '주최팀B');

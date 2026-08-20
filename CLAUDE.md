@@ -5,7 +5,7 @@
 ## 프로젝트 개요
 - `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 14,000줄)
 - 백엔드: Supabase (`profiles`, `reservations`, `schedules`, `schedule_attendees`, `performance_bookings`,
-  공연 예매: `event_hosts`/`events`/`event_tickets` + `event_seats` 뷰)
+  공연 예매: `event_hosts`/`events`/`event_tickets`/`event_ticket_seats`(매수별 QR·좌석 체크인) + `event_seats` 뷰)
 - 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.

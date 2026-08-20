@@ -359,6 +359,8 @@
         .perf-form-group { margin-bottom: 16px; }
         .perf-form-label { font-size: 0.86rem; font-weight: 700; color: var(--wds-gray-700); margin-bottom: 6px; display: block; }
         #performance-booking-page .perf-form-input, #shows-page .perf-form-input, #host-page .perf-form-input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-size: 0.92rem; font-family: inherit; outline: none; box-sizing: border-box; background: var(--wds-white); color: var(--wds-black); }
+        /* datetime-local은 iOS/모바일에서 고유 최소 폭이 컨테이너를 밀어내 가로 스크롤을 만든다 — 강제 축소 */
+        #host-page input[type="datetime-local"].perf-form-input { min-width: 0; max-width: 100%; display: block; -webkit-appearance: none; appearance: none; }
         #performance-booking-page .perf-form-input:focus, #shows-page .perf-form-input:focus, #host-page .perf-form-input:focus { border-color: var(--wds-primary); }
         .perf-how-found-opts { display: flex; flex-wrap: wrap; gap: 6px; }
         .perf-hf-chip { padding: 6px 12px; border: 1px solid var(--wds-gray-300); border-radius: 20px; font-size: 0.86rem; cursor: pointer; transition: all 0.1s; font-family: inherit; background: var(--wds-white); color: var(--wds-black); }
@@ -822,8 +824,8 @@
         .like-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
         .like-btn.liked { border-color: #ff6b6b; color: #ff6b6b; background: #fff5f5; }
 
-        /* 토스트 알림 */
-        #auto-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
+        /* 토스트 알림 — BGM 바(56px, z-index 동급·DOM 후순위)보다 위에 떠야 문구가 가려지지 않는다 */
+        #auto-toast { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
 
         /* 멤버 대시보드 */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
@@ -1222,7 +1224,7 @@
             .email-form input, .email-form button { font-size: 0.95rem; }
             .view-header { flex-wrap: wrap; gap: 8px; }
             .view-title { font-size: 1.1rem; }
-            #auto-toast { bottom: 16px; padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
+            #auto-toast { bottom: 72px; padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
 
             /* 팀 구성 수정 폼 */
             .team-form-row { flex-wrap: wrap; gap: 6px 8px; }
@@ -13613,7 +13615,7 @@
             try {
                 const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty });
                 if (!out.ok) { showErr(out.message || '예매에 실패했습니다.'); return; }
-                _showsState.ticket = out.ticket;
+                _showsState.ticket = { ...out.ticket, seats: out.seats || [] };
                 _showsState.tEvent = out.event;
                 renderTicketView();
                 _pushNav('shows/ticket/' + out.ticket.code);
@@ -13645,10 +13647,7 @@
                         ${escapeHtml(ev.host_name || '')} · 📍 ${escapeHtml(ev.venue)}<br>
                         📅 ${_showDateStr(ev.starts_at)}
                     </div>
-                    <div style="font-size:0.78rem;color:var(--wds-gray-500)">예매번호</div>
-                    <div class="ticket-code">${escapeHtml(t.code)}</div>
-                    <div id="ticketQrSlot"></div>
-                    <button id="qrSaveBtn" onclick="downloadTicketQR('${jsStr(t.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">QR 이미지 저장</button>
+                    ${_ticketSeatBlocks(t)}
                     <div style="font-size:0.82rem;color:var(--wds-gray-700);margin-top:8px">${escapeHtml(t.buyer_name)} · ${t.qty}매${amount > 0 ? ` · ₩${amount.toLocaleString()}` : ''}</div>
                 </div>`;
             if (t.status === 'pending_payment') {
@@ -13673,11 +13672,30 @@
                 </div>`;
             c.innerHTML = html;
             // QR 렌더 — 라이브러리 미로드 시 예매번호 텍스트로 충분(저장 버튼도 숨김 유지)
-            if (typeof renderTicketQR === 'function') renderTicketQR(document.getElementById('ticketQrSlot'), t.code);
+            _ticketSeats(t).forEach(s => {
+                if (typeof renderTicketQR === 'function') renderTicketQR(document.getElementById('ticketQrSlot-' + s.seat_no), s.code);
+            });
             if (typeof qrcode !== 'undefined') {
-                const b = document.getElementById('qrSaveBtn');
-                if (b) b.style.display = 'inline-block';
+                document.querySelectorAll('#shows-container .qr-save-btn').forEach(b => { b.style.display = 'inline-block'; });
             }
+        }
+
+        // 매수별 QR — 좌석 목록 (구버전 응답엔 seats가 없으므로 예매번호 1장으로 폴백)
+        function _ticketSeats(t) {
+            return (t.seats && t.seats.length) ? t.seats : [{ code: t.code, seat_no: 1, checked_in_at: t.checked_in_at }];
+        }
+
+        function _ticketSeatBlocks(t) {
+            const seats = _ticketSeats(t);
+            const multi = seats.length > 1;
+            const note = multi ? `<div style="font-size:0.78rem;color:var(--wds-primary);font-weight:700;margin-bottom:4px">티켓 ${seats.length}장 — 동행인에게 한 장씩 전달하세요. QR 1개당 1명 입장합니다.</div>` : '';
+            return note + seats.map((s, i) => `
+                <div style="${i ? 'border-top:1px dashed var(--wds-gray-300);margin-top:14px;padding-top:12px' : ''}">
+                    <div style="font-size:0.78rem;color:var(--wds-gray-500)">${multi ? `티켓 ${s.seat_no} / ${seats.length}` : '예매번호'}${s.checked_in_at ? ' · <span style="color:#1E40AF;font-weight:700">입장 완료</span>' : ''}</div>
+                    <div class="ticket-code">${escapeHtml(s.code)}</div>
+                    <div id="ticketQrSlot-${s.seat_no}"></div>
+                    <button class="qr-save-btn" onclick="downloadTicketQR('${jsStr(s.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">QR 이미지 저장</button>
+                </div>`).join('');
         }
 
         // 예매 QR을 PNG 이미지로 저장 — 캔버스에 직접 그려서(외부 이미지 없음 → taint 없음) 다운로드
@@ -13753,7 +13771,7 @@
             if (!/^01[016789][0-9]{7,8}$/.test(phone.replace(/\D/g, ''))) { showErr('휴대폰 번호를 확인해주세요.'); return; }
             const out = await eventApi({ action: 'lookup', code, phone });
             if (!out.ok) { showErr(out.message || '조회에 실패했습니다.'); return; }
-            _showsState.ticket = out.ticket;
+            _showsState.ticket = { ...out.ticket, seats: out.seats || [] };
             _showsState.tEvent = out.event;
             renderTicketView();
             _pushNav('shows/ticket/' + out.ticket.code);
@@ -14489,9 +14507,18 @@
             }
         }
 
+        // 좌석 단위 입장 현황 — seats가 없는 구버전 데이터는 티켓 checked_in_at으로 폴백
+        const _seatProgress = (t) => {
+            const total = t.qty || 1;
+            const seats = t.seats || [];
+            const checked = seats.length ? seats.filter(s => s.checked_in_at).length : (t.checked_in_at ? total : 0);
+            return { checked, total };
+        };
         const _TICKET_STATUS_CHIP = (t) => {
             if (t.status === 'cancelled') return _showChip('취소', '#FEE2E2', '#991B1B');
-            if (t.checked_in_at) return _showChip('입장', '#DBEAFE', '#1E40AF');
+            const p = _seatProgress(t);
+            if (p.checked > 0 && p.checked >= p.total) return _showChip('입장', '#DBEAFE', '#1E40AF');
+            if (p.checked > 0) return _showChip(`입장 ${p.checked}/${p.total}`, '#DBEAFE', '#1E40AF');
             if (t.status === 'confirmed') return _showChip('확정', '#DCFCE7', '#166534');
             return _showChip('입금대기', '#FEF3C7', '#92400E');
         };
@@ -14570,21 +14597,31 @@
                 taken: act.reduce((n, t) => n + t.qty, 0),
                 confirmed: act.filter(t => t.status === 'confirmed').reduce((n, t) => n + t.qty, 0),
                 pending: act.filter(t => t.status === 'pending_payment').reduce((n, t) => n + t.qty, 0),
-                checked: act.filter(t => t.checked_in_at).reduce((n, t) => n + t.qty, 0),
+                checked: act.reduce((n, t) => n + _seatProgress(t).checked, 0),
             };
             const rows = list.map(t => {
                 const phone = t.buyer_phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+                const p = _seatProgress(t);
+                const seats = t.seats || [];
                 let btns = '';
                 if (t.status === 'pending_payment') {
                     btns = _hbtn('입금 확인', `hostTicketAction('confirm_payment','${jsStr(t.id)}')`, '#166534', '#B7E4C7')
                          + _hbtn('취소', `hostCancelTicket('${jsStr(t.id)}')`, '#EF4444', '#F5B5B5');
-                } else if (t.status === 'confirmed' && !t.checked_in_at) {
-                    btns = _hbtn('체크인', `hostCheckinByCode('${jsStr(t.code)}')`, '#1E40AF', '#BFDBFE')
+                } else if (t.status === 'confirmed' && p.checked === 0) {
+                    btns = (p.total === 1 ? _hbtn('체크인', `hostCheckinByCode('${jsStr(t.code)}')`, '#1E40AF', '#BFDBFE') : '')
                          + _hbtn('확정 취소', `hostTicketAction('revert_payment','${jsStr(t.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')
                          + _hbtn('취소', `hostCancelTicket('${jsStr(t.id)}')`, '#EF4444', '#F5B5B5');
-                } else if (t.checked_in_at) {
-                    btns = _hbtn('입장 취소', `hostTicketAction('uncheckin','${jsStr(t.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)');
+                } else if (t.status === 'confirmed' && p.total === 1 && p.checked > 0) {
+                    btns = _hbtn('입장 취소', `hostUncheckinSeat('${jsStr((seats[0] || { code: t.code }).code)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)');
                 }
+                // 매수>1 확정 예매 — 티켓(좌석)별 입장 토글 (QR 1개 = 1명)
+                const seatRow = (t.status === 'confirmed' && p.total > 1 && seats.length) ? `
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
+                        <span style="font-size:0.72rem;font-weight:700;color:var(--wds-gray-500)">티켓별 입장</span>
+                        ${seats.map(s => s.checked_in_at
+                            ? `<button onclick="hostUncheckinSeat('${jsStr(s.code)}')" title="입장 취소" style="padding:5px 12px;border-radius:14px;border:none;background:#1E40AF;color:#fff;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no} ✓</button>`
+                            : `<button onclick="hostCheckinByCode('${jsStr(s.code)}')" title="체크인" style="padding:5px 12px;border-radius:14px;border:1px solid #BFDBFE;background:none;color:#1E40AF;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no}</button>`).join('')}
+                    </div>` : '';
                 return `<div class="host-card" style="padding:12px${t.status === 'cancelled' ? ';opacity:0.55' : ''}">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         ${_TICKET_STATUS_CHIP(t)}
@@ -14592,6 +14629,7 @@
                         <span style="font-size:0.8rem;color:var(--wds-gray-700)">${t.qty}매 · <span style="letter-spacing:0.12em">${escapeHtml(t.code)}</span></span>
                         <a href="tel:${t.buyer_phone}" style="margin-left:auto;font-size:0.8rem;color:var(--wds-gray-700);text-decoration:none">📞 ${phone}</a>
                     </div>
+                    ${seatRow}
                     ${btns ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px">${btns}</div>` : ''}
                 </div>`;
             }).join('');
@@ -14625,9 +14663,15 @@
             const stName = { pending_payment: '입금대기', confirmed: '확정', cancelled: '취소' };
             const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
             const fmtDt = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('ko-KR'); };
+            const stTxt = (t) => {
+                if (t.status === 'cancelled') return '취소';
+                const p = _seatProgress(t);
+                if (p.checked > 0) return p.checked >= p.total ? '입장 완료' : `입장 ${p.checked}/${p.total}`;
+                return stName[t.status] || t.status;
+            };
             const rows = [['이름', '연락처', '매수', '예매번호', '상태', '체크인 시각', '예매 일시']]
                 .concat(list.map(t => [t.buyer_name, t.buyer_phone, t.qty, t.code,
-                    (t.checked_in_at ? '입장 완료' : (stName[t.status] || t.status)), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
+                    stTxt(t), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
             const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -14652,13 +14696,28 @@
             hostTicketAction('host_cancel', ticketId);
         }
 
+        // 입장 취소 — 좌석(티켓 1장) 단위
+        async function hostUncheckinSeat(code) {
+            if (!confirm('이 티켓의 입장 처리를 취소할까요?')) return;
+            if (_hostState.busy) return;
+            _hostState.busy = true;
+            try {
+                const out = await eventApi({ action: 'uncheckin', kakao_token: _hostState.token, code });
+                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+            } finally { _hostState.busy = false; }
+            if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
+        }
+
         async function hostCheckinByCode(code) {
             if (_hostState.busy) return;
             _hostState.busy = true;
             try {
                 const out = await eventApi({ action: 'checkin', kakao_token: _hostState.token, code });
-                if (out.ok) showToast(`✅ ${out.ticket.buyer_name || ''} ${out.ticket.qty || ''}매 입장 처리`);
-                else alert(out.message || '체크인에 실패했습니다.');
+                if (out.ok) {
+                    const tk = out.ticket || {};
+                    const multi = (tk.seats_total || tk.qty || 1) > 1;
+                    showToast(`✅ ${tk.buyer_name || ''} 입장 처리${multi && tk.seats_checked != null ? ` (${tk.seats_checked}/${tk.seats_total})` : ''}`);
+                } else alert(out.message || '체크인에 실패했습니다.');
             } finally { _hostState.busy = false; }
             if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
         }
@@ -14677,10 +14736,12 @@
             const t = out.ticket || {};
             let panel;
             if (out.ok) {
+                const multi = (t.seats_total || t.qty || 1) > 1;
                 panel = `<div style="background:#DCFCE7;border-radius:16px;padding:34px 20px;text-align:center">
                     <div style="font-size:3rem;margin-bottom:8px">✅</div>
                     <div style="font-size:1.25rem;font-weight:800;color:#166534;margin-bottom:6px">입장 확인</div>
-                    <div style="font-size:1.05rem;font-weight:700;color:#166534">${escapeHtml(t.buyer_name || '')} · ${t.qty || 1}매</div>
+                    <div style="font-size:1.05rem;font-weight:700;color:#166534">${escapeHtml(t.buyer_name || '')}${multi ? ` · ${t.seat_no || 1}번 티켓` : ' · 1매'}</div>
+                    ${multi && t.seats_checked != null ? `<div style="font-size:0.88rem;font-weight:700;color:#166534;margin-top:4px">이 예매 입장 ${t.seats_checked}/${t.seats_total}</div>` : ''}
                     <div style="font-size:0.82rem;color:#166534;opacity:0.8;margin-top:6px">${escapeHtml(t.event_title || '')} · ${escapeHtml(code)}</div>
                 </div>`;
             } else if (out.error === 'already_checked_in') {
@@ -14689,7 +14750,7 @@
                 panel = `<div style="background:#FEF3C7;border-radius:16px;padding:34px 20px;text-align:center">
                     <div style="font-size:3rem;margin-bottom:8px">⚠️</div>
                     <div style="font-size:1.15rem;font-weight:800;color:#92400E;margin-bottom:6px">이미 입장한 티켓입니다</div>
-                    <div style="font-size:0.9rem;color:#92400E">${escapeHtml(t.buyer_name || '')} · ${t.qty || 1}매${hm ? ` · ${hm} 입장` : ''}</div>
+                    <div style="font-size:0.9rem;color:#92400E">${escapeHtml(t.buyer_name || '')}${(t.qty || 1) > 1 && t.seat_no ? ` · ${t.seat_no}번 티켓` : ''}${hm ? ` · ${hm} 입장` : ''}</div>
                 </div>`;
             } else if (out.error === 'not_confirmed') {
                 panel = `<div style="background:#FEE2E2;border-radius:16px;padding:34px 20px;text-align:center">
@@ -14887,6 +14948,7 @@
         body.gatheo-nav { padding-bottom: calc(var(--gnav-h) + 56px); }
         body.gatheo-nav #bgm-player { bottom: var(--gnav-h); }
         body.gatheo-nav #bgm-playlist-panel { bottom: calc(var(--gnav-h) + 56px); }
+        body.gatheo-nav #auto-toast { bottom: calc(var(--gnav-h) + 72px); }
         #installBanner { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
         body.gatheo-nav #installBanner { bottom: calc(var(--gnav-h) + 72px); }
     </style>

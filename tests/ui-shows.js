@@ -147,7 +147,8 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   await p.evaluate((EV1) => {
     window.__apiQueue.push({ ok: true,
       ticket: { id: 't1', event_id: EV1, code: 'AB3XKP', buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, status: 'pending_payment', checked_in_at: null },
-      event: { id: EV1, title: '한여름 밤의 락', host_name: '밴드 스컬', venue: '게더 올 어라운드', starts_at: new Date(Date.now() + 7 * 86400e3).toISOString(), price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트' } });
+      event: { id: EV1, title: '한여름 밤의 락', host_name: '밴드 스컬', venue: '게더 올 어라운드', starts_at: new Date(Date.now() + 7 * 86400e3).toISOString(), price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트' },
+      seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] });
   }, EV1);
   await p.check('#showPrivacyAgree');
   await p.click('#showBookBtn');
@@ -156,9 +157,12 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     hash: location.hash,
     call: window.__apiCalls[0],
     text: document.getElementById('shows-container').textContent,
+    qrs: document.querySelectorAll('#shows-container [id^="ticketQrSlot-"] svg').length,
   }));
   chk('예매 성공: book 호출 payload', s.call && s.call.action === 'book' && s.call.event_id === EV1 && s.call.qty === 2 && s.call.phone === '010-1234-5678');
   chk('티켓 화면: 코드+입금 안내+금액(2매 30,000)', s.hash === '#shows/ticket/AB3XKP' && s.text.includes('AB3XKP') && s.text.includes('입금 안내') && s.text.includes('₩30,000') && s.text.includes('입금 확인 중'));
+  chk('티켓 화면: 매수별 QR 2장(좌석 코드 2개 + 전달 안내)', s.qrs === 2 && s.text.includes('ZZ9PQR')
+    && s.text.includes('티켓 1 / 2') && s.text.includes('한 장씩 전달'), `${s.qrs}개 QR`);
   chk('티켓 화면: 입금자명 안내', s.text.includes('예매자 이름(홍길동)'));
 
   // ── 4. 예매 취소
