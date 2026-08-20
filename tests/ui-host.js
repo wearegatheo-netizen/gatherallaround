@@ -510,9 +510,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     // Blob.text()는 디코딩하며 BOM을 제거하므로, BOM은 바이트(EF BB BF)로 확인
     return { name: window.__dl && window.__dl.name, text, bom: buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF };
   });
-  chk('CSV: BOM+헤더+행+따옴표 이스케이프+상태 한글', s.name && s.name.startsWith('예매자_한여름 밤의 락')
+  chk('CSV: BOM+헤더+행+따옴표 이스케이프+상태 한글+전화 하이픈', s.name && s.name.startsWith('예매자_한여름 밤의 락')
     && s.bom && s.text.includes('이름') && s.text.includes('홍길동')
-    && s.text.includes('김""인용') && s.text.includes('입금대기'), s.name);
+    && s.text.includes('김""인용') && s.text.includes('입금대기') && s.text.includes('010-1234-5678'), s.name);
 
   // ── 7e. QR 이미지 저장 (PNG dataURL)
   s = await p.evaluate(() => {

@@ -13478,18 +13478,25 @@
 
         async function renderShowDetail(id) {
             const c = document.getElementById('shows-container');
-            let ev = _showsState.events.find(e => e.id === id);
-            if (!ev) {
-                c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
-                try {
-                    const { data, error } = await supabaseClient.from('events').select('*').eq('id', id).maybeSingle();
-                    if (error || !data) throw error || new Error('not found');
+            let ev = _showsState.events.find(e => e.id === id) || null;
+            if (!ev) c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            // 캐시가 있어도 항상 최신 행을 다시 읽는다 — 호스트가 방금 수정한 질문·가격·잔여석이
+            // 목록 캐시 때문에 안 보이던 문제 방지 (실패 시에만 캐시 폴백)
+            try {
+                const { data, error } = await supabaseClient.from('events').select('*').eq('id', id).maybeSingle();
+                if (error) throw error;
+                if (data) {
                     ev = data;
-                    try {
-                        const { data: s } = await supabaseClient.from('event_seats').select('*').eq('event_id', id).maybeSingle();
-                        if (s) _showsState.seats[id] = s;
-                    } catch (_) {}
-                } catch (_) {
+                    const i = _showsState.events.findIndex(e => e.id === id);
+                    if (i >= 0) _showsState.events[i] = data; // 목록 캐시도 갱신
+                }
+                if (!ev) throw new Error('not found');
+                try {
+                    const { data: s } = await supabaseClient.from('event_seats').select('*').eq('event_id', id).maybeSingle();
+                    if (s) _showsState.seats[id] = s;
+                } catch (_) {}
+            } catch (_) {
+                if (!ev) {
                     c.innerHTML = `<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연을 찾을 수 없습니다.</p>
                         <p style="text-align:center"><button onclick="showShowsSection()" style="padding:10px 24px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-family:inherit;font-weight:600">← 공연 목록</button></p>`;
                     return;
@@ -14843,8 +14850,10 @@
                 if (p.checked > 0) return p.checked >= p.total ? '입장 완료' : `입장 ${p.checked}/${p.total}`;
                 return stName[t.status] || t.status;
             };
+            // 전화번호는 화면과 동일한 하이픈 형식 — 엑셀이 숫자로 해석해 앞자리 0을 지우는 것도 방지
+            const fmtPhone = (v) => String(v || '').replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
             const rows = [['이름', '연락처', '매수', '예매번호', '상태', '답변', '체크인 시각', '예매 일시']]
-                .concat(list.map(t => [t.buyer_name, t.buyer_phone, t.qty, t.code,
+                .concat(list.map(t => [t.buyer_name, fmtPhone(t.buyer_phone), t.qty, t.code,
                     stTxt(t), _answerText(t.answer), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
             const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
             const a = document.createElement('a');
