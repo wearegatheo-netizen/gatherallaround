@@ -32,7 +32,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
         { id: 'h1', name: '밴드 스컬', bio: '신촌에서 활동하는 5인조 밴드', sns: 'instagram.com/bandskull' },
       ],
       events: [
-        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_question: '어떤 팀을 보러 오시나요?', booking_question_required: true },
+        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_questions: [{ q: '어떤 팀을 보러 오시나요?', required: true }, { q: '동행인이 있나요?', required: false }] },
         { id: EV2, host_id: 'h1', host_name: '어쿠스틱 팀', title: '무료 어쿠스틱 나잇', description: '', poster_url: '', venue: '게더 올 어라운드', starts_at: F14, capacity: 30, price: 0, bank_info: null, max_per_booking: 2, status: 'published' },
         { id: EV3, host_id: 'h2', host_name: '재즈 콜렉티브', title: '재즈의 밤 (매진)', description: '', poster_url: '', venue: '게더', starts_at: F7, capacity: 20, price: 10000, bank_info: 'x', max_per_booking: 4, status: 'published' },
         { id: '44444444-4444-4444-8444-444444444444', host_id: 'h2', host_name: '지난팀', title: '지난 공연', description: '', poster_url: '', venue: '게더', starts_at: PAST, capacity: 20, price: 0, bank_info: null, max_per_booking: 4, status: 'published' },
@@ -160,11 +160,12 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   await p.waitForTimeout(150);
   s = await p.evaluate(() => ({
     open: !document.getElementById('bookSheetWrap').classList.contains('hidden'),
-    q: document.getElementById('bookSheetWrap').textContent.includes('어떤 팀을 보러 오시나요?'),
-    ansInput: !!document.getElementById('showAnswer'),
+    q1: document.getElementById('bookSheetWrap').textContent.includes('어떤 팀을 보러 오시나요? *'),
+    q2: document.getElementById('bookSheetWrap').textContent.includes('동행인이 있나요?'),
+    inputs: !!document.getElementById('showAnswer-0') && !!document.getElementById('showAnswer-1'),
   }));
-  chk('예매하기 CTA → 바텀시트 열림 + 호스트 질문 표시', s.open && s.q && s.ansInput);
-  await p.fill('#showAnswer', '밴드 스컬이요');
+  chk('예매하기 CTA → 바텀시트 + 질문 2개(필수 * 표시)', s.open && s.q1 && s.q2 && s.inputs);
+  await p.fill('#showAnswer-0', '밴드 스컬이요');
   await p.fill('#showName', '홍길동');
   await p.fill('#showPhone', '010-1234-5678');
   await p.selectOption('#showQty', '2');
@@ -178,11 +179,11 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
       seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] });
   }, EV1);
   await p.check('#showPrivacyAgree');
-  await p.fill('#showAnswer', '');
+  await p.fill('#showAnswer-0', '');
   await p.click('#showBookBtn');
   s = await p.evaluate(() => ({ err: document.getElementById('showsBookResult').textContent, calls: window.__apiCalls.length }));
   chk('필수 질문: 답변 없이 제출 → 인라인 오류 + API 미호출', s.err.includes('답변') && s.calls === 0, s.err);
-  await p.fill('#showAnswer', '밴드 스컬이요');
+  await p.fill('#showAnswer-0', '밴드 스컬이요');
   await p.click('#showBookBtn');
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({
@@ -191,8 +192,10 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     text: document.getElementById('shows-container').textContent,
     qrs: document.querySelectorAll('#shows-container [id^="ticketQrSlot-"] svg').length,
   }));
-  chk('예매 성공: book 호출 payload (+질문 답변)', s.call && s.call.action === 'book' && s.call.event_id === EV1 && s.call.qty === 2
-    && s.call.phone === '010-1234-5678' && s.call.answer === '밴드 스컬이요');
+  chk('예매 성공: book 호출 payload (+문답 배열)', s.call && s.call.action === 'book' && s.call.event_id === EV1 && s.call.qty === 2
+    && s.call.phone === '010-1234-5678' && Array.isArray(s.call.answers)
+    && s.call.answers[0].q === '어떤 팀을 보러 오시나요?' && s.call.answers[0].a === '밴드 스컬이요' && s.call.answers[1].a === '',
+    JSON.stringify(s.call && s.call.answers));
   chk('티켓 화면: 코드+입금 안내+금액(2매 30,000)', s.hash === '#shows/ticket/AB3XKP' && s.text.includes('AB3XKP') && s.text.includes('입금 안내') && s.text.includes('₩30,000') && s.text.includes('입금 확인 중'));
   chk('티켓 화면: 매수별 QR 2장(좌석 코드 2개 + 전달 안내)', s.qrs === 2 && s.text.includes('ZZ9PQR')
     && s.text.includes('티켓 1') && s.text.includes('한 장씩 전달'), `${s.qrs}개 QR`);

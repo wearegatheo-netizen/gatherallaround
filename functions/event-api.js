@@ -258,9 +258,22 @@ function validateEventFields(e, { partial = false } = {}) {
         if (v < 1 || v > 10) return bad('1인 최대 매수는 1~10 사이여야 합니다.');
         out.max_per_booking = v;
     }
-    if (has('description')) out.description = String(e.description || '').slice(0, 12000);
+    if (has('description') || !partial) {
+        const v = String(e.description || '').slice(0, 12000);
+        if (!v.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim()) return bad('공연 소개를 입력해주세요.');
+        out.description = v;
+    }
     if (e.booking_question !== undefined) out.booking_question = String(e.booking_question || '').trim().slice(0, 200) || null;
     if (e.booking_question_required !== undefined) out.booking_question_required = !!e.booking_question_required;
+    if (e.booking_questions !== undefined) {
+        const arr = Array.isArray(e.booking_questions) ? e.booking_questions : [];
+        const qs = arr.map(x => ({ q: String((x && x.q) || '').trim().slice(0, 200), required: !!(x && x.required) }))
+            .filter(x => x.q).slice(0, 5);
+        out.booking_questions = qs.length ? qs : null;
+        // 구형 단일 컬럼도 첫 질문으로 동기 — 배포 전환기 화면 호환
+        out.booking_question = qs.length ? qs[0].q : null;
+        out.booking_question_required = qs.length ? qs[0].required : false;
+    }
     if (has('bank_info')) out.bank_info = String(e.bank_info || '').trim().slice(0, 120) || null;
     if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
     if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
@@ -336,18 +349,33 @@ export async function onRequest(context) {
             if (!phone) return fail(400, 'bad_phone', '휴대폰 번호를 확인해주세요.');
             if (!Number.isInteger(qty) || qty < 1 || qty > 10) return fail(400, 'bad_qty', '매수를 확인해주세요.');
 
+            // 답변 정규화 — 신형 answers([{q,a}]) 우선, 구형 answer(단일 문자열) 폴백
+            let answers = [];
+            if (Array.isArray(body.answers)) {
+                answers = body.answers.slice(0, 5).map(x => ({
+                    q: String((x && x.q) || '').trim().slice(0, 200),
+                    a: String((x && x.a) || '').trim().slice(0, 300),
+                }));
+            } else if (body.answer) {
+                answers = [{ q: '', a: String(body.answer).trim().slice(0, 300) }];
+            }
             // 공연 시작 시간이 지나면 예매 자동 마감 + 필수 질문 답변 검증 (서버에서도 차단)
-            const answer = String(body.answer || '').trim().slice(0, 200);
-            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at,booking_question,booking_question_required&limit=1`);
+            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at,booking_question,booking_question_required,booking_questions&limit=1`);
             if (evr.ok) {
                 const [ev0] = await evr.json();
                 if (ev0 && new Date(ev0.starts_at) <= new Date()) {
                     return fail(409, 'started', '공연이 시작되어 예매가 마감되었습니다.');
                 }
-                if (ev0 && ev0.booking_question && ev0.booking_question_required && !answer) {
-                    return fail(400, 'need_answer', '질문에 답변을 입력해주세요.');
+                const evQs = ev0 && Array.isArray(ev0.booking_questions) && ev0.booking_questions.length
+                    ? ev0.booking_questions
+                    : (ev0 && ev0.booking_question ? [{ q: ev0.booking_question, required: !!ev0.booking_question_required }] : []);
+                for (let i = 0; i < evQs.length; i++) {
+                    if (evQs[i] && evQs[i].required && !(answers[i] && answers[i].a)) {
+                        return fail(400, 'need_answer', `'${evQs[i].q}' 질문에 답변을 입력해주세요.`);
+                    }
                 }
             }
+            const answerStored = answers.filter(x => x.a);
 
             for (let attempt = 0; attempt < 5; attempt++) {
                 const r = await sbFetch(env, 'rpc/book_event_ticket', {
@@ -360,11 +388,12 @@ export async function onRequest(context) {
                 }
                 const out = await r.json();
                 if (out.ok) {
-                    // 호스트 설정 질문에 대한 답변 저장 (RPC는 좌석 정합만 담당 — 부가 필드는 후속 PATCH)
-                    if (answer && out.ticket && out.ticket.id) {
+                    // 호스트 설정 질문에 대한 답변 저장 — [{q,a}] JSON (RPC는 좌석 정합만 담당)
+                    if (answerStored.length && out.ticket && out.ticket.id) {
+                        const answerJson = JSON.stringify(answerStored);
                         await sbFetch(env, `event_tickets?id=eq.${out.ticket.id}`, {
-                            method: 'PATCH', body: JSON.stringify({ answer }) }).catch(() => {});
-                        out.ticket.answer = answer;
+                            method: 'PATCH', body: JSON.stringify({ answer: answerJson }) }).catch(() => {});
+                        out.ticket.answer = answerJson;
                     }
                     const seats = await ensureSeats(env, out.ticket); // 매수별 QR — 좌석 코드 발급
                     return json({ ok: true, ticket: out.ticket, event: out.event, seats });
@@ -565,7 +594,6 @@ export async function onRequest(context) {
                 if (v.error) return fail(400, 'bad_event', v.error);
                 if (!posterOk(e.poster_url)) return fail(400, 'bad_poster', '포스터 이미지가 올바르지 않습니다.');
                 const fields = v.fields;
-                if (e.description !== undefined) fields.description = String(e.description || '').slice(0, 12000);
                 if (fields.price > 0) {
                     fields.bank_info = String(e.bank_info || '').trim().slice(0, 120) || host.bank_info || null;
                     if (!fields.bank_info) return fail(400, 'need_bank', '유료 공연은 입금 계좌가 필요합니다.');

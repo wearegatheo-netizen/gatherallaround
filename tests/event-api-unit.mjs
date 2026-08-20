@@ -100,9 +100,10 @@ const TICKET = (over = {}) => ({
   const rpcCall = calls.find(c => c.url.includes('rpc/book_event_ticket'));
   const sent = JSON.parse(rpcCall.body);
   const ansPatch = calls.find(c => c.method === 'PATCH' && c.url.includes('event_tickets?id=eq.'));
+  const ansSaved = ansPatch ? JSON.parse(JSON.parse(ansPatch.body).answer) : null;
   chk('book: 성공 패스스루', j.ok === true && j.ticket.code === sentCode);
-  chk('book: 예매자 질문 답변 저장(trim) + 응답 동봉', !!ansPatch && JSON.parse(ansPatch.body).answer === '밴드 스컬 보러요'
-    && j.ticket.answer === '밴드 스컬 보러요');
+  chk('book: 구형 answer도 문답 JSON으로 저장(trim)', Array.isArray(ansSaved) && ansSaved[0].a === '밴드 스컬 보러요'
+    && j.ticket.answer === JSON.parse(ansPatch.body).answer, ansPatch && JSON.parse(ansPatch.body).answer);
   chk('book: 코드 6자리(혼동문자 제외) 서버 생성', /^[A-HJ-NP-Z2-9]{6}$/.test(sentCode), sentCode);
   chk('book: 이름 trim + 전화 정규화', sent.p_name === '홍길동' && sent.p_phone === '01012345678');
   chk('book: service key 헤더', rpcCall.headers.apikey === 'sk-service');
@@ -142,8 +143,13 @@ const TICKET = (over = {}) => ({
     && !calls.some(c => c.url.includes('rpc/')));
   mockFetch([['events?id=', { body: [{ starts_at: FUTURE, booking_question: '어느 팀?', booking_question_required: true }] }]]);
   const r5 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
-  chk('book: 필수 질문 미답변 → 400 need_answer (RPC 미호출)', r5.status === 400 && (await r5.json()).error === 'need_answer'
+  chk('book: 필수 질문(구형) 미답변 → 400 need_answer (RPC 미호출)', r5.status === 400 && (await r5.json()).error === 'need_answer'
     && !calls.some(c => c.url.includes('rpc/')));
+  mockFetch([['events?id=', { body: [{ starts_at: FUTURE,
+    booking_questions: [{ q: '어느 팀?', required: false }, { q: '동행인?', required: true }] }] }]]);
+  const r6 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1,
+    answers: [{ q: '어느 팀?', a: '스컬' }, { q: '동행인?', a: '' }] });
+  chk('book: 복수 질문 중 필수(2번) 미답변 → 400 need_answer', r6.status === 400 && (await r6.json()).error === 'need_answer');
 }
 // ── 7. lookup: 코드 존재+전화 불일치 = 코드 없음과 동일 404
 {
@@ -307,7 +313,7 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   const r = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: {} });
   chk('create_event: 비멤버 → 403', r.status === 403 && (await r.json()).error === 'not_member');
 
-  const base = { title: '공연', venue: '게더', starts_at: FUTURE, capacity: 40, price: 15000, max_per_booking: 4 };
+  const base = { title: '공연', venue: '게더', starts_at: FUTURE, capacity: 40, price: 15000, max_per_booking: 4, description: '<p>소개</p>' };
   mockFetch([KAPI_OK, MEMBERSHIP('member'),
     [`event_hosts?id=eq.${HOST_ID}`, { body: [{ ...TEAM, bank_info: null }] }]]);
   const r2 = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, bank_info: '' } });
@@ -318,12 +324,21 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
   const poster = 'https://sb.test/storage/v1/object/public/community-images/events/1.jpg';
   const j3 = await (await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID,
-    event: { ...base, description: '소개', poster_url: poster, booking_question: ' 어떤 팀을 보러 오시나요? ', booking_question_required: true, venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
+    event: { ...base, poster_url: poster,
+      booking_questions: [{ q: ' 어떤 팀을 보러 오시나요? ', required: true }, { q: '동행인이 있나요?', required: false }, { q: '   ', required: true }],
+      venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
   const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
   chk('create_event: 공동호스트도 등록 가능 + host_id/host_name/좌표', j3.ok === true && ins.host_id === HOST_ID
     && ins.host_name === '밴드X' && ins.venue_lat === 37.5511 && ins.bank_info === '토스 111');
-  chk('create_event: 예매자 질문 저장(trim) + 필수 플래그', ins.booking_question === '어떤 팀을 보러 오시나요?'
-    && ins.booking_question_required === true);
+  chk('create_event: 질문 배열 저장(trim·빈 질문 제거) + 구형 컬럼 동기', Array.isArray(ins.booking_questions)
+    && ins.booking_questions.length === 2 && ins.booking_questions[0].q === '어떤 팀을 보러 오시나요?'
+    && ins.booking_questions[0].required === true && ins.booking_question === '어떤 팀을 보러 오시나요?'
+    && ins.booking_question_required === true, JSON.stringify(ins.booking_questions));
+
+  // 소개 비어 있으면 400
+  mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
+  const rNoDesc = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, description: '<p><br></p>' } });
+  chk('create_event: 공연 소개 필수 → 400', rNoDesc.status === 400 && (await rNoDesc.json()).message.includes('소개'));
 
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
   const rBad = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, venue_lat: 999, venue_lng: 126.9 } });

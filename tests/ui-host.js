@@ -147,9 +147,21 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('장소 선택: 입력값·주소 반영', s.v === '홍대 클럽 FF' && s.addr.includes('와우산로'));
 
-  // 소개 서식 + 예매자 질문(필수) 입력 후 저장
-  await p.fill('#evQuestion', '어떤 팀을 보러 오시나요?');
-  await p.check('input[name="evQReq"][value="req"]');
+  // 소개 필수 — 비운 채 저장 시도 → 인라인 오류 + API 미호출
+  await p.click('#evSaveBtn');
+  await p.waitForTimeout(100);
+  s = await p.evaluate(() => ({
+    err: document.getElementById('evFormResult').textContent,
+    noCall: !window.__apiCalls.some(c => c.action === 'create_event'),
+  }));
+  chk('공연 소개 필수: 비어 있으면 저장 차단', s.err.includes('소개') && s.noCall, s.err);
+
+  // 예매자 질문 2개 추가(첫 번째 필수) + 소개 서식 입력 후 저장
+  await p.click('button:has-text("+ 질문 추가")');
+  await p.fill('.ev-q-row >> nth=0 >> .ev-q-text', '어떤 팀을 보러 오시나요?');
+  await p.check('.ev-q-row >> nth=0 >> .ev-q-req');
+  await p.click('button:has-text("+ 질문 추가")');
+  await p.fill('.ev-q-row >> nth=1 >> .ev-q-text', '동행인이 있나요?');
   await p.evaluate(() => {
     document.getElementById('evDescRte').innerHTML = '<h2>라인업</h2><p>밴드A · 밴드B</p>';
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111' } });  // create_event
@@ -174,7 +186,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
-  chk('payload: 예매자 질문 + 필수 플래그', e3 && e3.booking_question === '어떤 팀을 보러 오시나요?' && e3.booking_question_required === true);
+  chk('payload: 질문 배열(2개, 첫 번째 필수)', e3 && Array.isArray(e3.booking_questions) && e3.booking_questions.length === 2
+    && e3.booking_questions[0].q === '어떤 팀을 보러 오시나요?' && e3.booking_questions[0].required === true
+    && e3.booking_questions[1].required === false, JSON.stringify(e3 && e3.booking_questions));
   chk('대시보드: 공연 카드 + 집계 + 포스터 썸네일(폴백)', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3') && s.poster);
 
   // ── 3b. 카드 버튼 순서·이름 + 공연 삭제

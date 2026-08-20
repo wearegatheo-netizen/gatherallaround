@@ -3575,6 +3575,14 @@
         }
 
         async function initSession() {
+            // 호스트 센터에서 카카오 로그인 중 리다이렉트로 돌아온 경우 — 게더링 자동 로그인 대신 호스트 센터로 복귀
+            try {
+                if (sessionStorage.getItem('gaa_return_host')) {
+                    sessionStorage.removeItem('gaa_return_host');
+                    showHostSection();
+                    return;
+                }
+            } catch (e) {}
             // 명시적 로그아웃 후에는 자동 로그인 건너뜀
             const portalRequired = localStorage.getItem('gaa_portal_required');
             if (portalRequired) {
@@ -13564,10 +13572,10 @@
                             <label class="perf-form-label">매수 *</label>
                             <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
                         </div>
-                        ${ev.booking_question ? `<div class="perf-form-group">
-                            <label class="perf-form-label">${escapeHtml(ev.booking_question)}${ev.booking_question_required ? ' *' : ''}</label>
-                            <input type="text" class="perf-form-input" id="showAnswer" maxlength="200" placeholder="답변 입력${ev.booking_question_required ? '' : ' (선택)'}">
-                        </div>` : ''}
+                        ${_evQuestionsOf(ev).map((qq, i) => `<div class="perf-form-group">
+                            <label class="perf-form-label">${escapeHtml(qq.q)}${qq.required ? ' *' : ''}</label>
+                            <input type="text" class="perf-form-input" id="showAnswer-${i}" maxlength="300" placeholder="답변 입력${qq.required ? '' : ' (선택)'}">
+                        </div>`).join('')}
                         <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
                             <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
                                 <input type="checkbox" id="showPrivacyAgree" style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
@@ -13627,15 +13635,18 @@
             if (!name) { showErr('이름을 입력해주세요.'); return; }
             if (!/^01[016789][0-9]{7,8}$/.test((phone || '').replace(/\D/g, ''))) { showErr('휴대폰 번호를 확인해주세요.'); return; }
             if (!document.getElementById('showPrivacyAgree')?.checked) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
-            const evNow = _showsState.event;
-            const answerVal = document.getElementById('showAnswer')?.value.trim() || '';
-            if (evNow && evNow.booking_question && evNow.booking_question_required && !answerVal) { showErr('질문에 답변을 입력해주세요.'); return; }
+            // 호스트 질문 답변 수집 — 문답 쌍으로 저장 (질문이 나중에 바뀌어도 당시 문답 보존)
+            const evQs = _evQuestionsOf(_showsState.event || {});
+            const answers = evQs.map((qq, i) => ({ q: qq.q, a: document.getElementById('showAnswer-' + i)?.value.trim() || '' }));
+            for (let i = 0; i < evQs.length; i++) {
+                if (evQs[i].required && !answers[i].a) { showErr(`'${evQs[i].q}' 질문에 답변을 입력해주세요.`); return; }
+            }
             const btn = document.getElementById('showBookBtn');
             _showsState.busy = true;
             if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-            const answer = document.getElementById('showAnswer')?.value.trim() || '';
             try {
-                const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty, ...(answer ? { answer } : {}) });
+                const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty,
+                    ...(answers.some(x => x.a) ? { answers } : {}) });
                 if (!out.ok) { showErr(out.message || '예매에 실패했습니다.'); return; }
                 _showsState.ticket = { ...out.ticket, seats: out.seats || [] };
                 _showsState.tEvent = out.event;
@@ -13872,6 +13883,7 @@
         }
 
         async function hostResume() {
+            try { sessionStorage.removeItem('gaa_return_host'); } catch (_) {} // 팝업 로그인 성공 — 복귀 마커 소진
             const c = document.getElementById('host-container');
             c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500)">확인 중…</div>';
             try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
@@ -14001,6 +14013,9 @@
         function hostKakaoLogin() {
             try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
             if (typeof Kakao === 'undefined' || !Kakao.Auth) { alert('카카오 SDK를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+            // 일부 인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 페이지가 새로 뜬다(해시 유실).
+            // 복귀 마커를 남겨 부트가 게더링 자동 로그인 대신 호스트 센터로 돌아오게 한다.
+            try { sessionStorage.setItem('gaa_return_host', '1'); } catch (_) {}
             Kakao.Auth.login({
                 success: () => hostResume(),
                 fail: () => alert('카카오 로그인에 실패했습니다. 다시 시도해주세요.'),
@@ -14517,17 +14532,14 @@
                     </div>
                 </div>
                 <div class="perf-form-group">
-                    <label class="perf-form-label">공연 소개 (선택)</label>
+                    <label class="perf-form-label">공연 소개 *</label>
                     ${docEditorHTML('evDescRte', renderMarkdown(ev?.description || ''), '라인업, 시간표, 관람 안내 등 — 서식(제목·굵게·목록)을 자유롭게 사용하세요')}
                 </div>
                 <div class="perf-form-group">
-                    <label class="perf-form-label">예매자 질문 (선택)</label>
-                    <input type="text" class="perf-form-input" id="evQuestion" maxlength="200" placeholder="예: 어떤 팀을 보러 오시나요?" value="${escapeHtml(ev?.booking_question || '')}">
-                    <div style="display:flex;gap:16px;margin-top:8px;font-size:0.84rem;color:var(--wds-black)">
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="evQReq" value="opt"${ev?.booking_question_required ? '' : ' checked'} style="width:16px;height:16px;cursor:pointer">답변 선택</label>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="evQReq" value="req"${ev?.booking_question_required ? ' checked' : ''} style="width:16px;height:16px;cursor:pointer">답변 필수</label>
-                    </div>
-                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">예매 작성 화면에 표시되고, 답변은 예매자 관리·명단 다운로드에서 볼 수 있습니다. '답변 필수'면 답변 없이는 예매할 수 없습니다.</div>
+                    <label class="perf-form-label">예매자 질문 (선택 · 최대 5개)</label>
+                    <div id="evQList"></div>
+                    <button type="button" onclick="addEvQuestionRow()" style="width:100%;padding:9px;border-radius:8px;border:1px dashed var(--wds-gray-300);background:none;color:var(--wds-gray-500);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">+ 질문 추가</button>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">예매 작성 화면에 표시되고, 답변은 예매자 관리·명단 다운로드에서 볼 수 있습니다. '필수' 체크 시 답변 없이는 예매할 수 없습니다.</div>
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">포스터 이미지 (선택)</label>
@@ -14536,6 +14548,31 @@
                 </div>
                 <div id="evFormResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <button id="evSaveBtn" onclick="saveHostEvent(${ev ? `'${jsStr(ev.id)}'` : 'null'})" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">${ev ? '수정 저장' : '공연 등록'}</button>`;
+            _evQuestionsOf(ev).forEach(q => addEvQuestionRow(q)); // 기존 질문 프리필
+        }
+
+        // 공연의 질문 배열 — 신형 booking_questions 우선, 구형 단일 컬럼 폴백
+        function _evQuestionsOf(ev) {
+            if (ev && Array.isArray(ev.booking_questions) && ev.booking_questions.length) return ev.booking_questions;
+            if (ev && ev.booking_question) return [{ q: ev.booking_question, required: !!ev.booking_question_required }];
+            return [];
+        }
+
+        // 질문 입력 행 추가 (최대 5개) — 다른 입력값을 잃지 않도록 전체 재렌더 대신 DOM 추가
+        function addEvQuestionRow(q) {
+            const list = document.getElementById('evQList');
+            if (!list) return;
+            if (list.children.length >= 5) { showToast('질문은 최대 5개까지입니다.'); return; }
+            const row = document.createElement('div');
+            row.className = 'ev-q-row';
+            row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px';
+            row.innerHTML = `
+                <input type="text" class="perf-form-input ev-q-text" maxlength="200" placeholder="예: 어떤 팀을 보러 오시나요?" style="flex:1;margin:0;min-width:0">
+                <label style="display:flex;align-items:center;gap:4px;font-size:0.78rem;color:var(--wds-gray-700);flex:none;cursor:pointer"><input type="checkbox" class="ev-q-req" style="width:15px;height:15px;cursor:pointer">필수</label>
+                <button type="button" onclick="this.parentElement.remove()" title="질문 삭제" style="flex:none;padding:8px 10px;border-radius:8px;border:1px solid #F5B5B5;background:none;color:#EF4444;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">✕</button>`;
+            row.querySelector('.ev-q-text').value = (q && q.q) || '';
+            row.querySelector('.ev-q-req').checked = !!(q && q.required);
+            list.appendChild(row);
         }
 
         async function uploadEventPoster(input) {
@@ -14583,6 +14620,7 @@
             }
             const desc = rteValue('evDescRte');
             if (desc.length > 12000) { showErr('공연 소개가 너무 깁니다. 내용을 조금 줄여주세요.'); return; }
+            if (!desc.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim()) { showErr('공연 소개를 입력해주세요.'); return; }
             if (!title) { showErr('공연명을 입력해주세요.'); return; }
             if (!startsLocal) { showErr('공연 일시를 선택해주세요.'); return; }
             const startsAt = new Date(startsLocal);
@@ -14593,10 +14631,12 @@
             if (paid && price < 1000) { showErr('유료 공연 가격은 1,000원 이상이어야 합니다.'); return; }
             // 검색으로 고른 장소(이름이 그대로면)만 좌표 저장 — 직접 입력·수정 시 좌표 제거
             const pick = (_hostState.venuePick && _hostState.venuePick.name === venue) ? _hostState.venuePick : null;
+            const booking_questions = [...document.querySelectorAll('#evQList .ev-q-row')]
+                .map(r => ({ q: r.querySelector('.ev-q-text')?.value.trim() || '', required: !!r.querySelector('.ev-q-req')?.checked }))
+                .filter(x => x.q).slice(0, 5);
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
-                booking_question: document.getElementById('evQuestion')?.value.trim() || '',
-                booking_question_required: document.querySelector('input[name="evQReq"]:checked')?.value === 'req',
+                booking_questions,
                 venue_address: pick ? pick.address : null,
                 venue_lat: pick ? pick.lat : null,
                 venue_lng: pick ? pick.lng : null };
@@ -14614,6 +14654,19 @@
                 _hostState.busy = false;
                 if (btn) { btn.disabled = false; btn.style.opacity = ''; }
             }
+        }
+
+        // 예매자 질문 답변 — 신형은 [{q,a}] JSON, 구형은 평문. 각각 표시용으로 변환
+        function _answerPairs(raw) {
+            if (!raw) return [];
+            try { const j = JSON.parse(raw); if (Array.isArray(j)) return j.filter(x => x && x.a); } catch (_) {}
+            return [{ q: '', a: String(raw) }];
+        }
+        function _answerHTML(raw) {
+            return _answerPairs(raw).map(x => `${x.q ? `<span style="font-weight:700">${escapeHtml(x.q)}</span> ` : '답변: '}${escapeHtml(x.a)}`).join('<br>');
+        }
+        function _answerText(raw) {
+            return _answerPairs(raw).map(x => (x.q ? x.q + ': ' : '') + x.a).join(' | ');
         }
 
         // 좌석 단위 입장 현황 — 취소된 좌석 제외, seats가 없는 구버전 데이터는 티켓 checked_in_at으로 폴백
@@ -14749,7 +14802,7 @@
                         <span style="font-size:0.8rem;color:var(--wds-gray-700)">${t.qty}매 · <span style="letter-spacing:0.12em">${escapeHtml(t.code)}</span></span>
                         <a href="tel:${t.buyer_phone}" style="margin-left:auto;font-size:0.8rem;color:var(--wds-gray-700);text-decoration:none">📞 ${phone}</a>
                     </div>
-                    ${t.answer ? `<div style="font-size:0.78rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:6px 9px;margin-top:8px;line-height:1.5">답변: ${escapeHtml(t.answer)}</div>` : ''}
+                    ${t.answer ? `<div style="font-size:0.78rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:6px 9px;margin-top:8px;line-height:1.6">${_answerHTML(t.answer)}</div>` : ''}
                     ${seatRow}
                     ${btns ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px">${btns}</div>` : ''}
                 </div>`;
@@ -14792,7 +14845,7 @@
             };
             const rows = [['이름', '연락처', '매수', '예매번호', '상태', '답변', '체크인 시각', '예매 일시']]
                 .concat(list.map(t => [t.buyer_name, t.buyer_phone, t.qty, t.code,
-                    stTxt(t), t.answer || '', fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
+                    stTxt(t), _answerText(t.answer), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
             const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
