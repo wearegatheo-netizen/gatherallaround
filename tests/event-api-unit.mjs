@@ -94,11 +94,15 @@ const TICKET = (over = {}) => ({
       seatStore = JSON.parse(rec.body).map(x => ({ code: x.code, seat_no: x.seat_no, checked_in_at: null }));
       return seatStore;
     } }],
+    ['event_tickets?id=eq.' + TK_ID, { method: 'PATCH', body: [] }],
   ]);
-  const j = await (await run({ action: 'book', event_id: EV_ID, name: ' 홍길동 ', phone: '010-1234-5678', qty: 2 })).json();
+  const j = await (await run({ action: 'book', event_id: EV_ID, name: ' 홍길동 ', phone: '010-1234-5678', qty: 2, answer: ' 밴드 스컬 보러요 ' })).json();
   const rpcCall = calls.find(c => c.url.includes('rpc/book_event_ticket'));
   const sent = JSON.parse(rpcCall.body);
+  const ansPatch = calls.find(c => c.method === 'PATCH' && c.url.includes('event_tickets?id=eq.'));
   chk('book: 성공 패스스루', j.ok === true && j.ticket.code === sentCode);
+  chk('book: 예매자 질문 답변 저장(trim) + 응답 동봉', !!ansPatch && JSON.parse(ansPatch.body).answer === '밴드 스컬 보러요'
+    && j.ticket.answer === '밴드 스컬 보러요');
   chk('book: 코드 6자리(혼동문자 제외) 서버 생성', /^[A-HJ-NP-Z2-9]{6}$/.test(sentCode), sentCode);
   chk('book: 이름 trim + 전화 정규화', sent.p_name === '홍길동' && sent.p_phone === '01012345678');
   chk('book: service key 헤더', rpcCall.headers.apikey === 'sk-service');
@@ -310,10 +314,11 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
   const poster = 'https://sb.test/storage/v1/object/public/community-images/events/1.jpg';
   const j3 = await (await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID,
-    event: { ...base, description: '소개', poster_url: poster, venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
+    event: { ...base, description: '소개', poster_url: poster, booking_question: ' 어떤 팀을 보러 오시나요? ', venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
   const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
   chk('create_event: 공동호스트도 등록 가능 + host_id/host_name/좌표', j3.ok === true && ins.host_id === HOST_ID
     && ins.host_name === '밴드X' && ins.venue_lat === 37.5511 && ins.bank_info === '토스 111');
+  chk('create_event: 예매자 질문 저장(trim)', ins.booking_question === '어떤 팀을 보러 오시나요?');
 
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
   const rBad = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, venue_lat: 999, venue_lng: 126.9 } });
@@ -335,6 +340,31 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['status=in.(pending_payment,confirmed)&select=qty', { body: [{ qty: 3 }, { qty: 2 }] }]]);
   const r3 = await run({ action: 'update_event', kakao_token: 't', event_id: EV_ID, patch: { capacity: 3 } });
   chk('update_event: 정원<예매(5석) → 409', r3.status === 409 && (await r3.json()).error === 'capacity_low');
+}
+// ── 16b. delete_event: 주최팀 전용 + 살아있는 예매 가드
+{
+  // 주최팀 아님 → 403 (공동 관리팀도 불가)
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }] }],
+    ['event_host_members?', { body: [] }]]);
+  const r1 = await run({ action: 'delete_event', kakao_token: 't', event_id: EV_ID });
+  chk('delete_event: 주최팀 아니면 403', r1.status === 403 && (await r1.json()).error === 'not_host_team');
+
+  // 살아있는 예매 존재 → 409
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: HOST_ID }] }],
+    MEMBERSHIP('member'),
+    ['event_tickets?event_id=eq.' + EV_ID + '&status=in.', { body: [{ id: TK_ID }] }]]);
+  const r2 = await run({ action: 'delete_event', kakao_token: 't', event_id: EV_ID });
+  chk('delete_event: 예매 있으면 409 has_tickets', r2.status === 409 && (await r2.json()).error === 'has_tickets');
+
+  // 성공 — 취소 예매 기록 삭제 후 공연 삭제
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: HOST_ID }] }],
+    MEMBERSHIP('member'),
+    ['event_tickets?event_id=eq.' + EV_ID + '&status=in.', { body: [] }],
+    ['event_tickets?event_id=eq.' + EV_ID, { method: 'DELETE', body: [] }],
+    ['events?id=eq.' + EV_ID, { method: 'DELETE', body: [{ id: EV_ID }] }]]);
+  const j3 = await (await run({ action: 'delete_event', kakao_token: 't', event_id: EV_ID })).json();
+  const delSeq = calls.filter(c => c.method === 'DELETE').map(c => c.url.includes('event_tickets') ? 'tickets' : 'events').join(',');
+  chk('delete_event: 성공 — 예매 기록 → 공연 순 삭제', j3.ok === true && delSeq === 'tickets,events', delSeq);
 }
 // ── 17. my_events: host_id 스코프 + 집계
 {

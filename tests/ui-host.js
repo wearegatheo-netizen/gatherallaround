@@ -147,7 +147,8 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('장소 선택: 입력값·주소 반영', s.v === '홍대 클럽 FF' && s.addr.includes('와우산로'));
 
-  // 소개에 서식 입력 후 저장
+  // 소개 서식 + 예매자 질문 입력 후 저장
+  await p.fill('#evQuestion', '어떤 팀을 보러 오시나요?');
   await p.evaluate(() => {
     document.getElementById('evDescRte').innerHTML = '<h2>라인업</h2><p>밴드A · 밴드B</p>';
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111' } });  // create_event
@@ -172,7 +173,24 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
+  chk('payload: 예매자 질문 포함', e3 && e3.booking_question === '어떤 팀을 보러 오시나요?');
   chk('대시보드: 공연 카드 + 집계 + 포스터 썸네일(폴백)', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3') && s.poster);
+
+  // ── 3b. 카드 버튼 순서·이름 + 공연 삭제
+  s = await p.evaluate(() => [...document.querySelectorAll('#host-container .host-card button')].map(b => b.textContent.trim()).join(','));
+  chk('카드 버튼: 바로가기·마감(오픈)·예매자 관리·수정·삭제 순', s === '바로가기,마감,예매자 관리,수정,삭제', s);
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true });                                                    // delete_event (confirm 자동 수락)
+    window.__apiQueue.push({ ok: true, is_admin: false, events: [
+      { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', venue: '홍대 클럽 FF',
+        starts_at: new Date('2026-12-24T19:30').toISOString(), capacity: 50, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4,
+        status: 'published', stats: { taken: 5, pending: 3, confirmed: 2, checked_in: 0 } },
+    ] }); // my_events 재렌더 (다음 테스트가 이 공연을 계속 사용)
+  });
+  await p.click('button:has-text("삭제")');
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => window.__apiCalls.filter(c => c.action === 'delete_event').pop());
+  chk('삭제 버튼: delete_event 호출(공연 id)', s && s.event_id === '11111111-1111-4111-8111-111111111111');
 
   // ── 4. 예매자 명단: 상태별 버튼 + 입금 확인
   await p.evaluate(() => {

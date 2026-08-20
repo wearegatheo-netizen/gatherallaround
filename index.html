@@ -13564,6 +13564,10 @@
                             <label class="perf-form-label">매수 *</label>
                             <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
                         </div>
+                        ${ev.booking_question ? `<div class="perf-form-group">
+                            <label class="perf-form-label">${escapeHtml(ev.booking_question)}</label>
+                            <input type="text" class="perf-form-input" id="showAnswer" maxlength="200" placeholder="답변 입력">
+                        </div>` : ''}
                         <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
                             <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
                                 <input type="checkbox" id="showPrivacyAgree" style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
@@ -13626,8 +13630,9 @@
             const btn = document.getElementById('showBookBtn');
             _showsState.busy = true;
             if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+            const answer = document.getElementById('showAnswer')?.value.trim() || '';
             try {
-                const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty });
+                const out = await eventApi({ action: 'book', event_id: eventId, name, phone, qty, ...(answer ? { answer } : {}) });
                 if (!out.ok) { showErr(out.message || '예매에 실패했습니다.'); return; }
                 _showsState.ticket = { ...out.ticket, seats: out.seats || [] };
                 _showsState.tEvent = out.event;
@@ -14285,8 +14290,8 @@
                 const pct = ev.capacity ? Math.min(100, Math.round((s.taken || 0) / ev.capacity * 100)) : 0;
                 const sales = (s.confirmed || 0) * (ev.price || 0);
                 const toggle = ev.status === 'published'
-                    ? _hbtn('예매 마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
-                    : _hbtn('예매 오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
+                    ? _hbtn('마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
+                    : _hbtn('오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
                 const poster = ev.poster_url
                     ? `<img src="${escapeHtml(ev.poster_url)}" alt="" loading="lazy" style="width:56px;height:75px;border-radius:8px;object-fit:cover;flex:none;background:var(--wds-gray-100)">`
                     : `<div style="width:56px;height:75px;border-radius:8px;background:linear-gradient(135deg,var(--wds-gray-100),var(--wds-gray-300));flex:none;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--wds-gray-500)">🎸</div>`;
@@ -14315,11 +14320,11 @@
                         ${ev.price > 0 ? `확정 매출 <strong style="color:var(--wds-black)">₩${sales.toLocaleString()}</strong>` : '무료 공연'}
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-                        ${_hbtn('예매 페이지', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
-                        ${_hbtn('수정', `hostEditEvent('${jsStr(ev.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        ${_hbtn('바로가기', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
                         ${toggle}
-                        ${ev.status !== 'hidden' ? _hbtn('숨김', `hostSetEventStatus('${jsStr(ev.id)}','hidden')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)') : ''}
                         <button onclick="renderHostAttendees('${jsStr(ev.id)}')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">예매자 관리</button>
+                        ${_hbtn('수정', `hostEditEvent('${jsStr(ev.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        ${_hbtn('삭제', `hostDeleteEvent('${jsStr(ev.id)}')`, '#EF4444', '#F5B5B5')}
                     </div>
                 </div>`;
             };
@@ -14349,6 +14354,16 @@
         function hostEditEvent(id) {
             const ev = (_hostState.dashEvents || []).find(e => e.id === id);
             if (ev) renderHostEventForm(ev);
+        }
+
+        // 공연 삭제 — 주최팀만, 살아있는 예매가 있으면 서버가 거부
+        async function hostDeleteEvent(id) {
+            const ev = (_hostState.dashEvents || []).find(e => e.id === id);
+            if (!confirm(`'${(ev && ev.title) || '이 공연'}'을(를) 삭제할까요?\n공연 정보가 영구 삭제되며 되돌릴 수 없습니다.\n(예매가 있으면 모두 취소한 뒤에만 삭제할 수 있습니다)`)) return;
+            const out = await eventApi({ action: 'delete_event', kakao_token: _hostState.token, event_id: id });
+            if (!out.ok) { alert(out.message || '삭제에 실패했습니다.'); return; }
+            showToast('공연이 삭제되었습니다.');
+            renderHostDashboard();
         }
 
         function _isoToLocalInput(iso) {
@@ -14503,6 +14518,11 @@
                     ${docEditorHTML('evDescRte', renderMarkdown(ev?.description || ''), '라인업, 시간표, 관람 안내 등 — 서식(제목·굵게·목록)을 자유롭게 사용하세요')}
                 </div>
                 <div class="perf-form-group">
+                    <label class="perf-form-label">예매자 질문 (선택)</label>
+                    <input type="text" class="perf-form-input" id="evQuestion" maxlength="200" placeholder="예: 어떤 팀을 보러 오시나요?" value="${escapeHtml(ev?.booking_question || '')}">
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">예매 작성 화면에 표시되고, 답변은 예매자 관리·명단 다운로드에서 볼 수 있습니다.</div>
+                </div>
+                <div class="perf-form-group">
                     <label class="perf-form-label">포스터 이미지 (선택)</label>
                     <input type="file" id="evPoster" accept="image/*" onchange="uploadEventPoster(this)" style="font-size:0.84rem">
                     <div id="evPosterStatus" style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.posterUrl ? '✅ 현재 포스터 유지 (새 파일 선택 시 교체)' : ''}</div>
@@ -14568,6 +14588,7 @@
             const pick = (_hostState.venuePick && _hostState.venuePick.name === venue) ? _hostState.venuePick : null;
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
+                booking_question: document.getElementById('evQuestion')?.value.trim() || '',
                 venue_address: pick ? pick.address : null,
                 venue_lat: pick ? pick.lat : null,
                 venue_lng: pick ? pick.lng : null };
@@ -14720,6 +14741,7 @@
                         <span style="font-size:0.8rem;color:var(--wds-gray-700)">${t.qty}매 · <span style="letter-spacing:0.12em">${escapeHtml(t.code)}</span></span>
                         <a href="tel:${t.buyer_phone}" style="margin-left:auto;font-size:0.8rem;color:var(--wds-gray-700);text-decoration:none">📞 ${phone}</a>
                     </div>
+                    ${t.answer ? `<div style="font-size:0.78rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:6px 9px;margin-top:8px;line-height:1.5">답변: ${escapeHtml(t.answer)}</div>` : ''}
                     ${seatRow}
                     ${btns ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px">${btns}</div>` : ''}
                 </div>`;
@@ -14760,9 +14782,9 @@
                 if (p.checked > 0) return p.checked >= p.total ? '입장 완료' : `입장 ${p.checked}/${p.total}`;
                 return stName[t.status] || t.status;
             };
-            const rows = [['이름', '연락처', '매수', '예매번호', '상태', '체크인 시각', '예매 일시']]
+            const rows = [['이름', '연락처', '매수', '예매번호', '상태', '답변', '체크인 시각', '예매 일시']]
                 .concat(list.map(t => [t.buyer_name, t.buyer_phone, t.qty, t.code,
-                    stTxt(t), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
+                    stTxt(t), t.answer || '', fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
             const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

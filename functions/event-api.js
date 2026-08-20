@@ -259,6 +259,7 @@ function validateEventFields(e, { partial = false } = {}) {
         out.max_per_booking = v;
     }
     if (has('description')) out.description = String(e.description || '').slice(0, 12000);
+    if (e.booking_question !== undefined) out.booking_question = String(e.booking_question || '').trim().slice(0, 200) || null;
     if (has('bank_info')) out.bank_info = String(e.bank_info || '').trim().slice(0, 120) || null;
     if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
     if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
@@ -354,6 +355,13 @@ export async function onRequest(context) {
                 }
                 const out = await r.json();
                 if (out.ok) {
+                    // 호스트 설정 질문에 대한 답변 저장 (RPC는 좌석 정합만 담당 — 부가 필드는 후속 PATCH)
+                    const answer = String(body.answer || '').trim().slice(0, 200);
+                    if (answer && out.ticket && out.ticket.id) {
+                        await sbFetch(env, `event_tickets?id=eq.${out.ticket.id}`, {
+                            method: 'PATCH', body: JSON.stringify({ answer }) }).catch(() => {});
+                        out.ticket.answer = answer;
+                    }
                     const seats = await ensureSeats(env, out.ticket); // 매수별 QR — 좌석 코드 발급
                     return json({ ok: true, ticket: out.ticket, event: out.event, seats });
                 }
@@ -424,7 +432,7 @@ export async function onRequest(context) {
         // ── 호스트 액션 (카카오 토큰 검증 필수) ────────────────────
         const HOST_ACTIONS = ['host_me', 'create_team', 'update_team', 'list_members', 'remove_member',
             'create_invite', 'accept_invite', 'create_event', 'update_event', 'set_event_status',
-            'my_events', 'attendees', 'confirm_payment', 'revert_payment', 'host_cancel', 'checkin', 'uncheckin', 'host_cancel_seat',
+            'my_events', 'attendees', 'confirm_payment', 'revert_payment', 'host_cancel', 'checkin', 'uncheckin', 'host_cancel_seat', 'delete_event',
             'create_event_invite', 'event_invite_info', 'accept_event_invite', 'remove_co_team', 'lookup_invite'];
         if (HOST_ACTIONS.includes(action)) {
             const kk = await verifyKakao(body.kakao_token);
@@ -612,6 +620,30 @@ export async function onRequest(context) {
                 if (!r.ok) return fail(502, 'db', '상태 변경에 실패했습니다.');
                 const [row] = await r.json();
                 return json({ ok: true, event: row });
+            }
+
+            // 공연 삭제 — 주최팀만. 살아있는 예매가 있으면 불가(전부 취소 후에만).
+            if (action === 'delete_event') {
+                if (!isUuid(body.event_id)) return fail(400, 'bad_event', '공연 정보가 올바르지 않습니다.');
+                const er = await sbFetch(env, `events?id=eq.${body.event_id}&select=id,host_id&limit=1`);
+                if (!er.ok) return fail(502, 'db', '공연 조회에 실패했습니다.');
+                const [ev] = await er.json();
+                if (!ev) return fail(404, 'not_found', '공연을 찾을 수 없습니다.');
+                if (!isAdmin && !(await getMembership(env, ev.host_id, kakaoId))) {
+                    return fail(403, 'not_host_team', '공연 삭제는 주최팀만 할 수 있습니다.');
+                }
+                const tr = await sbFetch(env, `event_tickets?event_id=eq.${ev.id}&status=in.(pending_payment,confirmed)&select=id&limit=1`);
+                if (!tr.ok) return fail(502, 'db', '예매 확인에 실패했습니다.');
+                if ((await tr.json()).length) {
+                    return fail(409, 'has_tickets', '예매가 있는 공연은 삭제할 수 없습니다. 예매자 관리에서 예매를 모두 취소한 뒤 삭제해주세요.');
+                }
+                // 취소된 예매 기록(좌석은 cascade) → 공연 순으로 삭제 (초대·공동팀은 events cascade)
+                await sbFetch(env, `event_tickets?event_id=eq.${ev.id}`, { method: 'DELETE' }).catch(() => {});
+                const dr = await sbFetch(env, `events?id=eq.${ev.id}`, {
+                    method: 'DELETE', headers: { Prefer: 'return=representation' } });
+                if (!dr.ok) return fail(502, 'db', '삭제에 실패했습니다.');
+                if (!(await dr.json().catch(() => [])).length) return fail(404, 'not_found', '공연을 찾을 수 없습니다.');
+                return json({ ok: true });
             }
 
             if (action === 'my_events') {
