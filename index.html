@@ -13686,16 +13686,46 @@
         }
 
         function _ticketSeatBlocks(t) {
+            const ev = _showsState.tEvent;
             const seats = _ticketSeats(t);
+            const active = seats.filter(s => !s.cancelled_at);
             const multi = seats.length > 1;
-            const note = multi ? `<div style="font-size:0.78rem;color:var(--wds-primary);font-weight:700;margin-bottom:4px">티켓 ${seats.length}장 — 동행인에게 한 장씩 전달하세요. QR 1개당 1명 입장합니다.</div>` : '';
-            return note + seats.map((s, i) => `
+            // 좌석 부분 취소 가능 조건 — 공연 시작 전 + 예매가 살아있고 + 그 좌석 미입장·미취소 + 2장 이상
+            const seatCancelable = multi && active.length > 1
+                && (t.status === 'pending_payment' || t.status === 'confirmed')
+                && ev && new Date(ev.starts_at) > new Date();
+            const note = multi ? `<div style="font-size:0.78rem;color:var(--wds-primary);font-weight:700;margin-bottom:4px">티켓 ${active.length}장 — 동행인에게 한 장씩 전달하세요. QR 1개당 1명 입장합니다.</div>` : '';
+            return note + seats.map((s, i) => {
+                if (s.cancelled_at) {
+                    return `<div style="${i ? 'border-top:1px dashed var(--wds-gray-300);margin-top:14px;padding-top:12px' : ''};opacity:0.5">
+                        <div style="font-size:0.78rem;color:var(--wds-gray-500)">티켓 ${s.seat_no} · <span style="color:#991B1B;font-weight:700">취소됨</span></div>
+                        <div class="ticket-code" style="text-decoration:line-through">${escapeHtml(s.code)}</div>
+                    </div>`;
+                }
+                return `
                 <div style="${i ? 'border-top:1px dashed var(--wds-gray-300);margin-top:14px;padding-top:12px' : ''}">
-                    <div style="font-size:0.78rem;color:var(--wds-gray-500)">${multi ? `티켓 ${s.seat_no} / ${seats.length}` : '예매번호'}${s.checked_in_at ? ' · <span style="color:#1E40AF;font-weight:700">입장 완료</span>' : ''}</div>
+                    <div style="font-size:0.78rem;color:var(--wds-gray-500)">${multi ? `티켓 ${s.seat_no}` : '예매번호'}${s.checked_in_at ? ' · <span style="color:#1E40AF;font-weight:700">입장 완료</span>' : ''}</div>
                     <div class="ticket-code">${escapeHtml(s.code)}</div>
                     <div id="ticketQrSlot-${s.seat_no}"></div>
-                    <button class="qr-save-btn" onclick="downloadTicketQR('${jsStr(s.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">QR 이미지 저장</button>
-                </div>`).join('');
+                    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+                        <button class="qr-save-btn" onclick="downloadTicketQR('${jsStr(s.code)}')" style="display:none;margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">QR 이미지 저장</button>
+                        ${seatCancelable && !s.checked_in_at ? `<button onclick="cancelMySeat('${jsStr(s.code)}',${s.seat_no})" style="margin-top:2px;padding:7px 14px;border-radius:8px;border:1px solid #F5B5B5;background:none;color:#EF4444;cursor:pointer;font-size:0.78rem;font-weight:600;font-family:inherit">이 티켓만 취소</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // 티켓 1장(좌석) 부분 취소 — 예: 3장 중 1장만
+        async function cancelMySeat(code, seatNo) {
+            const t = _showsState.ticket;
+            if (!t) return;
+            if (!confirm(`티켓 ${seatNo}번 1장만 취소할까요?`
+                + (t.status === 'confirmed' ? '\n(이미 입금하셨다면 차액 환불은 호스트에게 문의해주세요.)' : ''))) return;
+            const out = await eventApi({ action: 'cancel_seat', code, phone: t.buyer_phone });
+            if (!out.ok) { alert(out.message || '취소에 실패했습니다.'); return; }
+            _showsState.ticket = { ..._showsState.ticket, ...out.ticket, seats: out.seats || [] };
+            renderTicketView();
+            showToast(out.whole ? '예매가 취소되었습니다.' : `티켓 ${seatNo}번이 취소되었습니다.`);
         }
 
         // 예매 QR을 PNG 이미지로 저장 — 캔버스에 직접 그려서(외부 이미지 없음 → taint 없음) 다운로드
@@ -13735,7 +13765,7 @@
         async function cancelMyTicket() {
             const t = _showsState.ticket;
             if (!t) return;
-            if (!confirm('예매를 취소하시겠습니까?' + (t.status === 'pending_payment' ? '' : '\n(이미 입금하셨다면 호스트에게 환불을 문의해주세요.)'))) return;
+            if (!confirm(`예매를 ${(t.qty || 1) > 1 ? `전체(${t.qty}장) ` : ''}취소하시겠습니까?` + (t.status === 'pending_payment' ? '' : '\n(이미 입금하셨다면 호스트에게 환불을 문의해주세요.)'))) return;
             const out = await eventApi({ action: 'cancel', code: t.code, phone: t.buyer_phone });
             if (!out.ok) { alert(out.message || '취소에 실패했습니다.'); return; }
             _showsState.ticket = { ..._showsState.ticket, ...out.ticket };
@@ -14507,11 +14537,12 @@
             }
         }
 
-        // 좌석 단위 입장 현황 — seats가 없는 구버전 데이터는 티켓 checked_in_at으로 폴백
+        // 좌석 단위 입장 현황 — 취소된 좌석 제외, seats가 없는 구버전 데이터는 티켓 checked_in_at으로 폴백
         const _seatProgress = (t) => {
-            const total = t.qty || 1;
-            const seats = t.seats || [];
-            const checked = seats.length ? seats.filter(s => s.checked_in_at).length : (t.checked_in_at ? total : 0);
+            const all = t.seats || [];
+            const seats = all.filter(s => !s.cancelled_at);
+            const total = (all.length ? seats.length : (t.qty || 1)) || 1;
+            const checked = all.length ? seats.filter(s => s.checked_in_at).length : (t.checked_in_at ? total : 0);
             return { checked, total };
         };
         const _TICKET_STATUS_CHIP = (t) => {
@@ -14614,13 +14645,23 @@
                 } else if (t.status === 'confirmed' && p.total === 1 && p.checked > 0) {
                     btns = _hbtn('입장 취소', `hostUncheckinSeat('${jsStr((seats[0] || { code: t.code }).code)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)');
                 }
-                // 매수>1 확정 예매 — 티켓(좌석)별 입장 토글 (QR 1개 = 1명)
-                const seatRow = (t.status === 'confirmed' && p.total > 1 && seats.length) ? `
+                // 매수>1 예매 — 티켓(좌석)별 토글: 입장(확정만)·부분 취소 (QR 1개 = 1명)
+                const activeSeats = seats.filter(s => !s.cancelled_at);
+                const seatChip = (s) => {
+                    if (s.cancelled_at) return `<span title="취소된 티켓" style="padding:5px 12px;border-radius:14px;border:1px solid var(--wds-gray-300);color:var(--wds-gray-500);font-size:0.74rem;font-weight:700;text-decoration:line-through;opacity:0.6">${s.seat_no}</span>`;
+                    if (s.checked_in_at) return `<button onclick="hostUncheckinSeat('${jsStr(s.code)}')" title="입장 취소" style="padding:5px 12px;border-radius:14px;border:none;background:#1E40AF;color:#fff;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no} ✓</button>`;
+                    const num = t.status === 'confirmed'
+                        ? `<button onclick="hostCheckinByCode('${jsStr(s.code)}')" title="체크인" style="padding:5px 12px;border-radius:14px 0 0 14px;border:1px solid #BFDBFE;border-right:none;background:none;color:#1E40AF;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no}</button>`
+                        : `<span style="padding:5px 12px;border-radius:14px 0 0 14px;border:1px solid var(--wds-gray-300);border-right:none;color:var(--wds-gray-700);font-size:0.74rem;font-weight:700">${s.seat_no}</span>`;
+                    const cxl = activeSeats.length > 1
+                        ? `<button onclick="hostCancelSeat('${jsStr(s.code)}',${s.seat_no})" title="이 티켓만 취소" style="padding:5px 9px;border-radius:0 14px 14px 0;border:1px solid #F5B5B5;background:none;color:#EF4444;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit">✕</button>`
+                        : '';
+                    return `<span style="display:inline-flex;align-items:stretch">${num}${cxl}</span>`;
+                };
+                const seatRow = ((t.status === 'confirmed' || t.status === 'pending_payment') && (p.total > 1 || seats.some(s => s.cancelled_at)) && seats.length) ? `
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
-                        <span style="font-size:0.72rem;font-weight:700;color:var(--wds-gray-500)">티켓별 입장</span>
-                        ${seats.map(s => s.checked_in_at
-                            ? `<button onclick="hostUncheckinSeat('${jsStr(s.code)}')" title="입장 취소" style="padding:5px 12px;border-radius:14px;border:none;background:#1E40AF;color:#fff;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no} ✓</button>`
-                            : `<button onclick="hostCheckinByCode('${jsStr(s.code)}')" title="체크인" style="padding:5px 12px;border-radius:14px;border:1px solid #BFDBFE;background:none;color:#1E40AF;font-size:0.74rem;font-weight:700;cursor:pointer;font-family:inherit">${s.seat_no}</button>`).join('')}
+                        <span style="font-size:0.72rem;font-weight:700;color:var(--wds-gray-500)">티켓별</span>
+                        ${seats.map(seatChip).join('')}
                     </div>` : '';
                 return `<div class="host-card" style="padding:12px${t.status === 'cancelled' ? ';opacity:0.55' : ''}">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -14694,6 +14735,19 @@
         function hostCancelTicket(ticketId) {
             if (!confirm('이 예매를 취소하시겠습니까?\n(입금된 건이면 환불은 별도로 진행해주세요.)')) return;
             hostTicketAction('host_cancel', ticketId);
+        }
+
+        // 티켓 1장(좌석) 부분 취소 — 부분 입장 후 남은 미입장 티켓도 취소 가능
+        async function hostCancelSeat(code, seatNo) {
+            if (!confirm(`${seatNo}번 티켓 1장만 취소할까요?\n(입금된 건이면 환불은 별도로 진행해주세요.)`)) return;
+            if (_hostState.busy) return;
+            _hostState.busy = true;
+            try {
+                const out = await eventApi({ action: 'host_cancel_seat', kakao_token: _hostState.token, code });
+                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+                else showToast(out.whole ? '예매가 취소되었습니다.' : `${seatNo}번 티켓이 취소되었습니다.`);
+            } finally { _hostState.busy = false; }
+            if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
         }
 
         // 입장 취소 — 좌석(티켓 1장) 단위

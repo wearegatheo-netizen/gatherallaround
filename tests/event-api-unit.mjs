@@ -188,6 +188,55 @@ const TICKET = (over = {}) => ({
   const r3 = await run({ action: 'cancel', code: 'ABCXYZ', phone: '01012345678' });
   chk('cancel: 갱신 0행(경합) → 409', r3.status === 409 && (await r3.json()).error === 'not_cancellable');
 }
+// ── 10b. cancel_seat: 티켓 1장(좌석) 부분 취소
+{
+  const seatLookup = (tOver = {}, sOver = {}) => ['event_ticket_seats?code=eq.ZZ9PQR&select', { method: 'GET',
+    body: [{ code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: null, ...sOver,
+      event_tickets: { id: TK_ID, code: 'ABCXYZ', buyer_phone: '01012345678', qty: 3, status: 'confirmed', checked_in_at: null,
+        events: { id: EV_ID, title: '공연', starts_at: FUTURE }, ...tOver } }] }];
+  const SEATS3 = [
+    { code: 'ABCXYZ', seat_no: 1, checked_in_at: null, cancelled_at: null },
+    { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: null },
+    { code: 'KM4TUV', seat_no: 3, checked_in_at: null, cancelled_at: null }];
+
+  // 성공: 3장 중 1장 취소 → 좌석 cancelled + qty 3→2 (조건부 차감)
+  mockFetch([seatLookup(),
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=code,seat_no', { method: 'GET', body: SEATS3 }],
+    ['event_ticket_seats?code=eq.ZZ9PQR&cancelled_at=is.null&checked_in_at=is.null', { method: 'PATCH', body: [{ code: 'ZZ9PQR' }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=qty,status', { method: 'GET', body: [{ qty: 3, status: 'confirmed' }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&qty=eq.3', { method: 'PATCH', body: [{ id: TK_ID, qty: 2 }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=*', { method: 'GET', body: [{ id: TK_ID, code: 'ABCXYZ', qty: 2, status: 'confirmed' }] }],
+  ]);
+  const j = await (await run({ action: 'cancel_seat', code: 'zz9pqr', phone: '010-1234-5678' })).json();
+  const dq = calls.find(c => c.method === 'PATCH' && c.url.includes('qty=eq.3'));
+  chk('cancel_seat: 3장 중 1장 취소 → 좌석 취소 + qty 3→2', j.ok === true && j.whole === false
+    && j.ticket.qty === 2 && dq && JSON.parse(dq.body).qty === 2, JSON.stringify(j).slice(0, 100));
+
+  // 입장한 좌석 → 409 / 공연 시작 후 → 409 / 전화 불일치 → 404
+  mockFetch([seatLookup({}, { checked_in_at: PAST })]);
+  chk('cancel_seat: 입장한 좌석 → 409', (await (await run({ action: 'cancel_seat', code: 'ZZ9PQR', phone: '01012345678' })).json()).error === 'checked_in');
+  mockFetch([seatLookup({ events: { id: EV_ID, title: '공연', starts_at: PAST } })]);
+  chk('cancel_seat: 공연 시작 후 → 409 started', (await (await run({ action: 'cancel_seat', code: 'ZZ9PQR', phone: '01012345678' })).json()).error === 'started');
+  mockFetch([seatLookup()]);
+  chk('cancel_seat: 전화 불일치 → 404 (존재 은닉)', (await run({ action: 'cancel_seat', code: 'ZZ9PQR', phone: '01099999999' })).status === 404);
+
+  // 마지막 활성 좌석 → 예매 전체 취소로 전환
+  mockFetch([
+    ['event_ticket_seats?code=eq.ZZ9PQR&select', { method: 'GET',
+      body: [{ code: 'ZZ9PQR', seat_no: 1, checked_in_at: null, cancelled_at: null,
+        event_tickets: { id: TK_ID, code: 'ZZ9PQR', buyer_phone: '01012345678', qty: 1, status: 'pending_payment', checked_in_at: null,
+          events: { id: EV_ID, title: '공연', starts_at: FUTURE } } }] }],
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=code,seat_no', { method: 'GET',
+      body: [{ code: 'ZZ9PQR', seat_no: 1, checked_in_at: null, cancelled_at: null }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&status=in.(pending_payment,confirmed)', { method: 'PATCH', body: [{ id: TK_ID, status: 'cancelled' }] }],
+    ['event_ticket_seats?code=eq.ZZ9PQR', { method: 'PATCH', body: [] }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=*', { method: 'GET', body: [{ id: TK_ID, qty: 1, status: 'cancelled' }] }],
+  ]);
+  const j5 = await (await run({ action: 'cancel_seat', code: 'ZZ9PQR', phone: '01012345678' })).json();
+  const wp = calls.find(c => c.method === 'PATCH' && c.url.includes('status=in.'));
+  chk('cancel_seat: 마지막 1장 → 예매 전체 취소(cancelled_by=buyer)', j5.ok === true && j5.whole === true
+    && j5.ticket.status === 'cancelled' && JSON.parse(wp.body).cancelled_by === 'buyer');
+}
 // ── 11. 알 수 없는 action
 {
   mockFetch([]);
@@ -338,6 +387,8 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   mockFetch([KAPI_OK, seat({}, { checked_in_at: PAST }), MEMBERSHIP('member')]);
   const jAC = await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json();
   chk('checkin: 좌석 중복 → 409 + 시각', jAC.error === 'already_checked_in' && jAC.checked_in_at === PAST);
+  mockFetch([KAPI_OK, seat({}, { cancelled_at: PAST }), MEMBERSHIP('member')]);
+  chk('checkin: 부분 취소된 좌석 → 409 cancelled', (await (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).json()).error === 'cancelled');
   mockFetch([KAPI_OK, seat({}), MEMBERSHIP(null), ['event_co_teams?event_id=eq.', { body: [] }]]);
   chk('checkin: 타 팀 공연 → 403', (await run({ action: 'checkin', kakao_token: 't', code: 'ABCXYZ' })).status === 403);
   mockFetch([KAPI_OK, seat({}), MEMBERSHIP('member'),
@@ -380,6 +431,35 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   mockFetch([KAPI_OK, ['event_ticket_seats?code=eq.ABCXYZ&select', { method: 'GET', body: seatRow }], MEMBERSHIP('member'),
     ['event_ticket_seats?code=eq.ABCXYZ&checked_in_at=not.is.null', { method: 'PATCH', body: [] }]]);
   chk('uncheckin: 경합 0행 → 409', (await run({ action: 'uncheckin', kakao_token: 't', code: 'ABCXYZ' })).status === 409);
+}
+// ── 19c. host_cancel_seat — 부분 입장 후에도 미입장 티켓 취소 (시작 후 가능)
+{
+  mockFetch([KAPI_OK,
+    ['event_ticket_seats?code=eq.KM4TUV&select', { method: 'GET',
+      body: [{ code: 'KM4TUV', seat_no: 3, checked_in_at: null, cancelled_at: null,
+        event_tickets: { id: TK_ID, qty: 3, status: 'confirmed', checked_in_at: PAST,
+          events: { id: EV_ID, title: '공연', starts_at: PAST, host_id: HOST_ID } } }] }],
+    MEMBERSHIP('member'),
+    ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=code,seat_no', { method: 'GET', body: [
+      { code: 'ABCXYZ', seat_no: 1, checked_in_at: PAST, cancelled_at: null },
+      { code: 'QQ7MNP', seat_no: 2, checked_in_at: null, cancelled_at: null },
+      { code: 'KM4TUV', seat_no: 3, checked_in_at: null, cancelled_at: null }] }],
+    ['event_ticket_seats?code=eq.KM4TUV&cancelled_at=is.null', { method: 'PATCH', body: [{ code: 'KM4TUV' }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=qty,status', { method: 'GET', body: [{ qty: 3, status: 'confirmed' }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&qty=eq.3', { method: 'PATCH', body: [{ id: TK_ID, qty: 2 }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=*', { method: 'GET', body: [{ id: TK_ID, qty: 2, status: 'confirmed', checked_in_at: PAST }] }],
+  ]);
+  const j = await (await run({ action: 'host_cancel_seat', kakao_token: 't', code: 'KM4TUV' })).json();
+  chk('host_cancel_seat: 1명 입장 후 미입장 1장 취소 — 공연 시작 후에도 가능', j.ok === true && j.whole === false && j.ticket.qty === 2,
+    JSON.stringify(j).slice(0, 100));
+  // 입장한 좌석은 호스트도 취소 불가
+  mockFetch([KAPI_OK,
+    ['event_ticket_seats?code=eq.KM4TUV&select', { method: 'GET',
+      body: [{ code: 'KM4TUV', seat_no: 3, checked_in_at: PAST, cancelled_at: null,
+        event_tickets: { id: TK_ID, qty: 3, status: 'confirmed', checked_in_at: PAST,
+          events: { id: EV_ID, title: '공연', starts_at: PAST, host_id: HOST_ID } } }] }],
+    MEMBERSHIP('member')]);
+  chk('host_cancel_seat: 입장한 좌석 → 409', (await (await run({ action: 'host_cancel_seat', kakao_token: 't', code: 'KM4TUV' })).json()).error === 'checked_in');
 }
 // ── 20. 초대: 생성(owner만)·수락·만료
 {

@@ -236,8 +236,13 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     ];
     _renderAttendeeList();
   });
-  s = await p.evaluate(() => document.getElementById('host-container').textContent);
-  chk('명단: 부분 입장 칩(입장 1/2) + 티켓별 입장 토글', s.includes('입장 1/2') && s.includes('티켓별 입장'));
+  s = await p.evaluate(() => ({
+    txt: document.getElementById('host-container').textContent,
+    xBtns: document.querySelectorAll('#host-container button[title="이 티켓만 취소"]').length,
+  }));
+  chk('명단: 부분 입장 칩(입장 1/2) + 티켓별 토글 + 미입장 좌석 부분취소 ✕', s.txt.includes('입장 1/2')
+    && s.txt.includes('티켓별') && s.xBtns === 1, `✕ ${s.xBtns}개`);
+  s = s.txt;
   await p.evaluate(() => {
     window.__apiQueue.push({ ok: true, ticket: { buyer_name: '멀티예매', qty: 2, seat_no: 2, seats_checked: 2, seats_total: 2 } }); // checkin(좌석2)
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50 }, tickets: [], co_teams: [], is_host_team: true }); // 재조회
@@ -259,6 +264,19 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.waitForTimeout(250);
   s = await p.evaluate(() => window.__apiCalls.filter(c => c.action === 'uncheckin').pop());
   chk('좌석 토글: 입장 좌석(✓) 클릭 → uncheckin(그 좌석 코드)', s && s.code === 'AB3XKP', s && s.code);
+  await p.evaluate(() => {
+    _hostState.attendees = [
+      { id: 't-multi', code: 'AB3XKP', buyer_name: '멀티예매', buyer_phone: '01011113333', qty: 2, status: 'confirmed', checked_in_at: 'x',
+        seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: 'x' }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] },
+    ];
+    _renderAttendeeList();
+    window.__apiQueue.push({ ok: true, whole: false, ticket: { id: 't-multi', qty: 1 } }); // host_cancel_seat (confirm 자동 수락)
+    window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111', title: '한여름 밤의 락', capacity: 50 }, tickets: [], co_teams: [], is_host_team: true }); // 재조회
+  });
+  await p.click('button[title="이 티켓만 취소"]');
+  await p.waitForTimeout(250);
+  s = await p.evaluate(() => window.__apiCalls.filter(c => c.action === 'host_cancel_seat').pop());
+  chk('좌석 부분취소: ✕ 클릭 → host_cancel_seat(미입장 좌석 코드) — 1명 입장 후에도', s && s.code === 'ZZ9PQR', s && s.code);
 
   // ── 6. QR 체크인 딥링크 (로그인 상태) — 성공(좌석 단위)/미확인/중복
   await p.evaluate(() => { window.__apiQueue.push({ ok: true, ticket: { id: 't1', code: 'QQ7MNP', buyer_name: '홍관객', qty: 2,

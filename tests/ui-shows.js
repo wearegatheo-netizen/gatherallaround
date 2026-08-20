@@ -162,15 +162,34 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('예매 성공: book 호출 payload', s.call && s.call.action === 'book' && s.call.event_id === EV1 && s.call.qty === 2 && s.call.phone === '010-1234-5678');
   chk('티켓 화면: 코드+입금 안내+금액(2매 30,000)', s.hash === '#shows/ticket/AB3XKP' && s.text.includes('AB3XKP') && s.text.includes('입금 안내') && s.text.includes('₩30,000') && s.text.includes('입금 확인 중'));
   chk('티켓 화면: 매수별 QR 2장(좌석 코드 2개 + 전달 안내)', s.qrs === 2 && s.text.includes('ZZ9PQR')
-    && s.text.includes('티켓 1 / 2') && s.text.includes('한 장씩 전달'), `${s.qrs}개 QR`);
+    && s.text.includes('티켓 1') && s.text.includes('한 장씩 전달'), `${s.qrs}개 QR`);
   chk('티켓 화면: 입금자명 안내', s.text.includes('예매자 이름(홍길동)'));
+
+  // ── 3c. 티켓 1장 부분 취소 — 2장 중 2번만 취소
+  await p.evaluate(() => {
+    window.__apiQueue.push({ ok: true, whole: false,
+      ticket: { id: 't1', code: 'AB3XKP', buyer_name: '홍길동', buyer_phone: '01012345678', qty: 1, status: 'pending_payment', checked_in_at: null },
+      seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null, cancelled_at: null }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: 'x' }] });
+  });
+  s = await p.evaluate(() => document.querySelectorAll('#shows-container button').length && [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '이 티켓만 취소').length);
+  chk('티켓 화면: 좌석별 [이 티켓만 취소] 버튼 2개', s === 2, `${s}개`);
+  await p.click('#shows-container button:has-text("이 티켓만 취소") >> nth=1');
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({
+    call: window.__apiCalls.filter(c => c.action === 'cancel_seat').pop(),
+    text: document.getElementById('shows-container').textContent,
+    qrs: document.querySelectorAll('#shows-container [id^="ticketQrSlot-"] svg').length,
+    amount: document.getElementById('shows-container').textContent.includes('₩15,000'),
+  }));
+  chk('부분 취소: cancel_seat(그 좌석 코드+전화) → 취소됨 표시 + QR 1장 + 금액 1매분', s.call && s.call.code === 'ZZ9PQR'
+    && s.call.phone === '01012345678' && s.text.includes('취소됨') && s.qrs === 1 && s.amount, s.call && s.call.code);
 
   // ── 4. 예매 취소
   await p.evaluate(() => { window.__apiQueue.push({ ok: true, ticket: { status: 'cancelled', cancelled_at: 'x', cancelled_by: 'buyer' } }); });
   await p.click('button:has-text("예매 취소")');
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({
-    call: window.__apiCalls[1],
+    call: window.__apiCalls.filter(c => c.action === 'cancel').pop(),
     chip: document.getElementById('shows-container').textContent.includes('취소됨'),
     noCancelBtn: ![...document.querySelectorAll('#shows-container button')].some(b => b.textContent.includes('예매 취소')),
   }));
