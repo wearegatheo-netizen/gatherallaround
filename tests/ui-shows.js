@@ -32,7 +32,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
         { id: 'h1', name: '밴드 스컬', bio: '신촌에서 활동하는 5인조 밴드', sns: 'instagram.com/bandskull' },
       ],
       events: [
-        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_question: '어떤 팀을 보러 오시나요?' },
+        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_question: '어떤 팀을 보러 오시나요?', booking_question_required: true },
         { id: EV2, host_id: 'h1', host_name: '어쿠스틱 팀', title: '무료 어쿠스틱 나잇', description: '', poster_url: '', venue: '게더 올 어라운드', starts_at: F14, capacity: 30, price: 0, bank_info: null, max_per_booking: 2, status: 'published' },
         { id: EV3, host_id: 'h2', host_name: '재즈 콜렉티브', title: '재즈의 밤 (매진)', description: '', poster_url: '', venue: '게더', starts_at: F7, capacity: 20, price: 10000, bank_info: 'x', max_per_booking: 4, status: 'published' },
         { id: '44444444-4444-4444-8444-444444444444', host_id: 'h2', host_name: '지난팀', title: '지난 공연', description: '', poster_url: '', venue: '게더', starts_at: PAST, capacity: 20, price: 0, bank_info: null, max_per_booking: 4, status: 'published' },
@@ -178,6 +178,11 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
       seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] });
   }, EV1);
   await p.check('#showPrivacyAgree');
+  await p.fill('#showAnswer', '');
+  await p.click('#showBookBtn');
+  s = await p.evaluate(() => ({ err: document.getElementById('showsBookResult').textContent, calls: window.__apiCalls.length }));
+  chk('필수 질문: 답변 없이 제출 → 인라인 오류 + API 미호출', s.err.includes('답변') && s.calls === 0, s.err);
+  await p.fill('#showAnswer', '밴드 스컬이요');
   await p.click('#showBookBtn');
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({

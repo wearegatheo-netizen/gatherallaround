@@ -13565,8 +13565,8 @@
                             <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
                         </div>
                         ${ev.booking_question ? `<div class="perf-form-group">
-                            <label class="perf-form-label">${escapeHtml(ev.booking_question)}</label>
-                            <input type="text" class="perf-form-input" id="showAnswer" maxlength="200" placeholder="답변 입력">
+                            <label class="perf-form-label">${escapeHtml(ev.booking_question)}${ev.booking_question_required ? ' *' : ''}</label>
+                            <input type="text" class="perf-form-input" id="showAnswer" maxlength="200" placeholder="답변 입력${ev.booking_question_required ? '' : ' (선택)'}">
                         </div>` : ''}
                         <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
                             <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
@@ -13627,6 +13627,9 @@
             if (!name) { showErr('이름을 입력해주세요.'); return; }
             if (!/^01[016789][0-9]{7,8}$/.test((phone || '').replace(/\D/g, ''))) { showErr('휴대폰 번호를 확인해주세요.'); return; }
             if (!document.getElementById('showPrivacyAgree')?.checked) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
+            const evNow = _showsState.event;
+            const answerVal = document.getElementById('showAnswer')?.value.trim() || '';
+            if (evNow && evNow.booking_question && evNow.booking_question_required && !answerVal) { showErr('질문에 답변을 입력해주세요.'); return; }
             const btn = document.getElementById('showBookBtn');
             _showsState.busy = true;
             if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
@@ -14520,7 +14523,11 @@
                 <div class="perf-form-group">
                     <label class="perf-form-label">예매자 질문 (선택)</label>
                     <input type="text" class="perf-form-input" id="evQuestion" maxlength="200" placeholder="예: 어떤 팀을 보러 오시나요?" value="${escapeHtml(ev?.booking_question || '')}">
-                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">예매 작성 화면에 표시되고, 답변은 예매자 관리·명단 다운로드에서 볼 수 있습니다.</div>
+                    <div style="display:flex;gap:16px;margin-top:8px;font-size:0.84rem;color:var(--wds-black)">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="evQReq" value="opt"${ev?.booking_question_required ? '' : ' checked'} style="width:16px;height:16px;cursor:pointer">답변 선택</label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="evQReq" value="req"${ev?.booking_question_required ? ' checked' : ''} style="width:16px;height:16px;cursor:pointer">답변 필수</label>
+                    </div>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">예매 작성 화면에 표시되고, 답변은 예매자 관리·명단 다운로드에서 볼 수 있습니다. '답변 필수'면 답변 없이는 예매할 수 없습니다.</div>
                 </div>
                 <div class="perf-form-group">
                     <label class="perf-form-label">포스터 이미지 (선택)</label>
@@ -14589,6 +14596,7 @@
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
                 booking_question: document.getElementById('evQuestion')?.value.trim() || '',
+                booking_question_required: document.querySelector('input[name="evQReq"]:checked')?.value === 'req',
                 venue_address: pick ? pick.address : null,
                 venue_lat: pick ? pick.lat : null,
                 venue_lng: pick ? pick.lng : null };

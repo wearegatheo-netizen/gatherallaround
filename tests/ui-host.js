@@ -147,8 +147,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('장소 선택: 입력값·주소 반영', s.v === '홍대 클럽 FF' && s.addr.includes('와우산로'));
 
-  // 소개 서식 + 예매자 질문 입력 후 저장
+  // 소개 서식 + 예매자 질문(필수) 입력 후 저장
   await p.fill('#evQuestion', '어떤 팀을 보러 오시나요?');
+  await p.check('input[name="evQReq"][value="req"]');
   await p.evaluate(() => {
     document.getElementById('evDescRte').innerHTML = '<h2>라인업</h2><p>밴드A · 밴드B</p>';
     window.__apiQueue.push({ ok: true, event: { id: '11111111-1111-4111-8111-111111111111' } });  // create_event
@@ -173,7 +174,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 장소 좌표·주소', e3 && e3.venue === '홍대 클럽 FF' && e3.venue_lat === 37.5511 && e3.venue_lng === 126.9203 && e3.venue_address.includes('와우산로'));
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
-  chk('payload: 예매자 질문 포함', e3 && e3.booking_question === '어떤 팀을 보러 오시나요?');
+  chk('payload: 예매자 질문 + 필수 플래그', e3 && e3.booking_question === '어떤 팀을 보러 오시나요?' && e3.booking_question_required === true);
   chk('대시보드: 공연 카드 + 집계 + 포스터 썸네일(폴백)', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3') && s.poster);
 
   // ── 3b. 카드 버튼 순서·이름 + 공연 삭제

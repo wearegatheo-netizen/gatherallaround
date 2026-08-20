@@ -140,6 +140,10 @@ const TICKET = (over = {}) => ({
   const r4 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
   chk('book: 공연 시작 후 → 409 started (RPC 미호출)', r4.status === 409 && (await r4.json()).error === 'started'
     && !calls.some(c => c.url.includes('rpc/')));
+  mockFetch([['events?id=', { body: [{ starts_at: FUTURE, booking_question: '어느 팀?', booking_question_required: true }] }]]);
+  const r5 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
+  chk('book: 필수 질문 미답변 → 400 need_answer (RPC 미호출)', r5.status === 400 && (await r5.json()).error === 'need_answer'
+    && !calls.some(c => c.url.includes('rpc/')));
 }
 // ── 7. lookup: 코드 존재+전화 불일치 = 코드 없음과 동일 404
 {
@@ -314,11 +318,12 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
   const poster = 'https://sb.test/storage/v1/object/public/community-images/events/1.jpg';
   const j3 = await (await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID,
-    event: { ...base, description: '소개', poster_url: poster, booking_question: ' 어떤 팀을 보러 오시나요? ', venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
+    event: { ...base, description: '소개', poster_url: poster, booking_question: ' 어떤 팀을 보러 오시나요? ', booking_question_required: true, venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
   const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
   chk('create_event: 공동호스트도 등록 가능 + host_id/host_name/좌표', j3.ok === true && ins.host_id === HOST_ID
     && ins.host_name === '밴드X' && ins.venue_lat === 37.5511 && ins.bank_info === '토스 111');
-  chk('create_event: 예매자 질문 저장(trim)', ins.booking_question === '어떤 팀을 보러 오시나요?');
+  chk('create_event: 예매자 질문 저장(trim) + 필수 플래그', ins.booking_question === '어떤 팀을 보러 오시나요?'
+    && ins.booking_question_required === true);
 
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
   const rBad = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, venue_lat: 999, venue_lng: 126.9 } });

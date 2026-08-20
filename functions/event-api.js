@@ -260,6 +260,7 @@ function validateEventFields(e, { partial = false } = {}) {
     }
     if (has('description')) out.description = String(e.description || '').slice(0, 12000);
     if (e.booking_question !== undefined) out.booking_question = String(e.booking_question || '').trim().slice(0, 200) || null;
+    if (e.booking_question_required !== undefined) out.booking_question_required = !!e.booking_question_required;
     if (has('bank_info')) out.bank_info = String(e.bank_info || '').trim().slice(0, 120) || null;
     if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
     if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
@@ -335,12 +336,16 @@ export async function onRequest(context) {
             if (!phone) return fail(400, 'bad_phone', '휴대폰 번호를 확인해주세요.');
             if (!Number.isInteger(qty) || qty < 1 || qty > 10) return fail(400, 'bad_qty', '매수를 확인해주세요.');
 
-            // 공연 시작 시간이 지나면 예매 자동 마감 (클라이언트 화면과 무관하게 서버에서 차단)
-            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at&limit=1`);
+            // 공연 시작 시간이 지나면 예매 자동 마감 + 필수 질문 답변 검증 (서버에서도 차단)
+            const answer = String(body.answer || '').trim().slice(0, 200);
+            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at,booking_question,booking_question_required&limit=1`);
             if (evr.ok) {
                 const [ev0] = await evr.json();
                 if (ev0 && new Date(ev0.starts_at) <= new Date()) {
                     return fail(409, 'started', '공연이 시작되어 예매가 마감되었습니다.');
+                }
+                if (ev0 && ev0.booking_question && ev0.booking_question_required && !answer) {
+                    return fail(400, 'need_answer', '질문에 답변을 입력해주세요.');
                 }
             }
 
@@ -356,7 +361,6 @@ export async function onRequest(context) {
                 const out = await r.json();
                 if (out.ok) {
                     // 호스트 설정 질문에 대한 답변 저장 (RPC는 좌석 정합만 담당 — 부가 필드는 후속 PATCH)
-                    const answer = String(body.answer || '').trim().slice(0, 200);
                     if (answer && out.ticket && out.ticket.id) {
                         await sbFetch(env, `event_tickets?id=eq.${out.ticket.id}`, {
                             method: 'PATCH', body: JSON.stringify({ answer }) }).catch(() => {});
