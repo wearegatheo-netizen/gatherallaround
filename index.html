@@ -375,11 +375,15 @@
 
         /* ── 공연 예매 (shows) + 호스트 센터 (host) ── */
         .show-section-title { font-size: 1rem; font-weight: 800; color: var(--wds-black); margin: 2px 0 12px; letter-spacing: -0.01em; }
-        .show-card { display: flex; gap: 14px; border: 1px solid var(--wds-gray-300); border-radius: 16px; padding: 12px; margin-bottom: 12px; cursor: pointer; background: var(--wds-white); transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; text-align: left; }
+        /* 목록 카드 — 2열 그리드(넓은 화면은 자동 3열+), 포스터 상단 세로형 */
+        .show-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+        .show-card { display: flex; flex-direction: column; border: 1px solid var(--wds-gray-300); border-radius: 14px; overflow: hidden; cursor: pointer; background: var(--wds-white); transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; text-align: left; }
         .show-card:hover { border-color: var(--wds-primary); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.07); }
-        .show-poster { width: 92px; height: 123px; border-radius: 12px; object-fit: cover; background: linear-gradient(135deg, var(--wds-gray-100), var(--wds-gray-300)); flex: none; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--wds-gray-500); }
-        .show-card-title { font-size: 1rem; font-weight: 800; color: var(--wds-black); line-height: 1.35; margin: 5px 0 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .show-card-meta { font-size: 0.78rem; color: var(--wds-gray-700); line-height: 1.75; }
+        .show-poster { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: linear-gradient(135deg, var(--wds-gray-100), var(--wds-gray-300)); flex: none; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--wds-gray-500); }
+        .show-card-body { padding: 9px 11px 11px; display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .show-card-title { font-size: 0.92rem; font-weight: 800; color: var(--wds-black); line-height: 1.35; margin: 6px 0 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .show-card-meta { font-size: 0.74rem; color: var(--wds-gray-700); line-height: 1.6; }
+        .show-card-price { margin-top: auto; padding-top: 7px; font-size: 0.86rem; font-weight: 800; color: var(--wds-black); }
         .show-poster-lg { width: 100%; max-width: 300px; border-radius: 16px; display: block; margin: 0 auto 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.14); }
         .show-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
         .show-info-card { border: 1px solid var(--wds-gray-300); border-radius: 14px; background: var(--wds-white); padding: 6px 16px; margin-bottom: 12px; }
@@ -13414,18 +13418,18 @@
             const dday = _dday(ev.starts_at);
             return `<div class="show-card" onclick="showShowsSection(['${jsStr(ev.id)}'])">
                 ${poster}
-                <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-                    <div style="display:flex;gap:5px;flex-wrap:wrap">
+                <div class="show-card-body">
+                    <div style="display:flex;gap:4px;flex-wrap:wrap">
                         ${dday ? _showChip(dday, 'var(--wds-primary)', '#fff') : ''}
                         ${_showChip(seat.label, seat.bg, seat.fg)}
-                        ${_showChip(priceStr, 'var(--wds-gray-100)', 'var(--wds-gray-700)')}
                     </div>
                     <div class="show-card-title">${escapeHtml(ev.title)}</div>
                     <div class="show-card-meta">
                         <span style="font-weight:600;color:var(--wds-gray-900)">${escapeHtml(ev.host_name || '')}</span><br>
                         ${_showDateStr(ev.starts_at)}<br>
-                        ${escapeHtml(ev.venue)}
+                        <span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(ev.venue)}</span>
                     </div>
+                    <div class="show-card-price">${priceStr}</div>
                 </div>
             </div>`;
         }
@@ -13437,18 +13441,32 @@
                 c.innerHTML = '<p style="text-align:center;padding:40px;color:var(--wds-gray-500)">공연 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>';
                 return;
             }
-            const upcomingAll = _showsState.events.filter(ev => new Date(ev.starts_at) > new Date());
             c.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                <div class="show-section-title" style="margin:0">다가오는 공연 ${upcomingAll.length ? `<span style="color:var(--wds-primary)">${upcomingAll.length}</span>` : ''}</div>
+                <div class="show-section-title" style="margin:0">공연 목록</div>
                 <span style="margin-left:auto;display:flex;gap:6px;flex:none">
                     <button onclick="showShowsSection(['find'])" style="padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">내 티켓 조회</button>
                     <button onclick="showHostSection()" style="padding:8px 14px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">호스트 센터</button>
                 </span>
             </div>
+            <div id="showsListTabs"></div>
             <input type="search" class="perf-form-input" id="showSearch" placeholder="공연명 · 팀 · 장소 검색" value="${escapeHtml(_showsState.q || '')}"
                 oninput="_showsState.q=this.value;_renderShowsListBody()" style="margin-bottom:14px">
             <div id="showsListBody"></div>`;
+            _renderShowsTabs();
             _renderShowsListBody();
+        }
+
+        // 다가오는/지난 공연 탭 — 검색 입력 밖에 두고 부분 재렌더 (포커스 보존)
+        function _renderShowsTabs() {
+            const el = document.getElementById('showsListTabs');
+            if (!el) return;
+            const now = new Date();
+            const nUp = _showsState.events.filter(ev => new Date(ev.starts_at) > now).length;
+            const nPast = _showsState.events.length - nUp;
+            const cur = _showsState.listTab || 'upcoming';
+            const tb = (key, label) => `<button class="community-tab${cur === key ? ' active' : ''}" style="flex:1;padding:10px 0" onclick="_showsState.listTab='${key}';_renderShowsTabs();_renderShowsListBody()">${label}</button>`;
+            el.innerHTML = `<div class="community-tab-bar" style="margin-bottom:12px">
+                ${tb('upcoming', `다가오는 공연${nUp ? ` ${nUp}` : ''}`)}${tb('past', `지난 공연${nPast ? ` ${nPast}` : ''}`)}</div>`;
         }
 
         // 목록 본문만 재렌더 — 검색 입력의 포커스를 유지하기 위해 분리
@@ -13458,25 +13476,22 @@
             const q = (_showsState.q || '').trim().toLowerCase();
             const match = (ev) => !q || [ev.title, ev.host_name, ev.venue].some(v => String(v || '').toLowerCase().includes(q));
             const now = new Date();
-            const upcoming = _showsState.events.filter(ev => new Date(ev.starts_at) > now && match(ev));
-            const past = _showsState.events.filter(ev => new Date(ev.starts_at) <= now && match(ev)).reverse();
-            let html = '';
-            if (!upcoming.length) {
-                html += q
+            const tab = _showsState.listTab || 'upcoming';
+            let list = _showsState.events.filter(ev => (tab === 'past') === (new Date(ev.starts_at) <= now) && match(ev));
+            if (tab === 'past') list = list.slice().reverse(); // 최근에 끝난 공연부터
+            if (!list.length) {
+                el.innerHTML = q
                     ? '<p style="text-align:center;padding:32px 0;color:var(--wds-gray-500);font-size:0.88rem">검색 결과가 없습니다.</p>'
-                    : `<div style="text-align:center;padding:44px 0 36px;color:var(--wds-gray-500)">
-                        <div style="font-size:2.2rem;margin-bottom:10px">🎸</div>
-                        <div style="font-size:0.92rem;font-weight:600">아직 예정된 공연이 없어요</div>
-                        <div style="font-size:0.8rem;margin-top:4px">곧 새로운 공연이 올라올 거예요!</div>
-                    </div>`;
-            } else {
-                html += upcoming.map(_showCardHTML).join('');
+                    : (tab === 'past'
+                        ? '<p style="text-align:center;padding:32px 0;color:var(--wds-gray-500);font-size:0.88rem">지난 공연이 없습니다.</p>'
+                        : `<div style="text-align:center;padding:44px 0 36px;color:var(--wds-gray-500)">
+                            <div style="font-size:2.2rem;margin-bottom:10px">🎸</div>
+                            <div style="font-size:0.92rem;font-weight:600">아직 예정된 공연이 없어요</div>
+                            <div style="font-size:0.8rem;margin-top:4px">곧 새로운 공연이 올라올 거예요!</div>
+                        </div>`);
+                return;
             }
-            if (past.length) {
-                html += `<details${q ? ' open' : ''} style="margin-top:22px"><summary style="cursor:pointer;font-size:0.84rem;font-weight:700;color:var(--wds-gray-500);user-select:none;padding:6px 0">지난 공연 ${past.length}개 보기</summary>
-                    <div style="margin-top:10px;opacity:0.72">${past.map(_showCardHTML).join('')}</div></details>`;
-            }
-            el.innerHTML = html;
+            el.innerHTML = `<div class="show-grid">${list.map(_showCardHTML).join('')}</div>`;
         }
 
         async function renderShowDetail(id) {

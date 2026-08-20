@@ -771,13 +771,9 @@ export async function onRequest(context) {
                 if (!er.ok) return fail(502, 'db', '공연 조회에 실패했습니다.');
                 const [ev] = await er.json();
                 if (!ev) return fail(404, 'not_found', '공연을 찾을 수 없습니다.');
-                // 허용: 주최팀 멤버, ADMIN, 또는 해당 공동 관리팀의 owner(자진 탈퇴)
-                let allowed = isAdmin || !!(await getMembership(env, ev.host_id, kakaoId));
-                if (!allowed) {
-                    const m = await getMembership(env, body.host_id, kakaoId);
-                    allowed = !!(m && m.role === 'owner');
-                }
-                if (!allowed) return fail(403, 'not_allowed', '관리팀을 제외할 권한이 없습니다.');
+                // 참여팀 수정(제외)은 주최팀만 — 초대(create_event_invite)와 동일 정책
+                const allowed = isAdmin || !!(await getMembership(env, ev.host_id, kakaoId));
+                if (!allowed) return fail(403, 'not_host_team', '공연 관리팀 수정은 주최팀만 할 수 있습니다.');
                 const dr = await sbFetch(env, `event_co_teams?event_id=eq.${body.event_id}&host_id=eq.${body.host_id}`, {
                     method: 'DELETE', headers: { Prefer: 'return=representation' },
                 });

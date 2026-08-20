@@ -81,15 +81,31 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     pageShown: !document.getElementById('shows-page').classList.contains('hidden'),
     others: ['portal-page', 'performance-booking-page'].filter(id => !document.getElementById(id).classList.contains('hidden')),
     cards: document.querySelectorAll('#shows-container .show-card').length,
+    grid: !!document.querySelector('#showsListBody .show-grid'),
     text: document.getElementById('shows-container').textContent,
+    tabs: [...document.querySelectorAll('#showsListTabs .community-tab')].map(b => b.textContent.trim()).join('|'),
     hash: location.hash,
     hostBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '호스트 센터'),
     ticketBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '내 티켓 조회'),
   }));
   chk('포털 → 공연 예매: 화면 전환 + 해시', s.pageShown && s.others.length === 0 && s.hash === '#shows');
-  chk('목록: 다가오는 3 + 지난 1 카드', s.cards === 4, `${s.cards}개`);
+  chk('목록: 다가오는 탭 3카드 (2열 그리드)', s.cards === 3 && s.grid, `${s.cards}개`);
   chk('목록: 잔여 3석/매진/무료 배지', s.text.includes('잔여 3석') && s.text.includes('매진') && s.text.includes('무료') && s.text.includes('₩15,000'));
-  chk('목록: 지난 공연 접힘 + 헤더에 내 티켓 조회·호스트 센터 버튼', s.text.includes('지난 공연 1개 보기') && s.hostBtn && s.ticketBtn);
+  chk('목록: 다가오는/지난 탭 + 헤더 버튼', s.tabs === '다가오는 공연 3|지난 공연 1' && s.hostBtn && s.ticketBtn, s.tabs);
+
+  // ── 1a. 지난 공연 탭 전환 ↔ 복귀
+  await p.click('#showsListTabs button:has-text("지난 공연")');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => ({
+    cards: document.querySelectorAll('#showsListBody .show-card').length,
+    text: document.getElementById('showsListBody').textContent,
+    active: document.querySelector('#showsListTabs .community-tab.active')?.textContent.trim(),
+  }));
+  chk('지난 공연 탭: 1카드(지난팀) + 활성 탭 표시', s.cards === 1 && s.text.includes('지난팀') && s.active === '지난 공연 1', s.active);
+  await p.click('#showsListTabs button:has-text("다가오는 공연")');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => document.querySelectorAll('#showsListBody .show-card').length);
+  chk('다가오는 탭 복귀: 3카드', s === 3, `${s}개`);
 
   // ── 1b. 목록 검색: 제목/팀/장소 부분일치 + 입력 포커스 유지(본문만 재렌더)
   await p.fill('#showSearch', '재즈');
@@ -110,7 +126,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   await p.fill('#showSearch', '');
   await p.waitForTimeout(150);
   s = await p.evaluate(() => document.querySelectorAll('#showsListBody .show-card').length);
-  chk('목록 검색: 지우면 전체 복원(4카드)', s === 4, `${s}개`);
+  chk('목록 검색: 지우면 현재 탭 전체 복원(3카드)', s === 3, `${s}개`);
 
   // ── 2. 상세 진입 (pushState) + 뒤로가기 복귀
   const lenBefore = await p.evaluate(() => history.length);
@@ -133,7 +149,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   await p.goBack();
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({ hash: location.hash, list: document.querySelectorAll('#shows-container .show-card').length }));
-  chk('뒤로가기: 목록 복귀(pushState 확인)', s.hash === '#shows' && s.list === 4, s.hash);
+  chk('뒤로가기: 목록 복귀(pushState 확인)', s.hash === '#shows' && s.list === 3, s.hash);
 
   // ── 3. 예매 폼 검증 → 성공(유료 → 입금 안내)
   await p.evaluate((EV1) => showShowsSection([EV1]), EV1);

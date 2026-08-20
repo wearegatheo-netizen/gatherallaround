@@ -556,13 +556,16 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   mockFetch([KAPI_OK, MEMBERSHIP('member')]);
   chk('accept_event_invite: 팀 member → 403', (await run({ action: 'accept_event_invite', kakao_token: 't', token: TOKEN, host_id: HOST_ID })).status === 403);
 
-  // remove_co_team — 공동팀 owner 자진 탈퇴 허용
+  // remove_co_team — 참여팀 수정은 주최팀만 (공동팀 owner의 자진 탈퇴도 불가)
   mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: CO_ID }] }],
-    [`event_host_members?host_id=eq.${CO_ID}&kakao_id=eq.777`, { body: [] }],        // 주최팀(CO_ID) 멤버 아님
-    [`event_host_members?host_id=eq.${HOST_ID}&kakao_id=eq.777`, { body: [{ role: 'owner' }] }], // 내 팀 owner
-    ['event_co_teams?event_id=eq.', { method: 'DELETE', body: [{ host_id: HOST_ID }] }]]);
-  const j7 = await (await run({ action: 'remove_co_team', kakao_token: 't', event_id: EV_ID, host_id: HOST_ID })).json();
-  chk('remove_co_team: 공동팀 owner 자진 탈퇴', j7.ok === true);
+    [`event_host_members?host_id=eq.${CO_ID}&kakao_id=eq.777`, { body: [] }]]);      // 주최팀(CO_ID) 멤버 아님
+  const r7 = await run({ action: 'remove_co_team', kakao_token: 't', event_id: EV_ID, host_id: HOST_ID });
+  chk('remove_co_team: 주최팀 아니면(공동팀 owner 포함) 403', r7.status === 403 && (await r7.json()).error === 'not_host_team');
+  mockFetch([KAPI_OK, [`events?id=eq.${EV_ID}&select=id,host_id`, { body: [{ id: EV_ID, host_id: HOST_ID }] }],
+    MEMBERSHIP('member'),
+    ['event_co_teams?event_id=eq.', { method: 'DELETE', body: [{ host_id: CO_ID }] }]]);
+  const j7 = await (await run({ action: 'remove_co_team', kakao_token: 't', event_id: EV_ID, host_id: CO_ID })).json();
+  chk('remove_co_team: 주최팀 멤버는 성공', j7.ok === true);
 
   // attendees에 co_teams + is_host_team + 티켓별 좌석 첨부
   mockFetch([KAPI_OK, ['events?id=eq.', { body: [EVENT_ROW()] }], MEMBERSHIP('member'),
