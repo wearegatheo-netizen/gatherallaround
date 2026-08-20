@@ -135,6 +135,8 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   s = await p.evaluate(() => ({
     hash: location.hash, title: document.getElementById('shows-container').textContent.includes('한여름 밤의 락'),
     form: !!document.getElementById('showName'), bank: document.getElementById('shows-container').textContent.includes('계좌이체 예매'),
+    cta: !!document.getElementById('showBookOpenBtn'),
+    sheetClosed: document.getElementById('bookSheetWrap')?.classList.contains('hidden'),
     desc: document.getElementById('shows-container').innerHTML.includes('신촌 최고의 밴드<br>라인업 공개'),
     descBox: !!document.querySelector('#shows-container .docs-card-content'),
     bio: document.getElementById('shows-container').textContent.includes('신촌에서 활동하는 5인조 밴드'),
@@ -143,7 +145,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     mapLink: document.querySelector('#shows-container a[href^="https://map.kakao.com/link/map/"]')?.href || '',
     addr: document.getElementById('shows-container').textContent.includes('서울 서대문구 신촌로 1'),
   }));
-  chk('상세: 해시 #shows/{id} + 폼 + 계좌 안내 + 소개 서식 렌더', s.hash === '#shows/' + EV1 && s.title && s.form && s.bank && s.desc && s.descBox);
+  chk('상세: 해시 #shows/{id} + 예매 CTA(시트는 닫힘) + 계좌 안내 + 소개 서식', s.hash === '#shows/' + EV1 && s.title && s.form && s.bank && s.desc && s.descBox && s.cta && s.sheetClosed);
   chk('상세: 팀 소개 + SNS 링크(https 보정·noopener)', s.bio && s.sns === 'noopener');
   chk('상세: 지도 영역 + 카카오맵 링크 + 주소', s.mapDiv && s.mapLink.includes('37.5559') && s.addr, s.mapLink.slice(0, 60));
   await p.goBack();
@@ -151,9 +153,13 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   s = await p.evaluate(() => ({ hash: location.hash, list: document.querySelectorAll('#shows-container .show-card').length }));
   chk('뒤로가기: 목록 복귀(pushState 확인)', s.hash === '#shows' && s.list === 3, s.hash);
 
-  // ── 3. 예매 폼 검증 → 성공(유료 → 입금 안내)
+  // ── 3. 예매 폼 검증 → 성공(유료 → 입금 안내) — [예매하기] CTA로 바텀시트 열고 작성
   await p.evaluate((EV1) => showShowsSection([EV1]), EV1);
   await p.waitForTimeout(200);
+  await p.click('#showBookOpenBtn');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => !document.getElementById('bookSheetWrap').classList.contains('hidden'));
+  chk('예매하기 CTA → 작성 바텀시트 열림', s === true);
   await p.fill('#showName', '홍길동');
   await p.fill('#showPhone', '010-1234-5678');
   await p.selectOption('#showQty', '2');

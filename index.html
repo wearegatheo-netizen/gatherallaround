@@ -13537,40 +13537,65 @@
                 ${descHtml ? `<div class="docs-card-content" style="font-size:0.86rem;color:var(--wds-gray-900);line-height:1.7;background:var(--wds-gray-100);border-radius:12px;padding:14px 16px;margin-bottom:18px">${descHtml}</div>` : ''}`;
             if (seat.bookable) {
                 const qtyOpts = Array.from({ length: maxQty }, (_, i) => `<option value="${i + 1}">${i + 1}매</option>`).join('');
+                const ctaLabel = `예매하기${ev.price > 0 ? ` · ₩${Number(ev.price).toLocaleString()}/매` : ' · 무료'}`;
+                // 예매 폼은 바텀시트로 — 상세는 정보만, [예매하기]를 눌러야 작성 화면이 열린다
                 html += `
-                <div class="show-book-card" style="margin-top:4px">
-                <div class="perf-section-title" style="margin-top:0">예매하기</div>
-                ${ev.price > 0 ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.55">계좌이체 예매 — 예매 후 안내되는 계좌로 입금하시면 호스트 확인 후 확정됩니다.</div>` : ''}
-                <div class="perf-form-group">
-                    <label class="perf-form-label">이름 *</label>
-                    <input type="text" class="perf-form-input" id="showName" placeholder="실명 입력">
+                <div style="position:sticky;bottom:70px;z-index:5;margin-top:8px">
+                    <button id="showBookOpenBtn" onclick="openBookingSheet()" style="width:100%;padding:16px;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 22px rgba(0,0,0,0.22)">${ctaLabel}</button>
                 </div>
-                <div class="perf-form-group">
-                    <label class="perf-form-label">연락처 *</label>
-                    <input type="tel" class="perf-form-input" id="showPhone" placeholder="010-0000-0000">
-                </div>
-                <div class="perf-form-group">
-                    <label class="perf-form-label">매수 *</label>
-                    <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
-                </div>
-                <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
-                    <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
-                        <input type="checkbox" id="showPrivacyAgree" style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
-                        [필수] 개인정보 수집·이용에 동의합니다.
-                    </label>
-                    <div style="font-size:0.74rem;color:var(--wds-gray-700);margin-top:6px;padding-left:27px;line-height:1.6">
-                        · 수집 항목: 이름, 연락처 · 이용 목적: 공연 예매 확인 및 입장 관리<br>
-                        · 보유 기간: 공연 종료 후 1년 보관 후 파기 · 거부 시 예매가 제한됩니다.
+                <div id="bookSheetWrap" class="hidden" style="position:fixed;inset:0;z-index:10500">
+                    <div onclick="closeBookingSheet()" style="position:absolute;inset:0;background:rgba(0,0,0,0.45)"></div>
+                    <div style="position:absolute;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;background:var(--wds-white);border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom, 0px));max-height:84vh;overflow-y:auto;box-shadow:0 -12px 40px rgba(0,0,0,0.3)">
+                        <div style="display:flex;align-items:center;margin-bottom:2px">
+                            <div class="perf-section-title" style="margin:0">예매하기</div>
+                            <button onclick="closeBookingSheet()" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid var(--wds-gray-300);background:none;color:var(--wds-gray-700);cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">닫기</button>
+                        </div>
+                        <div style="font-size:0.82rem;color:var(--wds-gray-700);margin:4px 0 14px">${escapeHtml(ev.title)} · ${_showDateStr(ev.starts_at)}</div>
+                        ${ev.price > 0 ? `<div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.55">계좌이체 예매 — 예매 후 안내되는 계좌로 입금하시면 호스트 확인 후 확정됩니다.</div>` : ''}
+                        <div class="perf-form-group">
+                            <label class="perf-form-label">이름 *</label>
+                            <input type="text" class="perf-form-input" id="showName" placeholder="실명 입력">
+                        </div>
+                        <div class="perf-form-group">
+                            <label class="perf-form-label">연락처 *</label>
+                            <input type="tel" class="perf-form-input" id="showPhone" placeholder="010-0000-0000">
+                        </div>
+                        <div class="perf-form-group">
+                            <label class="perf-form-label">매수 *</label>
+                            <select class="perf-form-input" id="showQty" style="width:120px">${qtyOpts}</select>
+                        </div>
+                        <div class="perf-form-group" style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:10px;padding:12px 14px">
+                            <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:0.84rem;font-weight:600;color:var(--wds-black);line-height:1.5">
+                                <input type="checkbox" id="showPrivacyAgree" style="width:18px;height:18px;margin-top:1px;flex:none;cursor:pointer">
+                                [필수] 개인정보 수집·이용에 동의합니다.
+                            </label>
+                            <div style="font-size:0.74rem;color:var(--wds-gray-700);margin-top:6px;padding-left:27px;line-height:1.6">
+                                · 수집 항목: 이름, 연락처 · 이용 목적: 공연 예매 확인 및 입장 관리<br>
+                                · 보유 기간: 공연 종료 후 1년 보관 후 파기 · 거부 시 예매가 제한됩니다.
+                            </div>
+                        </div>
+                        <div id="showsBookResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
+                        <button id="showBookBtn" onclick="submitShowBooking('${jsStr(ev.id)}')" style="width:100%;padding:15px;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">${ctaLabel}</button>
                     </div>
-                </div>
-                <div id="showsBookResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
-                <button id="showBookBtn" onclick="submitShowBooking('${jsStr(ev.id)}')" style="width:100%;padding:15px;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">예매하기${ev.price > 0 ? ` · ₩${Number(ev.price).toLocaleString()}/매` : ''}</button>
                 </div>`;
             } else {
                 html += `<div style="text-align:center;padding:20px;background:var(--wds-gray-100);border-radius:14px;color:var(--wds-gray-500);font-size:0.9rem;font-weight:600">${seat.label}인 공연입니다.</div>`;
             }
             c.innerHTML = html;
             if (hasCoords) _renderShowMap(ev);
+        }
+
+        // 예매 작성 바텀시트 열기/닫기
+        function openBookingSheet() {
+            const el = document.getElementById('bookSheetWrap');
+            if (!el) return;
+            el.classList.remove('hidden');
+            const res = document.getElementById('showsBookResult');
+            if (res) res.textContent = '';
+            setTimeout(() => { document.getElementById('showName')?.focus(); }, 60);
+        }
+        function closeBookingSheet() {
+            document.getElementById('bookSheetWrap')?.classList.add('hidden');
         }
 
         // 상세 페이지 지도 — SDK 로드 실패 시 지도 영역만 숨김(카카오맵 링크는 항상 동작)
@@ -14233,44 +14258,81 @@
                 ${_hostTabBar()}
                 ${_hostState.isAdmin ? '<div style="margin-bottom:10px"><span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 계정</span></div>' : ''}
                 ${_hostTeamSelectRow()}
-                <button onclick="renderHostEventForm()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;margin-bottom:18px">+ 새 공연 등록</button>`;
+                <button onclick="renderHostEventForm()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;margin-bottom:14px">+ 새 공연 등록</button>`;
+            const now = new Date();
+            const upcoming = out.events.filter(ev => new Date(ev.starts_at) > now)
+                .sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1)); // 임박한 공연부터
+            const pastEvents = out.events.filter(ev => new Date(ev.starts_at) <= now); // 서버 정렬(최신순) 유지
+            // 요약 통계 — 다가오는 공연 기준
+            const agg = upcoming.reduce((a, ev) => {
+                const s = ev.stats || {};
+                a.taken += s.taken || 0;
+                a.pending += s.pending || 0;
+                a.sales += (s.confirmed || 0) * (ev.price || 0);
+                return a;
+            }, { taken: 0, pending: 0, sales: 0 });
+            if (out.events.length) {
+                html += `
+                <div class="stat-grid stat-grid-compact" style="margin-bottom:16px">
+                    <div class="stat-card"><div class="stat-label">예정 공연</div><div class="stat-value">${upcoming.length}</div></div>
+                    <div class="stat-card"><div class="stat-label">예매 매수</div><div class="stat-value">${agg.taken}${agg.pending ? `<span style="font-size:0.72rem;font-weight:600;color:#92400E"> 대기 ${agg.pending}</span>` : ''}</div></div>
+                    <div class="stat-card"><div class="stat-label">확정 매출</div><div class="stat-value" style="font-size:0.95rem;line-height:2">₩${agg.sales.toLocaleString()}</div></div>
+                </div>`;
+            }
+            const evCard = (ev) => {
+                const chip = _EV_STATUS_CHIP[ev.status] || _EV_STATUS_CHIP.hidden;
+                const s = ev.stats || { taken: 0, pending: 0, confirmed: 0, checked_in: 0 };
+                const pct = ev.capacity ? Math.min(100, Math.round((s.taken || 0) / ev.capacity * 100)) : 0;
+                const sales = (s.confirmed || 0) * (ev.price || 0);
+                const toggle = ev.status === 'published'
+                    ? _hbtn('예매 마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
+                    : _hbtn('예매 오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
+                const poster = ev.poster_url
+                    ? `<img src="${escapeHtml(ev.poster_url)}" alt="" loading="lazy" style="width:56px;height:75px;border-radius:8px;object-fit:cover;flex:none;background:var(--wds-gray-100)">`
+                    : `<div style="width:56px;height:75px;border-radius:8px;background:linear-gradient(135deg,var(--wds-gray-100),var(--wds-gray-300));flex:none;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--wds-gray-500)">🎸</div>`;
+                return `<div class="host-card">
+                    <div style="display:flex;gap:12px;margin-bottom:8px">
+                        ${poster}
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                                <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
+                                ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
+                                <span style="margin-left:auto;font-size:0.78rem;font-weight:700;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
+                            </div>
+                            <div style="font-size:0.95rem;font-weight:800;color:var(--wds-black);line-height:1.35;margin:5px 0 3px">${escapeHtml(ev.title)}</div>
+                            <div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6">${_showDateStr(ev.starts_at)} · ${escapeHtml(ev.venue)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:6px;font-size:0.78rem;color:var(--wds-gray-700);flex-wrap:wrap">
+                        <span style="font-weight:800;color:var(--wds-black)">예매 ${s.taken}/${ev.capacity}석</span>
+                        <span style="color:var(--wds-primary);font-weight:700">${pct}%</span>
+                        <span style="margin-left:auto">확정 ${s.confirmed} · 입금대기 ${s.pending} · 입장 ${s.checked_in}</span>
+                    </div>
+                    <div style="height:6px;background:var(--wds-gray-100);border-radius:3px;overflow:hidden;margin:6px 0 8px">
+                        <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#EF4444' : 'var(--wds-primary)'}"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:0.78rem;color:var(--wds-gray-700)">
+                        ${ev.price > 0 ? `확정 매출 <strong style="color:var(--wds-black)">₩${sales.toLocaleString()}</strong>` : '무료 공연'}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+                        ${_hbtn('예매 페이지', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        ${_hbtn('수정', `hostEditEvent('${jsStr(ev.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
+                        ${toggle}
+                        ${ev.status !== 'hidden' ? _hbtn('숨김', `hostSetEventStatus('${jsStr(ev.id)}','hidden')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)') : ''}
+                        <button onclick="renderHostAttendees('${jsStr(ev.id)}')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">예매자 관리</button>
+                    </div>
+                </div>`;
+            };
             if (!out.events.length) {
                 html += '<p style="text-align:center;padding:36px 0;color:var(--wds-gray-500)">등록한 공연이 없습니다.<br>첫 공연을 등록해보세요!</p>';
             } else {
-                html += out.events.map(ev => {
-                    const chip = _EV_STATUS_CHIP[ev.status] || _EV_STATUS_CHIP.hidden;
-                    const s = ev.stats || { taken: 0, pending: 0, confirmed: 0, checked_in: 0 };
-                    const toggle = ev.status === 'published'
-                        ? _hbtn('예매 마감', `hostSetEventStatus('${jsStr(ev.id)}','closed')`, '#92400E', '#F3D9A4')
-                        : _hbtn('예매 오픈', `hostSetEventStatus('${jsStr(ev.id)}','published')`, '#166534', '#B7E4C7');
-                    const poster = ev.poster_url
-                        ? `<img src="${escapeHtml(ev.poster_url)}" alt="" loading="lazy" style="width:56px;height:75px;border-radius:8px;object-fit:cover;flex:none;background:var(--wds-gray-100)">`
-                        : `<div style="width:56px;height:75px;border-radius:8px;background:linear-gradient(135deg,var(--wds-gray-100),var(--wds-gray-300));flex:none;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--wds-gray-500)">🎸</div>`;
-                    return `<div class="host-card">
-                        <div style="display:flex;gap:12px;margin-bottom:10px">
-                            ${poster}
-                            <div style="flex:1;min-width:0">
-                                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                                    <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
-                                    ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
-                                    <span style="margin-left:auto;font-size:0.78rem;font-weight:700;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
-                                </div>
-                                <div style="font-size:0.95rem;font-weight:800;color:var(--wds-black);line-height:1.35;margin:5px 0 3px">${escapeHtml(ev.title)}</div>
-                                <div style="font-size:0.8rem;color:var(--wds-gray-700);line-height:1.6">${_showDateStr(ev.starts_at)} · ${escapeHtml(ev.venue)}</div>
-                            </div>
-                        </div>
-                        <div style="font-size:0.8rem;color:var(--wds-gray-700);background:var(--wds-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:10px">
-                            예매 <strong>${s.taken}</strong>/${ev.capacity}석 · 확정 ${s.confirmed} · 입금대기 ${s.pending} · 입장 ${s.checked_in}
-                        </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-                            ${_hbtn('예매 페이지', `showShowsSection(['${jsStr(ev.id)}'])`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
-                            ${_hbtn('수정', `hostEditEvent('${jsStr(ev.id)}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)')}
-                            ${toggle}
-                            ${ev.status !== 'hidden' ? _hbtn('숨김', `hostSetEventStatus('${jsStr(ev.id)}','hidden')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)') : ''}
-                            <button onclick="renderHostAttendees('${jsStr(ev.id)}')" style="padding:7px 14px;border-radius:8px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">예매자 관리</button>
-                        </div>
-                    </div>`;
-                }).join('');
+                html += upcoming.length
+                    ? `<div style="font-size:0.8rem;font-weight:800;color:var(--wds-gray-500);margin:0 0 8px">다가오는 공연 ${upcoming.length}</div>` + upcoming.map(evCard).join('')
+                    : '<p style="text-align:center;padding:20px 0;color:var(--wds-gray-500);font-size:0.88rem">예정된 공연이 없습니다. 새 공연을 등록해보세요!</p>';
+                if (pastEvents.length) {
+                    html += `<details style="margin-top:16px"><summary style="cursor:pointer;font-size:0.8rem;font-weight:800;color:var(--wds-gray-500);user-select:none;padding:6px 0">지난 공연 ${pastEvents.length}개 보기</summary>
+                        <div style="margin-top:8px;opacity:0.78">${pastEvents.map(evCard).join('')}</div></details>`;
+                }
             }
             _hostState.dashEvents = out.events;
             c.innerHTML = html;
