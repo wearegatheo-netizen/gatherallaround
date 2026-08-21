@@ -14855,13 +14855,13 @@
                 ${rows || '<p style="text-align:center;padding:24px;color:var(--wds-gray-500)">표시할 예매가 없습니다.</p>'}`;
         }
 
-        // 예매자 명단을 엑셀 호환 CSV(UTF-8 BOM)로 다운로드
+        // 예매자 명단을 서식 있는 엑셀 파일로 다운로드 — 엑셀이 여는 HTML 테이블(.xls) 방식이라
+        // 제목·요약·색상 헤더·상태 색·줄무늬까지 표현된다. 티켓 1장 = 1행, 질문별 칸 분리.
         function downloadAttendeesCSV() {
             const ev = _hostState.attEvent;
             const list = _hostState.attendees || [];
             if (!ev || !list.length) { showToast('다운로드할 명단이 없습니다.'); return; }
             const stName = { pending_payment: '입금대기', confirmed: '확정', cancelled: '취소' };
-            const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
             const fmtDt = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('ko-KR'); };
             // 전화번호는 화면과 동일한 하이픈 형식 — 엑셀이 숫자로 해석해 앞자리 0을 지우는 것도 방지
             const fmtPhone = (v) => String(v || '').replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
@@ -14876,25 +14876,57 @@
                 return { t, ansCells: qCols.map(q => ansMap[q] || ''), etc: etc.join(' | ') };
             });
             const hasEtc = perTicket.some(x => x.etc);
-            const rows = [['이름', '연락처', '티켓번호', '상태', '체크인 시각', ...qCols, ...(hasEtc ? ['기타 답변'] : []), '예매번호', '매수', '예매 일시']];
+            const heads = ['이름', '연락처', '티켓번호', '상태', '체크인 시각', ...qCols, ...(hasEtc ? ['기타 답변'] : []), '예매번호', '매수', '예매 일시'];
+            const act = list.filter(t => t.status !== 'cancelled');
+            const sum = {
+                taken: act.reduce((n, t) => n + t.qty, 0),
+                confirmed: act.filter(t => t.status === 'confirmed').reduce((n, t) => n + t.qty, 0),
+                pending: act.filter(t => t.status === 'pending_payment').reduce((n, t) => n + t.qty, 0),
+                checked: act.reduce((n, t) => n + _seatProgress(t).checked, 0),
+            };
+            const ST_STYLE = {
+                '입장 완료': 'background:#DBEAFE;color:#1E40AF;font-weight:bold',
+                '확정': 'background:#DCFCE7;color:#166534;font-weight:bold',
+                '입금대기': 'background:#FEF3C7;color:#92400E;font-weight:bold',
+                '취소': 'background:#FEE2E2;color:#991B1B',
+            };
+            // mso-number-format 텍스트 서식 — 전화번호·코드·날짜가 숫자로 변형되는 것 방지
+            const TD = "padding:4pt 8pt;border:0.5pt solid #C9CDD3;mso-number-format:'\\@';white-space:nowrap;vertical-align:middle";
             // 티켓 1장(좌석) = 1행 — 예매 묶음으로 합치지 않고 전 티켓번호를 나열
+            let body = '', idx = 0;
             for (const { t, ansCells, etc } of perTicket) {
                 const seats = (t.seats && t.seats.length) ? t.seats
                     : [{ code: t.code, seat_no: 1, checked_in_at: t.checked_in_at, cancelled_at: null }];
                 for (const s of seats) {
                     const st = (t.status === 'cancelled' || s.cancelled_at) ? '취소'
                         : s.checked_in_at ? '입장 완료' : (stName[t.status] || t.status);
-                    rows.push([t.buyer_name, fmtPhone(t.buyer_phone), s.code, st, fmtDt(s.checked_in_at),
-                        ...ansCells, ...(hasEtc ? [etc] : []), t.code, t.qty, fmtDt(t.created_at)]);
+                    const cells = [t.buyer_name, fmtPhone(t.buyer_phone), s.code, st, fmtDt(s.checked_in_at),
+                        ...ansCells, ...(hasEtc ? [etc] : []), t.code, t.qty, fmtDt(t.created_at)];
+                    const rowStyle = st === '취소' ? 'color:#999999' : (idx % 2 ? 'background:#F5F6F8' : '');
+                    body += `<tr style="${rowStyle}">` + cells.map((v, ci) => {
+                        const extra = heads[ci] === '상태' ? ';text-align:center;' + (ST_STYLE[st] || '')
+                            : (ci === 2 ? ';font-weight:bold;letter-spacing:1pt' : '');
+                        return `<td style="${TD}${extra}">${escapeHtml(v == null ? '' : String(v))}</td>`;
+                    }).join('') + '</tr>';
+                    idx++;
                 }
             }
-            const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
+            const nCols = heads.length;
+            const meta = `${_showDateStr(ev.starts_at)}${ev.venue ? ' · ' + escapeHtml(ev.venue) : ''}${ev.host_name ? ' · 주최 ' + escapeHtml(ev.host_name) : ''}`;
+            const html = `<meta charset="utf-8"><title>예매자 명단</title>
+<table style="border-collapse:collapse;font-family:'맑은 고딕','Malgun Gothic',sans-serif;font-size:10pt">
+<tr><td colspan="${nCols}" style="border:none;font-size:15pt;font-weight:bold;padding:8pt 2pt 2pt">${escapeHtml(ev.title || '공연')} — 예매자 명단</td></tr>
+<tr><td colspan="${nCols}" style="border:none;color:#667085;padding:0 2pt 2pt">${meta}</td></tr>
+<tr><td colspan="${nCols}" style="border:none;font-weight:bold;padding:0 2pt 8pt">예매 ${sum.taken}/${ev.capacity || '-'}석 · 확정 ${sum.confirmed} · 입금대기 ${sum.pending} · 입장 ${sum.checked} <span style="font-weight:normal;color:#667085">(다운로드 ${new Date().toLocaleString('ko-KR')})</span></td></tr>
+<tr>${heads.map(h => `<th style="background:#1F2937;color:#FFFFFF;font-weight:bold;padding:5pt 8pt;border:0.5pt solid #111827;white-space:nowrap">${escapeHtml(h)}</th>`).join('')}</tr>
+${body}
+</table>`;
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-            a.download = `예매자_${String(ev.title || '공연').replace(/[\\/:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.href = URL.createObjectURL(new Blob(['\uFEFF', html], { type: 'application/vnd.ms-excel;charset=utf-8' }));
+            a.download = `예매자_${String(ev.title || '공연').replace(/[\\/:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0, 10)}.xls`;
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-            showToast('명단 CSV가 저장되었습니다. 엑셀에서 열 수 있어요.');
+            showToast('명단 엑셀 파일이 저장되었습니다.');
         }
 
         async function hostTicketAction(action, ticketId) {

@@ -510,18 +510,19 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
         answer: '옛날 평문 답변' },
     ];
     downloadAttendeesCSV();
-    const buf = window.__csvBlob ? new Uint8Array(await window.__csvBlob.arrayBuffer()) : new Uint8Array(0);
     const text = window.__csvBlob ? await window.__csvBlob.text() : '';
-    // Blob.text()는 디코딩하며 BOM을 제거하므로, BOM은 바이트(EF BB BF)로 확인
-    return { name: window.__dl && window.__dl.name, text, lines: text.split('\r\n').length,
-      bom: buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF };
+    return { name: window.__dl && window.__dl.name, text,
+      type: window.__csvBlob && window.__csvBlob.type,
+      trs: (text.match(/<tr/g) || []).length };
   });
-  chk('CSV: BOM+헤더+따옴표 이스케이프+상태 한글+전화 하이픈', s.name && s.name.startsWith('예매자_한여름 밤의 락')
-    && s.bom && s.text.includes('이름') && s.text.includes('홍길동')
-    && s.text.includes('김""인용') && s.text.includes('입금대기') && s.text.includes('010-1234-5678'), s.name);
-  chk('CSV: 티켓 1장 = 1행(좌석 코드 나열) + 좌석별 입장 상태', s.lines === 4 && s.text.includes('ZZ9PQR')
-    && s.text.includes('입장 완료') && s.text.includes('티켓번호'), `${s.lines}행`);
-  chk('CSV: 질문별 칸 + 기타 답변(구형 평문)', s.text.includes('어떤 팀?') && s.text.includes('스컬')
+  chk('엑셀: .xls(ms-excel) + 제목·요약·헤더 스타일', s.name && s.name.startsWith('예매자_한여름 밤의 락')
+    && s.name.endsWith('.xls') && String(s.type).includes('ms-excel') && s.text.includes('예매자 명단')
+    && s.text.includes('예매 3/50석') && s.text.includes('background:#1F2937'), s.name);
+  chk('엑셀: 전화 하이픈 + 따옴표 이스케이프 + 상태 한글', s.text.includes('010-1234-5678')
+    && s.text.includes('김&quot;인용') && s.text.includes('입금대기'));
+  chk('엑셀: 티켓 1장 = 1행(제목3+헤더1+데이터3) + 좌석별 상태 색', s.trs === 7 && s.text.includes('ZZ9PQR')
+    && s.text.includes('입장 완료') && s.text.includes('background:#DBEAFE'), `${s.trs}tr`);
+  chk('엑셀: 질문별 칸 + 기타 답변(구형 평문)', s.text.includes('어떤 팀?') && s.text.includes('스컬')
     && s.text.includes('기타 답변') && s.text.includes('옛날 평문 답변'));
 
   // ── 7e. QR 이미지 저장 (PNG dataURL)
