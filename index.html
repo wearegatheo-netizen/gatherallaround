@@ -14199,8 +14199,7 @@
                         <div id="inviteLinkBox" style="margin-top:8px"></div>
                         <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">초대 코드는 7일간 유효하며, 새로 만들면 이전 코드는 무효가 됩니다. 합류한 멤버는 이 팀의 공연 등록·입금 확인·체크인을 함께 할 수 있습니다.</div>
                     </div>` : ''}
-                </div>
-                ${inviteEntry}`;
+                </div>`;
         }
 
         async function hostRemoveMember(teamId, memberKakaoId, memberName) {
@@ -14293,7 +14292,10 @@
                 ${_hostTabBar()}
                 ${_hostState.isAdmin ? '<div style="margin-bottom:10px"><span class="show-chip" style="background:#DBEAFE;color:#1E40AF">관리자 계정</span></div>' : ''}
                 ${_hostTeamSelectRow()}
-                <button onclick="renderHostEventForm()" style="width:100%;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;margin-bottom:14px">+ 새 공연 등록</button>`;
+                <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <button onclick="renderHostEventForm()" style="flex:2;padding:13px;border-radius:10px;border:none;background:var(--wds-primary);color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit">+ 새 공연 등록</button>
+                    <button onclick="renderInviteCodeEntry()" title="팀 합류·공연 공동 관리 초대 코드 수락" style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-gray-700);cursor:pointer;font-size:0.88rem;font-weight:700;font-family:inherit">초대 코드 입력</button>
+                </div>`;
             const now = new Date();
             const upcoming = out.events.filter(ev => new Date(ev.starts_at) > now)
                 .sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1)); // 임박한 공연부터

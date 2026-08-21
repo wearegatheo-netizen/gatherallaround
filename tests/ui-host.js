@@ -111,8 +111,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   }));
   chk('팀 생성(create_team payload) → 대시보드', s.reg.action === 'create_team' && s.reg.name === '밴드 스컬'
     && s.reg.bio === '신촌 5인조 밴드' && s.reg.sns === 'instagram.com/bandskull' && s.dash.includes('등록한 공연이 없습니다'));
-  chk('대시보드: my_events 팀 스코프 + 목록형 select + 공연/팀 관리 탭', s.myev.host_id === 'h1'
-    && s.sel && s.dash.includes('밴드 스컬') && s.dash.includes('+ 새 공연 등록') && s.tabs === '공연 관리,팀 관리', s.tabs);
+  chk('대시보드: my_events 팀 스코프 + select + 탭 + 새 공연 등록 옆 초대 코드 입력', s.myev.host_id === 'h1'
+    && s.sel && s.dash.includes('밴드 스컬') && s.dash.includes('+ 새 공연 등록') && s.dash.includes('초대 코드 입력')
+    && s.tabs === '공연 관리,팀 관리', s.tabs);
 
   // ── 3. 새 공연 등록 폼 → 장소 검색·콤마 가격·분리 계좌·서식 소개 → payload 검증
   await p.click('button:has-text("+ 새 공연 등록")');
@@ -387,9 +388,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     txt: document.getElementById('host-container').textContent,
     activeTab: document.querySelector('#host-container .community-tab.active')?.textContent.trim(),
   }));
-  chk('팀 관리 탭: 멤버 목록 + 역할 배지 + 초대 코드 입력 진입', s.activeTab === '팀 관리'
+  chk('팀 관리 탭: 멤버 목록 + 역할 배지 (초대 코드 입력은 공연 관리 탭으로 이동)', s.activeTab === '팀 관리'
     && s.txt.includes('카카오닉') && s.txt.includes('팀 소유자') && s.txt.includes('기타리스트')
-    && s.txt.includes('공동호스트') && s.txt.includes('내보내기') && s.txt.includes('초대 코드 입력'), s.activeTab);
+    && s.txt.includes('공동호스트') && s.txt.includes('내보내기') && !s.txt.includes('초대 코드 입력'), s.activeTab);
   s = s.txt;
   await p.evaluate(() => { window.__shared = null;
     window.__apiQueue.push({ ok: true, token: 'HJ3KMP', expires_at: new Date(Date.now() + 7 * 86400e3).toISOString() }); });
