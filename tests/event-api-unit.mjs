@@ -150,6 +150,10 @@ const TICKET = (over = {}) => ({
   const r6 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1,
     answers: [{ q: '어느 팀?', a: '스컬' }, { q: '동행인?', a: '' }] });
   chk('book: 복수 질문 중 필수(2번) 미답변 → 400 need_answer', r6.status === 400 && (await r6.json()).error === 'need_answer');
+  mockFetch([['events?id=', { body: [{ starts_at: FUTURE, sales_open_at: new Date(Date.now() + 3600e3).toISOString() }] }]]);
+  const r7 = await run({ action: 'book', event_id: EV_ID, name: 'a', phone: '01012345678', qty: 1 });
+  chk('book: 예매 오픈 전 → 409 not_open (RPC 미호출)', r7.status === 409 && (await r7.json()).error === 'not_open'
+    && !calls.some(c => c.url.includes('rpc/')));
 }
 // ── 7. lookup: 코드 존재+전화 불일치 = 코드 없음과 동일 404
 {
@@ -324,7 +328,7 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
   const poster = 'https://sb.test/storage/v1/object/public/community-images/events/1.jpg';
   const j3 = await (await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID,
-    event: { ...base, poster_url: poster,
+    event: { ...base, poster_url: poster, sales_open_at: new Date(Date.now() + 86400e3).toISOString(),
       booking_questions: [{ q: ' 어떤 팀을 보러 오시나요? ', required: true }, { q: '동행인이 있나요?', required: false }, { q: '   ', required: true }],
       venue_address: '서울 마포구', venue_lat: 37.5511, venue_lng: 126.9203 } })).json();
   const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
@@ -335,10 +339,18 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
     && ins.booking_questions[0].required === true && ins.booking_question === '어떤 팀을 보러 오시나요?'
     && ins.booking_question_required === true, JSON.stringify(ins.booking_questions));
 
+  chk('create_event: 예매 오픈 일시 저장', !!ins.sales_open_at);
+
   // 소개 비어 있으면 400
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
   const rNoDesc = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, description: '<p><br></p>' } });
   chk('create_event: 공연 소개 필수 → 400', rNoDesc.status === 400 && (await rNoDesc.json()).message.includes('소개'));
+
+  // 예매 오픈이 공연 일시 이후면 400
+  mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
+  const rBadOpen = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID,
+    event: { ...base, sales_open_at: new Date(Date.now() + 14 * 86400e3).toISOString() } });
+  chk('create_event: 오픈 일시가 공연 이후 → 400', rBadOpen.status === 400 && (await rBadOpen.json()).error === 'bad_sales_open');
 
   mockFetch([KAPI_OK, MEMBERSHIP('owner'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }]]);
   const rBad = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, venue_lat: 999, venue_lng: 126.9 } });

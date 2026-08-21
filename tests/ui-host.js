@@ -119,6 +119,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.waitForTimeout(150);
   await p.fill('#evTitle', '한여름 밤의 락');
   await p.fill('#evStartsAt', '2026-12-24T19:30');
+  await p.fill('#evSalesOpen', '2026-12-20T12:00');
   await p.fill('#evCapacity', '50');
   await p.check('input[name="evPriceType"][value="paid"]');
   await p.fill('#evPrice', '15000');
@@ -189,6 +190,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('payload: 질문 배열(2개, 첫 번째 필수)', e3 && Array.isArray(e3.booking_questions) && e3.booking_questions.length === 2
     && e3.booking_questions[0].q === '어떤 팀을 보러 오시나요?' && e3.booking_questions[0].required === true
     && e3.booking_questions[1].required === false, JSON.stringify(e3 && e3.booking_questions));
+  chk('payload: 예매 오픈 일시(ISO)', e3 && e3.sales_open_at === new Date('2026-12-20T12:00').toISOString(), e3 && e3.sales_open_at);
   chk('대시보드: 공연 카드 + 집계 + 포스터 썸네일(폴백)', s.dash.includes('한여름 밤의 락') && s.dash.includes('예매 5/50석') && s.dash.includes('입금대기 3') && s.poster);
 
   // ── 3b. 카드 버튼 순서·이름 + 공연 삭제
@@ -494,25 +496,33 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   chk('코드 입력: lookup_invite(대문자 정규화) → 팀 합류 → 팀 탭', s.lk && s.lk.token === 'GH3KMP'
     && s.acc && s.acc.token === 'GH3KMP' && s.dash.includes('코드팀'));
 
-  // ── 7d. 예매자 명단 CSV 다운로드
+  // ── 7d. 예매자 명단 CSV 다운로드 — 티켓 1장 = 1행, 질문별 칸 분리
   s = await p.evaluate(async () => {
     HTMLAnchorElement.prototype.click = function () { window.__dl = { href: this.href, name: this.download }; };
     window.__csvBlob = null;
     URL.createObjectURL = (b) => { window.__csvBlob = b; return 'blob:mock'; };
-    _hostState.attEvent = { title: '한여름 밤의 락', capacity: 50 };
+    _hostState.attEvent = { title: '한여름 밤의 락', capacity: 50, booking_questions: [{ q: '어떤 팀?', required: true }] };
     _hostState.attendees = [
-      { buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, code: 'AB3XKP', status: 'confirmed', checked_in_at: null, created_at: new Date().toISOString() },
-      { buyer_name: '김"인용', buyer_phone: '01099998888', qty: 1, code: 'CC7MNP', status: 'pending_payment', checked_in_at: null, created_at: new Date().toISOString() },
+      { buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, code: 'AB3XKP', status: 'confirmed', checked_in_at: 'x', created_at: new Date().toISOString(),
+        answer: JSON.stringify([{ q: '어떤 팀?', a: '스컬' }]),
+        seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: new Date().toISOString() }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null }] },
+      { buyer_name: '김"인용', buyer_phone: '01099998888', qty: 1, code: 'CC7MNP', status: 'pending_payment', checked_in_at: null, created_at: new Date().toISOString(),
+        answer: '옛날 평문 답변' },
     ];
     downloadAttendeesCSV();
     const buf = window.__csvBlob ? new Uint8Array(await window.__csvBlob.arrayBuffer()) : new Uint8Array(0);
     const text = window.__csvBlob ? await window.__csvBlob.text() : '';
     // Blob.text()는 디코딩하며 BOM을 제거하므로, BOM은 바이트(EF BB BF)로 확인
-    return { name: window.__dl && window.__dl.name, text, bom: buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF };
+    return { name: window.__dl && window.__dl.name, text, lines: text.split('\r\n').length,
+      bom: buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF };
   });
-  chk('CSV: BOM+헤더+행+따옴표 이스케이프+상태 한글+전화 하이픈', s.name && s.name.startsWith('예매자_한여름 밤의 락')
+  chk('CSV: BOM+헤더+따옴표 이스케이프+상태 한글+전화 하이픈', s.name && s.name.startsWith('예매자_한여름 밤의 락')
     && s.bom && s.text.includes('이름') && s.text.includes('홍길동')
     && s.text.includes('김""인용') && s.text.includes('입금대기') && s.text.includes('010-1234-5678'), s.name);
+  chk('CSV: 티켓 1장 = 1행(좌석 코드 나열) + 좌석별 입장 상태', s.lines === 4 && s.text.includes('ZZ9PQR')
+    && s.text.includes('입장 완료') && s.text.includes('티켓번호'), `${s.lines}행`);
+  chk('CSV: 질문별 칸 + 기타 답변(구형 평문)', s.text.includes('어떤 팀?') && s.text.includes('스컬')
+    && s.text.includes('기타 답변') && s.text.includes('옛날 평문 답변'));
 
   // ── 7e. QR 이미지 저장 (PNG dataURL)
   s = await p.evaluate(() => {

@@ -275,6 +275,14 @@ function validateEventFields(e, { partial = false } = {}) {
         out.booking_question_required = qs.length ? qs[0].required : false;
     }
     if (has('bank_info')) out.bank_info = String(e.bank_info || '').trim().slice(0, 120) || null;
+    if (e.sales_open_at !== undefined) {
+        if (e.sales_open_at === null || e.sales_open_at === '') out.sales_open_at = null;
+        else {
+            const d = new Date(e.sales_open_at);
+            if (isNaN(d)) return bad('예매 오픈 일시를 확인해주세요.');
+            out.sales_open_at = d.toISOString();
+        }
+    }
     if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
     if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
         const lat = (e.venue_lat === null || e.venue_lat === undefined || e.venue_lat === '') ? null : Number(e.venue_lat);
@@ -360,11 +368,14 @@ export async function onRequest(context) {
                 answers = [{ q: '', a: String(body.answer).trim().slice(0, 300) }];
             }
             // 공연 시작 시간이 지나면 예매 자동 마감 + 필수 질문 답변 검증 (서버에서도 차단)
-            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at,booking_question,booking_question_required,booking_questions&limit=1`);
+            const evr = await sbFetch(env, `events?id=eq.${body.event_id}&select=starts_at,sales_open_at,booking_question,booking_question_required,booking_questions&limit=1`);
             if (evr.ok) {
                 const [ev0] = await evr.json();
                 if (ev0 && new Date(ev0.starts_at) <= new Date()) {
                     return fail(409, 'started', '공연이 시작되어 예매가 마감되었습니다.');
+                }
+                if (ev0 && ev0.sales_open_at && new Date(ev0.sales_open_at) > new Date()) {
+                    return fail(409, 'not_open', '아직 예매 오픈 전입니다.');
                 }
                 const evQs = ev0 && Array.isArray(ev0.booking_questions) && ev0.booking_questions.length
                     ? ev0.booking_questions
@@ -594,6 +605,9 @@ export async function onRequest(context) {
                 if (v.error) return fail(400, 'bad_event', v.error);
                 if (!posterOk(e.poster_url)) return fail(400, 'bad_poster', '포스터 이미지가 올바르지 않습니다.');
                 const fields = v.fields;
+                if (fields.sales_open_at && new Date(fields.sales_open_at) >= new Date(fields.starts_at)) {
+                    return fail(400, 'bad_sales_open', '예매 오픈 일시는 공연 일시보다 앞서야 합니다.');
+                }
                 if (fields.price > 0) {
                     fields.bank_info = String(e.bank_info || '').trim().slice(0, 120) || host.bank_info || null;
                     if (!fields.bank_info) return fail(400, 'need_bank', '유료 공연은 입금 계좌가 필요합니다.');
@@ -629,6 +643,11 @@ export async function onRequest(context) {
                 const newPrice = fields.price !== undefined ? fields.price : ev.price;
                 const newBank = fields.bank_info !== undefined ? fields.bank_info : ev.bank_info;
                 if (newPrice > 0 && !newBank) return fail(400, 'need_bank', '유료 공연은 입금 계좌가 필요합니다.');
+                const newStarts = fields.starts_at !== undefined ? fields.starts_at : ev.starts_at;
+                const newOpen = fields.sales_open_at !== undefined ? fields.sales_open_at : ev.sales_open_at;
+                if (newOpen && new Date(newOpen) >= new Date(newStarts)) {
+                    return fail(400, 'bad_sales_open', '예매 오픈 일시는 공연 일시보다 앞서야 합니다.');
+                }
                 if (!Object.keys(fields).length) return fail(400, 'empty_patch', '수정할 내용이 없습니다.');
                 fields.updated_at = new Date().toISOString();
                 const r = await sbFetch(env, `events?id=eq.${ev.id}`, {

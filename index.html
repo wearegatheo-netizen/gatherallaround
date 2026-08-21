@@ -13362,6 +13362,9 @@
             const past = new Date(ev.starts_at) <= new Date();
             if (past) return { label: '공연 종료', bg: 'var(--wds-gray-100)', fg: 'var(--wds-gray-500)', bookable: false, remaining: 0 };
             if (ev.status !== 'published') return { label: '예매 마감', bg: 'var(--wds-gray-100)', fg: 'var(--wds-gray-500)', bookable: false, remaining: 0 };
+            if (ev.sales_open_at && new Date(ev.sales_open_at) > new Date()) {
+                return { label: '오픈 예정', bg: '#FEF3C7', fg: '#92400E', bookable: false, remaining: null, opensAt: ev.sales_open_at };
+            }
             if (!s) return { label: '예매 가능', bg: '#DCFCE7', fg: '#166534', bookable: true, remaining: null };
             const rem = Math.max(0, s.capacity - s.taken);
             if (rem <= 0) return { label: '매진', bg: '#FEE2E2', fg: '#991B1B', bookable: false, remaining: 0 };
@@ -13597,6 +13600,8 @@
                         <button id="showBookBtn" onclick="submitShowBooking('${jsStr(ev.id)}')" style="width:100%;padding:15px;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">${ctaLabel}</button>
                     </div>
                 </div>`;
+            } else if (seat.opensAt) {
+                html += `<div style="text-align:center;padding:20px;background:#FEF3C7;border-radius:14px;color:#92400E;font-size:0.9rem;font-weight:600">예매 오픈: ${_showDateStr(seat.opensAt)}<br><span style="font-size:0.78rem;font-weight:500">오픈 시간에 다시 방문해주세요.</span></div>`;
             } else {
                 html += `<div style="text-align:center;padding:20px;background:var(--wds-gray-100);border-radius:14px;color:var(--wds-gray-500);font-size:0.9rem;font-weight:600">${seat.label}인 공연입니다.</div>`;
             }
@@ -14326,6 +14331,7 @@
                         <div style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                                 <span class="show-chip" style="background:${chip[1]};color:${chip[2]}">${chip[0]}</span>
+                                ${ev.sales_open_at && new Date(ev.sales_open_at) > new Date() ? `<span class="show-chip" style="background:#FEF3C7;color:#92400E">오픈 ${_showDateStr(ev.sales_open_at)}</span>` : ''}
                                 ${ev.co_hosted ? `<span class="show-chip" style="background:#DBEAFE;color:#1E40AF">공동 관리 · 주최 ${escapeHtml(ev.host_name || '')}</span>` : ''}
                                 <span style="margin-left:auto;font-size:0.78rem;font-weight:700;color:var(--wds-gray-500)">${ev.price > 0 ? '₩' + Number(ev.price).toLocaleString() : '무료'}</span>
                             </div>
@@ -14503,6 +14509,11 @@
                     <input type="datetime-local" class="perf-form-input" id="evStartsAt" value="${_isoToLocalInput(ev?.starts_at)}">
                 </div>
                 <div class="perf-form-group">
+                    <label class="perf-form-label">예매 오픈 일시 (선택)</label>
+                    <input type="datetime-local" class="perf-form-input" id="evSalesOpen" value="${_isoToLocalInput(ev?.sales_open_at)}">
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:5px;line-height:1.5">설정하면 그 전에는 '오픈 예정'으로 표시되고 예매가 안 됩니다. 비워두면 공개 즉시 예매 가능합니다.</div>
+                </div>
+                <div class="perf-form-group">
                     <label class="perf-form-label">장소 *</label>
                     <div style="display:flex;gap:8px">
                         <input type="text" class="perf-form-input" id="evVenue" maxlength="120" placeholder="장소 이름 (검색 가능)" style="flex:1" value="${escapeHtml(ev?.venue || '게더 올 어라운드')}" oninput="_hostVenueTyped(this)">
@@ -14634,6 +14645,14 @@
             if (isNaN(startsAt)) { showErr('공연 일시를 확인해주세요.'); return; }
             if (!evId && startsAt <= new Date()) { showErr('공연 일시는 미래여야 합니다.'); return; }
             if (!venue) { showErr('장소를 입력해주세요.'); return; }
+            const salesLocal = document.getElementById('evSalesOpen')?.value;
+            let salesOpenAt = null;
+            if (salesLocal) {
+                const d = new Date(salesLocal);
+                if (isNaN(d)) { showErr('예매 오픈 일시를 확인해주세요.'); return; }
+                if (d >= startsAt) { showErr('예매 오픈 일시는 공연 일시보다 앞서야 합니다.'); return; }
+                salesOpenAt = d.toISOString();
+            }
             if (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000) { showErr('정원은 1~1000명 사이여야 합니다.'); return; }
             if (paid && price < 1000) { showErr('유료 공연 가격은 1,000원 이상이어야 합니다.'); return; }
             // 검색으로 고른 장소(이름이 그대로면)만 좌표 저장 — 직접 입력·수정 시 좌표 제거
@@ -14643,7 +14662,7 @@
                 .filter(x => x.q).slice(0, 5);
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
-                booking_questions,
+                booking_questions, sales_open_at: salesOpenAt,
                 venue_address: pick ? pick.address : null,
                 venue_lat: pick ? pick.lat : null,
                 venue_lng: pick ? pick.lng : null };
@@ -14844,17 +14863,31 @@
             const stName = { pending_payment: '입금대기', confirmed: '확정', cancelled: '취소' };
             const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
             const fmtDt = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('ko-KR'); };
-            const stTxt = (t) => {
-                if (t.status === 'cancelled') return '취소';
-                const p = _seatProgress(t);
-                if (p.checked > 0) return p.checked >= p.total ? '입장 완료' : `입장 ${p.checked}/${p.total}`;
-                return stName[t.status] || t.status;
-            };
             // 전화번호는 화면과 동일한 하이픈 형식 — 엑셀이 숫자로 해석해 앞자리 0을 지우는 것도 방지
             const fmtPhone = (v) => String(v || '').replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
-            const rows = [['이름', '연락처', '매수', '예매번호', '상태', '답변', '체크인 시각', '예매 일시']]
-                .concat(list.map(t => [t.buyer_name, fmtPhone(t.buyer_phone), t.qty, t.code,
-                    stTxt(t), _answerText(t.answer), fmtDt(t.checked_in_at), fmtDt(t.created_at)]));
+            // 질문별로 칸 분리 — 현재 공연 질문이 헤더가 되고, 예전 질문의 답변은 '기타 답변'으로
+            const qCols = _evQuestionsOf(ev).map(x => x.q);
+            const perTicket = list.map(t => {
+                const ansMap = {}, etc = [];
+                _answerPairs(t.answer).forEach(x => {
+                    if (x.q && qCols.includes(x.q)) ansMap[x.q] = x.a;
+                    else etc.push((x.q ? x.q + ': ' : '') + x.a);
+                });
+                return { t, ansCells: qCols.map(q => ansMap[q] || ''), etc: etc.join(' | ') };
+            });
+            const hasEtc = perTicket.some(x => x.etc);
+            const rows = [['이름', '연락처', '티켓번호', '상태', '체크인 시각', ...qCols, ...(hasEtc ? ['기타 답변'] : []), '예매번호', '매수', '예매 일시']];
+            // 티켓 1장(좌석) = 1행 — 예매 묶음으로 합치지 않고 전 티켓번호를 나열
+            for (const { t, ansCells, etc } of perTicket) {
+                const seats = (t.seats && t.seats.length) ? t.seats
+                    : [{ code: t.code, seat_no: 1, checked_in_at: t.checked_in_at, cancelled_at: null }];
+                for (const s of seats) {
+                    const st = (t.status === 'cancelled' || s.cancelled_at) ? '취소'
+                        : s.checked_in_at ? '입장 완료' : (stName[t.status] || t.status);
+                    rows.push([t.buyer_name, fmtPhone(t.buyer_phone), s.code, st, fmtDt(s.checked_in_at),
+                        ...ansCells, ...(hasEtc ? [etc] : []), t.code, t.qty, fmtDt(t.created_at)]);
+                }
+            }
             const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM — 엑셀 한글 인코딩 인식용
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

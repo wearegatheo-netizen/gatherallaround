@@ -258,6 +258,12 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('_pageFromHash: find/checkin/event 통과', s.find === 'shows/find' && s.checkin === 'host/checkin/XYZ234' && s.hostEv === 'host/event/' + EV1);
   chk('_pageFromHash: 기존 라우트 회귀 없음', s.gatheo === 'gatheo/board' && s.comm === 'community/test');
 
+  // ── 6b. 예매 오픈 일시 — 오픈 전에는 예매 불가
+  s = await p.evaluate(() => _seatInfo({ id: 'x', status: 'published',
+    starts_at: new Date(Date.now() + 7 * 86400e3).toISOString(),
+    sales_open_at: new Date(Date.now() + 3600e3).toISOString() }));
+  chk('예매 오픈 전: 오픈 예정 라벨 + bookable=false', s.label === '오픈 예정' && !s.bookable && !!s.opensAt);
+
   // ── 7. _pushNav replace/push 정책
   s = await p.evaluate(() => {
     const out = {};
