@@ -32,7 +32,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
         { id: 'h1', name: '밴드 스컬', bio: '신촌에서 활동하는 5인조 밴드', sns: 'instagram.com/bandskull' },
       ],
       events: [
-        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_questions: [{ q: '어떤 팀을 보러 오시나요?', required: true }, { q: '동행인이 있나요?', required: false }] },
+        { id: EV1, host_id: 'h1', host_name: '밴드 스컬', title: '한여름 밤의 락', description: '신촌 최고의 밴드\n라인업 공개', poster_url: '', venue: '게더 올 어라운드', venue_address: '서울 서대문구 신촌로 1\n2층 초록 문으로 입장', venue_lat: 37.5559, venue_lng: 126.9368, starts_at: F7, capacity: 40, price: 15000, bank_info: '토스뱅크 1002-1111-2222 김호스트', max_per_booking: 4, status: 'published', booking_questions: [{ q: '어떤 팀을 보러 오시나요?', required: true }, { q: '동행인이 있나요?', required: false }] },
         { id: EV2, host_id: 'h1', host_name: '어쿠스틱 팀', title: '무료 어쿠스틱 나잇', description: '', poster_url: '', venue: '게더 올 어라운드', starts_at: F14, capacity: 30, price: 0, bank_info: null, max_per_booking: 2, status: 'published' },
         { id: EV3, host_id: 'h2', host_name: '재즈 콜렉티브', title: '재즈의 밤 (매진)', description: '', poster_url: '', venue: '게더', starts_at: F7, capacity: 20, price: 10000, bank_info: 'x', max_per_booking: 4, status: 'published' },
         { id: '44444444-4444-4444-8444-444444444444', host_id: 'h2', host_name: '지난팀', title: '지난 공연', description: '', poster_url: '', venue: '게더', starts_at: PAST, capacity: 20, price: 0, bank_info: null, max_per_booking: 4, status: 'published' },
@@ -148,6 +148,8 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('상세: 해시 #shows/{id} + 예매 CTA(시트는 닫힘) + 계좌 안내 + 소개 서식', s.hash === '#shows/' + EV1 && s.title && s.form && s.bank && s.desc && s.descBox && s.cta && s.sheetClosed);
   chk('상세: 팀 소개 + SNS 링크(https 보정·noopener)', s.bio && s.sns === 'noopener');
   chk('상세: 지도 영역 + 카카오맵 링크 + 주소', s.mapDiv && s.mapLink.includes('37.5559') && s.addr, s.mapLink.slice(0, 60));
+  s = await p.evaluate(() => document.getElementById('shows-container').textContent.includes('2층 초록 문으로 입장'));
+  chk('상세: 장소 상세설명 둘째 줄 표시', s === true);
   await p.goBack();
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({ hash: location.hash, list: document.querySelectorAll('#shows-container .show-card').length }));

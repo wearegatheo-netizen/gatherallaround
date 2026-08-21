@@ -13534,7 +13534,7 @@
                 <h2 style="font-size:1.3rem;font-weight:800;color:var(--wds-black);margin:0 0 12px;line-height:1.3;letter-spacing:-0.01em">${escapeHtml(ev.title)}</h2>
                 <div class="show-info-card">
                     <div class="show-info-row"><span class="lbl">일시</span><span>${_showDateStr(ev.starts_at)}</span></div>
-                    <div class="show-info-row"><span class="lbl">장소</span><span>${escapeHtml(ev.venue)}${ev.venue_address ? ` <span class="sub">${escapeHtml(ev.venue_address)}</span>` : ''}</span></div>
+                    <div class="show-info-row"><span class="lbl">장소</span><span>${escapeHtml(ev.venue)}${ev.venue_address ? `<span class="sub" style="display:block;white-space:pre-line;margin-top:2px">${escapeHtml(ev.venue_address)}</span>` : ''}</span></div>
                     <div class="show-info-row"><span class="lbl">주최</span><span>${escapeHtml(ev.host_name || '')}${coTeams.length ? ` <span class="sub">with ${coTeams.map(t => escapeHtml(t.name)).join(', ')}</span>` : ''}</span></div>
                     <div class="show-info-row"><span class="lbl">가격</span><span><strong>${priceStr}</strong>${ev.price > 0 ? ' <span class="sub">1매 기준 · 계좌이체</span>' : ''}</span></div>
                 </div>
@@ -14476,8 +14476,8 @@
             _hostState.venuePick = { name: p.place_name, address: p.road_address_name || p.address_name || '', lat: parseFloat(p.y), lng: parseFloat(p.x) };
             const inp = document.getElementById('evVenue');
             if (inp) inp.value = p.place_name;
-            const ai = document.getElementById('evVenueAddrInput');
-            if (ai) ai.value = _hostState.venuePick.address;
+            const ai = document.getElementById('evVenueDetail');
+            if (ai && !ai.value.trim()) ai.value = _hostState.venuePick.address; // 작성해둔 상세설명은 덮어쓰지 않는다
             const box = document.getElementById('evVenueResults');
             if (box) box.innerHTML = '';
             const addr = document.getElementById('evVenueAddr');
@@ -14535,7 +14535,8 @@
                         <button type="button" onclick="hostVenueSearch()" style="flex:none;padding:0 16px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit">🔍 검색</button>
                     </div>
                     <div id="evVenueResults"></div>
-                    <input type="text" class="perf-form-input" id="evVenueAddrInput" maxlength="200" placeholder="주소 (선택 — 예매 페이지에 함께 표시)" style="margin-top:8px" value="${escapeHtml(ev?.venue_address || '')}">
+                    <textarea class="perf-form-input" id="evVenueDetail" maxlength="500" placeholder="장소 상세설명 (선택) — 주소, 찾아오는 길, 층수 등&#10;예: 홍대입구역 3번 출구 도보 5분, OO빌딩 지하 1층 (간판 없음)" style="margin-top:8px;height:64px;padding:10px 12px;resize:vertical">${escapeHtml(ev?.venue_address || '')}</textarea>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:4px;line-height:1.5">예매 페이지의 장소 아래에 그대로 표시됩니다.</div>
                     <div id="evVenueAddr" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.venuePick ? '📍 검색으로 선택됨 — 예매 페이지에 지도로 표시됩니다.' : ''}</div>
                 </div>
                 <div style="display:flex;gap:10px">
@@ -14676,8 +14677,8 @@
             const booking_questions = [...document.querySelectorAll('#evQList .ev-q-row')]
                 .map(r => ({ q: r.querySelector('.ev-q-text')?.value.trim() || '', required: !!r.querySelector('.ev-q-req')?.checked }))
                 .filter(x => x.q).slice(0, 5);
-            // 주소는 직접 입력값 우선 — 검색 선택 시 자동으로 채워지고, 직접 입력한 장소도 주소를 표시할 수 있게
-            const addrTyped = document.getElementById('evVenueAddrInput')?.value.trim() || '';
+            // 장소 상세설명(주소·찾아오는 길) — 검색 선택 시 주소가 프리필되고, 직접 자유 작성도 가능
+            const addrTyped = document.getElementById('evVenueDetail')?.value.trim() || '';
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
                 booking_questions, sales_open_at: salesOpenAt,

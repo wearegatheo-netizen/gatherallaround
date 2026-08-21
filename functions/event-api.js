@@ -283,7 +283,7 @@ function validateEventFields(e, { partial = false } = {}) {
             out.sales_open_at = d.toISOString();
         }
     }
-    if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 200) || null;
+    if (e.venue_address !== undefined) out.venue_address = String(e.venue_address || '').trim().slice(0, 500) || null; // 장소 상세설명(주소·찾아오는 길)
     if (e.venue_lat !== undefined || e.venue_lng !== undefined) {
         const lat = (e.venue_lat === null || e.venue_lat === undefined || e.venue_lat === '') ? null : Number(e.venue_lat);
         const lng = (e.venue_lng === null || e.venue_lng === undefined || e.venue_lng === '') ? null : Number(e.venue_lng);

@@ -144,14 +144,14 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.click('#evVenueResults div >> nth=0');
   s = await p.evaluate(() => ({
     v: document.getElementById('evVenue').value,
-    addrInput: document.getElementById('evVenueAddrInput').value,
+    detail: document.getElementById('evVenueDetail').value,
     note: document.getElementById('evVenueAddr').textContent,
   }));
-  chk('장소 선택: 입력값·주소 자동 채움 + 지도 안내', s.v === '홍대 클럽 FF' && s.addrInput.includes('와우산로') && s.note.includes('지도로 표시'));
+  chk('장소 선택: 입력값·상세설명(주소) 자동 채움 + 지도 안내', s.v === '홍대 클럽 FF' && s.detail.includes('와우산로') && s.note.includes('지도로 표시'));
 
-  // 직접 입력으로 전환 — 이름 수정(좌표 무효화) + 주소 직접 작성
+  // 직접 입력으로 전환 — 이름 수정(좌표 무효화) + 상세설명 자유 작성(여러 줄)
   await p.fill('#evVenue', '홍대 클럽 FF 지하');
-  await p.fill('#evVenueAddrInput', '서울 마포구 와우산로 12 B1');
+  await p.fill('#evVenueDetail', '서울 마포구 와우산로 12 B1\n간판 없음 — 초록 문으로 들어오세요');
 
   // 소개 필수 — 비운 채 저장 시도 → 인라인 오류 + API 미호출
   await p.click('#evSaveBtn');
@@ -190,8 +190,9 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     JSON.stringify(e3).slice(0, 120));
   chk('payload: 팀 host_id 포함', s.call && s.call.host_id === 'h1');
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
-  chk('payload: 직접 입력 장소(좌표 없음) + 직접 주소', e3 && e3.venue === '홍대 클럽 FF 지하' && e3.venue_lat === null
-    && e3.venue_lng === null && e3.venue_address === '서울 마포구 와우산로 12 B1', e3 && `${e3.venue}|${e3.venue_address}`);
+  chk('payload: 직접 입력 장소(좌표 없음) + 상세설명(여러 줄)', e3 && e3.venue === '홍대 클럽 FF 지하' && e3.venue_lat === null
+    && e3.venue_lng === null && e3.venue_address === '서울 마포구 와우산로 12 B1\n간판 없음 — 초록 문으로 들어오세요',
+    e3 && `${e3.venue}|${e3.venue_address}`);
   chk('payload: 소개가 서식(HTML)으로 저장', e3 && e3.description.includes('<h2>라인업</h2>') && e3.description.includes('밴드A'));
   chk('payload: 질문 배열(2개, 첫 번째 필수)', e3 && Array.isArray(e3.booking_questions) && e3.booking_questions.length === 2
     && e3.booking_questions[0].q === '어떤 팀을 보러 오시나요?' && e3.booking_questions[0].required === true
