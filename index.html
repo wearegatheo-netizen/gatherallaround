@@ -14452,9 +14452,14 @@
                 box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">장소 검색을 사용할 수 없습니다. 장소명을 직접 입력하셔도 됩니다.</div>';
                 return;
             }
+            // 검색 결과와 무관하게 항상 '입력한 이름 그대로 사용' 선택지를 제공 — 직접 입력 지원
+            const directRow = `<div onclick="hostVenueDirect()" style="padding:9px 12px;border:1px dashed var(--wds-gray-300);border-radius:8px;margin-top:6px;cursor:pointer;background:none">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--wds-gray-700)">'${escapeHtml(q)}' 그대로 사용 (직접 입력)</div>
+                <div style="font-size:0.74rem;color:var(--wds-gray-500)">지도 없이 장소명만 표시됩니다. 아래에 주소를 함께 적을 수 있어요.</div>
+            </div>`;
             new kk.maps.services.Places().keywordSearch(q, (data, status) => {
                 if (status !== kk.maps.services.Status.OK || !data.length) {
-                    box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">검색 결과가 없습니다. 장소명을 직접 입력하셔도 됩니다.</div>';
+                    box.innerHTML = '<div style="font-size:0.78rem;color:var(--wds-gray-500);padding:6px 2px">검색 결과가 없습니다.</div>' + directRow;
                     return;
                 }
                 window.__venueResults = data.slice(0, 5);
@@ -14462,7 +14467,7 @@
                     `<div onclick="hostVenuePick(${i})" style="padding:9px 12px;border:1px solid var(--wds-gray-300);border-radius:8px;margin-top:6px;cursor:pointer;background:var(--wds-white)">
                         <div style="font-size:0.85rem;font-weight:600;color:var(--wds-black)">${escapeHtml(p.place_name)}</div>
                         <div style="font-size:0.74rem;color:var(--wds-gray-500)">${escapeHtml(p.road_address_name || p.address_name || '')}</div>
-                    </div>`).join('');
+                    </div>`).join('') + directRow;
             });
         }
         function hostVenuePick(i) {
@@ -14471,10 +14476,20 @@
             _hostState.venuePick = { name: p.place_name, address: p.road_address_name || p.address_name || '', lat: parseFloat(p.y), lng: parseFloat(p.x) };
             const inp = document.getElementById('evVenue');
             if (inp) inp.value = p.place_name;
+            const ai = document.getElementById('evVenueAddrInput');
+            if (ai) ai.value = _hostState.venuePick.address;
             const box = document.getElementById('evVenueResults');
             if (box) box.innerHTML = '';
             const addr = document.getElementById('evVenueAddr');
-            if (addr) addr.textContent = '📍 ' + _hostState.venuePick.address + ' (예매 페이지에 지도로 표시됩니다)';
+            if (addr) addr.textContent = '📍 검색으로 선택됨 — 예매 페이지에 지도로 표시됩니다.';
+        }
+        // 직접 입력 확정 — 좌표 없이 장소명(+선택 주소)만 저장
+        function hostVenueDirect() {
+            _hostState.venuePick = null;
+            const box = document.getElementById('evVenueResults');
+            if (box) box.innerHTML = '';
+            const addr = document.getElementById('evVenueAddr');
+            if (addr) addr.textContent = '직접 입력한 장소로 저장됩니다. (지도 없이 장소명·주소 표시)';
         }
         function _hostVenueTyped(el) {
             if (_hostState.venuePick && el.value.trim() !== _hostState.venuePick.name) {
@@ -14516,11 +14531,12 @@
                 <div class="perf-form-group">
                     <label class="perf-form-label">장소 *</label>
                     <div style="display:flex;gap:8px">
-                        <input type="text" class="perf-form-input" id="evVenue" maxlength="120" placeholder="장소 이름 (검색 가능)" style="flex:1" value="${escapeHtml(ev?.venue || '게더 올 어라운드')}" oninput="_hostVenueTyped(this)">
+                        <input type="text" class="perf-form-input" id="evVenue" maxlength="120" placeholder="장소 이름 (검색 또는 직접 입력)" style="flex:1" value="${escapeHtml(ev?.venue || '게더 올 어라운드')}" oninput="_hostVenueTyped(this)">
                         <button type="button" onclick="hostVenueSearch()" style="flex:none;padding:0 16px;border-radius:8px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit">🔍 검색</button>
                     </div>
                     <div id="evVenueResults"></div>
-                    <div id="evVenueAddr" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.venuePick && _hostState.venuePick.address ? '📍 ' + escapeHtml(_hostState.venuePick.address) + ' (예매 페이지에 지도로 표시됩니다)' : ''}</div>
+                    <input type="text" class="perf-form-input" id="evVenueAddrInput" maxlength="200" placeholder="주소 (선택 — 예매 페이지에 함께 표시)" style="margin-top:8px" value="${escapeHtml(ev?.venue_address || '')}">
+                    <div id="evVenueAddr" style="font-size:0.76rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.venuePick ? '📍 검색으로 선택됨 — 예매 페이지에 지도로 표시됩니다.' : ''}</div>
                 </div>
                 <div style="display:flex;gap:10px">
                     <div class="perf-form-group" style="flex:1">
@@ -14660,10 +14676,12 @@
             const booking_questions = [...document.querySelectorAll('#evQList .ev-q-row')]
                 .map(r => ({ q: r.querySelector('.ev-q-text')?.value.trim() || '', required: !!r.querySelector('.ev-q-req')?.checked }))
                 .filter(x => x.q).slice(0, 5);
+            // 주소는 직접 입력값 우선 — 검색 선택 시 자동으로 채워지고, 직접 입력한 장소도 주소를 표시할 수 있게
+            const addrTyped = document.getElementById('evVenueAddrInput')?.value.trim() || '';
             const event = { title, starts_at: startsAt.toISOString(), venue, capacity, price,
                 max_per_booking: maxPer, description: desc, bank_info: bank, poster_url: _hostState.posterUrl || '',
                 booking_questions, sales_open_at: salesOpenAt,
-                venue_address: pick ? pick.address : null,
+                venue_address: addrTyped || (pick ? pick.address : null),
                 venue_lat: pick ? pick.lat : null,
                 venue_lng: pick ? pick.lng : null };
             const btn = document.getElementById('evSaveBtn');
