@@ -15139,6 +15139,11 @@ ${body}
             position: fixed;
             bottom: 0; left: 0; right: 0;
             height: 56px;
+            /* iOS fixed 요소 스크롤 중 밀림 방지 — #gatheo-bottom-nav 주석 참고 */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            -webkit-backface-visibility: hidden;
             /* backdrop-filter를 쓰지 않는다. iOS Safari가 position:fixed + backdrop-filter
                요소를 별도 합성 레이어로 승격시킨 뒤, 스크롤·주소창 전환 중 갱신 전 위치에
                그려서 바가 화면 중간에 떠 보이는 일이 있었다.
@@ -15210,6 +15215,14 @@ ${body}
             border-top: 1px solid var(--wds-gray-300);
             z-index: 9999;                          /* BGM 바와 동급, 모달(99999)·installBanner(10000) 아래 */
             font-family: 'Pretendard', -apple-system, sans-serif;
+            /* iOS Safari: 자체 합성 레이어가 없는 fixed 요소는 빠른 스크롤 중 이전 위치에
+               그려져 바가 화면 중간에 떠 보인다(탭바가 움직이는 현상). translateZ(0)로
+               레이어를 승격해 컴포지터가 직접 고정 위치를 유지하게 한다.
+               (backdrop-filter 승격은 다른 버그를 유발해 금지 — 위 주석 참고) */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: transform;
+            -webkit-backface-visibility: hidden;
         }
         body.gatheo-nav #gatheo-bottom-nav { display: flex; }
         .gnav-item {
