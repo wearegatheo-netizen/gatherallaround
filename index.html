@@ -1614,6 +1614,7 @@
             <div class="perf-header-inner" style="position:relative">
                 <button type="button" id="themeToggleBtnPerf" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:0;right:0">🌙</button>
                 <button class="portal-back-btn" onclick="showPortal()" style="display:inline-block;margin-bottom:10px">← 돌아가기</button>
+                <button type="button" id="perfLookupTopBtn" onclick="renderPerfLookup()" style="position:absolute;right:0;bottom:2px;display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:18px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:inherit">🔍 예약 조회</button>
                 <h1 style="font-family:'KkuBulLim',sans-serif;font-size:1.7rem;margin:0 0 4px">공간 대관</h1>
                 <p style="color:var(--wds-gray-700);margin:0;font-size:0.95rem">소규모 공연을 위한 공간 예약</p>
             </div>
@@ -7102,9 +7103,6 @@
             const savedDesc = PERF_SPACE_DESC_DEFAULT;
             const photos = PERF_SPACE_PHOTOS.map(u => `<img src="${u}" alt="공간 사진" onerror="this.style.display='none'">`).join('');
             container.innerHTML = `
-                <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-                    <button onclick="renderPerfLookup()" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.85rem;font-weight:700;font-family:inherit">🔍 예약 조회</button>
-                </div>
                 <div class="perf-layout">
                     <div class="perf-col-cal">
                         <div class="perf-section">
@@ -7701,6 +7699,7 @@
         // ── 예약 조회: 예약번호 + 연락처로 상태 확인 (비로그인)
         function renderPerfLookup(prefillCode) {
             const container = document.getElementById('perf-step-container');
+            window.scrollTo(0, 0); // sticky 헤더의 조회 버튼은 스크롤 중에도 눌리므로 폼이 보이게 복귀
             container.innerHTML = `
                 <div style="max-width:420px;margin:0 auto;padding:8px 0 24px;word-break:keep-all">
                     <div class="perf-section">
