@@ -52,14 +52,18 @@ function buildText(bk) {
     const hours = eh - sh;
     const fee = hours * (dow === 0 || dow === 6 ? 40000 : 25000)
         + (bk.headcount > 5 ? (bk.headcount - 5) * 5000 : 0);
+    // 예약번호는 booking_code 마이그레이션(20260829) 전 접수 건엔 없을 수 있어 조건부
+    const codeLine = bk.booking_code ? `예약번호: ${bk.booking_code}\n\n` : '';
     return `안녕하세요 ! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
 
 [ ${m}/${d}(${wd}) ${sh}-${eh}시(${hours}시간) ${bk.headcount}명 ] 예약이 확인되었습니다.
 
-이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 입금해주시면 예약이 확정됩니다!
+${codeLine}이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 입금해주시면 예약이 확정됩니다!
 
 토스뱅크 1002-1793-5417 최경수
 
+※ 신청 후 4시간 안에 입금 확인이 되지 않으면 예약이 자동 취소됩니다.
+※ 예약 상태는 홈페이지 [공간 대관 > 예약 조회]에서 예약번호와 연락처로 확인하실 수 있습니다.
 ※ 기준 인원 수(5명)를 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
 }
 
@@ -140,7 +144,8 @@ export async function onRequest(context) {
         }
 
         const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
-        const sel = 'id,phone,date,start_time,end_time,headcount,created_at,sms_sent_at';
+        // select=* — booking_code 컬럼 마이그레이션(20260829) 전에도 조회가 깨지지 않도록 명시 목록 대신 전체
+        const sel = '*';
         const getRes = await fetch(
             `${SUPABASE_URL}/rest/v1/performance_bookings?id=eq.${booking_id}&select=${sel}&limit=1`,
             { headers: sbHeaders });

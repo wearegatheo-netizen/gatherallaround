@@ -10,8 +10,11 @@
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
   QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
-- 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송)
-- 테스트: `tests/` (event-api 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
+- 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송 — 예약번호·4시간 자동취소 안내 포함)
+- 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
+  [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
+  `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
+- 테스트: `tests/` (event-api·send-sms 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
 - 개발 브랜치: `claude/remove-main-page-button-oi3bml`
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)

@@ -7049,16 +7049,17 @@
                 supabaseClient.from('reservations').select('res_date,start_time,end_time')
                     .gte('res_date', startDate).lte('res_date', endDate)
                     .not('status','in','("rejected","cancelled")'),
-                supabaseClient.from('performance_bookings').select('date,start_time,end_time')
+                supabaseClient.from('performance_bookings').select('date,start_time,end_time,status,created_at')
                     .gte('date', startDate).lte('date', endDate)
-                    .not('status','in','("rejected","cancelled")')
+                    .not('status','in','("rejected","cancelled","expired")')
             ]);
             const map = {};
             (resResult.data || []).forEach(r => {
                 if (!map[r.res_date]) map[r.res_date] = [];
                 map[r.res_date].push({ start_time: r.start_time, end_time: r.end_time });
             });
-            (pbResult.data || []).forEach(b => {
+            // 4시간 만료된 대기 건은 sweep 전이라도 자리 차지 안 함 (lazy 자동취소)
+            (pbResult.data || []).filter(b => !_pbExpired(b)).forEach(b => {
                 if (!map[b.date]) map[b.date] = [];
                 map[b.date].push({ start_time: b.start_time, end_time: b.end_time });
             });
@@ -7101,6 +7102,9 @@
             const savedDesc = PERF_SPACE_DESC_DEFAULT;
             const photos = PERF_SPACE_PHOTOS.map(u => `<img src="${u}" alt="공간 사진" onerror="this.style.display='none'">`).join('');
             container.innerHTML = `
+                <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+                    <button onclick="renderPerfLookup()" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:20px;border:1px solid var(--wds-gray-300);background:var(--wds-white);color:var(--wds-black);cursor:pointer;font-size:0.85rem;font-weight:700;font-family:inherit">🔍 예약 조회</button>
+                </div>
                 <div class="perf-layout">
                     <div class="perf-col-cal">
                         <div class="perf-section">
@@ -7548,6 +7552,25 @@
         // 관람객 미정 체크 — DB에 별도 컬럼이 없어 purpose 끝에 마커 문자열로 저장한다.
         // 관리자 카드가 이 마커를 감지해 배지로 표시하고, 표시 시엔 마커를 떼어낸다.
         const PERF_AUDIENCE_TBD_MARK = '[관람객 미정·당일 추가결제]';
+
+        // 예약번호: 6자리, 공연 예매번호와 동일 charset (헷갈리는 I/L/O/0/1 제외)
+        const PERF_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        function genPerfBookingCode() {
+            const buf = new Uint32Array(6);
+            crypto.getRandomValues(buf);
+            let c = '';
+            for (let i = 0; i < 6; i++) c += PERF_CODE_CHARS[buf[i] % PERF_CODE_CHARS.length];
+            return c;
+        }
+
+        // 자동취소 정책: 신청(pending) 후 4시간 내 승인(확정)되지 않으면 취소.
+        // 크론이 없으므로 lazy — 조회 화면·가용성 계산은 기한 지난 대기 건을 즉시
+        // 취소로 취급하고, DB 상태('expired')는 관리자 탭 진입 시 일괄 반영(sweep)된다.
+        const PERF_EXPIRE_MS = 4 * 60 * 60 * 1000;
+        function _pbExpired(b) {
+            return !!(b && b.status === 'pending' && b.created_at
+                && Date.now() - new Date(b.created_at).getTime() > PERF_EXPIRE_MS);
+        }
         function toggleAudienceTbd(checked) {
             _perfState.audienceTbd = checked;
             const s = document.getElementById('perfSummaryHeadcount');
@@ -7588,24 +7611,39 @@
                 const [resCheck, pbCheck] = await Promise.all([
                     supabaseClient.from('reservations').select('start_time,end_time')
                         .eq('res_date', selectedDate).neq('status','rejected').neq('status','cancelled'),
-                    supabaseClient.from('performance_bookings').select('start_time,end_time')
-                        .eq('date', selectedDate).neq('status','rejected')
+                    supabaseClient.from('performance_bookings').select('start_time,end_time,status,created_at')
+                        .eq('date', selectedDate).not('status','in','("rejected","expired")')
                 ]);
-                const allConflicts = [...(resCheck.data||[]), ...(pbCheck.data||[])];
+                const allConflicts = [...(resCheck.data||[]), ...(pbCheck.data||[]).filter(b => !_pbExpired(b))];
                 const hasConflict = allConflicts.some(c => {
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
                     return startSlot <= ce && endSlot >= cs;
                 });
                 if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 const purposeFinal = _perfState.audienceTbd ? `${purpose} ${PERF_AUDIENCE_TBD_MARK}` : purpose;
-                const { data: inserted, error } = await supabaseClient.from('performance_bookings').insert({
+                const row = {
                     name, phone, purpose: purposeFinal, how_found: howFound,
                     date: selectedDate,
                     start_time: TIMES[startSlot],
                     end_time: TIMES[endSlot],
                     headcount
-                }).select('id').single();
-                if (error) { showErr('신청 중 오류가 발생했습니다: ' + error.message); return; }
+                };
+                // 예약번호 발급 — unique 충돌(23505)이면 새 코드로 재시도
+                let inserted = null, insErr = null;
+                for (let attempt = 0; attempt < 5; attempt++) {
+                    const r = await supabaseClient.from('performance_bookings')
+                        .insert({ ...row, booking_code: genPerfBookingCode() })
+                        .select('id,booking_code').single();
+                    inserted = r.data; insErr = r.error;
+                    if (!insErr || insErr.code !== '23505') break;
+                }
+                if (insErr && /booking_code/i.test(insErr.message || '')) {
+                    // booking_code 컬럼 마이그레이션 전 폴백 — 번호 없이 접수 (SQL 실행 후 자동 정상화)
+                    const r = await supabaseClient.from('performance_bookings').insert(row).select('id').single();
+                    inserted = r.data; insErr = r.error;
+                }
+                if (insErr || !inserted) { showErr('신청 중 오류가 발생했습니다: ' + (insErr ? insErr.message : '')); return; }
+                _perfState.lastBookingCode = inserted.booking_code || null;
                 sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
                 // 접수 확인 문자 fire-and-forget — 실제 접수 건 대조·1회 발송 보장은 /send-sms가 서비스 롤로 수행
                 if (inserted && inserted.id) {
@@ -7623,9 +7661,10 @@
 
         function renderPerfStep3() {
             const container = document.getElementById('perf-step-container');
+            const code = _perfState.lastBookingCode;
             // 색은 팔레트 변수만 사용(다크모드 자동 대응). 체크 원판의 초록만 고정색 — 양 테마에서 동일하게 보이는 성공 표식.
             const steps = [
-                ['문자 확인', '입력하신 연락처로 예약 확인·입금 안내 문자가 발송됩니다.'],
+                ['문자 확인', '입력하신 연락처로 예약번호·입금 안내 문자가 발송됩니다.'],
                 ['입금', '안내된 계좌로 이용요금을 입금해주시면 예약이 확정됩니다.'],
                 ['이용 안내', '확정 후 장비 사용법과 이용 안내를 보내드립니다.'],
             ];
@@ -7635,7 +7674,13 @@
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
                     <div style="font-size:1.15rem;font-weight:800;color:var(--wds-black);margin-bottom:6px">예약 신청이 완료되었습니다</div>
-                    <p style="font-size:0.85rem;color:var(--wds-gray-500);margin:0 0 22px">아래 순서로 예약이 확정됩니다</p>
+                    <p style="font-size:0.85rem;color:var(--wds-gray-500);margin:0 0 18px">아래 순서로 예약이 확정됩니다</p>
+                    ${code ? `
+                    <div style="background:var(--wds-white);border:1.5px solid var(--wds-primary);border-radius:14px;padding:16px 14px;margin-bottom:14px">
+                        <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.06em">예약번호</div>
+                        <div style="font-size:1.7rem;font-weight:800;letter-spacing:0.28em;color:var(--wds-primary);margin:4px 0 2px;padding-left:0.28em">${code}</div>
+                        <div style="font-size:0.76rem;color:var(--wds-gray-500)">예약 상태 조회에 필요하니 보관해주세요</div>
+                    </div>` : ''}
                     <div style="background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);border-radius:14px;padding:18px 16px;text-align:left;display:flex;flex-direction:column;gap:14px">
                         ${steps.map(([t, d], i) => `
                         <div style="display:flex;gap:12px;align-items:flex-start">
@@ -7646,9 +7691,107 @@
                             </span>
                         </div>`).join('')}
                     </div>
-                    <button onclick="showPortal()" style="width:100%;margin-top:22px;padding:14px 0;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">처음으로</button>
+                    <div style="margin-top:12px;padding:10px 14px;background:#FEF3C7;border-radius:10px;font-size:0.8rem;color:#92400E;font-weight:600;line-height:1.55;text-align:left">⏰ 신청 후 4시간 안에 입금 확인(예약 확정)이 되지 않으면 예약이 자동 취소됩니다.</div>
+                    <button onclick="renderPerfLookup(${code ? `'${code}'` : ''})" style="width:100%;margin-top:16px;padding:14px 0;background:var(--wds-primary);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit">예약 상태 조회</button>
+                    <button onclick="showPortal()" style="width:100%;margin-top:10px;padding:13px 0;background:var(--wds-gray-100);color:var(--wds-black);border:1px solid var(--wds-gray-300);border-radius:12px;font-size:0.92rem;font-weight:600;cursor:pointer;font-family:inherit">처음으로</button>
                     <a href="tel:01051091042" style="display:inline-block;margin-top:14px;font-size:0.82rem;color:var(--wds-gray-500);text-decoration:none">문의 · 010-5109-1042 (최경수)</a>
                 </div>`;
+        }
+
+        // ── 예약 조회: 예약번호 + 연락처로 상태 확인 (비로그인)
+        function renderPerfLookup(prefillCode) {
+            const container = document.getElementById('perf-step-container');
+            container.innerHTML = `
+                <div style="max-width:420px;margin:0 auto;padding:8px 0 24px">
+                    <div class="perf-section">
+                        <div class="perf-section-title">예약 조회</div>
+                        <p style="font-size:0.84rem;color:var(--wds-gray-600);margin:0 0 14px;line-height:1.6">문자로 안내받은 <strong>예약번호</strong>와 신청 시 입력한 <strong>연락처</strong>를 입력해주세요.</p>
+                        <div class="perf-form-group">
+                            <label class="perf-form-label">예약번호 (6자리)</label>
+                            <input type="text" class="perf-form-input" id="perfLookupCode" maxlength="6" placeholder="예: K7PQ2M"
+                                value="${prefillCode ? escapeHtml(String(prefillCode)) : ''}"
+                                style="text-transform:uppercase;letter-spacing:0.2em;font-weight:700" autocomplete="off">
+                        </div>
+                        <div class="perf-form-group">
+                            <label class="perf-form-label">연락처</label>
+                            <input type="tel" class="perf-form-input" id="perfLookupPhone" placeholder="010-0000-0000">
+                        </div>
+                        <div id="perfLookupResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                        <div style="display:flex;gap:8px">
+                            <button onclick="renderPerfStep1()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--wds-gray-300);background:var(--wds-gray-100);color:var(--wds-black);cursor:pointer;font-weight:600;font-size:0.92rem;font-family:inherit">← 돌아가기</button>
+                            <button id="perfLookupBtn" onclick="lookupPerfBooking()" style="flex:2;padding:12px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:0.92rem;font-weight:700;cursor:pointer;font-family:inherit">조회하기</button>
+                        </div>
+                        <div id="perfLookupCard"></div>
+                    </div>
+                </div>`;
+        }
+
+        async function lookupPerfBooking() {
+            const res = document.getElementById('perfLookupResult');
+            const card = document.getElementById('perfLookupCard');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (card) card.innerHTML = '';
+            const code = (document.getElementById('perfLookupCode')?.value || '').trim().toUpperCase();
+            const phoneDigits = (document.getElementById('perfLookupPhone')?.value || '').replace(/\D/g, '');
+            if (!/^[A-Z2-9]{6}$/.test(code)) { showErr('예약번호 6자리를 입력해주세요.'); return; }
+            if (phoneDigits.length < 10) { showErr('연락처를 정확히 입력해주세요.'); return; }
+            const btn = document.getElementById('perfLookupBtn');
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+            try {
+                const { data, error } = await supabaseClient.from('performance_bookings')
+                    .select('booking_code,phone,status,date,start_time,end_time,headcount,purpose,created_at')
+                    .eq('booking_code', code).limit(1);
+                if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
+                const b = (data || [])[0];
+                // 연락처까지 일치해야 표시 — 불일치 시 존재 여부도 알리지 않는다
+                if (!b || String(b.phone || '').replace(/\D/g, '') !== phoneDigits) {
+                    showErr('일치하는 예약을 찾을 수 없습니다. 예약번호와 연락처를 확인해주세요.');
+                    return;
+                }
+                if (card) card.innerHTML = _perfLookupCardHTML(b);
+            } finally {
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+            }
+        }
+
+        function _perfLookupCardHTML(b) {
+            const sIdx = TIMES.indexOf(b.start_time), eIdx = TIMES.indexOf(b.end_time);
+            const endDisplay = TIMES[eIdx + 1] || '23:00';
+            const hours = eIdx - sIdx + 1;
+            const fee = calcPerformanceFee(b.date, sIdx, eIdx, b.headcount);
+            const wd = ['일', '월', '화', '수', '목', '금', '토'][new Date(b.date + 'T00:00:00').getDay()];
+            const audienceTbd = (b.purpose || '').includes(PERF_AUDIENCE_TBD_MARK);
+            const expired = b.status === 'expired' || _pbExpired(b);
+            let chip, note;
+            if (b.status === 'approved') {
+                chip = ['✅ 예약 확정', '#DCFCE7', '#166534'];
+                note = '입금이 확인되어 예약이 확정되었습니다. 이용 안내 문자를 확인해주세요.';
+            } else if (expired) {
+                chip = ['⏰ 자동 취소', '#F3F4F6', '#4B5563'];
+                note = '신청 후 4시간 안에 입금 확인이 되지 않아 예약이 자동 취소되었습니다.<br>이용을 원하시면 다시 예약해주시거나 문의(010-5109-1042)해주세요.';
+            } else if (b.status === 'rejected') {
+                chip = ['❌ 예약 취소', '#FEE2E2', '#991B1B'];
+                note = '예약이 취소되었습니다. 궁금한 점은 문의(010-5109-1042)해주세요.';
+            } else {
+                chip = ['⏳ 입금 대기', '#FEF3C7', '#92400E'];
+                const leftMs = Math.max(0, PERF_EXPIRE_MS - (Date.now() - new Date(b.created_at).getTime()));
+                const leftH = Math.floor(leftMs / 3600000), leftM = Math.floor((leftMs % 3600000) / 60000);
+                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 아래 계좌로 입금해주시면 예약이 확정됩니다.<br>`
+                    + `<strong>토스뱅크 1002-1793-5417 최경수</strong><br>`
+                    + `남은 확정 기한 약 <strong>${leftH > 0 ? leftH + '시간 ' : ''}${leftM}분</strong> — 기한 내 확정되지 않으면 자동 취소됩니다.`;
+            }
+            return `<div style="margin-top:18px;border:1px solid var(--wds-gray-300);border-radius:14px;padding:16px;background:var(--wds-white)">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="background:${chip[1]};color:${chip[2]};font-size:0.78rem;font-weight:700;padding:4px 11px;border-radius:12px">${chip[0]}</span>
+                    <span style="margin-left:auto;font-size:0.8rem;color:var(--wds-gray-500);font-weight:700;letter-spacing:0.12em">${escapeHtml(b.booking_code || '')}</span>
+                </div>
+                <div style="margin-top:12px;font-size:0.88rem;color:var(--wds-gray-700);line-height:1.7">
+                    📅 ${b.date}(${wd}) ${b.start_time} ~ ${endDisplay} · ${hours}시간<br>
+                    👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준 · 관람객 미정)' : ''} · <strong style="color:var(--wds-black)">${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''}
+                </div>
+                <div style="margin-top:10px;padding:10px 12px;background:var(--wds-gray-100);border-radius:10px;font-size:0.82rem;color:var(--wds-gray-700);line-height:1.6">${note}</div>
+            </div>`;
         }
 
         // 승인 안내 메시지 자동 생성 기능은 제거됨(2026-08) — 도어락 등 민감정보가 담긴
@@ -7657,13 +7800,19 @@
         async function renderPerfAdminTab(container) {
             if (!isSuper()) { container.innerHTML = '<p style="text-align:center;padding:24px;color:var(--wds-gray-500);font-size:0.88rem">공간 대관 관리는 운영 총괄만 볼 수 있습니다.</p>'; return; }
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500)">불러오는 중…</div>';
+            // 4시간 자동취소 sweep — 기한 지난 대기 건을 DB에도 반영 (실패해도 화면은 lazy 판정으로 커버)
+            try {
+                await supabaseClient.from('performance_bookings').update({ status: 'expired' })
+                    .eq('status', 'pending')
+                    .lt('created_at', new Date(Date.now() - PERF_EXPIRE_MS).toISOString());
+            } catch (_) {}
             const { data, error } = await supabaseClient.from('performance_bookings')
                 .select('*').order('created_at', { ascending: false });
             if (error) { container.innerHTML = `<div style="color:red;padding:16px">오류: ${error.message}</div>`; return; }
             const items = data || [];
             state.perfAdminItems = items; // 인라인 수정(editPerfBooking)에서 원본 조회용
-            const pending = items.filter(b => b.status === 'pending');
-            const others = items.filter(b => b.status !== 'pending');
+            const pending = items.filter(b => b.status === 'pending' && !_pbExpired(b));
+            const others = items.filter(b => !(b.status === 'pending' && !_pbExpired(b)));
             let html = `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
             if (!items.length) { html += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500)">신청 내역이 없습니다.</p>'; container.innerHTML = html; return; }
             // 카드 내 액션 버튼 공통 스타일 — 크기·모양 통일 (기능별 색만 다르게)
@@ -7679,14 +7828,17 @@
                 const phoneDigits = String(b.phone || '').replace(/\D/g, '');
                 const cd = new Date(b.created_at);
                 const createdShort = `${cd.getMonth()+1}/${cd.getDate()} ${String(cd.getHours()).padStart(2,'0')}:${String(cd.getMinutes()).padStart(2,'0')} 접수`;
-                const chip = b.status === 'pending' ? ['⏳ 대기', '#FEF3C7', '#92400E']
-                    : b.status === 'approved' ? ['✅ 승인', '#DCFCE7', '#166534'] : ['❌ 거절', '#FEE2E2', '#991B1B'];
+                const eff = _pbExpired(b) ? 'expired' : b.status; // sweep 실패 시에도 기한 지난 대기 건은 자동취소로 표시
+                const chip = eff === 'pending' ? ['⏳ 대기', '#FEF3C7', '#92400E']
+                    : eff === 'approved' ? ['✅ 승인', '#DCFCE7', '#166534']
+                    : eff === 'expired' ? ['⏰ 자동취소', '#F3F4F6', '#4B5563'] : ['❌ 거절', '#FEE2E2', '#991B1B'];
                 const editBtn = isSuper() ? _pbtn('✏️ 수정', `editPerfBooking('${b.id}')`, 'var(--wds-gray-700)', 'var(--wds-gray-300)') : '';
                 const delBtn = _pbtn('삭제', `deletePerfBooking('${b.id}')`, 'var(--wds-gray-500)', 'var(--wds-gray-300)');
-                return `<div class="perf-admin-card${b.status==='pending'?' pending':''}" id="perf-card-${b.id}">
+                return `<div class="perf-admin-card${eff==='pending'?' pending':''}" id="perf-card-${b.id}">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span style="background:${chip[1]};color:${chip[2]};font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:10px;flex:none">${chip[0]}</span>
                         <span style="font-size:0.9rem;font-weight:700">${escapeHtml(b.name)}</span>
+                        ${b.booking_code ? `<span style="font-size:0.74rem;font-weight:700;color:var(--wds-gray-500);letter-spacing:0.1em">${escapeHtml(b.booking_code)}</span>` : ''}
                         <span style="margin-left:auto;font-size:0.72rem;color:var(--wds-gray-500)">${createdShort}</span>
                     </div>
                     ${audienceTbd ? `<div style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:12px;margin:8px 0 0">👥 관람객 미정 — 공연진 ${b.headcount}명 기준, 당일 인원 산정 후 추가 결제</div>` : ''}
@@ -7695,17 +7847,21 @@
                         👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준)' : ''} · <strong style="color:var(--wds-black)">${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''}<br>
                         📞 <a href="tel:${phoneDigits}" style="color:inherit">${escapeHtml(b.phone)}</a> &nbsp;·&nbsp; 🎯 ${escapeHtml(purposeDisplay)} &nbsp;·&nbsp; 🔍 ${escapeHtml(b.how_found)}
                     </div>
-                    ${b.status==='pending' ? `
+                    ${eff==='pending' ? `
                     <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
                         <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
                         <button onclick="rejectPerfBooking('${b.id}')" class="reject-btn">거절</button>
                         <span style="margin-left:auto;display:flex;gap:6px">${editBtn}${delBtn}</span>
                     </div>` : ''}
-                    ${b.status==='approved' ? `
+                    ${eff==='approved' ? `
                     <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
                         ${editBtn}${_pbtn('예약 취소', `cancelPerfReservation('${b.id}')`, '#EF4444', '#EF4444')}${delBtn}
                     </div>` : ''}
-                    ${b.status==='rejected' ? `
+                    ${eff==='expired' ? `
+                    <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
+                        ${_pbtn('승인(복구)', `approvePerfBooking('${b.id}')`, '#166534', '#166534')}${delBtn}
+                    </div>` : ''}
+                    ${eff==='rejected' ? `
                     <div style="display:flex;margin-top:10px;justify-content:flex-end">${delBtn}</div>` : ''}
                 </div>`;
             };
@@ -7714,7 +7870,11 @@
         }
 
         async function approvePerfBooking(id) {
-            if (!confirm('승인하시겠습니까?')) return;
+            const b = (state.perfAdminItems || []).find(x => x.id === id);
+            const wasExpired = b && (b.status === 'expired' || _pbExpired(b));
+            if (!confirm(wasExpired
+                ? '신청 후 4시간이 지나 자동 취소된 예약입니다.\n입금이 확인되었다면 승인(복구)할 수 있습니다. 진행할까요?'
+                : '승인하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
             if (error) { alert('오류: ' + error.message); return; }
             await fetchReservations();
@@ -7790,11 +7950,11 @@
                 const [resCheck, pbCheck] = await Promise.all([
                     supabaseClient.from('reservations').select('start_time,end_time')
                         .eq('res_date', date).neq('status','rejected').neq('status','cancelled'),
-                    supabaseClient.from('performance_bookings').select('id,start_time,end_time')
-                        .eq('date', date).neq('status','rejected')
+                    supabaseClient.from('performance_bookings').select('id,start_time,end_time,status,created_at')
+                        .eq('date', date).not('status','in','("rejected","expired")')
                 ]);
                 const sIdx = TIMES.indexOf(startTime), eIdx = TIMES.indexOf(endTime);
-                const conflict = [...(resCheck.data||[]), ...(pbCheck.data||[]).filter(x => x.id !== id)].some(c => {
+                const conflict = [...(resCheck.data||[]), ...(pbCheck.data||[]).filter(x => x.id !== id && !_pbExpired(x))].some(c => {
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
                     return sIdx <= ce && eIdx >= cs;
                 });
