@@ -7889,7 +7889,9 @@
                         ${_pbtn('승인(복구)', `approvePerfBooking('${b.id}')`, '#166534', '#166534')}${delBtn}
                     </div>` : ''}
                     ${eff==='rejected' || eff==='cancelled' ? `
-                    <div style="display:flex;margin-top:10px;justify-content:flex-end">${delBtn}</div>` : ''}
+                    <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
+                        ${_pbtn('승인(복구)', `approvePerfBooking('${b.id}')`, '#166534', '#166534')}${delBtn}
+                    </div>` : ''}
                 </div>`;
             };
             html += pending.map(renderCard).join('') + others.map(renderCard).join('');
@@ -7898,10 +7900,27 @@
 
         async function approvePerfBooking(id) {
             const b = (state.perfAdminItems || []).find(x => x.id === id);
-            const wasExpired = b && (b.status === 'expired' || _pbExpired(b));
-            if (!confirm(wasExpired
-                ? '신청 후 4시간이 지나 자동 취소된 예약입니다.\n입금이 확인되었다면 승인(복구)할 수 있습니다. 진행할까요?'
-                : '승인하시겠습니까?')) return;
+            const msg = !b ? '승인하시겠습니까?'
+                : b.status === 'rejected' ? '거절했던 예약입니다.\n승인(복구)하면 바로 예약 확정 상태가 됩니다. 진행할까요?'
+                : b.status === 'cancelled' ? '예약자가 취소한 예약입니다.\n승인(복구)하면 바로 예약 확정 상태가 됩니다. 진행할까요?'
+                : (b.status === 'expired' || _pbExpired(b)) ? '신청 후 4시간이 지나 자동 취소된 예약입니다.\n입금이 확인되었다면 승인(복구)할 수 있습니다. 진행할까요?'
+                : '승인하시겠습니까?';
+            if (!confirm(msg)) return;
+            // 겹침 검사 — 특히 거절·취소·만료 건은 닫혀 있던 동안 같은 시간대가 새로 예약됐을 수 있다
+            if (b) try {
+                const [resCheck, pbCheck] = await Promise.all([
+                    supabaseClient.from('reservations').select('start_time,end_time')
+                        .eq('res_date', b.date).neq('status','rejected').neq('status','cancelled'),
+                    supabaseClient.from('performance_bookings').select('id,start_time,end_time,status,created_at')
+                        .eq('date', b.date).not('status','in','("rejected","expired","cancelled")')
+                ]);
+                const sIdx = TIMES.indexOf(b.start_time), eIdx = TIMES.indexOf(b.end_time);
+                const conflict = [...(resCheck.data||[]), ...(pbCheck.data||[]).filter(x => x.id !== id && !_pbExpired(x))].some(c => {
+                    const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
+                    return sIdx <= ce && eIdx >= cs;
+                });
+                if (conflict && !confirm('해당 시간대에 겹치는 예약/대관이 있습니다.\n그래도 승인할까요?')) return;
+            } catch (_) { /* 검사 실패 시에도 총괄 판단으로 승인은 진행 */ }
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
             if (error) { alert('오류: ' + error.message); return; }
             await fetchReservations();
