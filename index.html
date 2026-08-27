@@ -7669,7 +7669,7 @@
                 ['이용 안내', '확정 후 장비 사용법과 이용 안내를 보내드립니다.'],
             ];
             container.innerHTML = `
-                <div style="max-width:400px;margin:0 auto;padding:44px 8px 28px;text-align:center">
+                <div style="max-width:400px;margin:0 auto;padding:44px 8px 28px;text-align:center;word-break:keep-all">
                     <div style="width:60px;height:60px;margin:0 auto 18px;border-radius:50%;background:#34C759;display:flex;align-items:center;justify-content:center">
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
@@ -7702,7 +7702,7 @@
         function renderPerfLookup(prefillCode) {
             const container = document.getElementById('perf-step-container');
             container.innerHTML = `
-                <div style="max-width:420px;margin:0 auto;padding:8px 0 24px">
+                <div style="max-width:420px;margin:0 auto;padding:8px 0 24px;word-break:keep-all">
                     <div class="perf-section">
                         <div class="perf-section-title">예약 조회</div>
                         <p style="font-size:0.84rem;color:var(--wds-gray-600);margin:0 0 14px;line-height:1.6">문자로 안내받은 <strong>예약번호</strong>와 신청 시 입력한 <strong>연락처</strong>를 입력해주세요.</p>
@@ -7770,10 +7770,10 @@
                 note = '입금이 확인되어 예약이 확정되었습니다. 이용 안내 문자를 확인해주세요.';
             } else if (expired) {
                 chip = ['⏰ 자동 취소', '#F3F4F6', '#4B5563'];
-                note = '신청 후 4시간 안에 입금 확인이 되지 않아 예약이 자동 취소되었습니다.<br>이용을 원하시면 다시 예약해주시거나 문의(010-5109-1042)해주세요.';
+                note = '신청 후 4시간 안에 입금 확인이 되지 않아 예약이 자동 취소되었습니다. 이용을 원하시면 다시 예약해주시거나 문의(010-5109-1042)해주세요.';
             } else if (b.status === 'cancelled') {
                 chip = ['❌ 취소됨', '#FEE2E2', '#991B1B'];
-                note = '예약이 취소되었습니다. 이용을 원하시면 다시 예약해주세요.<br>궁금한 점은 문의(010-5109-1042)해주세요.';
+                note = '예약이 취소되었습니다. 이용을 원하시면 다시 예약해주시고, 궁금한 점은 문의(010-5109-1042)로 연락해주세요.';
             } else if (b.status === 'rejected') {
                 chip = ['❌ 예약 취소', '#FEE2E2', '#991B1B'];
                 note = '예약이 취소되었습니다. 궁금한 점은 문의(010-5109-1042)해주세요.';
@@ -7781,9 +7781,8 @@
                 chip = ['⏳ 입금 대기', '#FEF3C7', '#92400E'];
                 const leftMs = Math.max(0, PERF_EXPIRE_MS - (Date.now() - new Date(b.created_at).getTime()));
                 const leftH = Math.floor(leftMs / 3600000), leftM = Math.floor((leftMs % 3600000) / 60000);
-                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 아래 계좌로 입금해주시면 예약이 확정됩니다.<br>`
-                    + `<strong>토스뱅크 1002-1793-5417 최경수</strong><br>`
-                    + `남은 확정 기한 약 <strong>${leftH > 0 ? leftH + '시간 ' : ''}${leftM}분</strong> — 기한 내 확정되지 않으면 자동 취소됩니다.`;
+                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 <strong>토스뱅크 1002-1793-5417(최경수)</strong> 계좌로 입금해주시면 예약이 확정됩니다. `
+                    + `남은 확정 기한은 약 <strong>${leftH > 0 ? leftH + '시간 ' : ''}${leftM}분</strong>이며, 기한 내 확정되지 않으면 자동 취소됩니다.`;
             }
             // 본인 취소: 입금 대기·확정 건만 (만료·거절·취소 건은 불가)
             const canCancel = !expired && (b.status === 'pending' || b.status === 'approved');
