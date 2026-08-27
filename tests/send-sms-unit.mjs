@@ -64,6 +64,7 @@ const solapiText = () => {
   chk('정상 발송: ok', r.status === 200 && j.ok === true);
   chk('수신·발신 번호 숫자만', msg && msg.to === '01012345678' && msg.from === '01051091042');
   chk('본문: 일시·인원·주말 요금(210,000원)', !!msg && msg.text.includes('9/5(토) 18-23시(5시간) 7명') && msg.text.includes('210,000원'), (msg?.text || '').slice(0, 80));
+  chk('본문: 입금 계좌', !!msg && msg.text.includes('토스뱅크 1000-2274-7678 최경수'));
   chk('본문: 예약번호 안내', !!msg && msg.text.includes('예약번호: AB12CD'));
   chk('본문: 4시간 자동취소 정책', !!msg && msg.text.includes('4시간 안에 입금 확인이 되지 않으면 예약이 자동 취소'));
   chk('본문: 예약 조회 안내', !!msg && msg.text.includes('[공간 대관 > 예약 조회]에서 예약번호와 연락처로'));

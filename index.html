@@ -7780,7 +7780,7 @@
                 chip = ['⏳ 입금 대기', '#FEF3C7', '#92400E'];
                 const leftMs = Math.max(0, PERF_EXPIRE_MS - (Date.now() - new Date(b.created_at).getTime()));
                 const leftH = Math.floor(leftMs / 3600000), leftM = Math.floor((leftMs % 3600000) / 60000);
-                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 <strong>토스뱅크 1002-1793-5417(최경수)</strong> 계좌로 입금해주시면 예약이 확정됩니다. `
+                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 <strong>토스뱅크 1000-2274-7678(최경수)</strong> 계좌로 입금해주시면 예약이 확정됩니다. `
                     + `남은 확정 기한은 약 <strong>${leftH > 0 ? leftH + '시간 ' : ''}${leftM}분</strong>이며, 기한 내 확정되지 않으면 자동 취소됩니다.`;
             }
             // 본인 취소: 입금 대기·확정 건만 (만료·거절·취소 건은 불가)
