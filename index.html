@@ -7844,6 +7844,8 @@
             // 카드 내 액션 버튼 공통 스타일 — 크기·모양 통일 (기능별 색만 다르게)
             const _pbtn = (label, onclick, color, border) =>
                 `<button onclick="${onclick}" style="padding:7px 12px;border-radius:8px;border:1px solid ${border};background:none;color:${color};cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit">${label}</button>`;
+            const _n = new Date();
+            const todayStr = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
             const renderCard = (b) => {
                 const endDisplay = TIMES[TIMES.indexOf(b.end_time)+1] || '23:00';
                 const hours = TIMES.indexOf(b.end_time) - TIMES.indexOf(b.start_time) + 1;
@@ -7874,6 +7876,8 @@
                         👥 ${b.headcount}명${audienceTbd ? ' (공연진 기준)' : ''} · <strong style="color:var(--wds-black)">${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''}<br>
                         📞 <a href="tel:${phoneDigits}" style="color:inherit">${escapeHtml(b.phone)}</a> &nbsp;·&nbsp; 🎯 ${escapeHtml(purposeDisplay)} &nbsp;·&nbsp; 🔍 ${escapeHtml(b.how_found)}
                     </div>
+                    ${b.date < todayStr ? `
+                    <div style="display:flex;margin-top:10px;justify-content:flex-end">${delBtn}</div>` : `
                     ${eff==='pending' ? `
                     <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
                         <button onclick="approvePerfBooking('${b.id}')" class="approve-btn">승인</button>
@@ -7884,14 +7888,10 @@
                     <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
                         ${editBtn}${_pbtn('예약 취소', `cancelPerfReservation('${b.id}')`, '#EF4444', '#EF4444')}${delBtn}
                     </div>` : ''}
-                    ${eff==='expired' ? `
+                    ${eff==='expired' || eff==='rejected' || eff==='cancelled' ? `
                     <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
                         ${_pbtn('승인(복구)', `approvePerfBooking('${b.id}')`, '#166534', '#166534')}${delBtn}
-                    </div>` : ''}
-                    ${eff==='rejected' || eff==='cancelled' ? `
-                    <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
-                        ${_pbtn('승인(복구)', `approvePerfBooking('${b.id}')`, '#166534', '#166534')}${delBtn}
-                    </div>` : ''}
+                    </div>` : ''}`}
                 </div>`;
             };
             html += pending.map(renderCard).join('') + others.map(renderCard).join('');
