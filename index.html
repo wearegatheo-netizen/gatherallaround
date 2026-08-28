@@ -541,6 +541,9 @@
             font-size: 1.1rem;
             outline: none;
         }
+        /* 위 전역 52px 규칙은 예약 신청 등 큰 입력용. 인라인 style로 자체 크기를 잡은
+           입력(관리자·인라인 수정 폼 등)엔 height까지 강제되면 작은 글씨에 큰 칸이 되므로 해제. */
+        input[type="text"][style] { height: auto; }
 
         /* Tabs & Navigation */
         .tabs { display: flex; border-bottom: 2px solid var(--wds-gray-100); margin-bottom: 24px; gap: 24px; }
@@ -1050,6 +1053,8 @@
             font-family: inherit;
         }
         .block-form-input:focus { outline: none; border-color: var(--wds-primary); }
+        /* 전역 input[type="text"]{height:52px;font-size:1.1rem} 규칙이 특이도에서 이기므로 명시 재정의 */
+        input.block-form-input { height: auto; font-size: 0.85rem; padding: 7px 10px; }
         .block-add-mini-btn {
             padding: 7px 12px;
             background: var(--wds-primary); color: white; border: none;
@@ -1469,6 +1474,9 @@
         .gforms-select { color:var(--wds-black); }
         .gforms-select option[value=""] { color:var(--wds-gray-400); }
         .gforms-input:focus { outline:none; border-bottom:2px solid var(--wds-primary); padding-bottom:5px; }
+        /* 전역 input[type="text"]{height:52px;font-size:1.1rem;border:…} 규칙이 특이도에서 이겨
+           텍스트 입력만 큰 박스로 렌더되던 문제 — 밑줄형 gforms 스타일로 명시 재정의 */
+        input.gforms-input { height:auto; font-size:0.88rem; padding:6px 0; border:none; border-bottom:1px solid var(--wds-gray-300); border-radius:0; }
         .gforms-textarea { width:100%; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:6px; font-size:0.88rem; background:transparent; font-family:inherit; color:var(--wds-black); resize:vertical; min-height:72px; box-sizing:border-box; transition:border-color 0.18s; }
         .gforms-textarea:focus { outline:none; border:2px solid var(--wds-primary); padding:9px 11px; }
         .gforms-select { width:100%; padding:8px 0; border:none; border-bottom:1px solid var(--wds-gray-300); font-size:0.88rem; background:transparent; font-family:inherit; color:var(--wds-black); box-sizing:border-box; }
@@ -5824,7 +5832,7 @@
                                 <select id="blk-st-${b.id}" style="font-size:0.78rem;padding:3px 4px;border-radius:4px;border:1px solid var(--wds-gray-300)">${selStart}</select>
                                 <span style="font-size:0.78rem">~</span>
                                 <select id="blk-et-${b.id}" style="font-size:0.78rem;padding:3px 4px;border-radius:4px;border:1px solid var(--wds-gray-300)">${selEnd}</select>
-                                <input type="text" id="blk-rs-${b.id}" value="${escapeHtml(b.reason||'')}" placeholder="사유" style="font-size:0.78rem;padding:3px 6px;border-radius:4px;border:1px solid var(--wds-gray-300);width:90px">
+                                <input type="text" id="blk-rs-${b.id}" value="${escapeHtml(b.reason||'')}" placeholder="사유" style="font-size:0.78rem;padding:3px 6px;border-radius:4px;border:1px solid var(--wds-gray-300);width:90px;height:auto;box-sizing:border-box">
                             </div>
                             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:5px">
                                 ${isOnce
