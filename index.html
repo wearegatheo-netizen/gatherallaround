@@ -2236,10 +2236,8 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkY3lneXZzeWJzaXJtYWtubXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTMxNTIsImV4cCI6MjA5MzcyOTE1Mn0.KknBzg2OfcsVawxp0BTBJuwXMWX6tNZo-6nCm64nGeI'; 
         const ADMIN_ID = '4883868250'; // 관리자 카카오 ID (최경수)
         // 커뮤니티 마스터 비밀번호는 Edge Function 'verify-community-admin'을 통해 서버에서 검증됩니다.
-        // 이메일 발송은 Supabase Edge Function 'send-email'을 통해 처리됩니다.
-        // 실제 RESEND_API_KEY는 Supabase secrets에 저장됨.
-        const EMAIL_ENABLED = true;
-        const RESEND_FROM_EMAIL = 'noreply@gatherallaround.com'; // 인증된 발신 이메일
+        // 신청 알림 메일은 Cloudflare 함수 /send-email(Resend 프록시)이 발송한다 —
+        // RESEND_API_KEY는 Cloudflare 환경변수에만 저장, 미설정이면 mailto 폴백.
 
         let supabaseClient = null;
 
@@ -6909,8 +6907,10 @@
                     return _MEMBER_SUBTABS.includes(segs[2]) ? segs.slice(0, 3).join('/') : 'gatheo/member';
                 return segs.slice(0, 2).join('/');
             }
-            if (segs[0] === 'community' && segs[1])
+            if (segs[0] === 'community' && segs[1]) {
+                if (segs[1] === 'meeting' && _UUID_RE.test(segs[2] || '')) return 'community/meeting/' + segs[2].toLowerCase();
                 return _COMMUNITY_TABS.includes(segs[1]) ? segs.slice(0, 2).join('/') : 'community';
+            }
             // 공연 예매/호스트 — 파라미터 라우트(형식 검증, 화이트리스트 아님)
             if (segs[0] === 'shows' && segs[1]) {
                 if (segs[1] === 'find') return 'shows/find';
@@ -6933,9 +6933,10 @@
             const cur = (history.state && history.state.page) || '';
             if (cur === path) return; // 같은 경로 재클릭 → 항목 중복 방지
             // 섹션 항목(#gatheo)이 기본 탭(#gatheo/reservation)으로 구체화될 땐 교체 — 뒤로가기 한 번에 섹션을 빠져나가게.
-            // 단 shows/host는 목록→상세가 별개 화면이므로 항상 push (뒤로가기로 목록 복귀 보장).
+            // 단 shows/host와 커뮤니티 모임 상세는 목록→상세가 별개 화면이므로 항상 push (뒤로가기로 목록 복귀 보장).
             const root = path.split('/')[0];
-            const method = (cur === root && root !== 'shows' && root !== 'host') ? 'replaceState' : 'pushState';
+            const method = (cur === root && root !== 'shows' && root !== 'host' && !path.startsWith('community/meeting/'))
+                ? 'replaceState' : 'pushState';
             history[method]({ page: path }, '', '#' + path);
         }
 
@@ -6962,6 +6963,8 @@
                 else if (page === 'community') {
                     // showCommunitySection이 탭을 'current'로 리셋하므로, 원하는 탭을 미리 맡겨둔다
                     if (_COMMUNITY_TABS.includes(segs[1])) window.__routeCommunityTab = segs[1];
+                    // 모임 딥링크(#community/meeting/<id>) — 목록 로딩 후 상세로 진입
+                    if (segs[1] === 'meeting' && segs[2]) window.__routeCommunityMeeting = segs[2];
                     showCommunitySection();
                 }
                 else if (page === 'band-news') showBandNewsSection();
@@ -8229,23 +8232,22 @@
             return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function sendResendEmail(to, subject, html) {
-            // Calls Supabase Edge Function 'send-email' which proxies to Resend.
-            // Browsers cannot call Resend directly due to CORS, so the key lives server-side.
-            const { data, error } = await supabaseClient.functions.invoke('send-email', {
-                body: { to, subject, html, from: RESEND_FROM_EMAIL }
-            });
-            if (error) {
-                let detail = error.message || '';
-                try {
-                    if (error.context && typeof error.context.json === 'function') {
-                        const j = await error.context.json();
-                        if (j && j.error) detail += ' — ' + (typeof j.error === 'string' ? j.error : JSON.stringify(j.error));
-                    }
-                } catch (_) {}
-                throw new Error(detail || 'Edge Function 호출 실패');
+        // 모임장 알림 메일 — Cloudflare 함수 /send-email이 DB에서 직접 조회해 구성·발송한다.
+        // (기존 Supabase Edge Function 'send-email'은 배포돼 있지 않아 항상 실패했음)
+        // 실패·미설정 시 false 반환 → 호출부가 mailto 폴백을 쓴다.
+        async function sendOrganizerMail(meetingId, applicationId) {
+            try {
+                const r = await fetch('/send-email', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meeting_id: meetingId, application_id: applicationId }),
+                });
+                const j = await r.json().catch(() => ({}));
+                if (!j.ok && !j.skipped) console.error('메일 발송 실패:', j.error || r.status, j.detail || '');
+                return !!j.ok || j.skipped === 'already-sent';
+            } catch (e) {
+                console.error('메일 발송 실패:', e);
+                return false;
             }
-            if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
         }
 
         async function showCommunitySection() {
@@ -8275,6 +8277,13 @@
                 fetchCommunityMeetings(),
                 fetchCommunityReservationsAndBlocks(),
             ]);
+            // 모임 딥링크 복원 — _routeToPage가 맡겨둔 모임 id를 수령해 상세로 진입
+            if (window.__routeCommunityMeeting) {
+                const mid = window.__routeCommunityMeeting;
+                window.__routeCommunityMeeting = null;
+                renderCommunityDetail(mid);
+                return;
+            }
             renderCommunityList();
         }
 
@@ -8346,15 +8355,24 @@
                 .order('meeting_date', { ascending: true, nullsFirst: false });
             if (!error && data) {
                 state.communityMeetings = data;
-                // Fetch application counts
+                // Fetch application counts — 거절 건은 정원에서 제외 (status 컬럼 마이그레이션 전이면 전체 집계 폴백)
                 const ids = data.map(m => m.id);
                 if (ids.length > 0) {
-                    const { data: appData } = await supabaseClient
+                    let { data: appData, error: appErr } = await supabaseClient
                         .from('community_applications')
-                        .select('meeting_id')
+                        .select('meeting_id,status')
                         .in('meeting_id', ids);
+                    if (appErr) {
+                        ({ data: appData } = await supabaseClient
+                            .from('community_applications')
+                            .select('meeting_id')
+                            .in('meeting_id', ids));
+                    }
                     const counts = {};
-                    if (appData) appData.forEach(a => { counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1; });
+                    if (appData) appData.forEach(a => {
+                        if ((a.status || 'pending') === 'rejected') return;
+                        counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1;
+                    });
                     state.communityApplicationCounts = counts;
                 }
             }
@@ -8412,7 +8430,8 @@
                     <button class="community-tab${tab === 'past' ? ' active' : ''}" onclick="communitySetTab('past')">지난 모임 (${pastMeetings.length})</button>
                     <button class="community-tab${tab === 'test' ? ' active' : ''}" onclick="communitySetTab('test')">테스트 & 게임</button>
                 </div>
-                <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;">
+                    <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;" onclick="renderCommunityMyApps()">🔍 신청 조회</button>
                     <button class="edit-btn" style="padding:7px 16px;font-size:0.85rem;background:var(--wds-primary);color:#fff;border-color:var(--wds-primary);" onclick="communityToggleCreate()">+ 새 모임 만들기</button>
                 </div>`;
             }
@@ -8711,6 +8730,7 @@
             const meeting = state.communityMeetings.find(x => x.id === id);
             if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
             state.communityCurrentMeeting = meeting;
+            _pushNav('community/meeting/' + id); // 모임별 공유 링크 — 뒤로가기로 목록 복귀
 
             const { data: apps } = await supabaseClient
                 .from('community_applications')
@@ -8719,14 +8739,16 @@
                 .order('created_at', { ascending: true });
             const appList = apps || [];
             const cnt = appList.length;
-            state.communityApplicationCounts[id] = cnt;
+            // 정원·신청 현황은 거절 건 제외 — 거절하면 자리가 다시 열린다 (status 컬럼 이전 데이터는 pending 취급)
+            const activeCnt = appList.filter(a => (a.status || 'pending') !== 'rejected').length;
+            state.communityApplicationCounts[id] = activeCnt;
             state.communityCurrentAppList = appList;
             state.communityCurrentFormFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
 
             const authed = !!state.communityEditAuth[id];
             const editMode = authed && state.communityEditView === id;
             const closed = communityIsClosed(meeting);
-            const capStr = meeting.capacity ? `${cnt} / ${meeting.capacity}명` : `${cnt}명 신청`;
+            const capStr = meeting.capacity ? `${activeCnt} / ${meeting.capacity}명` : `${activeCnt}명 신청`;
             const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
             const formFields = state.communityCurrentFormFields;
 
@@ -8778,6 +8800,9 @@
             if (meeting.application_deadline) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 마감</span><span class="community-detail-spec-value">${escapeHtml(meeting.application_deadline.replace(/-/g,'.'))}</span></div>`;
             html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 현황</span><span class="community-detail-spec-value highlight">${capStr}</span></div>`;
             html += `</div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+                        <button class="edit-btn" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:0.88rem;" onclick="shareCommunityMeeting('${id}')">🔗 공유</button>
+                    </div>
                 </div>
             </div>`;
 
@@ -9050,14 +9075,23 @@
                     html += `<div style="padding:18px 10px;color:var(--wds-gray-500);font-size:0.88rem;text-align:center;">아직 신청자가 없습니다.</div>`;
                 } else {
                     appList.forEach(a => {
-                        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--wds-gray-200);font-size:0.88rem;">
-                        <div style="flex:1;min-width:0;">
+                        const st = a.status || 'pending';
+                        const chip = _CA_STATUS_CHIP(st);
+                        const btn = (label, onclick, color) =>
+                            `<button class="edit-btn" style="padding:4px 10px;font-size:0.78rem;color:${color};border-color:${color};flex-shrink:0;" onclick="${onclick}">${label}</button>`;
+                        html += `<div style="display:flex;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid var(--wds-gray-200);font-size:0.88rem;flex-wrap:wrap;">
+                        <span style="background:${chip[1]};color:${chip[2]};font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:10px;flex:none;">${chip[0]}</span>
+                        <div style="flex:1;min-width:140px;">
                             <span style="font-weight:600;">${escapeHtml(a.applicant_name)}</span>
                             ${a.applicant_phone ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_phone)}</span>` : ''}
                             ${a.applicant_email ? `<span style="color:var(--wds-gray-500);margin-left:8px;">${escapeHtml(a.applicant_email)}</span>` : ''}
                             <span style="color:var(--wds-gray-400);margin-left:8px;font-size:0.78rem;">${new Date(a.created_at).toLocaleDateString('ko-KR')}</span>
                         </div>
-                        <button class="edit-btn" style="padding:4px 10px;font-size:0.78rem;color:#e74c3c;border-color:#e74c3c;flex-shrink:0;" onclick="deleteCommunityApplication('${id}','${a.id}')">삭제</button>
+                        <span style="display:flex;gap:5px;flex-shrink:0;margin-left:auto;">
+                            ${st !== 'accepted' ? btn('수락', `setCommunityApplicationStatus('${id}','${a.id}','accepted')`, '#166534') : ''}
+                            ${st !== 'rejected' ? btn('거절', `setCommunityApplicationStatus('${id}','${a.id}','rejected')`, '#B45309') : ''}
+                            ${btn('삭제', `deleteCommunityApplication('${id}','${a.id}')`, '#e74c3c')}
+                        </span>
                     </div>`;
                     });
                 }
@@ -9346,20 +9380,20 @@
                 formData[f.label] = val;
             }
 
-            const { error } = await supabaseClient.from('community_applications').insert({
+            const { data: newApp, error } = await supabaseClient.from('community_applications').insert({
                 meeting_id: id,
                 applicant_name: name,
                 applicant_email: email || '',
                 applicant_phone: phone || null,
                 form_data: formData
-            });
+            }).select('id').single();
 
             if (error) {
                 if (error.code === '23505') return alert('이미 신청하셨습니다.');
                 return alert('신청 실패: ' + error.message);
             }
 
-            // Send email — Resend if configured, else mailto: fallback
+            // 모임장 알림 메일 — /send-email(Resend), 실패·미설정 시 mailto 폴백
             let emailSent = false;
             const mailSubject = `[${meeting.title}] 신규 신청: ${name}`;
             const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
@@ -9375,38 +9409,8 @@
             Object.entries(formData).forEach(([k, v]) => { if (v) mailBodyText += `\n- ${k}: ${v}`; });
             mailBodyText += `\n\n※ 신청자 전체 목록은 모임 수정 화면 → [신청자 관리] 탭 → 'CSV 다운로드' 버튼으로 확인하실 수 있습니다.\n\n감사합니다.\n게어드 커뮤니티`;
 
-            if (EMAIL_ENABLED) {
-                const infoRows = [
-                    dateStr ? `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">날짜·시간</td><td style="padding:6px 0;font-size:0.88rem;">${dateStr}${timeStr ? ' · ' + timeStr : ''}</td></tr>` : '',
-                    locStr  ? `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">장소</td><td style="padding:6px 0;font-size:0.88rem;">${locStr}</td></tr>` : '',
-                ].join('');
-                const appRows = [
-                    `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">이름</td><td style="padding:6px 0;font-size:0.88rem;">${name}</td></tr>`,
-                    `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">연락처</td><td style="padding:6px 0;font-size:0.88rem;">${phone}</td></tr>`,
-                    ...Object.entries(formData).filter(([,v]) => v).map(([k,v]) => `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">${k}</td><td style="padding:6px 0;font-size:0.88rem;">${v}</td></tr>`),
-                ].join('');
-                const emailBody = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;">
-  <div style="background:#f5f5f5;padding:28px 32px;border-radius:12px 12px 0 0;">
-    <p style="margin:0 0 4px;font-size:0.8rem;color:#888;">게어드 커뮤니티 신청 알림</p>
-    <h2 style="margin:0;font-size:1.25rem;">[${meeting.title}]<br>새로운 신청이 접수되었습니다</h2>
-  </div>
-  <div style="background:#fff;padding:28px 32px;border-radius:0 0 12px 12px;border:1px solid #eee;border-top:none;">
-    <p style="margin:0 0 20px;font-size:0.95rem;">안녕하세요, <b>${meeting.organizer_name}</b>님!<br>아래 신청 정보를 확인해주세요.</p>
-    ${infoRows ? `<p style="margin:0 0 6px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">모임 정보</p><table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${infoRows}</table>` : ''}
-    <p style="margin:0 0 6px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">신청자 정보</p>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">${appRows}</table>
-    <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:0.82rem;color:#666;line-height:1.6;">
-      신청자 전체 목록은 <b>모임 수정 화면 → [신청자 관리] 탭 → CSV 다운로드</b> 버튼으로 확인하실 수 있습니다.
-    </div>
-  </div>
-</div>`;
-                try {
-                    await sendResendEmail(meeting.organizer_email, mailSubject, emailBody);
-                    emailSent = true;
-                } catch (e) {
-                    console.error('Resend 실패:', e.message);
-                    alert('자동 메일 발송 실패 (Resend): ' + e.message + '\n\n메일 클라이언트로 대체합니다.');
-                }
+            if (newApp && newApp.id) {
+                emailSent = await sendOrganizerMail(id, newApp.id);
             }
             if (!emailSent) {
                 const mailto = `mailto:${encodeURIComponent(meeting.organizer_email)}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBodyText)}`;
@@ -9436,11 +9440,13 @@
             if (error) return alert('다운로드 실패: ' + error.message);
 
             const formFields = meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : [];
-            const headers = ['이름', '이메일', '전화번호', '신청일시', ...formFields.map(f => f.label)];
+            const headers = ['이름', '이메일', '전화번호', '상태', '신청일시', ...formFields.map(f => f.label)];
+            const stLabel = { accepted: '수락', rejected: '거절', pending: '대기' };
             const rows = (apps || []).map(a => {
                 const fd = a.form_data || {};
                 return [
                     a.applicant_name, a.applicant_email, a.applicant_phone || '',
+                    stLabel[a.status || 'pending'] || '대기',
                     new Date(a.created_at).toLocaleString('ko-KR'),
                     ...formFields.map(f => fd[f.label] || '')
                 ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
@@ -9535,7 +9541,125 @@
             showToast(`멤버 ${members.length}명 목록을 다운로드했습니다.`);
         };
 
+        // ── 모임 공유: 모임별 딥링크(#community/meeting/<id>) 복사·공유
+        async function shareCommunityMeeting(id) {
+            const m = state.communityMeetings.find(x => x.id === id);
+            const url = `${location.origin}${location.pathname}#community/meeting/${id}`;
+            if (navigator.share) {
+                try { await navigator.share({ title: m ? m.title : '모임', url }); return; }
+                catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('모임 링크가 복사되었습니다.');
+            } catch (_) {
+                prompt('아래 링크를 복사하세요', url);
+            }
+        }
+
+        // ── 신청 조회: 이름+연락처로 내 신청 내역 확인·취소 (비로그인)
+        const _CA_STATUS_CHIP = (status) => {
+            const s = status || 'pending';
+            return s === 'accepted' ? ['✅ 수락됨', '#DCFCE7', '#166534']
+                : s === 'rejected' ? ['❌ 거절됨', '#FEE2E2', '#991B1B']
+                : ['⏳ 확인 대기', '#FEF3C7', '#92400E'];
+        };
+
+        function renderCommunityMyApps() {
+            state.communityView = 'myapps';
+            const el = document.getElementById('communityContent');
+            if (!el) return;
+            el.innerHTML = `
+                <div class="community-detail-topbar">
+                    <button class="edit-btn" onclick="communityBackToList()">← 목록으로</button>
+                </div>
+                <div class="gforms-header">
+                    <h2>신청 조회</h2>
+                    <p>신청할 때 입력한 <b>이름</b>과 <b>연락처</b>를 입력하면 신청 내역을 확인하고 취소할 수 있습니다.</p>
+                </div>
+                <div class="gforms-card">
+                    <label class="gforms-label">이름<span class="req">*</span></label>
+                    <input type="text" id="myAppName" class="gforms-input" placeholder="신청 시 입력한 이름">
+                </div>
+                <div class="gforms-card">
+                    <label class="gforms-label">연락처<span class="req">*</span></label>
+                    <input type="tel" id="myAppPhone" class="gforms-input" placeholder="010-0000-0000">
+                </div>
+                <div id="myAppResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                <button class="gforms-submit" style="width:100%;" onclick="lookupCommunityMyApps()">조회하기</button>
+                <div id="myAppList" style="margin-top:18px;"></div>`;
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+
+        async function lookupCommunityMyApps() {
+            const res = document.getElementById('myAppResult');
+            const listEl = document.getElementById('myAppList');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            if (listEl) listEl.innerHTML = '';
+            const name = (document.getElementById('myAppName')?.value || '').trim();
+            const phoneDigits = (document.getElementById('myAppPhone')?.value || '').replace(/\D/g, '');
+            if (!name) { showErr('이름을 입력해주세요.'); return; }
+            if (phoneDigits.length < 10) { showErr('연락처를 정확히 입력해주세요.'); return; }
+            const { data, error } = await supabaseClient.from('community_applications')
+                .select('*').eq('applicant_name', name).order('created_at', { ascending: false });
+            if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
+            // 연락처까지 일치해야 표시 — 이름만으로는 노출하지 않는다
+            const mine = (data || []).filter(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits);
+            if (!mine.length) { showErr('일치하는 신청 내역이 없습니다. 이름과 연락처를 확인해주세요.'); return; }
+            if (!state.communityMeetings.length) await fetchCommunityMeetings();
+            const today = new Date().toLocaleDateString('en-CA');
+            if (listEl) listEl.innerHTML = mine.map(a => {
+                const m = state.communityMeetings.find(x => x.id === a.meeting_id);
+                const chip = _CA_STATUS_CHIP(a.status);
+                const dateStr = m && m.meeting_date ? m.meeting_date.replace(/-/g, '.') : '';
+                const isPast = !!(m && m.meeting_date && m.meeting_date < today);
+                return `<div class="gforms-card" style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="background:${chip[1]};color:${chip[2]};font-size:0.76rem;font-weight:700;padding:3px 10px;border-radius:11px;flex:none;">${chip[0]}</span>
+                        <span style="font-weight:700;font-size:0.95rem;">${m ? escapeHtml(m.title) : '(삭제된 모임)'}</span>
+                        ${isPast ? '<span style="font-size:0.74rem;color:var(--wds-gray-500);">지난 모임</span>' : ''}
+                    </div>
+                    <div style="font-size:0.84rem;color:var(--wds-gray-600);">
+                        ${dateStr ? `📅 ${dateStr}${m.meeting_time ? ' · ' + escapeHtml(m.meeting_time) : ''}` : ''}
+                        ${m && m.location ? ` &nbsp;📍 ${escapeHtml(m.location)}` : ''}
+                        <span style="color:var(--wds-gray-400);"> · ${new Date(a.created_at).toLocaleDateString('ko-KR')} 신청</span>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        ${m ? `<button class="edit-btn" style="padding:6px 14px;font-size:0.82rem;" onclick="renderCommunityDetail('${a.meeting_id}')">모임 보기</button>` : ''}
+                        ${!isPast ? `<button class="edit-btn" style="padding:6px 14px;font-size:0.82rem;color:#e74c3c;border-color:#e74c3c;" onclick="cancelMyCommunityApplication('${a.id}','${a.meeting_id}')">신청 취소</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function cancelMyCommunityApplication(appId, meetingId) {
+            if (!confirm('신청을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.')) return;
+            const { data, error } = await supabaseClient.from('community_applications')
+                .delete().eq('id', appId).select('id');
+            if (error) { alert('취소 중 오류가 발생했습니다: ' + error.message); return; }
+            if (!data || !data.length) { alert('이미 처리된 신청입니다.'); }
+            else {
+                state.communityApplicationCounts[meetingId] = Math.max(0, (state.communityApplicationCounts[meetingId] || 1) - 1);
+                showToast('신청이 취소되었습니다.');
+            }
+            lookupCommunityMyApps(); // 폼에 남은 입력값으로 재조회
+        }
+
+        // ── 신청자 관리: 수락/거절 (모임장 전용 탭에서 호출)
+        async function setCommunityApplicationStatus(meetingId, appId, status) {
+            const label = status === 'accepted' ? '수락' : '거절';
+            if (!confirm(`이 신청을 ${label}하시겠습니까?`)) return;
+            const { data, error } = await supabaseClient.from('community_applications')
+                .update({ status }).eq('id', appId).select('id');
+            if (error) { alert(`${label} 실패: ` + error.message + '\n\nstatus 컬럼이 없다면 20260901 SQL 실행이 필요합니다.'); return; }
+            if (!data || !data.length) { alert('신청을 찾을 수 없습니다. 목록을 새로고침합니다.'); }
+            else showToast(`${label} 처리되었습니다.`);
+            renderCommunityDetail(meetingId);
+        }
+
         function communityBackToList() {
+            _pushNav('community');
             state.communityView = 'list';
             state.communityCurrentId = null;
             state.communityCurrentMeeting = null;
