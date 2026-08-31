@@ -1,0 +1,21 @@
+# 공간 대관 이용일 임박(D-2) 알림 크론
+# 매일 08:00 KST(23:00 UTC)에 /send-reminders 를 호출해, 이용일이 이틀 앞으로
+# 다가온 승인 예약을 관리자 푸시로 알린다. 엔드포인트는 reminder_sent_at 선점으로
+# 건당 1회만 발송하므로 중복 실행·수동 실행(workflow_dispatch) 모두 안전하다.
+name: perf-booking-reminder
+
+on:
+  schedule:
+    - cron: '0 23 * * *'   # 23:00 UTC = 다음날 08:00 KST
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /send-reminders
+        run: |
+          curl -sS --fail-with-body --max-time 60 -X POST \
+            'https://gatherallaround.co.kr/send-reminders'
+          echo

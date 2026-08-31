@@ -14,6 +14,8 @@
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
+  D-2 관리자 알림: GitHub Actions 크론(매일 08:00 KST) → `/send-reminders`
+  (`reminder_sent_at` 선점으로 건당 1회, 놓친 날은 D-1/D-DAY 캐치업, 푸시는 `/notify-admins` 재사용).
 - 테스트: `tests/` (event-api·send-sms 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
 - 개발 브랜치: `claude/remove-main-page-button-oi3bml`
 
