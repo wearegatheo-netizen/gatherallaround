@@ -95,7 +95,7 @@ export async function onRequest(context) {
             // 푸시 실패 시에도 선점은 유지 — 매일 재시도로 관리자를 시달리게 하지 않는다
             await fetch(`${origin}/notify-admins`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, body }),
+                body: JSON.stringify({ title, body, roles: ['운영 총괄'] }), // D-2 알림은 운영 총괄만
             }).catch(() => {});
             sent++;
         }

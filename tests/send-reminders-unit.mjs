@@ -63,6 +63,7 @@ const notifyPayload = () => {
   chk('제목: D-2 표기', !!p && p.title === '⏰ 공간 대관 D-2', p && p.title);
   chk('본문: 이름·일시·인원·예약번호', !!p && p.body.includes('홍길동') && p.body.includes(`${m}/${d}(`)
     && p.body.includes('18-23시') && p.body.includes('5명') && p.body.includes('AB23CD'), p && p.body);
+  chk('수신자: 운영 총괄만', !!p && JSON.stringify(p.roles) === '["운영 총괄"]', p && JSON.stringify(p.roles));
   chk('선점 PATCH가 푸시보다 먼저', calls.findIndex(c => c.method === 'PATCH') < calls.findIndex(c => c.url.includes('/notify-admins')));
 }
 // ── 3. 당일(캐치업) 건 → D-DAY 표기

@@ -24,7 +24,7 @@ export async function onRequest(context) {
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
     try {
-        const { title, body } = await request.json();
+        const { title, body, roles } = await request.json();
         if (!title || !body) {
             return new Response(JSON.stringify({ error: 'title and body required' }), {
                 status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -39,7 +39,11 @@ export async function onRequest(context) {
             });
         }
 
-        const roleFilter = encodeURIComponent('in.("운영 총괄","총괄","세션장")');
+        // roles(선택): 수신 역할을 기본 집합 안에서만 좁힌다 — 공개 엔드포인트이므로 넓히기는 불가
+        const ADMIN_ROLES = ['운영 총괄', '총괄', '세션장'];
+        const wanted = Array.isArray(roles) ? roles.filter(r => ADMIN_ROLES.includes(r)) : [];
+        const target = wanted.length ? wanted : ADMIN_ROLES;
+        const roleFilter = encodeURIComponent(`in.(${target.map(r => `"${r}"`).join(',')})`);
         const url = `${SUPABASE_URL}/rest/v1/profiles?role=${roleFilter}&push_subscription=not.is.null&select=push_subscription`;
         const sbRes = await fetch(url, {
             headers: {
