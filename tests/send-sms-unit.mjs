@@ -11,8 +11,8 @@ const ENV = {
 };
 const BK_ID = '11111111-1111-4111-8111-111111111111';
 
-const req = (body, method = 'POST', origin = 'https://gatherallaround.co.kr') =>
-  new Request('https://gatherallaround.co.kr/send-sms', {
+const req = (body, method = 'POST', origin = 'https://gatherallaround.com') =>
+  new Request('https://gatherallaround.com/send-sms', {
     method, headers: { Origin: origin, 'Content-Type': 'application/json' },
     body: method === 'POST' ? JSON.stringify(body) : undefined,
   });

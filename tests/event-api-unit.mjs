@@ -9,8 +9,8 @@ const ENV = { SUPABASE_URL: 'https://sb.test', SUPABASE_SERVICE_ROLE_KEY: 'sk-se
 const EV_ID = '11111111-1111-4111-8111-111111111111';
 const TK_ID = '22222222-2222-4222-8222-222222222222';
 
-const req = (body, method = 'POST', origin = 'https://gatherallaround.co.kr') =>
-  new Request('https://gatherallaround.co.kr/event-api', {
+const req = (body, method = 'POST', origin = 'https://gatherallaround.com') =>
+  new Request('https://gatherallaround.com/event-api', {
     method, headers: { Origin: origin, 'Content-Type': 'application/json' },
     body: method === 'POST' ? JSON.stringify(body) : undefined,
   });
@@ -45,9 +45,9 @@ const TICKET = (over = {}) => ({
 {
   mockFetch([]);
   const r = await run(null, 'OPTIONS');
-  chk('OPTIONS: 허용 Origin 반사', r.headers.get('Access-Control-Allow-Origin') === 'https://gatherallaround.co.kr');
+  chk('OPTIONS: 허용 Origin 반사', r.headers.get('Access-Control-Allow-Origin') === 'https://gatherallaround.com');
   const r2 = await onRequest({ request: req({}, 'OPTIONS', 'https://evil.example'), env: ENV });
-  chk('비허용 Origin → 기본 도메인 고정', r2.headers.get('Access-Control-Allow-Origin') === 'https://gatherallaround.co.kr');
+  chk('비허용 Origin → 기본 도메인 고정', r2.headers.get('Access-Control-Allow-Origin') === 'https://gatherallaround.com');
   const r3 = await run(null, 'PUT');
   chk('PUT: 405', r3.status === 405);
 }

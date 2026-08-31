@@ -5,12 +5,12 @@
 function corsFor(origin) {
     const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
     const allowed = origin && (
-        origin === 'https://gatherallaround.co.kr' ||
-        origin === 'https://www.gatherallaround.co.kr' ||
-        /\.(pages\.dev|gatherallaround\.co\.kr)$/.test(host)
+        origin === 'https://gatherallaround.com' ||
+        origin === 'https://www.gatherallaround.com' ||
+        /\.(pages\.dev|gatherallaround\.com)$/.test(host)
     );
     return {
-        'Access-Control-Allow-Origin': allowed ? origin : 'https://gatherallaround.co.kr',
+        'Access-Control-Allow-Origin': allowed ? origin : 'https://gatherallaround.com',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Vary': 'Origin',

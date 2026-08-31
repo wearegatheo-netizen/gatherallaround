@@ -9,8 +9,8 @@ const ENV = { SUPABASE_URL: 'https://sb.test', SUPABASE_SERVICE_ROLE_KEY: 'sk-se
 const BK_ID = '11111111-1111-4111-8111-111111111111';
 
 const req = (method = 'POST') =>
-  new Request('https://gatherallaround.co.kr/send-reminders', {
-    method, headers: { Origin: 'https://gatherallaround.co.kr' },
+  new Request('https://gatherallaround.com/send-reminders', {
+    method, headers: { Origin: 'https://gatherallaround.com' },
   });
 const run = (method = 'POST', env = ENV) => onRequest({ request: req(method), env });
 

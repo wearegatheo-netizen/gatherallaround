@@ -15,10 +15,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Call /send-reminders
-        # GitHub 러너에서 apex(.co.kr)가 DNS 해석되지 않는 사례가 있어 www → pages.dev 순 폴백
+        # 커스텀 도메인 장애 대비 www → pages.dev 순 폴백
         run: |
           set +e
-          for host in gatherallaround.co.kr www.gatherallaround.co.kr gatherallaround.pages.dev; do
+          for host in gatherallaround.com www.gatherallaround.com gatherallaround.pages.dev; do
             echo "== try $host"
             out=$(curl -sS --fail-with-body --max-time 60 -X POST "https://$host/send-reminders" 2>&1)
             rc=$?

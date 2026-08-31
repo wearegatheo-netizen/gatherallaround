@@ -6,8 +6,8 @@ let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
 
 const ENV = { SUPABASE_URL: 'https://sb.test', SUPABASE_SERVICE_ROLE_KEY: 'sk-service' };
-const req = (body) => new Request('https://gatherallaround.co.kr/notify-admins', {
-  method: 'POST', headers: { Origin: 'https://gatherallaround.co.kr', 'Content-Type': 'application/json' },
+const req = (body) => new Request('https://gatherallaround.com/notify-admins', {
+  method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' },
   body: JSON.stringify(body),
 });
 const run = (body) => onRequest({ request: req(body), env: ENV });
