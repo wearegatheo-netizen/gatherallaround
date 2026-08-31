@@ -29,6 +29,9 @@ function mockFetch(routes) {
   };
 }
 
+// 시각 고정(월 중순) — 실행일이 1일이어도 파기 로직이 일반 테스트에 끼어들지 않게
+Date.now = () => Date.parse('2026-09-15T10:00:00+09:00');
+
 // 함수와 동일한 KST 날짜 계산
 const kst = (off = 0) => new Date(Date.now() + 9 * 3600e3 + off * 86400e3).toISOString().slice(0, 10);
 const BK = (over = {}) => ({
@@ -104,6 +107,30 @@ const notifyPayload = () => {
   const q = calls[0].url;
   chk('쿼리: 승인 + 미발송 + 날짜 창', q.includes('status=eq.approved') && q.includes('reminder_sent_at=is.null')
     && q.includes(`date=gte.${kst(0)}`) && q.includes(`date=lte.${kst(2)}`), q.slice(q.indexOf('?'), q.indexOf('?') + 120));
+}
+
+// ── 7. 매월 1일: 보유기간(1년) 만료 건 파기
+{
+  Date.now = () => Date.parse('2026-10-01T08:00:00+09:00'); // 1일로 이동
+  mockFetch([
+    ['performance_bookings?status=eq.approved', { body: [] }],
+    ['performance_bookings?date=lt.', { method: 'DELETE', body: [{ id: 'a' }, { id: 'b' }] }],
+  ]);
+  const j = await (await run()).json();
+  const del = calls.find(c => c.method === 'DELETE');
+  chk('1일 POST: 파기 DELETE 실행 + purged 2', j.ok === true && j.purged === 2 && !!del, JSON.stringify(j));
+  const cutoffTs = new Date(Date.now() - 365 * 86400e3).toISOString(); // 정확히 365일 전 시각
+  chk('파기 조건: 이용일·접수일 모두 1년 경과', !!del && del.url.includes('date=lt.2025-10-01') && del.url.includes(`created_at=lt.${cutoffTs}`),
+    del && del.url.slice(del.url.indexOf('?')));
+
+  mockFetch([['performance_bookings?status=eq.approved', { body: [] }]]);
+  await run('GET');
+  chk('1일 GET(드라이런): 파기 안 함', !calls.some(c => c.method === 'DELETE'));
+
+  Date.now = () => Date.parse('2026-10-02T08:00:00+09:00'); // 1일 아님
+  mockFetch([['performance_bookings?status=eq.approved', { body: [] }]]);
+  const j2 = await (await run()).json();
+  chk('1일 아니면 파기 안 함 (purged 0)', j2.purged === 0 && !calls.some(c => c.method === 'DELETE'));
 }
 
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);

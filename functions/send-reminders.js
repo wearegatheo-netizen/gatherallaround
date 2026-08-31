@@ -1,8 +1,10 @@
 // Cloudflare Pages Function: /send-reminders
-// 공간 대관 이용일 임박(D-2) 관리자 푸시 알림.
+// 공간 대관 이용일 임박(D-2) 관리자 푸시 알림 + 매월 1일 개인정보 보유기간 만료 건 파기.
 // 매일 08:00 KST에 GitHub Actions 크론(.github/workflows/perf-reminder.yml)이 POST로 호출한다.
 // 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
 // 아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
+// 파기: 매월 1일(KST) 호출이면 이용일·접수일이 모두 1년 넘게 지난 행을 DELETE —
+// 신청 폼 개인정보 동의 문구("이용 종료 후 1년 보관 후 파기") 이행.
 //
 // 시크릿 없이 공개 호출 가능하지만 남용이 무해한 설계:
 //   발송 전 reminder_sent_at 을 조건부 PATCH로 선점 — 같은 건은 평생 1회만 발송되므로
@@ -99,7 +101,22 @@ export async function onRequest(context) {
             }).catch(() => {});
             sent++;
         }
-        return json({ ok: true, checked: bookings.length, sent });
+
+        // 매월 1일(KST): 보유기간(1년) 만료 건 파기 — 이용일과 접수일이 모두 1년 경과한 행만.
+        // 며칠 지나 실행돼도 같은 집합을 지우는 멱등 동작이라 반복·지연 호출 모두 안전하다.
+        let purged = 0;
+        if (today.endsWith('-01')) {
+            const cutoffDate = kstDateStr(-365);
+            const cutoffTs = new Date(Date.now() - 365 * 86400e3).toISOString();
+            const delRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/performance_bookings?date=lt.${cutoffDate}&created_at=lt.${cutoffTs}&select=id`,
+                { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=representation' } });
+            if (delRes.ok) {
+                const deleted = await delRes.json().catch(() => []);
+                purged = Array.isArray(deleted) ? deleted.length : 0;
+            }
+        }
+        return json({ ok: true, checked: bookings.length, sent, purged });
     } catch (e) {
         return json({ error: String(e && e.message || e) }, 500);
     }

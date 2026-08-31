@@ -13381,12 +13381,46 @@
             setTimeout(() => { t.style.opacity = '0'; }, duration);
         }
 
+        // 로그아웃 1분 전 경고 배너 — 남은 초 카운트다운 + [연장] 버튼.
+        // 어떤 활동이든(연장 버튼 포함) resetInactivityTimer를 타므로 배너가 떠 있던 중의
+        // 활동은 '연장'으로 안내한다.
+        let warnCountdownId = null;
+        function showLogoutWarning(deadline) {
+            hideLogoutWarning();
+            const el = document.createElement('div');
+            el.id = 'logout-warn-banner';
+            el.style.cssText = 'position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateZ(0);will-change:transform;z-index:10000;background:rgba(28,28,30,0.94);color:#fff;padding:11px 12px 11px 18px;border-radius:14px;display:flex;align-items:center;gap:14px;font-size:0.88rem;box-shadow:0 6px 20px rgba(0,0,0,0.28);white-space:nowrap';
+            el.innerHTML = `<span>⚠️ <strong id="logoutWarnSec">60</strong>초 후 자동 로그아웃됩니다</span>
+                <button type="button" onclick="extendSession()" style="flex:none;padding:8px 18px;border:none;border-radius:9px;background:var(--wds-primary);color:#fff;font-weight:700;font-size:0.86rem;cursor:pointer;font-family:inherit">연장</button>`;
+            document.body.appendChild(el);
+            warnCountdownId = setInterval(() => {
+                const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                const s = document.getElementById('logoutWarnSec');
+                if (s) s.textContent = left;
+            }, 1000);
+        }
+
+        function hideLogoutWarning() {
+            clearInterval(warnCountdownId);
+            warnCountdownId = null;
+            document.getElementById('logout-warn-banner')?.remove();
+        }
+
+        function extendSession() {
+            resetInactivityTimer(); // 배너 제거 + 연장 안내 + 타이머 리셋
+        }
+
         function resetInactivityTimer() {
             if (!state.user) return;
             clearTimeout(inactivityTimer);
             clearTimeout(warnTimer);
-            warnTimer = setTimeout(() => showToast('⚠️ 1분 후 자동 로그아웃됩니다.', 10000), INACTIVITY_MS - 60000);
+            if (document.getElementById('logout-warn-banner')) {
+                hideLogoutWarning();
+                showToast('로그인이 연장되었습니다.');
+            }
+            warnTimer = setTimeout(() => showLogoutWarning(Date.now() + 60000), INACTIVITY_MS - 60000);
             inactivityTimer = setTimeout(async () => {
+                hideLogoutWarning();
                 showToast('자동 로그아웃되었습니다.');
                 await handleLogout();
             }, INACTIVITY_MS);
@@ -13404,6 +13438,7 @@
             clearTimeout(warnTimer);
             inactivityTimer = null;
             warnTimer = null;
+            hideLogoutWarning();
         }
 
         async function deleteComment(id) {
