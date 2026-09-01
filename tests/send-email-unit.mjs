@@ -37,7 +37,7 @@ const MEETING = (over = {}) => ({
 });
 const APP = (over = {}) => ({
   id: AP_ID, meeting_id: MT_ID, applicant_name: '홍길동', applicant_phone: '010-1234-5678',
-  form_data: { '참여신청 경로': '인스타그램' }, notified_at: null, ...over,
+  form_data: { '참여신청 경로': '인스타그램', '하고 싶은 말': '첫줄\n둘째줄' }, notified_at: null, ...over,
 });
 const resendCall = () => {
   const c = calls.find(c => c.url.includes('api.resend.com'));
@@ -70,6 +70,9 @@ const resendCall = () => {
   chk('제목·본문: 모임명·신청자·추가 항목', !!mail && mail.subject === '[비트윈 밴즈] 신규 신청: 홍길동'
     && mail.html.includes('홍길동') && mail.html.includes('010-1234-5678') && mail.html.includes('인스타그램')
     && mail.html.includes('2026.09.18'), mail && mail.subject);
+  chk('본문: 여러 줄 답변은 <br> 변환 + 신청자 정보에 nowrap 없음(긴 질문 안전)',
+    !!mail && mail.html.includes('첫줄<br>둘째줄')
+    && !mail.html.split('신청자 정보')[1].includes('white-space:nowrap'));
   chk('선점 PATCH가 발송보다 먼저', calls.findIndex(c => c.method === 'PATCH') < calls.findIndex(c => c.url.includes('api.resend.com')));
 }
 // ── 3. 본문 XSS 이스케이프

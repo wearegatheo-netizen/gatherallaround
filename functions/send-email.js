@@ -31,20 +31,26 @@ function corsFor(origin) {
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// 모임장 알림 메일 본문 — index.html에 있던 템플릿을 서버로 이관
+// 모임장 알림 메일 본문 — index.html에 있던 템플릿을 서버로 이관.
+// 신청자 정보는 표가 아니라 질문 위·답변 아래의 세로 배치 — 모임장이 만든 질문이
+// 아무리 길어도(계좌 안내 문구 등) 답변 칸이 짜부라지지 않는다.
 function buildEmail(meeting, app) {
     const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
     const timeStr = meeting.meeting_time || '';
-    const row = (k, v) => `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;">${esc(k)}</td><td style="padding:6px 0;font-size:0.88rem;">${esc(v)}</td></tr>`;
+    const infoRow = (k, v) => `<tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;font-size:0.88rem;vertical-align:top;">${esc(k)}</td><td style="padding:6px 0;font-size:0.88rem;">${esc(v)}</td></tr>`;
     const infoRows = [
-        dateStr ? row('날짜·시간', `${dateStr}${timeStr ? ' · ' + timeStr : ''}`) : '',
-        meeting.location ? row('장소', meeting.location) : '',
+        dateStr ? infoRow('날짜·시간', `${dateStr}${timeStr ? ' · ' + timeStr : ''}`) : '',
+        meeting.location ? infoRow('장소', meeting.location) : '',
     ].join('');
+    const item = (k, v) => `<div style="margin:0 0 14px;">
+      <div style="font-size:0.78rem;color:#888;line-height:1.5;margin-bottom:3px;">${esc(k)}</div>
+      <div style="font-size:0.95rem;font-weight:600;line-height:1.6;">${esc(v).replace(/\n/g, '<br>')}</div>
+    </div>`;
     const formData = app.form_data && typeof app.form_data === 'object' ? app.form_data : {};
-    const appRows = [
-        row('이름', app.applicant_name),
-        row('연락처', app.applicant_phone || ''),
-        ...Object.entries(formData).filter(([, v]) => v).map(([k, v]) => row(k, v)),
+    const appItems = [
+        item('이름', app.applicant_name),
+        item('연락처', app.applicant_phone || ''),
+        ...Object.entries(formData).filter(([, v]) => v).map(([k, v]) => item(k, v)),
     ].join('');
     const subject = `[${meeting.title}] 신규 신청: ${app.applicant_name}`;
     const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;">
@@ -55,8 +61,8 @@ function buildEmail(meeting, app) {
   <div style="background:#fff;padding:28px 32px;border-radius:0 0 12px 12px;border:1px solid #eee;border-top:none;">
     <p style="margin:0 0 20px;font-size:0.95rem;">안녕하세요, <b>${esc(meeting.organizer_name)}</b>님!<br>아래 신청 정보를 확인해주세요.</p>
     ${infoRows ? `<p style="margin:0 0 6px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">모임 정보</p><table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${infoRows}</table>` : ''}
-    <p style="margin:0 0 6px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">신청자 정보</p>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">${appRows}</table>
+    <p style="margin:0 0 10px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">신청자 정보</p>
+    <div style="margin-bottom:16px;">${appItems}</div>
     <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:0.82rem;color:#666;line-height:1.6;">
       신청자 전체 목록과 수락·거절 관리는 <b>모임 수정 화면 → [신청자 관리] 탭</b>에서 하실 수 있습니다.
     </div>
