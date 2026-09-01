@@ -8555,9 +8555,7 @@
             } else {
                 html += `<div class="community-grid">`;
                 paged.items.forEach(m => {
-                    const cnt = state.communityApplicationCounts[m.id] || 0;
                     const closed = communityIsClosed(m);
-                    const capStr = m.capacity ? `${cnt} / ${m.capacity}명` : `${cnt}명 신청`;
                     const dateStr = m.meeting_date ? m.meeting_date.replace(/-/g, '.') : '';
                     const isFree = communityIsFreeMeeting(m.fee);
                     const thumb = m.cover_image_url
@@ -8577,7 +8575,6 @@
                             ${m.location ? `<div class="community-card-meta">📍 <span class="community-card-meta-label">장소</span> ${escapeHtml(m.location)}</div>` : ''}
                             ${m.fee && !isFree ? `<div class="community-card-meta">💰 <span class="community-card-meta-label">참여비</span> ${escapeHtml(m.fee)}</div>` : ''}
                             <div class="community-card-footer">
-                                <span class="community-card-count">신청 ${capStr}</span>
                                 <span class="community-card-organizer"><span class="community-card-organizer-label">모임장</span> ${escapeHtml(m.organizer_name)}</span>
                             </div>
                         </div>
@@ -8758,7 +8755,6 @@
             const authed = !!state.communityEditAuth[id];
             const editMode = authed && state.communityEditView === id;
             const closed = communityIsClosed(meeting);
-            const capStr = meeting.capacity ? `${activeCnt} / ${meeting.capacity}명` : `${activeCnt}명 신청`;
             const dateStr = meeting.meeting_date ? meeting.meeting_date.replace(/-/g, '.') : '';
             const formFields = state.communityCurrentFormFields;
 
@@ -8808,7 +8804,7 @@
             html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">모임장</span><span class="community-detail-spec-value">${escapeHtml(meeting.organizer_name)}${meeting.organizer_phone ? ' · ' + escapeHtml(meeting.organizer_phone) : ''}</span></div>`;
             if (meeting.items_to_bring) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">준비물</span><span class="community-detail-spec-value">${escapeHtml(meeting.items_to_bring)}</span></div>`;
             if (meeting.application_deadline) html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 마감</span><span class="community-detail-spec-value">${escapeHtml(meeting.application_deadline.replace(/-/g,'.'))}</span></div>`;
-            html += `<div class="community-detail-spec-row"><span class="community-detail-spec-label">신청 현황</span><span class="community-detail-spec-value highlight">${capStr}</span></div>`;
+            // 신청 인원(N/정원)은 공개 화면에 표시하지 않는다 — 모임장은 [신청자 관리] 탭에서 확인
             html += `</div>
                     <div style="display:flex;justify-content:flex-end;margin-top:14px;">
                         <button class="edit-btn" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:0.88rem;" onclick="shareCommunityMeeting('${id}')">🔗 공유</button>
