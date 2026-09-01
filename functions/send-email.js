@@ -64,7 +64,7 @@ function buildEmail(meeting, app) {
     <p style="margin:0 0 10px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">신청자 정보</p>
     <div style="margin-bottom:16px;">${appItems}</div>
     <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:0.82rem;color:#666;line-height:1.6;">
-      📎 첨부된 <b>신청서 파일</b>을 열면 그대로 인쇄하거나 PDF로 저장할 수 있습니다.<br>
+      📎 메일에 첨부된 <b>신청서 파일(HTML)</b>을 열어 그대로 인쇄하거나 PDF로 저장할 수 있습니다.<br>
       신청자 전체 목록과 수락·거절 관리는 <b>모임 수정 화면 → [신청자 관리] 탭</b>에서 하실 수 있습니다.
     </div>
   </div>
