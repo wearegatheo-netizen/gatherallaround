@@ -1,0 +1,20 @@
+# 서버 함수 셀프 진단 — 각 Cloudflare 함수의 GET 진단 엔드포인트를 호출해
+# 환경변수·컬럼 적용 상태를 출력한다 (키 원문·개인정보 없음, 발송 없음).
+# 개발 환경에서 외부 도메인 접근이 막혀 있을 때 원격 상태 확인용. 수동 실행 전용.
+name: functions-diagnostics
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET diagnostics
+        run: |
+          for path in send-email send-sms send-reminders; do
+            echo "== /$path"
+            curl -sS --max-time 60 "https://gatherallaround.com/$path" || true
+            echo; echo
+          done

@@ -73,13 +73,24 @@ export async function onRequest(context) {
     });
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-    // GET: 셀프 진단 — 설정 상태만
+    // GET: 셀프 진단 — 키 원문·개인정보 없이 설정 상태만
     if (request.method === 'GET') {
-        return json({
+        const out = {
             환경변수_SUPABASE: !!(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY),
             환경변수_RESEND: !!env.RESEND_API_KEY,
             발신주소: env.RESEND_FROM || 'noreply@gatherallaround.com (기본값)',
-        });
+        };
+        if (out.환경변수_SUPABASE) {
+            try {
+                const r = await fetch(`${env.SUPABASE_URL}/rest/v1/community_applications?select=notified_at,status&limit=1`,
+                    { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+                out['컬럼_20260901_SQL'] = r.ok;
+                if (!r.ok) out['컬럼_오류'] = (await r.text().catch(() => '')).slice(0, 200);
+            } catch (e) {
+                out['컬럼_20260901_SQL'] = String(e && e.message || e);
+            }
+        }
+        return json(out);
     }
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 

@@ -116,9 +116,14 @@ const resendCall = () => {
 }
 // ── 6. GET 진단
 {
-  mockFetch([]);
+  mockFetch([['community_applications?select=notified_at,status', { body: [] }]]);
   const j = await (await run(null, 'GET')).json();
-  chk('GET 진단: 설정 상태만', j['환경변수_SUPABASE'] === true && j['환경변수_RESEND'] === true && calls.length === 0);
+  chk('GET 진단: 설정 상태 + 20260901 컬럼 확인', j['환경변수_SUPABASE'] === true && j['환경변수_RESEND'] === true
+    && j['컬럼_20260901_SQL'] === true, JSON.stringify(j).slice(0, 120));
+
+  mockFetch([['community_applications?select=notified_at,status', { status: 400, body: { message: 'column does not exist' } }]]);
+  const j2 = await (await run(null, 'GET')).json();
+  chk('GET 진단: 컬럼 미적용이면 false + 오류 표시', j2['컬럼_20260901_SQL'] === false && !!j2['컬럼_오류']);
 }
 
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);
