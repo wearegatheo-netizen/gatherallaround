@@ -7,6 +7,10 @@
 -- 중복 방지는 클라이언트가 연락처(숫자 기준) 대조로 수행하도록 바뀌었으므로
 -- 이 테이블의 unique 제약·인덱스를 제거하고, 기존 '' 이메일은 null로 정리한다.
 -- (PK는 건드리지 않는다)
+-- ※ 이메일은 폼에서 제거된 선택 정보인데 NOT NULL 제약까지 걸려 있어
+--    null 저장이 거부된다(23502) — 먼저 해제해야 아래 정리와 신규 신청이 동작한다.
+
+alter table public.community_applications alter column applicant_email drop not null;
 
 update public.community_applications set applicant_email = null where applicant_email = '';
 
