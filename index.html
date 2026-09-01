@@ -9390,10 +9390,20 @@
                 formData[f.label] = val;
             }
 
+            // 중복 신청 방지 — 같은 연락처(숫자 기준)로 이 모임에 이미 신청했으면 차단.
+            // ※ DB의 (meeting_id, applicant_email) unique는 이메일 칸 제거 후 모든 신청이
+            //   ''로 저장되며 서로 충돌하는 오작동을 일으켰다 — 이메일은 null로 저장해 회피.
+            const phoneDigits = phone.replace(/\D/g, '');
+            const { data: dupCheck } = await supabaseClient.from('community_applications')
+                .select('applicant_phone').eq('meeting_id', id);
+            if ((dupCheck || []).some(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits)) {
+                return alert('이미 신청하셨습니다.\n신청 내역은 목록의 [신청 조회]에서 확인·취소할 수 있습니다.');
+            }
+
             const { data: newApp, error } = await supabaseClient.from('community_applications').insert({
                 meeting_id: id,
                 applicant_name: name,
-                applicant_email: email || '',
+                applicant_email: email || null,
                 applicant_phone: phone || null,
                 form_data: formData
             }).select('id').single();
