@@ -13649,7 +13649,7 @@
         function initTheme() {
             let saved = null;
             try { saved = localStorage.getItem('gaa_theme'); } catch (e) {}
-            if (!saved) saved = 'dark';
+            if (!saved) saved = 'light'; // 기본 라이트 모드 (직접 바꾼 사용자는 저장된 선택 유지)
             applyTheme(saved);
         }
 
