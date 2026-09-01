@@ -64,11 +64,68 @@ function buildEmail(meeting, app) {
     <p style="margin:0 0 10px;font-size:0.8rem;font-weight:700;color:#888;letter-spacing:0.05em;">신청자 정보</p>
     <div style="margin-bottom:16px;">${appItems}</div>
     <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:0.82rem;color:#666;line-height:1.6;">
+      📎 첨부된 <b>신청서 파일</b>을 열면 그대로 인쇄하거나 PDF로 저장할 수 있습니다.<br>
       신청자 전체 목록과 수락·거절 관리는 <b>모임 수정 화면 → [신청자 관리] 탭</b>에서 하실 수 있습니다.
     </div>
   </div>
 </div>`;
-    return { subject, html };
+
+    // 첨부용 신청서 — 어느 기기에서나 열리는 단일 HTML. 브라우저의 인쇄 → PDF 저장으로
+    // 바로 PDF가 된다 (서버엔 브라우저·한글 폰트가 없어 PDF 직접 생성은 불가).
+    const receivedAt = new Date(Date.now() + 9 * 3600e3); // KST
+    const receivedStr = `${receivedAt.getUTCFullYear()}.${String(receivedAt.getUTCMonth() + 1).padStart(2, '0')}.${String(receivedAt.getUTCDate()).padStart(2, '0')} ${String(receivedAt.getUTCHours()).padStart(2, '0')}:${String(receivedAt.getUTCMinutes()).padStart(2, '0')}`;
+    const sheetItem = (k, v) => `<div class="item"><div class="q">${esc(k)}</div><div class="a">${esc(v).replace(/\n/g, '<br>')}</div></div>`;
+    const sheetItems = [
+        sheetItem('이름', app.applicant_name),
+        sheetItem('연락처', app.applicant_phone || ''),
+        ...Object.entries(formData).filter(([, v]) => v).map(([k, v]) => sheetItem(k, v)),
+    ].join('');
+    const attachmentHtml = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>신청서 - ${esc(app.applicant_name)} (${esc(meeting.title)})</title>
+<style>
+  body{font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#222;margin:0;background:#f0f1f3;word-break:keep-all;}
+  .sheet{max-width:660px;margin:28px auto;background:#fff;border:1px solid #e3e4e6;border-radius:14px;padding:40px 44px;box-sizing:border-box;}
+  .brand{font-size:0.78rem;color:#999;letter-spacing:0.06em;margin:0 0 6px;}
+  h1{font-size:1.35rem;margin:0 0 4px;line-height:1.4;}
+  .meta{font-size:0.82rem;color:#888;margin:0 0 24px;padding-bottom:18px;border-bottom:2px solid #222;}
+  h2{font-size:0.82rem;color:#888;letter-spacing:0.05em;margin:26px 0 12px;}
+  table{width:100%;border-collapse:collapse;}
+  td{padding:7px 0;font-size:0.92rem;vertical-align:top;}
+  td.k{color:#888;white-space:nowrap;padding-right:16px;width:1%;}
+  .item{margin:0 0 16px;}
+  .q{font-size:0.8rem;color:#888;line-height:1.5;margin-bottom:3px;}
+  .a{font-size:0.98rem;font-weight:600;line-height:1.65;}
+  .foot{margin-top:30px;padding-top:14px;border-top:1px solid #eee;font-size:0.75rem;color:#aaa;}
+  @media print{ body{background:#fff} .sheet{border:none;border-radius:0;margin:0;max-width:none;padding:8mm 4mm} }
+</style></head><body>
+<div class="sheet">
+  <p class="brand">GATHER ALL AROUND · 커뮤니티 참여 신청서</p>
+  <h1>${esc(meeting.title)}</h1>
+  <p class="meta">신청자 <b>${esc(app.applicant_name)}</b> · 접수 ${receivedStr}</p>
+  <h2>모임 정보</h2>
+  <table>
+    ${dateStr ? `<tr><td class="k">날짜·시간</td><td>${esc(dateStr)}${timeStr ? ' · ' + esc(timeStr) : ''}</td></tr>` : ''}
+    ${meeting.location ? `<tr><td class="k">장소</td><td>${esc(meeting.location)}</td></tr>` : ''}
+    <tr><td class="k">모임장</td><td>${esc(meeting.organizer_name)}</td></tr>
+  </table>
+  <h2>신청 내용</h2>
+  ${sheetItems}
+  <p class="foot">gatherallaround.com — 이 문서는 신청 접수 시 자동 생성되었습니다. 브라우저의 인쇄 기능으로 PDF 저장이 가능합니다.</p>
+</div>
+</body></html>`;
+    // 파일명: 한글 유지, 파일명에 못 쓰는 문자만 제거
+    const safe = (s) => String(s || '').replace(/[\\/:*?"<>|\n]/g, '').trim().slice(0, 40);
+    const attachmentName = `신청서_${safe(app.applicant_name)}_${safe(meeting.title)}.html`;
+    return { subject, html, attachmentHtml, attachmentName };
+}
+
+// UTF-8 문자열 → base64 (Resend 첨부는 base64 content)
+function b64utf8(s) {
+    const bytes = new TextEncoder().encode(s);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
 }
 
 export async function onRequest(context) {
@@ -136,11 +193,15 @@ export async function onRequest(context) {
         const claimed = await claimRes.json().catch(() => []);
         if (!Array.isArray(claimed) || claimed.length === 0) return json({ ok: false, skipped: 'already-sent' });
 
-        const { subject, html } = buildEmail(meeting, app);
+        const { subject, html, attachmentHtml, attachmentName } = buildEmail(meeting, app);
         const sendRes = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ from: env.RESEND_FROM || 'noreply@gatherallaround.com', to, subject, html }),
+            body: JSON.stringify({
+                from: env.RESEND_FROM || 'noreply@gatherallaround.com', to, subject, html,
+                // 신청서 파일 첨부 — 열면 인쇄용 양식, 브라우저 인쇄 → PDF 저장 가능
+                attachments: [{ filename: attachmentName, content: b64utf8(attachmentHtml) }],
+            }),
         });
         if (!sendRes.ok) {
             // 실패 → 내가 찍은 선점만 되돌려 다음 시도 여지를 남긴다

@@ -73,6 +73,12 @@ const resendCall = () => {
   chk('본문: 여러 줄 답변은 <br> 변환 + 신청자 정보에 nowrap 없음(긴 질문 안전)',
     !!mail && mail.html.includes('첫줄<br>둘째줄')
     && !mail.html.split('신청자 정보')[1].includes('white-space:nowrap'));
+  const att = mail && mail.attachments && mail.attachments[0];
+  const attDoc = att ? Buffer.from(att.content, 'base64').toString('utf8') : '';
+  chk('첨부: 인쇄용 신청서 HTML (파일명·내용·인쇄 스타일)', !!att
+    && att.filename === '신청서_홍길동_비트윈 밴즈.html'
+    && attDoc.startsWith('<!doctype html>') && attDoc.includes('홍길동') && attDoc.includes('인스타그램')
+    && attDoc.includes('첫줄<br>둘째줄') && attDoc.includes('@media print'), att && att.filename);
   chk('선점 PATCH가 발송보다 먼저', calls.findIndex(c => c.method === 'PATCH') < calls.findIndex(c => c.url.includes('api.resend.com')));
 }
 // ── 3. 본문 XSS 이스케이프
@@ -85,7 +91,9 @@ const resendCall = () => {
   ]);
   await run({ meeting_id: MT_ID, application_id: AP_ID });
   const mail = resendCall();
-  chk('HTML 이스케이프', !!mail && !mail.html.includes('<script>') && mail.html.includes('&lt;b&gt;공격&lt;/b&gt;'));
+  const attDoc3 = mail && mail.attachments ? Buffer.from(mail.attachments[0].content, 'base64').toString('utf8') : '';
+  chk('HTML 이스케이프 (본문·첨부 모두)', !!mail && !mail.html.includes('<script>') && mail.html.includes('&lt;b&gt;공격&lt;/b&gt;')
+    && !attDoc3.includes('<script>x') && attDoc3.includes('&lt;b&gt;공격&lt;/b&gt;'));
 }
 // ── 4. 재발송 방지·불일치
 {
