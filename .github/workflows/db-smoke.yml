@@ -1,0 +1,36 @@
+# [일회성] 커뮤니티 신청 제약 정리(20260902 SQL) 검증 스모크
+# 서로 다른 번호로 테스트 신청 2건(이메일 null)을 넣어 NOT NULL 해제·unique 제거를
+# 확인하고 즉시 삭제한다. anon 키는 공개 페이지 소스에서 추출(하드코딩 없음).
+name: db-smoke
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: community_applications insert smoke
+        run: |
+          set -e
+          PAGE=$(curl -sS --max-time 60 https://gatherallaround.com/)
+          URL=$(echo "$PAGE" | grep -o "https://[a-z]*\.supabase\.co" | head -1)
+          KEY=$(echo "$PAGE" | grep -o "const SUPABASE_KEY = '[^']*'" | sed "s/.*'\(.*\)'/\1/")
+          echo "supabase url: $URL / key len: ${#KEY}"
+          auth=(-H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json")
+          MID=$(curl -sS "${auth[@]}" "$URL/rest/v1/community_meetings?select=id&limit=1" | jq -r '.[0].id')
+          echo "meeting: ${MID:0:8}..."
+          ins() {
+            curl -sS "${auth[@]}" -H "Prefer: return=representation" -X POST \
+              "$URL/rest/v1/community_applications" \
+              -d "{\"meeting_id\":\"$MID\",\"applicant_name\":\"$1\",\"applicant_email\":null,\"applicant_phone\":\"$2\",\"form_data\":{}}"
+          }
+          A=$(ins "제약점검1" "010-0000-0001"); AID=$(echo "$A" | jq -r '.[0].id // empty')
+          B=$(ins "제약점검2" "010-0000-0002"); BID=$(echo "$B" | jq -r '.[0].id // empty')
+          echo "insert1(null email): $([ -n "$AID" ] && echo OK || echo "FAIL: $A")"
+          echo "insert2(같은 모임 2번째): $([ -n "$BID" ] && echo OK || echo "FAIL: $B")"
+          for ID in $AID $BID; do
+            curl -sS -o /dev/null -w "cleanup $ID -> %{http_code}\n" "${auth[@]}" -X DELETE "$URL/rest/v1/community_applications?id=eq.$ID"
+          done
+          [ -n "$AID" ] && [ -n "$BID" ] && echo "== SMOKE PASS" || { echo "== SMOKE FAIL"; exit 1; }
