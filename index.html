@@ -3697,6 +3697,12 @@
             wcs.forEach((el, i) => { if (prevScrolls[i]) { el.scrollLeft = prevScrolls[i].left; el.scrollTop = prevScrolls[i].top; } });
         }
 
+        // 지난 팀 판정 — 활동 종료일이 어제 이전이면 지난 팀 (종료일 없음 = 진행 중).
+        // 팀 관리 화면의 '지난 팀' 분리와 예약 폼 팀/멤버 선택 목록 제외에 공용.
+        function isPastTeam(t) {
+            return !!(t && t.end_date && t.end_date < new Date().toLocaleDateString('en-CA'));
+        }
+
         function renderParticipantSelector() {
             const section = document.getElementById('participantSection');
             const sel = document.getElementById('participantSelect');
@@ -3708,7 +3714,7 @@
             if (!show) return;
 
             const members = (state.cachedMembers || []).filter(m => !isHiddenMember(m));
-            const teams = state.teams || [];
+            const teams = (state.teams || []).filter(t => !isPastTeam(t)); // 지난 팀은 예약 선택 목록에서 제외
 
             let optionsHtml = '<option value="">선택...</option>';
             if (teams.length > 0) {
@@ -3818,7 +3824,7 @@
             const chips = document.getElementById('editParticipantChips');
             if (!sel || !chips) return;
             const members = (state.cachedMembers || []).filter(m => !isHiddenMember(m));
-            const teams = state.teams || [];
+            const teams = (state.teams || []).filter(t => !isPastTeam(t)); // 지난 팀은 선택 목록에서 제외
             let optionsHtml = '<option value="">선택...</option>';
             if (teams.length > 0) {
                 optionsHtml += '<optgroup label="팀">';
@@ -4719,8 +4725,6 @@
                 </div>`;
             };
             // 종료일이 지난 팀은 '지난 팀'으로 분리 (종료일 없는 팀 = 진행 중)
-            const today = new Date().toLocaleDateString('en-CA');
-            const isPastTeam = t => !!t.end_date && t.end_date < today;
             const activeTeams = state.teams.filter(t => !isPastTeam(t));
             const pastTeams = state.teams.filter(isPastTeam);
             let html = activeTeams.length
