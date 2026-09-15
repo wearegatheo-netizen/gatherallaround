@@ -2,9 +2,9 @@
 -- 실행: Supabase 대시보드 → SQL Editor 에서 1회. (20260915_band_cycles.sql 이후, 여러 번 실행해도 안전)
 --
 -- 시트 "진행중인 고정팀 / 히스토리" 값을 사이트에 반영한다.
---  · 팀은 band_name_kr 또는 대표자 연락처로 찾는다. 이미 가입한 팀이면 비어 있는 계약 정보만 채우고(기존 값 유지),
---    없으면 로그인 없는 프로필 행을 만든다(현황표·문자 대상에 포함, band_memo '시트 이관').
---    → 그 팀이 나중에 직접 가입하면 이관 행을 삭제하고 새 계정에 계약 정보를 옮길 것.
+--  · 팀은 팀명(국문/영문)·로그인 ID·대표자 연락처로 찾는다. 직접 가입한 계정이 있으면 그 계정을 승인하고 비어 있는
+--    계약 정보만 채우며(기존 값 유지), 없으면 로그인 없는 프로필 행을 만든다(band_memo '시트 이관').
+--    이관 행이 먼저 생긴 뒤 팀이 가입한 경우에도 다시 실행하면 납부 기록을 옮기고 이관 행을 정리한다.
 --  · 납부 기록(시트 '입금' 행)은 그 팀에 납부 행이 하나도 없을 때만 넣는다(구형 행과 중복 방지).
 --  · timeslots 컬럼 타입(text[] / jsonb)은 실행 시점에 판별해 맞춘다.
 create extension if not exists pgcrypto;
@@ -14,6 +14,8 @@ declare
   v_slot_type text;
   v_slot_cast text;
   v_id uuid;
+  v_login uuid;
+  v_seed uuid;
   v_n int;
 begin
   select data_type into v_slot_type from information_schema.columns
@@ -21,10 +23,26 @@ begin
   v_slot_cast := case when v_slot_type in ('jsonb', 'json') then v_slot_type else 'text[]' end;
 
   -- ── 1) 벤더 (Vandor) — 일요일 야간 · 시작 2026-05-17 · 6개월 이상 · 보증금 25만(05-07 입금) · 사용료 25만
-  select id into v_id from public.profiles
-   where member_type = 'band'
-     and (band_name_kr = '벤더' or replace(coalesce(leader_phone, phone, ''), '-', '') = '01074840121')
-   order by created_at limit 1;
+  --      직접 가입한 계정(팀명/영문명/로그인 ID/연락처로 검색)을 우선 쓰고, 이전 실행이 만든 이관 행이 함께 있으면
+  --      납부 기록을 가입 계정으로 옮긴 뒤 이관 행을 지운다. 가입 계정은 승인 상태로 바꾼다.
+  select id into v_login from public.profiles
+   where member_type = 'band' and coalesce(band_memo, '') <> '시트 이관'
+     and (band_name_kr ilike '%벤더%' or band_name_en ilike '%vandor%' or instruments ilike 'vandor%' or email ilike 'vandor%'
+          or replace(coalesce(leader_phone, phone, ''), '-', '') = '01074840121')
+   order by created_at desc limit 1;
+  select id into v_seed from public.profiles
+   where member_type = 'band' and band_memo = '시트 이관' and band_name_kr = '벤더' limit 1;
+  if v_login is not null and v_seed is not null then
+    if (select count(*) from public.band_payments where team_id = v_login) = 0 then
+      update public.band_payments set team_id = v_login where team_id = v_seed;
+    else
+      delete from public.band_payments where team_id = v_seed;
+    end if;
+    delete from public.band_rent_reminders where team_id = v_seed;
+    delete from public.profiles where id = v_seed;
+    v_seed := null;
+  end if;
+  v_id := coalesce(v_login, v_seed);
   if v_id is null then
     v_id := gen_random_uuid();
     execute format($f$
@@ -36,12 +54,16 @@ begin
       v_id, case when v_slot_cast = 'text[]' then '{일_야간}' else '["일_야간"]' end, v_slot_cast);
   else
     update public.profiles set
+      status               = 'approved',
+      band_ended_at        = null,
       band_start_date      = coalesce(band_start_date, '2026-05-17'),
       band_expected_months = coalesce(band_expected_months, '6개월 이상'),
       band_deposit         = coalesce(band_deposit, 250000),
       band_deposit_paid_at = coalesce(band_deposit_paid_at, '2026-05-07'),
       band_fee             = coalesce(band_fee, 250000),
-      band_name_en         = coalesce(nullif(band_name_en, ''), 'Vandor')
+      band_name_en         = coalesce(nullif(band_name_en, ''), 'Vandor'),
+      leader_name          = coalesce(nullif(leader_name, ''), '권율'),
+      leader_phone         = coalesce(nullif(leader_phone, ''), '010-7484-0121')
     where id = v_id;
   end if;
   select count(*) into v_n from public.band_payments where team_id = v_id;
@@ -57,7 +79,7 @@ begin
   -- ── 2) 코드 퍼플 (Code Purple) — 히스토리: 일요일 주간 · 등록 2026-04-12 · 12개월 예정(보증금 미입금) · 실사용 4회 · 종료 2026-08-09
   v_id := null;
   select id into v_id from public.profiles
-   where member_type = 'band' and (band_name_kr = '코드 퍼플' or band_name_en = 'Code Purple')
+   where member_type = 'band' and (band_name_kr ilike '%퍼플%' or band_name_en ilike '%purple%')
    order by created_at limit 1;
   if v_id is null then
     v_id := gen_random_uuid();

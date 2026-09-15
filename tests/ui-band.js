@@ -99,8 +99,7 @@ const FAKE_SB = `
     document.getElementById('portalLoadingScreen')?.remove();
     document.getElementById('bgm-player')?.remove();
     applyTheme('light');
-    supabaseClient = window.__fakeSb;
-    window.sendAdminPush = () => {}; // 푸시 스텁
+    supabaseClient = window.__fakeSb; // sendAdminPush 는 실제 함수 그대로 — /notify-admins 는 정적 서버라 404 → 직접 발송 폴백(구독 0건)으로 조용히 끝난다
   });
 
   // ── 1. 관리자 로그인 → 팀 관리 탭
@@ -196,7 +195,36 @@ const FAKE_SB = `
   chk('정보 수정: 빈 밴드명 → 인라인 오류(alert 없음)', await p.evaluate(() => document.getElementById('bandInfoResult').textContent) === '밴드명(국문)을 입력해주세요.');
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-light.png'), fullPage: true });
 
-  // ── 7. 합주팀 구역 인라인 버튼 회귀 카운트 (band-main-content 안)
+  // ── 7. 가입 신청 → 관리자 푸시(/notify-admins) + 관리자 탭 대기 건수 배지
+  await p.evaluate(() => {
+    window.__fetchCalls = [];
+    const real = window.fetch.bind(window);
+    window.fetch = (url, opts) => { window.__fetchCalls.push({ url: String(url), body: opts && opts.body }); return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })); };
+    window.__fakeSb.auth.signUp = async () => ({ data: { user: { id: 'f0000000-0000-4000-8000-000000000006' } }, error: null });
+    _hideAllScreens(); document.getElementById('landing-page-band').classList.remove('hidden'); showBandSignupForm();
+    document.getElementById('bandSignupLeaderName').value = '홍길동';
+    document.getElementById('bandSignupLeaderPhone').value = '010-2222-3333';
+    document.getElementById('bandSignupNameKr').value = '새팀';
+    document.getElementById('bandSignupNameEn').value = 'NewTeam';
+    document.getElementById('bandSignupId').value = 'newteam';
+    document.getElementById('bandSignupPassword').value = 'pw123456';
+    document.getElementById('bandSignupPasswordConfirm').value = 'pw123456';
+    document.querySelector('.band-timeslot-checkbox[value="목_야간"]').checked = true;
+    document.getElementById('bandPrivacyConsent').checked = true;
+    return handleBandEmailSignup();
+  });
+  // setFixedTime 로 시계를 고정한 상태라 페이지 타이머(setTimeout 400ms)를 명시적으로 진행시킨다
+  try { await p.clock.runFor(1000); } catch (_) {}
+  await p.waitForTimeout(500);
+  const notify = await p.evaluate(() => (window.__fetchCalls || []).find(c => c.url === '/notify-admins'));
+  const signupDbg = await p.evaluate(() => 'result=' + document.getElementById('bandSignupResult').textContent + ' calls=' + JSON.stringify((window.__fetchCalls || []).map(c => c.url)));
+  chk('가입 신청 → /notify-admins 푸시(팀명·리더·타임)', !!notify && (() => { const b = JSON.parse(notify.body); return b.title.includes('고정팀 가입 신청') && b.body.includes('새팀') && b.body.includes('홍길동') && b.body.includes('목 야간'); })(), notify ? notify.body : signupDbg);
+  await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);
+  await p.waitForTimeout(600);
+  const pendingTab = await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="pending"]').textContent);
+  chk('관리자 탭: 가입 신청 대기 건수 배지 "(2)"', pendingTab === '가입 신청 (2)', pendingTab);
+
+  // ── 8. 합주팀 구역 인라인 버튼 회귀 카운트 (band-main-content 안)
   const inlineBtns = await p.evaluate(() => Array.from(document.querySelectorAll('#band-main-content button')).filter(b => /border-radius|background:/.test(b.getAttribute('style') || '')).map(b => b.outerHTML.slice(0, 80)));
   chk('합주팀 구역: 인라인 스타일 버튼 0개', inlineBtns.length === 0, inlineBtns.join(' | '));
   chk('페이지 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 300));

@@ -11277,6 +11277,8 @@
                     };
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
+                    // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
+                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}`).catch(() => {}), 400);
                 }
                 showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
@@ -11382,6 +11384,9 @@
             view.innerHTML = _bandLoadingHTML();
             const teams = await fetchBandProfiles();
             const tab = state.bandAdminTab || 'pending';
+            const pendingCount = teams.filter(t => t.status === 'pending').length;
+            const pendingTab = document.querySelector('#bandAdminSection .admin-subtab[data-tab="pending"]');
+            if (pendingTab) pendingTab.textContent = pendingCount ? `가입 신청 (${pendingCount})` : '가입 신청';
             if (tab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
                 if (!pending.length) { view.innerHTML = _bandEmptyHTML('대기 중인 가입 신청이 없습니다.'); return; }
