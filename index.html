@@ -1329,6 +1329,13 @@
         .band-team-card { padding: 14px 0; margin: 0; border: 0; border-top: 1px solid var(--wds-gray-300); border-radius: 0; background: none; }
         .band-team-card:first-child { border-top: 0; padding-top: 2px; }
         .band-team-card.mine { box-shadow: inset 3px 0 0 var(--wds-primary); padding-left: 12px; }
+        /* 팀 관리 탭 그룹(계약 팀 / 관리 팀): 그룹 제목 + 구분선 리스트, 관리 팀 행은 연한 배경으로 구분 */
+        .band-team-group + .band-team-group { margin-top: 20px; }
+        .band-group-title { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-weight: 700; font-size: 0.95rem; margin: 12px 0 4px; padding-bottom: 6px; border-bottom: 2px solid var(--wds-gray-300); }
+        .band-group-title .band-muted { font-weight: 500; }
+        .band-group-title + .band-team-card { border-top: 0; padding-top: 12px; }
+        .band-team-card.admin { background: var(--wds-primary-light); border-radius: 10px; padding: 12px 14px; margin-top: 8px; border-top: 0; }
+        .band-team-card.admin + .band-team-card.admin { margin-top: 6px; }
         .band-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .band-card-title { font-weight: 700; font-size: 1rem; }
         .band-card-title .band-muted { font-weight: 400; }
@@ -1342,8 +1349,9 @@
         .band-kv strong { font-size: 0.95rem; font-weight: 700; }
         .band-kv strong.lg { font-size: 1.1rem; }
         .band-inline-form { margin-top: 12px; padding: 12px 0 0; border-top: 1px dashed var(--wds-gray-300); }
-        .band-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-bottom: 8px; }
-        .band-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--wds-gray-600); }
+        .band-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; margin-bottom: 8px; }
+        .band-form-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.8rem; font-weight: 600; color: var(--wds-gray-600); }
+        .band-form-grid label > .band-input { min-width: 0; max-width: 100%; }
         .band-form-grid label.full { grid-column: 1 / -1; }
         .band-form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
         .band-form-row > .band-input { flex: 1 1 140px; width: auto; }
@@ -1353,12 +1361,17 @@
         .band-input, #band-main-content input.band-input, #band-main-content textarea.band-input, #band-main-content select.band-input { width: 100%; height: var(--b-input-h); padding: 0 12px; margin: 0; border: 1px solid var(--wds-gray-300); border-radius: 10px; font-size: 0.95rem; font-family: inherit; background: var(--wds-white); color: var(--wds-black); box-sizing: border-box; }
         .band-input:focus, #band-main-content input.band-input:focus, #band-main-content textarea.band-input:focus, #band-main-content select.band-input:focus { outline: none; border-color: var(--wds-primary); box-shadow: 0 0 0 3px var(--wds-primary-light); }
         textarea.band-input, #band-main-content textarea.band-input { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+        /* iOS/모바일 date 입력은 고유 최소 폭이 커서 칸을 넘친다 — 네이티브 외형을 끄고 셀 폭에 맞춘다 */
+        #band-main-content input.band-input[type="date"], #band-main-content input.band-input[type="number"] { min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
+        #band-main-content input.band-input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
         .band-form-result { font-size: 0.84rem; min-height: 20px; padding: 2px 0; }
         /* 폼 안 버튼은 입력칸과 같은 높이 */
         .band-inline-form .gaa-btn-row .gaa-btn, .band-form-row .gaa-btn, .band-submit-row .gaa-btn { min-height: var(--b-input-h); }
         .band-submit-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
         .band-pay-hist { margin-top: 8px; }
         .band-pay-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--wds-gray-300); font-size: 0.88rem; }
+        .band-pay-row > span:first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
+        .band-pay-row > .gaa-btn-row { flex: 0 0 auto; flex-wrap: nowrap; }
         .band-pay-row:last-child { border-bottom: none; }
         .band-cycle-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
         .band-member-chip { display: inline-flex; align-items: center; gap: 3px; background: var(--wds-primary-light); color: var(--wds-primary); border-radius: 12px; padding: 4px 10px; font-size: 0.8rem; font-weight: 600; }
@@ -1388,7 +1401,7 @@
         @media (max-width: 480px) {
             .band-page { padding: 12px 12px calc(40px + env(safe-area-inset-bottom)); }
             .band-section-card { padding: 14px; border-radius: 12px; }
-            .band-form-grid { grid-template-columns: 1fr; }
+            .band-form-grid { grid-template-columns: minmax(0, 1fr); }
             .band-input, #band-main-content input.band-input, #band-main-content textarea.band-input, #band-main-content select.band-input { font-size: 16px; } /* iOS 입력 시 자동 확대 방지 */
             .band-form-row > .gaa-btn { flex: 1 1 100%; }
             .band-card-top { flex-wrap: wrap; }
@@ -11417,11 +11430,19 @@
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'week4')">4주차</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'last')">전날</button></span>
                 </div>`;
-            if (!approved.length) { view.innerHTML = smsBar + _bandEmptyHTML('승인된 팀이 없습니다.'); return; }
-            view.innerHTML = smsBar + approved.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
+            // 관리 팀(게더링 운영 계정)은 계약·회차·문자 대상이 아니므로 계약 팀 목록과 분리해 보여준다
+            const adminTeams = approved.filter(t => _isAdminBandProfile(t));
+            const contractTeams = approved.filter(t => !_isAdminBandProfile(t));
+            const group = (title, note, body) => `<div class="band-team-group">
+                    <div class="band-group-title"><span>${title}</span>${note ? `<span class="band-muted">${note}</span>` : ''}</div>${body}</div>`;
+            const cards = (list) => list.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
+            view.innerHTML = smsBar
+                + group(`🎸 계약 팀 <span class="band-muted">${contractTeams.length}팀</span>`, '',
+                    contractTeams.length ? cards(contractTeams) : _bandEmptyHTML('승인된 계약 팀이 없습니다.'))
+                + (adminTeams.length ? group('🛠️ 관리 팀', '게더링 운영 계정 · 계약·회차·입금 안내 문자 대상이 아닙니다', cards(adminTeams)) : '');
             if (!window.__paymentAlertSent) {
                 window.__paymentAlertSent = true;
-                checkPaymentAlerts(approved, paymentsMap);
+                checkPaymentAlerts(contractTeams, paymentsMap);
             }
         }
 
@@ -11641,12 +11662,15 @@
             wrap.hidden = !show;
             if (btnEl) btnEl.textContent = show ? '납부 내역 ▲' : '납부 내역 ▼';
         }
+        // 시트 이관 시드가 남긴 "시트 이관" 표식은 화면에서 숨긴다 (DB 값은 유지 — 뒤에 다른 메모가 붙어 있으면 그 부분만 표시)
+        const _bandDisplayNote = (s) => String(s || '').replace(/^\s*시트\s*이관\s*([·,;/-]\s*)?/, '').trim();
         function bandPaymentHistoryHTML(t, rows) {
             if (!rows.length) return _bandEmptyHTML('납부 내역이 없습니다.');
             return rows.map(r => {
                 const n = bandPaymentCycle(t, r);
+                const note = _bandDisplayNote(r.note);
                 return `<div class="band-pay-row">
-                    <span>${n !== null ? `<strong>${bandCycleLabel(n)}</strong> · ` : ''}${escHtml(r.paid_at)}${r.amount ? ' · ' + bandWon(r.amount) : ''}${r.note ? ` <span class="band-muted">· ${escHtml(r.note)}</span>` : ''}</span>
+                    <span>${n !== null ? `<strong>${bandCycleLabel(n)}</strong> · ` : ''}${escHtml(r.paid_at)}${r.amount ? ' · ' + bandWon(r.amount) : ''}${note ? ` <span class="band-muted">· ${escHtml(note)}</span>` : ''}</span>
                     <span class="gaa-btn-row">
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="openBandPaymentForm('${t.id}','${r.id}')">수정</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-danger" onclick="deleteBandPayment('${r.id}','${t.id}')">삭제</button>
@@ -11707,7 +11731,8 @@
             const btns = kind === 'pending'
                 ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="approveBandProfile('${t.id}', this)">승인</button>
                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" onclick="rejectBandProfile('${t.id}', this)">거절</button>`
-                : (isSelf ? '<span class="status-badge sm status-info">본인 팀</span>'
+                : (isAdminTeam ? '<span class="status-badge sm status-info">관리 팀</span>'
+                   : isSelf ? '<span class="status-badge sm status-info">본인 팀</span>'
                    : `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="removeBandProfile('${t.id}', this)">탈퇴 처리</button>`);
 
             let contractSection = '', paymentSection = '';
@@ -11725,7 +11750,7 @@
                             ${kv('보증금', t.band_deposit ? `${bandWon(t.band_deposit)}${t.band_deposit_paid_at ? ' · ' + bandMD(t.band_deposit_paid_at) + ' 입금' : ' · 미입금'}` : '')}
                             ${kv('사용료(4주)', bandWon(t.band_fee))}
                         </div>
-                        ${t.band_memo ? `<div class="band-muted">메모: ${escHtml(t.band_memo)}</div>` : ''}
+                        ${_bandDisplayNote(t.band_memo) ? `<div class="band-muted">메모: ${escHtml(_bandDisplayNote(t.band_memo))}</div>` : ''}
                         <div id="bc-form-${t.id}" class="band-inline-form" hidden>${bandContractFormHTML(t)}</div>
                     </div>`;
                 paymentSection = `
@@ -11742,7 +11767,7 @@
                     </div>`;
             }
             return `
-                <div class="band-team-card">
+                <div class="band-team-card${kind === 'approved' && isAdminTeam ? ' admin' : ''}">
                     <div class="band-card-top">
                         <div style="flex:1;min-width:0">
                             <div class="band-card-title">${escHtml(t.band_name_kr||'-')} <span class="band-muted">${escHtml(t.band_name_en||'')}</span></div>

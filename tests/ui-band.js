@@ -25,8 +25,8 @@ const TABLES = {
       band_start_date: '2026-04-12', band_expected_months: '12개월', band_deposit: null, band_ended_at: '2026-08-09', created_at: '2026-04-01T00:00:00Z' },
   ],
   band_payments: [
-    { id: 'p1', team_id: VANDOR, paid_at: '2026-05-17', cycle_no: null, amount: 250000, note: '' },
-    { id: 'p2', team_id: VANDOR, paid_at: '2026-06-08', cycle_no: null, amount: 250000, note: '' },
+    { id: 'p1', team_id: VANDOR, paid_at: '2026-05-17', cycle_no: null, amount: 250000, note: '시트 이관' },
+    { id: 'p2', team_id: VANDOR, paid_at: '2026-06-08', cycle_no: null, amount: 250000, note: '시트 이관 · 현금' },
     { id: 'p3', team_id: VANDOR, paid_at: '2026-07-07', cycle_no: 2, amount: 250000, note: '' },
     { id: 'p4', team_id: VANDOR, paid_at: '2026-08-07', cycle_no: 3, amount: 250000, note: '' },
     { id: 'p5', team_id: VANDOR, paid_at: '2026-08-30', cycle_no: 4, amount: 250000, note: '카톡 확인' },
@@ -111,14 +111,23 @@ const FAKE_SB = `
   await p.evaluate(() => setBandAdminTab('teams'));
   await p.waitForTimeout(600);
   const teamsHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
-  chk('팀 항목은 중첩 카드가 아닌 구분선 리스트(테두리·배경 없음)', await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-card:nth-child(2)'); const cs = c && getComputedStyle(c); return !!cs && cs.borderLeftWidth === '0px' && cs.borderTopWidth === '1px' && cs.borderRadius === '0px'; }));
+  chk('팀 항목은 중첩 카드가 아닌 구분선 리스트(테두리·배경 없음)', await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card')[1]; const cs = c && getComputedStyle(c); return !!cs && cs.borderLeftWidth === '0px' && cs.borderTopWidth === '1px' && cs.borderRadius === '0px'; }));
   chk('팀 관리: 벤더 계약 정보(시작일·보증금·사용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
   chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/20(시작 2주 전)', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/20</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
   chk('팀 관리: 벤더 상태 칩 "입금일 5일 후"(임박)', teamsHtml.includes('입금일 5일 후') && /status-pending[^>]*>입금일 5일 후/.test(teamsHtml));
   chk('팀 관리: 문자 안내 바(12:00·3회) + 테스트 버튼 3종', teamsHtml.includes('12:00') && teamsHtml.includes("sendBandSmsTest(this, 'due')") && teamsHtml.includes("sendBandSmsTest(this, 'week4')") && teamsHtml.includes("sendBandSmsTest(this, 'last')"));
   chk('팀 관리: 벤더 문자 발송 이력(최근 4차 입금일 안내, KST 날짜)', teamsHtml.includes('최근 문자: 4차 입금일 안내 8/31 발송'), teamsHtml.match(/최근 문자[^<]*/)?.[0]);
   chk('팀 관리: 아나하 — 오늘 시작, 다음 1차 10/13, 입금일 9/29', teamsHtml.includes('<strong>1차</strong> 10/13(화) 시작') && teamsHtml.includes('입금일 <strong>9/29</strong>'));
-  chk('팀 관리: 관리자 팀 카드엔 계약/입금 섹션 없음 + 본인 팀 칩', teamsHtml.includes('본인 팀') && (teamsHtml.match(/계약 정보/g) || []).length === 2);
+  chk('팀 관리: 관리자 팀 카드엔 계약/입금 섹션 없음 + "관리 팀" 칩', teamsHtml.includes('>관리 팀</span>') && !teamsHtml.includes('본인 팀') && (teamsHtml.match(/계약 정보/g) || []).length === 2);
+  chk('팀 관리: 계약 팀 2팀 그룹 → 관리 팀 그룹(게더링만, 연한 배경) 순서', await p.evaluate(() => {
+    const g = [...document.querySelectorAll('#bandAdminView .band-team-group')];
+    if (g.length !== 2) return false;
+    const t0 = g[0].querySelector('.band-group-title').textContent, t1 = g[1].querySelector('.band-group-title').textContent;
+    const adminCards = g[1].querySelectorAll('.band-team-card.admin');
+    return t0.includes('계약 팀') && t0.includes('2팀') && g[0].querySelectorAll('.band-team-card').length === 2 && !g[0].querySelector('.band-team-card.admin')
+      && t1.includes('관리 팀') && t1.includes('문자 대상이 아닙니다') && adminCards.length === 1 && adminCards[0].textContent.includes('게더링')
+      && getComputedStyle(adminCards[0]).backgroundColor !== 'rgba(0, 0, 0, 0)';
+  }), await p.evaluate(() => [...document.querySelectorAll('#bandAdminView .band-group-title')].map(e => e.textContent.trim()).join(' | ')));
   chk('팀 관리: 인라인 스타일 버튼 없음(gaa-btn만)', !/<button[^>]*style="[^"]*border-radius/.test(teamsHtml));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-light.png'), fullPage: true });
 
@@ -126,11 +135,23 @@ const FAKE_SB = `
   await p.evaluate((id) => toggleBandPaymentHistory(id, document.querySelector(`#pay-hist-${id}`)?.previousElementSibling?.previousElementSibling?.lastElementChild), VANDOR);
   const hist = await p.evaluate((id) => document.getElementById('pay-hist-' + id).innerHTML, VANDOR);
   chk('납부 내역: 구형 행 회차 귀속(등록·1차) + 명시 회차(2~4차)', hist.includes('<strong>등록</strong> · 2026-05-17') && hist.includes('<strong>1차</strong> · 2026-06-08') && hist.includes('<strong>4차</strong> · 2026-08-30') && hist.includes('250,000원'));
+  chk('납부 내역: "시트 이관" 표식은 숨기고 뒤에 붙은 메모(현금)·일반 메모(카톡 확인)만 표시', !hist.includes('시트 이관') && hist.includes('· 현금</span>') && hist.includes('· 카톡 확인</span>'));
+  chk('납부 내역(420px): 수정/삭제 버튼이 한 줄로 유지되고 행이 카드 폭을 넘지 않음', await p.evaluate((id) => {
+    const rows = [...document.querySelectorAll(`#pay-hist-${id} .band-pay-row`)];
+    const wrap = document.getElementById('pay-hist-' + id).getBoundingClientRect();
+    return rows.length === 5 && rows.every(r => { const [b1, b2] = r.querySelectorAll('.gaa-btn'); const r1 = b1.getBoundingClientRect(), r2 = b2.getBoundingClientRect(); return Math.abs(r1.top - r2.top) < 2 && r2.right <= wrap.right + 1 && r.scrollWidth <= r.clientWidth + 1; });
+  }, VANDOR));
   await p.evaluate((id) => openBandPaymentForm(id), VANDOR);
   const defCycle = await p.evaluate((id) => document.getElementById('bp-cycle-' + id).value, VANDOR);
   const defAmount = await p.evaluate((id) => document.getElementById('bp-amount-' + id).value, VANDOR);
   const defDate = await p.evaluate((id) => document.getElementById('bp-date-' + id).value, VANDOR);
   chk('입금 폼 기본값: 5차 · 사용료 250000 · 오늘', defCycle === '5' && defAmount === '250000' && defDate === '2026-09-15', `${defCycle}/${defAmount}/${defDate}`);
+  chk('입금 폼(420px): 납부일 date 입력이 폼 칸 안에 들어옴(넘침 없음)', await p.evaluate((id) => {
+    const box = document.getElementById('bp-form-' + id), d = document.getElementById('bp-date-' + id), b = box.getBoundingClientRect(), r = d.getBoundingClientRect();
+    const lab = d.parentElement.getBoundingClientRect();
+    return r.right <= b.right + 1 && r.left >= b.left - 1 && Math.abs(r.width - lab.width) < 2 && box.scrollWidth <= box.clientWidth + 1 && d.offsetHeight === 44;
+  }, VANDOR), await p.evaluate((id) => { const d = document.getElementById('bp-date-' + id); return `${d.getBoundingClientRect().width}/${d.parentElement.getBoundingClientRect().width}/${document.getElementById('bp-form-' + id).getBoundingClientRect().width}`; }, VANDOR));
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-payform-420-light.png'), fullPage: true });
   await p.evaluate((id) => { document.getElementById('bp-date-' + id).value = ''; }, VANDOR);
   await p.evaluate((id) => saveBandPayment(id, document.querySelector(`#bp-form-${id} .gaa-btn-primary`)), VANDOR);
   chk('입금 폼: 납부일 비면 인라인 오류', await p.evaluate((id) => document.getElementById('bp-result-' + id).textContent, VANDOR) === '납부일을 선택해주세요.');
