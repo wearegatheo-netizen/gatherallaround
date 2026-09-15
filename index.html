@@ -1272,7 +1272,7 @@
            레이어는 [페이지 배경] → [.band-section-card] 한 겹만. 카드 안 팀 항목은 구분선 리스트, 인라인 폼은 점선 구분.
            크기 규칙: 입력 44px · 폼 제출 gaa-btn(md, 44px) · 카드 액션 gaa-btn-sm(38px) · 목록 소형 gaa-btn-xs(32px) */
         #band-main-content {
-            --b-title: 1.05rem; --b-body: 0.92rem; --b-label: 0.78rem; --b-muted: 0.82rem; --b-input-h: 44px;
+            --b-title: 1.05rem; --b-body: 0.92rem; --b-label: 0.78rem; --b-muted: 0.82rem; --b-input-h: 44px; --b-card-pad: 18px;
             width: 100%;
             min-height: 100vh;
             background: var(--wds-gray-100);
@@ -1295,7 +1295,7 @@
         .band-section-card {
             background: var(--wds-white);
             border-radius: 14px;
-            padding: 18px;
+            padding: var(--b-card-pad);
             margin-bottom: 14px;
             border: 1px solid var(--wds-gray-300);
         }
@@ -1329,13 +1329,23 @@
         .band-team-card { padding: 14px 0; margin: 0; border: 0; border-top: 1px solid var(--wds-gray-300); border-radius: 0; background: none; }
         .band-team-card:first-child { border-top: 0; padding-top: 2px; }
         .band-team-card.mine { box-shadow: inset 3px 0 0 var(--wds-primary); padding-left: 12px; }
-        /* 팀 관리 탭 그룹(계약 팀 / 관리 팀): 그룹 제목 + 구분선 리스트, 관리 팀 행은 연한 배경으로 구분 */
-        .band-team-group + .band-team-group { margin-top: 20px; }
-        .band-group-title { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-weight: 700; font-size: 0.95rem; margin: 12px 0 4px; padding-bottom: 6px; border-bottom: 2px solid var(--wds-gray-300); }
+        /* 팀 블록(팀 관리·현황표 카드): 팀 이름 줄을 섹션 카드 폭 전체의 배경 띠(헤더)로 만들어
+           팀과 팀 사이 경계를 안쪽 소제목(계약 정보·회차·입금) 구분선과 확실히 구별한다 */
+        .band-team-card.block { border-top: 0; padding: 0 0 10px; margin-top: 16px; }
+        .band-team-card.block:last-child { padding-bottom: 0; }
+        .band-team-card.block > .band-card-top { background: var(--wds-gray-100); margin: 0 calc(-1 * var(--b-card-pad)); padding: 12px var(--b-card-pad); border-top: 1px solid var(--wds-gray-300); border-bottom: 1px solid var(--wds-gray-300); }
+        .band-team-card.block .band-card-title { font-size: 1.05rem; }
+        .band-team-card.block > .band-card-top + .band-card-section { border-top: 0; padding-top: 0; }
+        .band-team-card.block > .band-card-top + .band-cycle-strip { margin-top: 12px; }
+        .band-team-card.block > .band-card-top + .band-muted { margin-top: 12px; display: block; }
+        /* 팀 관리 탭 그룹(계약 팀 / 관리 팀): 그룹 제목 뒤에 팀 블록, 관리 팀 헤더 띠는 파란 톤 */
+        .band-team-group + .band-team-group { margin-top: 22px; }
+        .band-group-title { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-weight: 700; font-size: 0.95rem; margin: 14px 0 0; }
         .band-group-title .band-muted { font-weight: 500; }
-        .band-group-title + .band-team-card { border-top: 0; padding-top: 12px; }
-        .band-team-card.admin { background: var(--wds-primary-light); border-radius: 10px; padding: 12px 14px; margin-top: 8px; border-top: 0; }
-        .band-team-card.admin + .band-team-card.admin { margin-top: 6px; }
+        .band-group-title + .band-team-card.block { margin-top: 10px; }
+        .band-team-card.admin > .band-card-top { background: var(--wds-primary-light); }
+        body.dark .band-team-card.block > .band-card-top { background: var(--wds-gray-200); }
+        body.dark .band-team-card.admin > .band-card-top { background: var(--wds-primary-light); }
         .band-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .band-card-title { font-weight: 700; font-size: 1rem; }
         .band-card-title .band-muted { font-weight: 400; }
@@ -1400,7 +1410,8 @@
         @media (max-width: 640px) { .band-roster-hint { display: block; } }
         @media (max-width: 480px) {
             .band-page { padding: 12px 12px calc(40px + env(safe-area-inset-bottom)); }
-            .band-section-card { padding: 14px; border-radius: 12px; }
+            #band-main-content { --b-card-pad: 14px; }
+            .band-section-card { border-radius: 12px; }
             .band-form-grid { grid-template-columns: minmax(0, 1fr); }
             .band-input, #band-main-content input.band-input, #band-main-content textarea.band-input, #band-main-content select.band-input { font-size: 16px; } /* iOS 입력 시 자동 확대 방지 */
             .band-form-row > .gaa-btn { flex: 1 1 100%; }
@@ -11767,7 +11778,7 @@
                     </div>`;
             }
             return `
-                <div class="band-team-card${kind === 'approved' && isAdminTeam ? ' admin' : ''}">
+                <div class="band-team-card${kind === 'approved' ? (isAdminTeam ? ' block admin' : ' block') : ''}">
                     <div class="band-card-top">
                         <div style="flex:1;min-width:0">
                             <div class="band-card-title">${escHtml(t.band_name_kr||'-')} <span class="band-muted">${escHtml(t.band_name_en||'')}</span></div>
@@ -11839,7 +11850,7 @@
             }
             const deposit = t.band_deposit ? `보증금 ${bandWon(t.band_deposit)} ${t.band_deposit_paid_at ? '완' : '미입금'}` : '';
             return `
-                <div class="band-team-card">
+                <div class="band-team-card block">
                     <div class="band-card-top">
                         <div style="flex:1;min-width:0">
                             <div class="band-card-title">${escHtml(t.band_name_kr || '-')} <span class="band-muted">${escHtml(t.band_name_en || '')}</span></div>

@@ -111,7 +111,21 @@ const FAKE_SB = `
   await p.evaluate(() => setBandAdminTab('teams'));
   await p.waitForTimeout(600);
   const teamsHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
-  chk('팀 항목은 중첩 카드가 아닌 구분선 리스트(테두리·배경 없음)', await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card')[1]; const cs = c && getComputedStyle(c); return !!cs && cs.borderLeftWidth === '0px' && cs.borderTopWidth === '1px' && cs.borderRadius === '0px'; }));
+  chk('팀 블록: 카드 자체는 테두리·배경 없음, 이름 줄은 섹션 카드 폭 전체 배경 띠(헤더)', await p.evaluate(() => {
+    const cards = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card.block');
+    if (cards.length !== 2) return false;
+    const sec = document.getElementById('bandAdminSection').getBoundingClientRect();
+    return [...cards].every(c => { const cs = getComputedStyle(c), top = c.querySelector(':scope > .band-card-top'), ts = getComputedStyle(top), r = top.getBoundingClientRect();
+      return cs.borderTopWidth === '0px' && cs.borderRadius === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)'
+        && ts.backgroundColor !== 'rgba(0, 0, 0, 0)' && ts.borderTopWidth === '1px' && ts.borderBottomWidth === '1px'
+        && Math.abs(r.left - (sec.left + 1)) < 1 && Math.abs(r.right - (sec.right - 1)) < 1; });
+  }), await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-card.block > .band-card-top'); const s = document.getElementById('bandAdminSection'); return c && `${c.getBoundingClientRect().left}/${c.getBoundingClientRect().right} vs ${s.getBoundingClientRect().left}/${s.getBoundingClientRect().right}`; }));
+  chk('팀 블록: 팀 사이 간격이 소제목 구분(12px)보다 넓고(≥24px) 안쪽 첫 소제목엔 구분선 없음', await p.evaluate(() => {
+    const [a, b] = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card.block');
+    const gap = b.querySelector(':scope > .band-card-top').getBoundingClientRect().top - a.lastElementChild.getBoundingClientRect().bottom;
+    const first = a.querySelector(':scope > .band-card-top + .band-card-section');
+    return gap >= 24 && !!first && getComputedStyle(first).borderTopWidth === '0px';
+  }), await p.evaluate(() => { const [a, b] = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card.block'); return `gap=${b.querySelector(':scope > .band-card-top').getBoundingClientRect().top - a.lastElementChild.getBoundingClientRect().bottom}`; }));
   chk('팀 관리: 벤더 계약 정보(시작일·보증금·사용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
   chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/20(시작 2주 전)', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/20</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
   chk('팀 관리: 벤더 상태 칩 "입금일 5일 후"(임박)', teamsHtml.includes('입금일 5일 후') && /status-pending[^>]*>입금일 5일 후/.test(teamsHtml));
@@ -126,10 +140,11 @@ const FAKE_SB = `
     const adminCards = g[1].querySelectorAll('.band-team-card.admin');
     return t0.includes('계약 팀') && t0.includes('2팀') && g[0].querySelectorAll('.band-team-card').length === 2 && !g[0].querySelector('.band-team-card.admin')
       && t1.includes('관리 팀') && t1.includes('문자 대상이 아닙니다') && adminCards.length === 1 && adminCards[0].textContent.includes('게더링')
-      && getComputedStyle(adminCards[0]).backgroundColor !== 'rgba(0, 0, 0, 0)';
+      && getComputedStyle(adminCards[0].querySelector(':scope > .band-card-top')).backgroundColor !== getComputedStyle(g[0].querySelector('.band-team-card.block > .band-card-top')).backgroundColor;
   }), await p.evaluate(() => [...document.querySelectorAll('#bandAdminView .band-group-title')].map(e => e.textContent.trim()).join(' | ')));
   chk('팀 관리: 인라인 스타일 버튼 없음(gaa-btn만)', !/<button[^>]*style="[^"]*border-radius/.test(teamsHtml));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-light.png'), fullPage: true });
+  await p.evaluate(() => applyTheme('dark')); await p.waitForTimeout(150); await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-dark.png'), fullPage: true }); await p.evaluate(() => applyTheme('light'));
 
   // ── 2. 납부 내역 + 입금 폼(회차 기본값) + 저장
   await p.evaluate((id) => toggleBandPaymentHistory(id, document.querySelector(`#pay-hist-${id}`)?.previousElementSibling?.previousElementSibling?.lastElementChild), VANDOR);
@@ -178,6 +193,7 @@ const FAKE_SB = `
   chk('현황표(카드): 진행중 2팀·대기 1팀·히스토리 1팀, 관리자 팀 제외', cards.includes('진행중인 고정팀 <span class="band-muted">2팀') && cards.includes('대기팀 <span class="band-muted">1팀') && cards.includes('히스토리 <span class="band-muted">1팀') && !cards.includes('게더링'));
   chk('현황표(카드): 벤더 회차 스트립(등록 ✓ 5/17 … 5차 ✓ 9/26)', cards.includes('등록 ✓ 5/17') && cards.includes('1차 ✓ 6/8') && cards.includes('4차 ✓ 8/30') && cards.includes('5차 ✓ 9/26'));
   chk('현황표(카드): 아나하 1차 입금일 9/29 칩', cards.includes('1차 입금일 9/29'));
+  chk('현황표(카드): 진행중 팀 2개가 헤더 띠 블록으로 구분', await p.evaluate(() => document.querySelectorAll('#bandAdminView .band-team-card.block > .band-card-top').length === 2));
   chk('현황표: 히스토리 실사용 — 납부 행 없으면 기간/28일 반올림 "4회 (26/04/12 ~ 26/08/09)"(시트와 동일)', cards.includes('4회 (26/04/12 ~ 26/08/09)'));
   chk('현황표: 대기팀 신규팀 표시', cards.includes('신규팀') && cards.includes('수 주간'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-roster-cards-light.png'), fullPage: true });
