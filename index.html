@@ -841,7 +841,7 @@
         .like-btn.liked { border-color: #ff6b6b; color: #ff6b6b; background: #fff5f5; }
 
         /* 토스트 알림 — BGM 바(56px, z-index 동급·DOM 후순위)보다 위에 떠야 문구가 가려지지 않는다 */
-        #auto-toast { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
+        #auto-toast { position: fixed; bottom: calc(72px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
 
         /* 멤버 대시보드 */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
@@ -1191,7 +1191,6 @@
             #landing-page-band { padding: 36px 20px; margin: auto 0; }
             #landing-page-band h1 { font-size: 1.7rem; }
             #landing-page-band p { font-size: 0.9rem; margin-bottom: 24px; }
-            #band-main-content { margin: -12px -6px; }
             .band-header { padding: 12px 14px; }
             header h1 { font-size: 1.5rem; }
             .subtitle { font-size: 0.9rem; }
@@ -1237,7 +1236,7 @@
             .email-form input, .email-form button { font-size: 0.95rem; }
             .view-header { flex-wrap: wrap; gap: 8px; }
             .view-title { font-size: 1.1rem; }
-            #auto-toast { bottom: 72px; padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
+            #auto-toast { bottom: calc(72px + env(safe-area-inset-bottom)); padding: 10px 18px; font-size: 0.82rem; max-width: 90vw; white-space: normal; text-align: center; }
 
             /* 팀 구성 수정 폼 */
             .team-form-row { flex-wrap: wrap; gap: 6px 8px; }
@@ -1269,37 +1268,40 @@
         #ptrIndicator .ptr-spin { animation: ptrSpin 0.8s linear infinite; }
         @keyframes ptrSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
-        /* === 고정 합주팀 밴드 페이지 === */
+        /* === 고정 합주팀 밴드 페이지 ===
+           레이어는 [페이지 배경] → [.band-section-card] 한 겹만. 카드 안 팀 항목은 구분선 리스트, 인라인 폼은 점선 구분.
+           크기 규칙: 입력 44px · 폼 제출 gaa-btn(md, 44px) · 카드 액션 gaa-btn-sm(38px) · 목록 소형 gaa-btn-xs(32px) */
         #band-main-content {
+            --b-title: 1.05rem; --b-body: 0.92rem; --b-label: 0.78rem; --b-muted: 0.82rem; --b-input-h: 44px;
             width: 100%;
             min-height: 100vh;
             background: var(--wds-gray-100);
+            font-size: var(--b-body);
         }
         .band-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 16px;
+            gap: 8px;
+            min-height: 52px;
+            padding: 0 16px;
             background: var(--wds-white);
             border-bottom: 1px solid var(--wds-gray-300);
             position: sticky;
             top: 0;
             z-index: 100;
         }
+        .band-page { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(48px + env(safe-area-inset-bottom)); }
         .band-section-card {
             background: var(--wds-white);
-            border-radius: var(--wds-radius-m);
-            padding: 16px;
+            border-radius: 14px;
+            padding: 18px;
             margin-bottom: 14px;
-            box-shadow: var(--wds-shadow-lg);
             border: 1px solid var(--wds-gray-300);
         }
-        .band-section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: var(--wds-black);
-        }
+        .band-section-title { font-size: var(--b-title); font-weight: 800; margin-bottom: 12px; color: var(--wds-black); }
+        .band-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+        .band-section-head .band-section-title { margin-bottom: 0; }
         .band-timeslot-grid {
             display: grid;
             grid-template-columns: 40px repeat(7, 1fr);
@@ -1320,48 +1322,54 @@
             color: var(--wds-gray-700);
             padding-right: 4px;
         }
-        .band-notice-item {
-            padding: 10px 12px;
-            border: 1px solid var(--wds-gray-300);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            background: var(--wds-gray-100);
-        }
-        /* 합주팀 카드·폼 공용 (관리자 팀 관리 / 현황표 / 본인 화면) */
-        .band-empty { color: var(--wds-gray-500); font-size: 0.85rem; text-align: center; padding: 14px 0; }
-        .band-muted { color: var(--wds-gray-500); font-size: 0.78rem; line-height: 1.5; }
-        .band-team-card { padding: 12px 14px; border: 1px solid var(--wds-gray-300); border-radius: 12px; margin-bottom: 10px; background: var(--wds-white); }
-        .band-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .band-card-title { font-weight: 700; font-size: 0.95rem; }
+        .band-notice-item { padding: 12px 14px; border: 1px solid var(--wds-gray-300); border-radius: 12px; margin-bottom: 8px; background: var(--wds-gray-100); }
+        .band-empty { color: var(--wds-gray-500); font-size: 0.9rem; text-align: center; padding: 16px 0; line-height: 1.5; }
+        .band-muted { color: var(--wds-gray-500); font-size: var(--b-muted); line-height: 1.5; }
+        /* 팀 항목 = 구분선 리스트 (중첩 카드 없음) */
+        .band-team-card { padding: 14px 0; margin: 0; border: 0; border-top: 1px solid var(--wds-gray-300); border-radius: 0; background: none; }
+        .band-team-card:first-child { border-top: 0; padding-top: 2px; }
+        .band-team-card.mine { box-shadow: inset 3px 0 0 var(--wds-primary); padding-left: 12px; }
+        .band-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .band-card-title { font-weight: 700; font-size: 1rem; }
         .band-card-title .band-muted { font-weight: 400; }
-        .band-card-sub { font-size: 0.8rem; color: var(--wds-gray-600); margin-top: 3px; }
-        .band-card-slot { font-size: 0.78rem; color: var(--wds-primary); font-weight: 600; margin-top: 3px; }
-        .band-card-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--wds-gray-300); font-size: 0.82rem; line-height: 1.6; }
-        .band-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 0.82rem; margin-bottom: 4px; }
-        .band-kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
-        .band-kv { display: flex; flex-direction: column; font-size: 0.8rem; }
-        .band-kv span { color: var(--wds-gray-500); font-size: 0.72rem; }
-        .band-inline-form { margin-top: 8px; padding: 10px 12px; background: var(--wds-gray-100); border-radius: 10px; }
-        .band-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-bottom: 6px; }
-        .band-form-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 0.74rem; font-weight: 600; color: var(--wds-gray-600); }
+        .band-card-sub { font-size: 0.86rem; color: var(--wds-gray-600); margin-top: 3px; }
+        .band-card-slot { font-size: 0.86rem; color: var(--wds-primary); font-weight: 600; margin-top: 3px; }
+        .band-card-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--wds-gray-300); font-size: var(--b-body); line-height: 1.6; }
+        .band-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
+        .band-kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+        .band-kv { display: flex; flex-direction: column; gap: 2px; }
+        .band-kv span { color: var(--wds-gray-500); font-size: var(--b-label); }
+        .band-kv strong { font-size: 0.95rem; font-weight: 700; }
+        .band-kv strong.lg { font-size: 1.1rem; }
+        .band-inline-form { margin-top: 12px; padding: 12px 0 0; border-top: 1px dashed var(--wds-gray-300); }
+        .band-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-bottom: 8px; }
+        .band-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--wds-gray-600); }
         .band-form-grid label.full { grid-column: 1 / -1; }
-        .band-input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: var(--wds-white); color: var(--wds-black); box-sizing: border-box; }
-        .band-input:focus { outline: none; border-color: var(--wds-primary); }
-        textarea.band-input { height: auto; padding: 8px 10px; resize: vertical; }
-        .band-form-result { font-size: 0.82rem; min-height: 20px; padding: 2px 0; }
-        .band-pay-hist { margin-top: 6px; }
-        .band-pay-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--wds-gray-300); font-size: 0.8rem; }
-        .band-cycle-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-        .band-team-card.mine { border-color: var(--wds-primary); background: var(--wds-primary-light); }
-        .band-member-chip { display: inline-flex; align-items: center; gap: 3px; background: var(--wds-primary-light); color: var(--wds-primary); border-radius: 12px; padding: 3px 9px; font-size: 0.75rem; font-weight: 600; }
-        .band-team-card.mine .band-member-chip { background: var(--wds-white); }
-        .band-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--wds-primary-light); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: var(--wds-primary); flex-shrink: 0; }
-        .band-reply-item { margin-left: 14px; margin-top: 6px; padding: 8px 10px; background: var(--wds-gray-100); border-radius: 8px; border-left: 3px solid var(--wds-primary); }
+        .band-form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
+        .band-form-row > .band-input { flex: 1 1 140px; width: auto; }
+        .band-form-row > .gaa-btn { flex: 0 0 auto; }
+        /* 전역 input[type="text"]{height:52px} 및 input[type="text"][style]{height:auto}(빈 style 속성이 붙어도 적용됨) 규칙보다
+           특이도를 높이기 위해 #band-main-content 를 앞에 둔다 */
+        .band-input, #band-main-content input.band-input, #band-main-content textarea.band-input, #band-main-content select.band-input { width: 100%; height: var(--b-input-h); padding: 0 12px; margin: 0; border: 1px solid var(--wds-gray-300); border-radius: 10px; font-size: 0.95rem; font-family: inherit; background: var(--wds-white); color: var(--wds-black); box-sizing: border-box; }
+        .band-input:focus, #band-main-content input.band-input:focus, #band-main-content textarea.band-input:focus, #band-main-content select.band-input:focus { outline: none; border-color: var(--wds-primary); box-shadow: 0 0 0 3px var(--wds-primary-light); }
+        textarea.band-input, #band-main-content textarea.band-input { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+        .band-form-result { font-size: 0.84rem; min-height: 20px; padding: 2px 0; }
+        /* 폼 안 버튼은 입력칸과 같은 높이 */
+        .band-inline-form .gaa-btn-row .gaa-btn, .band-form-row .gaa-btn, .band-submit-row .gaa-btn { min-height: var(--b-input-h); }
+        .band-submit-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+        .band-pay-hist { margin-top: 8px; }
+        .band-pay-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--wds-gray-300); font-size: 0.88rem; }
+        .band-pay-row:last-child { border-bottom: none; }
+        .band-cycle-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .band-member-chip { display: inline-flex; align-items: center; gap: 3px; background: var(--wds-primary-light); color: var(--wds-primary); border-radius: 12px; padding: 4px 10px; font-size: 0.8rem; font-weight: 600; }
+        .band-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--wds-primary-light); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: var(--wds-primary); flex-shrink: 0; }
+        .band-reply-item { margin-left: 12px; margin-top: 8px; padding: 10px 12px; background: var(--wds-gray-100); border-radius: 10px; border-left: 3px solid var(--wds-primary); }
         .band-roster-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-        .band-roster-title { font-weight: 700; font-size: 0.9rem; margin: 14px 0 8px; }
+        .band-roster-title { font-weight: 700; font-size: 0.95rem; margin: 16px 0 8px; }
+        .band-roster-hint { display: none; font-size: 0.78rem; color: var(--wds-gray-500); margin: 0 0 6px; }
         .band-roster-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--wds-gray-300); border-radius: 10px; }
-        .band-roster-table { border-collapse: collapse; font-size: 0.76rem; white-space: nowrap; min-width: 100%; }
-        .band-roster-table th, .band-roster-table td { border: 1px solid var(--wds-gray-300); padding: 5px 8px; text-align: center; vertical-align: middle; }
+        .band-roster-table { border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; min-width: 100%; }
+        .band-roster-table th, .band-roster-table td { border: 1px solid var(--wds-gray-300); padding: 6px 10px; text-align: center; vertical-align: middle; }
         .band-roster-table th { background: var(--wds-gray-100); font-weight: 700; color: var(--wds-gray-700); }
         .band-roster-table th.rowlabel { font-weight: 600; }
         .band-roster-table td.name { font-weight: 700; }
@@ -1372,20 +1380,20 @@
         body.dark .band-roster-table td.paid { color: #6EE7B7; }
         body.dark .band-roster-table td.due { color: #FCD34D; }
         body.dark .band-roster-table td.late { color: #FCA5A5; }
-        @media (max-width: 480px) { .band-form-grid, .band-kv-grid { grid-template-columns: 1fr; } }
-        .band-member-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--wds-gray-300);
-        }
+        .band-member-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--wds-gray-300); }
         .band-member-row:last-child { border-bottom: none; }
-        .band-comment-item {
-            padding: 10px 0;
-            border-bottom: 1px solid var(--wds-gray-300);
-        }
+        .band-comment-item { padding: 12px 0; border-bottom: 1px solid var(--wds-gray-300); }
         .band-comment-item:last-child { border-bottom: none; }
+        @media (max-width: 640px) { .band-roster-hint { display: block; } }
+        @media (max-width: 480px) {
+            .band-page { padding: 12px 12px calc(40px + env(safe-area-inset-bottom)); }
+            .band-section-card { padding: 14px; border-radius: 12px; }
+            .band-form-grid { grid-template-columns: 1fr; }
+            .band-input, #band-main-content input.band-input, #band-main-content textarea.band-input, #band-main-content select.band-input { font-size: 16px; } /* iOS 입력 시 자동 확대 방지 */
+            .band-form-row > .gaa-btn { flex: 1 1 100%; }
+            .band-card-top { flex-wrap: wrap; }
+        }
+        @media (max-width: 360px) { .band-kv-grid { grid-template-columns: 1fr; } }
         body.dark #band-main-content { background: #121212; }
         body.dark .band-header { background: var(--wds-white); border-color: var(--wds-gray-300); }
         body.dark .band-section-card { background: var(--wds-white); border-color: var(--wds-gray-300); }
@@ -1535,15 +1543,15 @@
         .gforms-submit:hover { filter:brightness(1.06); box-shadow:0 2px 8px rgba(0,0,0,0.18); }
 
         /* 공용 버튼 — 공연 예매/공간 대관의 둥근 스타일 기준 (구역 간 통일용) */
-        .gaa-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:12px 20px; border-radius:10px; font-size:0.92rem; font-weight:700; font-family:inherit; cursor:pointer; box-sizing:border-box; transition:border-color 0.15s, color 0.15s, background 0.15s; }
-        .gaa-btn-sm { padding:8px 15px; font-size:0.85rem; border-radius:9px; }
+        .gaa-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:12px 20px; min-height:44px; border-radius:10px; font-size:0.92rem; font-weight:700; font-family:inherit; cursor:pointer; box-sizing:border-box; transition:border-color 0.15s, color 0.15s, background 0.15s; }
+        .gaa-btn-sm { padding:8px 15px; min-height:38px; font-size:0.85rem; border-radius:9px; }
         .gaa-btn-primary { background:var(--wds-primary); color:#fff; border:none; }
         .gaa-btn-primary:hover { background:var(--wds-primary-hover); }
         .gaa-btn-secondary { background:var(--wds-white); color:var(--wds-black); border:1px solid var(--wds-gray-300); }
         .gaa-btn-secondary:hover { border-color:var(--wds-primary); color:var(--wds-primary); }
         .gaa-btn-danger { background:none; color:#EF4444; border:1px solid #EF4444; }
         .gaa-btn-danger:hover { background:#EF4444; color:#fff; }
-        .gaa-btn-xs { padding:5px 10px; font-size:0.78rem; border-radius:8px; min-height:30px; gap:4px; }
+        .gaa-btn-xs { padding:5px 10px; font-size:0.78rem; border-radius:8px; min-height:32px; gap:4px; }
         .gaa-btn-block { display:flex; width:100%; }
         .gaa-btn-ghost { background:none; border:none; color:var(--wds-gray-600); padding:4px 8px; font-weight:600; }
         .gaa-btn-ghost:hover { color:var(--wds-primary); background:var(--wds-gray-100); }
@@ -1551,6 +1559,7 @@
         .gaa-btn-ghost-danger:hover { background:#FEE2E2; }
         body.dark .gaa-btn-ghost-danger:hover { background:#3a1414; }
         .gaa-btn:disabled, .gaa-btn[disabled] { opacity:0.55; cursor:not-allowed; pointer-events:none; }
+        .gaa-btn[hidden] { display:none; } /* hidden 속성이 display:inline-flex 에 밀리지 않게 */
         /* 소형 버튼 묶음 (카드 안 액션 줄) */
         .gaa-btn-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
         .gforms-closed { background:#fee2e2; color:#991b1b; padding:24px; border-radius:8px; text-align:center; font-weight:700; font-size:1rem; }
@@ -1962,17 +1971,17 @@
                 <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="handleBandLogout()">로그아웃</button>
             </div>
         </div>
-        <div style="max-width:640px;margin:0 auto;padding:16px">
+        <div class="band-page">
             <!-- 밴드 정보 카드 -->
             <div id="bandInfoCard" class="band-section-card">
                 <div class="band-section-title">🎵 밴드 정보</div>
             </div>
 
             <!-- 관리자 (게더링 팀 전용) -->
-            <div id="bandAdminSection" class="band-section-card hidden" style="border:2px solid var(--wds-primary)">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-                    <div class="band-section-title" style="margin-bottom:0">🛠️ 관리자</div>
-                    <span style="font-size:0.72rem;color:var(--wds-primary);font-weight:600">게더링 팀 전용</span>
+            <div id="bandAdminSection" class="band-section-card hidden">
+                <div class="band-section-head" style="margin-bottom:6px">
+                    <div class="band-section-title">🛠️ 관리자</div>
+                    <span class="status-badge sm status-info">게더링 팀 전용</span>
                 </div>
                 <div class="admin-subtabs" style="border-bottom:2px solid var(--wds-gray-300);margin-bottom:12px">
                     <div class="admin-subtab active" data-tab="pending" onclick="setBandAdminTab('pending')">가입 신청</div>
@@ -1984,8 +1993,8 @@
 
             <!-- 공지사항 -->
             <div id="bandNoticesSection" class="band-section-card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                    <div class="band-section-title" style="margin-bottom:0">📢 공지사항</div>
+                <div class="band-section-head">
+                    <div class="band-section-title">📢 공지사항</div>
                     <button type="button" id="bandNoticeAddBtn" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="showAddBandNotice()" style="display:none">+ 공지 추가</button>
                 </div>
                 <div id="bandNoticeForm" class="band-inline-form hidden" style="margin:0 0 12px">
@@ -2011,25 +2020,24 @@
             <!-- 팀원 -->
             <div id="bandMembersSection" class="band-section-card">
                 <div class="band-section-title">🎸 팀원</div>
-                <div style="display:flex;gap:8px;margin-bottom:4px">
-                    <input type="text" id="bandMemberName" class="band-input" placeholder="이름" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('bandMemberAddBtn').click();}">
-                    <input type="text" id="bandMemberPart" class="band-input" placeholder="파트 (예: 기타)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('bandMemberAddBtn').click();}">
-                    <button type="button" id="bandMemberAddBtn" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="addBandMember(this)">추가</button>
+                <div class="band-form-row" style="margin-bottom:4px">
+                    <input type="text" id="bandMemberName" class="band-input" placeholder="이름" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('bandMemberAddBtn').click();}">
+                    <input type="text" id="bandMemberPart" class="band-input" placeholder="파트 (예: 기타)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('bandMemberAddBtn').click();}">
+                    <button type="button" id="bandMemberAddBtn" class="gaa-btn gaa-btn-primary" onclick="addBandMember(this)">추가</button>
                 </div>
                 <div id="bandMemberResult" class="band-form-result"></div>
                 <div id="bandMemberList"><div class="band-empty">불러오는 중…</div></div>
             </div>
 
-            <!-- 댓글 -->
+            <!-- 요청사항 (팀 → 게더링) -->
             <div id="bandCommentsSection" class="band-section-card">
-                <div class="band-section-title">💬 댓글</div>
-                <div style="margin-bottom:4px">
-                    <div style="display:flex;gap:8px;align-items:stretch">
-                        <textarea id="bandCommentContent" class="band-input" placeholder="댓글을 입력하세요" rows="2" style="flex:1"></textarea>
-                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="postBandComment(this)" style="align-self:stretch">등록</button>
-                    </div>
-                </div>
+                <div class="band-section-title">💬 요청사항</div>
+                <div class="band-muted" style="margin:-6px 0 10px">장비·시설·일정 등 게더링 팀에 남길 요청을 적어주세요. 답글로 회신드립니다.</div>
+                <textarea id="bandCommentContent" class="band-input" placeholder="요청사항을 입력하세요" rows="2"></textarea>
                 <div id="bandCommentResult" class="band-form-result"></div>
+                <div class="band-submit-row" style="margin-top:0">
+                    <button type="button" class="gaa-btn gaa-btn-primary" onclick="postBandComment(this)">등록</button>
+                </div>
                 <div id="bandCommentList"><div class="band-empty">불러오는 중…</div></div>
             </div>
         </div>
@@ -11302,8 +11310,8 @@
         }
 
         function loginBandUI(profile) {
-            document.body.classList.add('portal-view');
-            document.body.classList.remove('fullwidth-view');
+            // fullwidth-view: 본문 좌우 패딩 없이 페이지 배경을 화면 끝까지 (공연 예매·대관과 동일)
+            document.body.classList.add('portal-view', 'fullwidth-view');
             _hideAllScreens();
             document.getElementById('band-main-content').classList.remove('hidden');
             state.bandProfile = profile;
@@ -11347,7 +11355,11 @@
 
         function setBandAdminTab(tab) {
             state.bandAdminTab = tab;
-            document.querySelectorAll('#bandAdminSection .admin-subtab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+            document.querySelectorAll('#bandAdminSection .admin-subtab').forEach(el => {
+                const on = el.dataset.tab === tab;
+                el.classList.toggle('active', on);
+                if (on && el.scrollIntoView) { try { el.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (_) {} }
+            });
             renderBandAdminTab();
         }
 
@@ -11821,7 +11833,7 @@
                 const lead = `<td rowspan="3">${i + 1}</td><td rowspan="3">${escHtml(bandSlotSheetText(t.timeslots))}</td><td rowspan="3" class="name">${escHtml(t.band_name_kr || '-')}</td><td rowspan="3">${escHtml(t.leader_name || '-')}</td><td rowspan="3">${escHtml(t.leader_phone || '-')}</td><td rowspan="3">${bandYMDShort(t.band_start_date) || '-'}</td><td rowspan="3">${months}</td>`;
                 return lines.map((ln, j) => `<tr>${j === 0 ? lead : ''}<th class="rowlabel">${ln.label}</th>${ln.cells.map(c => `<td class="${c.cls.trim()}">${escHtml(c.text)}</td>`).join('')}</tr>`).join('');
             }).join('');
-            return `<div class="band-roster-wrap"><table class="band-roster-table sheet"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+            return `<div class="band-roster-hint">← 옆으로 밀어 회차별 입금·시작일·종료일을 확인하세요 →</div><div class="band-roster-wrap"><table class="band-roster-table sheet"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
         }
         function downloadBandRosterCsv() {
             const cache = state.bandAdminCache;
@@ -11917,19 +11929,21 @@
         function renderBandInfo(profile) {
             const card = document.getElementById('bandInfoCard');
             if (!card) return;
-            const kv = (label, val, strong) => `<div class="band-kv"><span>${label}</span><strong style="${strong ? 'font-size:1rem' : ''}">${val || '-'}</strong></div>`;
+            const kv = (label, val, big) => `<div class="band-kv"><span>${label}</span><strong class="${big ? 'lg' : ''}">${val || '-'}</strong></div>`;
             card.innerHTML = `
-                <div class="band-card-head" style="margin-bottom:10px"><span class="band-section-title" style="margin:0">🎵 밴드 정보</span>
-                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="toggleBandInfoEdit()">✏️ 정보 수정</button></div>
-                <div class="band-kv-grid">
-                    ${kv('밴드명 (국문)', escHtml(profile.band_name_kr || ''), true)}
-                    ${kv('밴드명 (영문)', escHtml(profile.band_name_en || ''))}
-                    ${kv('팀 리더', escHtml(profile.leader_name || profile.name || ''))}
-                    ${kv('연락처', escHtml(profile.leader_phone || profile.phone || ''))}
+                <div class="band-section-head"><span class="band-section-title">🎵 밴드 정보</span>
+                    <button type="button" id="bandInfoEditBtn" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="toggleBandInfoEdit()">✏️ 정보 수정</button></div>
+                <div id="bandInfoView">
+                    <div class="band-kv-grid">
+                        ${kv('밴드명 (국문)', escHtml(profile.band_name_kr || ''), true)}
+                        ${kv('밴드명 (영문)', escHtml(profile.band_name_en || ''))}
+                        ${kv('팀 리더', escHtml(profile.leader_name || profile.name || ''))}
+                        ${kv('연락처', escHtml(profile.leader_phone || profile.phone || ''))}
+                        <div class="band-kv"><span>합주 타임</span><strong class="band-card-slot" style="margin:0">${escHtml(bandSlotSheetText(profile.timeslots))}</strong></div>
+                    </div>
+                    <div id="bandCycleNotice" class="band-card-section" hidden></div>
                 </div>
-                <div class="band-kv" style="margin-top:8px"><span>합주 타임</span><strong class="band-card-slot" style="margin:0">${escHtml(bandSlotSheetText(profile.timeslots))}</strong></div>
-                <div id="bandCycleNotice" class="band-card-section" hidden></div>
-                <div id="bandInfoEditForm" class="band-inline-form" hidden>
+                <div id="bandInfoEditForm" class="band-inline-form" style="margin-top:0;padding-top:0;border-top:0" hidden>
                     ${buildBandInfoEditForm(profile)}
                 </div>
             `;
@@ -11952,10 +11966,15 @@
             `;
         }
 
+        // 보기 영역 ↔ 수정 폼 교체 (폼이 아래에 덧붙지 않도록)
         function toggleBandInfoEdit() {
             const form = document.getElementById('bandInfoEditForm');
-            if (!form) return;
+            const view = document.getElementById('bandInfoView');
+            const btn = document.getElementById('bandInfoEditBtn');
+            if (!form || !view) return;
             form.hidden = !form.hidden;
+            view.hidden = !form.hidden;
+            if (btn) btn.hidden = !form.hidden;
             const res = document.getElementById('bandInfoResult');
             if (res) res.textContent = '';
             if (!form.hidden) document.getElementById('bandEditNameKr')?.focus();
@@ -12217,7 +12236,7 @@
                 if (!repliesByParent[r.parent_id]) repliesByParent[r.parent_id] = [];
                 repliesByParent[r.parent_id].push(r);
             });
-            if (!topLevel.length) { list.innerHTML = _bandEmptyHTML('첫 댓글을 남겨보세요!'); return; }
+            if (!topLevel.length) { list.innerHTML = _bandEmptyHTML('아직 요청사항이 없습니다. 첫 요청을 남겨보세요!'); return; }
             const myId = state.bandProfile ? state.bandProfile.id : null;
             const admin = isBandAdmin();
             list.innerHTML = topLevel.map(c => {
@@ -12305,7 +12324,7 @@
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
             const content = contentEl.value.trim();
-            if (!content) { showErr('댓글을 입력해주세요.'); contentEl.focus(); return; }
+            if (!content) { showErr('요청사항을 입력해주세요.'); contentEl.focus(); return; }
             _bandBusy(btn, true, '등록 중…');
             try {
                 const { error } = await supabaseClient.from('band_comments').insert({
@@ -12316,13 +12335,14 @@
                 });
                 if (error) { console.error('band comment post error:', error); showErr('등록하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
                 contentEl.value = '';
+                showToast('요청사항을 등록했습니다. 게더링 팀이 확인 후 답글로 회신드립니다.');
                 fetchAndRenderBandComments();
             } finally { _bandBusy(btn, false); }
         }
 
         async function deleteBandComment(id) {
             if (!supabaseClient) return;
-            if (!confirm('댓글을 삭제하시겠습니까?')) return;
+            if (!confirm('요청사항을 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('band_comments').delete().eq('id', id);
             if (error) { console.error('band comment delete error:', error); showToast('삭제하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
             fetchAndRenderBandComments();

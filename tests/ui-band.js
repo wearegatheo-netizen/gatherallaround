@@ -106,9 +106,12 @@ const FAKE_SB = `
   await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);
   await p.waitForTimeout(600);
   chk('밴드 메인 표시 + 관리자 섹션 노출', await p.evaluate(() => !document.getElementById('band-main-content').classList.contains('hidden') && !document.getElementById('bandAdminSection').classList.contains('hidden')));
+  chk('본문 전체폭(fullwidth-view) — 좌우 패딩 겹 제거', await p.evaluate(() => document.body.classList.contains('fullwidth-view') && getComputedStyle(document.body).paddingLeft === '0px'));
+  chk('입력칸 44px · 폼 제출 버튼 44px · 카드 액션 38px 이상', await p.evaluate(() => { const i = document.getElementById('bandMemberName'); const b = document.getElementById('bandMemberAddBtn'); const a = document.querySelector('#bandAdminView .gaa-btn-sm'); return i.offsetHeight === 44 && b.offsetHeight === 44 && a.offsetHeight >= 38; }), await p.evaluate(() => [document.getElementById('bandMemberName').offsetHeight, document.getElementById('bandMemberAddBtn').offsetHeight, document.querySelector('#bandAdminView .gaa-btn-sm')?.offsetHeight].join('/')));
   await p.evaluate(() => setBandAdminTab('teams'));
   await p.waitForTimeout(600);
   const teamsHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
+  chk('팀 항목은 중첩 카드가 아닌 구분선 리스트(테두리·배경 없음)', await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-card:nth-child(2)'); const cs = c && getComputedStyle(c); return !!cs && cs.borderLeftWidth === '0px' && cs.borderTopWidth === '1px' && cs.borderRadius === '0px'; }));
   chk('팀 관리: 벤더 계약 정보(시작일·보증금·사용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
   chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/27', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/27</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
   chk('팀 관리: 벤더 상태 칩 "입금일 12일 후"', teamsHtml.includes('입금일 12일 후'));
@@ -190,10 +193,19 @@ const FAKE_SB = `
   chk('팀 본인 화면: 회차 안내(5차 납부 완료·다음 6차·계좌) + 관리자 섹션 숨김', adminHidden && notice.includes('5차 납부 완료') && notice.includes('토스뱅크 1000-2274-7678') && notice.includes('이번 회차'), notice.slice(0, 160));
   const infoHtml = await p.evaluate(() => document.getElementById('bandInfoCard').innerHTML);
   chk('밴드 정보: 합주 타임 시트 표기 "일 야간"', infoHtml.includes('일 야간'));
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-420-light.png'), fullPage: true });
   await p.evaluate(() => toggleBandInfoEdit());
+  chk('정보 수정 폼: 국문·영문·리더·연락처 입력칸 모두 44px', await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].every(id => document.getElementById(id).offsetHeight === 44)), await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].map(id => { const e = document.getElementById(id); return id + ':' + e.offsetHeight + '/' + getComputedStyle(e).height + '/style=' + JSON.stringify(e.getAttribute('style')) + '/' + e.outerHTML.slice(0, 90); }).join(' | ')));
+  chk('정보 수정: 보기 영역 숨김 + 폼 표시(아래에 덧붙지 않음) + 수정 버튼 실제로 안 보임', await p.evaluate(() => document.getElementById('bandInfoView').hidden && !document.getElementById('bandInfoEditForm').hidden && document.getElementById('bandInfoEditBtn').offsetParent === null));
   await p.evaluate(() => { document.getElementById('bandEditNameKr').value = ''; saveBandInfo(document.querySelector('#bandInfoEditForm .gaa-btn-primary')); });
   chk('정보 수정: 빈 밴드명 → 인라인 오류(alert 없음)', await p.evaluate(() => document.getElementById('bandInfoResult').textContent) === '밴드명(국문)을 입력해주세요.');
-  await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-light.png'), fullPage: true });
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-edit-420-light.png'), fullPage: true });
+  await p.evaluate(() => toggleBandInfoEdit());
+  chk('정보 수정 취소: 보기 영역 복귀', await p.evaluate(() => !document.getElementById('bandInfoView').hidden && document.getElementById('bandInfoEditForm').hidden));
+  chk('"댓글" → "요청사항" 명칭 변경', await p.evaluate(() => document.querySelector('#bandCommentsSection .band-section-title').textContent.includes('요청사항') && document.getElementById('bandCommentContent').placeholder.includes('요청사항') && !document.body.innerText.includes('댓글을 입력')));
+  for (const w of [390, 768]) { await p.setViewportSize({ width: w, height: 900 }); await p.waitForTimeout(200); await p.screenshot({ path: path.join(SHOT_DIR, `band-member-${w}-light.png`), fullPage: true }); }
+  await p.evaluate(() => applyTheme('dark')); await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-768-dark.png'), fullPage: true }); await p.evaluate(() => applyTheme('light'));
+  await p.setViewportSize({ width: 420, height: 950 });
 
   // ── 7. 가입 신청 → 관리자 푸시(/notify-admins) + 관리자 탭 대기 건수 배지
   await p.evaluate(() => {
