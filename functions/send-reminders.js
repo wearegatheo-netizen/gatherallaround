@@ -1,17 +1,25 @@
 // Cloudflare Pages Function: /send-reminders
-// 공간 대관 이용일 임박(D-2) 관리자 푸시 알림 + 매월 1일 개인정보 보유기간 만료 건 파기.
+// 1) 공간 대관 이용일 임박(D-2) 관리자 푸시 알림
+// 2) 고정 합주팀 회차 사용료(월세) 입금 안내 문자 — 입금일 당일 + 미납 시 시작 전날
+// 3) 매월 1일 개인정보 보유기간 만료 건 파기
 // 매일 08:00 KST에 GitHub Actions 크론(.github/workflows/perf-reminder.yml)이 POST로 호출한다.
-// 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
-// 아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
-// 파기: 매월 1일(KST) 호출이면 이용일·접수일이 모두 1년 넘게 지난 행을 DELETE —
-// 신청 폼 개인정보 동의 문구("이용 종료 후 1년 보관 후 파기") 이행.
+//
+// 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
+//    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
+// 2) 회차 모델(index.html bandCycle* · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지할 것):
+//      시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21, 입금일_n = 시작일_n − 7 (n≥1)
+//    입금일 당일(kind 'due', 크론이 빠졌으면 시작 전날까지 캐치업) + 그래도 미납이면 시작 전날(kind 'last').
+//    band_rent_reminders(team_id, cycle_no, kind) PK 로 회차·종류별 평생 1회 선점. 관리자 팀(게더링)은 제외.
+//    솔라피 키가 없으면 이 블록은 조용히 꺼진다(/send-sms 와 같은 정책).
+// 3) 파기: 매월 1일(KST) 호출이면 이용일·접수일이 모두 1년 넘게 지난 행을 DELETE —
+//    신청 폼 개인정보 동의 문구("이용 종료 후 1년 보관 후 파기") 이행.
 //
 // 시크릿 없이 공개 호출 가능하지만 남용이 무해한 설계:
-//   발송 전 reminder_sent_at 을 조건부 PATCH로 선점 — 같은 건은 평생 1회만 발송되므로
-//   반복 호출해 봐야 "정해진 날 아침 알림"이 몇 시간 당겨지는 것 이상은 불가능하다.
+//   발송 전 reminder_sent_at(대관) / band_rent_reminders 행(월세)을 선점 — 같은 건은 평생 1회만
+//   발송되므로 반복 호출해 봐야 "정해진 날 아침 알림"이 몇 시간 당겨지는 것 이상은 불가능하다.
 // 푸시 전송 자체는 기존 /notify-admins → /push (VAPID) 경로를 그대로 재사용.
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-// 사전 준비(1회, Supabase SQL Editor): supabase/migrations/20260831_reminder.sql
+// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, (월세 문자) SOLAPI_API_KEY, SOLAPI_API_SECRET, SMS_SENDER
+// 사전 준비(1회, Supabase SQL Editor): supabase/migrations/20260831_reminder.sql, 20260915_band_cycles.sql
 
 function corsFor(origin) {
     const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
@@ -46,6 +54,111 @@ function reminderText(bk, todayStr) {
     };
 }
 
+// ── 고정 합주팀 회차 수식 (index.html bandCycle* 와 동일) ─────────────────────
+const BAND_CYCLE_DAYS = 28;
+const DAY_MS = 86400e3;
+const GATHEO_ADMIN_BAND_ID = 'wearegatheo'; // index.html GATHEO_ADMIN_BAND_ID 와 동일 — 관리자 팀은 문자 대상 아님
+const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js buildText · index.html 대관 조회 카드와 동일 문자열 유지
+export const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
+export const bandCycleStart = (start, n) => addDays(start, BAND_CYCLE_DAYS * n);
+export const bandCycleEnd = (start, n) => addDays(start, BAND_CYCLE_DAYS * n + 21);
+export const bandCycleDue = (start, n) => (n <= 0 ? start : addDays(start, BAND_CYCLE_DAYS * n - 7));
+// 다음 회차 번호: 오늘이 속한 회차 + 1 (시작일 전이면 0 = 등록 회차, 문자 대상 아님)
+export const bandNextCycle = (start, today) => {
+    const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
+    return days < 0 ? 0 : Math.floor(days / BAND_CYCLE_DAYS) + 1;
+};
+// 구형 납부 행(cycle_no 없음) 귀속: 납부일에 가장 가까운 회차 시작일
+export const bandInferCycle = (start, paidAt) =>
+    Math.max(0, Math.round((Date.parse(paidAt) - Date.parse(start)) / DAY_MS / BAND_CYCLE_DAYS));
+
+const isAdminBand = (t) => {
+    const loginId = String(t.instruments || '').trim().toLowerCase();
+    const emailId = String(t.email || '').trim().toLowerCase().split('@')[0];
+    return loginId === GATHEO_ADMIN_BAND_ID || emailId === GATHEO_ADMIN_BAND_ID;
+};
+const mdOf = (ymd) => { const [, m, d] = ymd.split('-').map(Number); return `${m}/${d}`; };
+const wdOf = (ymd) => ['일', '월', '화', '수', '목', '금', '토'][new Date(ymd + 'T00:00:00Z').getUTCDay()];
+
+// 입금 안내 문자. 90byte 초과 → 솔라피가 LMS로 자동 전환. 이모지는 EUC-KR에서 깨질 수 있어 넣지 않는다.
+export function bandRentText(team, n, kind, today) {
+    const start = team.band_start_date;
+    const startN = bandCycleStart(start, n);
+    const due = bandCycleDue(start, n);
+    const name = team.band_name_kr || team.name || '';
+    const cycle = `[${name}] 팀 고정 합주 다음 회차(${mdOf(startN)}(${wdOf(startN)})부터 4주)`;
+    const lead = kind === 'last'
+        ? `${cycle}가 내일 시작됩니다. 아직 입금 확인이 되지 않아 안내드립니다.`
+        : today > due
+            ? `${cycle} 사용료 입금일(${mdOf(due)})이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
+            : `${cycle} 사용료 입금일이 오늘(${mdOf(due)})입니다.`;
+    const fee = Number(team.band_fee) > 0 ? `사용료(${Number(team.band_fee).toLocaleString('ko-KR')}원)` : '사용료';
+    return `안녕하세요! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
+
+${lead}
+
+${fee}를 아래 계좌로 입금해주시면 다음 회차 이용이 연장됩니다.
+
+${BAND_BANK_LINE}
+
+※ 입금자명은 팀명 또는 대표자명으로 부탁드립니다.
+※ 연장하지 않으실 경우 미리 말씀해주시면 감사하겠습니다. 보증금은 사용 종료 시 반환됩니다.
+※ 문의: 010-5109-1042`;
+}
+
+// 솔라피 인증 — send-sms.js 와 동일 (Pages Functions 는 파일별 격리 Worker 라 복사해 둔다)
+const toHex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+async function solapiAuthHeader(apiKey, apiSecret) {
+    const date = new Date().toISOString();
+    const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
+    const key = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(apiSecret),
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const signature = toHex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(date + salt)));
+    return `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+}
+
+// 오늘 문자를 보내야 할 팀·회차·종류 목록 (선점·발송 없음). 하루 한 팀 최대 1건.
+export function bandRentTargets(teams, payments, reminders, today) {
+    const paidSet = new Set();
+    for (const p of payments || []) {
+        const team = teams.find(t => t.id === p.team_id);
+        if (!team || !p.paid_at) continue;
+        const n = Number.isInteger(p.cycle_no) ? p.cycle_no : bandInferCycle(team.band_start_date, p.paid_at);
+        paidSet.add(`${p.team_id}:${n}`);
+    }
+    const sentSet = new Set((reminders || []).map(r => `${r.team_id}:${r.cycle_no}:${r.kind}`));
+    const out = [];
+    for (const t of teams) {
+        const n = bandNextCycle(t.band_start_date, today);
+        if (n < 1 || paidSet.has(`${t.id}:${n}`)) continue;
+        const due = bandCycleDue(t.band_start_date, n);
+        const startN = bandCycleStart(t.band_start_date, n);
+        if (today < due || today >= startN) continue;
+        if (!sentSet.has(`${t.id}:${n}:due`)) out.push({ team: t, n, kind: 'due', due, startN });
+        else if (today === addDays(startN, -1) && !sentSet.has(`${t.id}:${n}:last`)) out.push({ team: t, n, kind: 'last', due, startN });
+    }
+    return out;
+}
+
+async function loadBandRentTargets(env, sbHeaders, today) {
+    const base = `${env.SUPABASE_URL}/rest/v1/`;
+    const sel = 'id,name,band_name_kr,leader_phone,phone,band_start_date,band_fee,instruments,email';
+    const tRes = await fetch(`${base}profiles?member_type=eq.band&status=eq.approved&band_start_date=not.is.null&band_ended_at=is.null&select=${sel}`,
+        { headers: sbHeaders });
+    if (!tRes.ok) throw new Error('band teams lookup failed: ' + tRes.status);
+    const teams = (await tRes.json().catch(() => [])).filter(t => t && t.band_start_date && !isAdminBand(t));
+    if (!teams.length) return [];
+    const ids = teams.map(t => t.id).join(',');
+    const [pRes, rRes] = await Promise.all([
+        fetch(`${base}band_payments?team_id=in.(${ids})&select=team_id,paid_at,cycle_no`, { headers: sbHeaders }),
+        fetch(`${base}band_rent_reminders?team_id=in.(${ids})&select=team_id,cycle_no,kind`, { headers: sbHeaders }),
+    ]);
+    const payments = pRes.ok ? await pRes.json().catch(() => []) : [];
+    const reminders = rRes.ok ? await rRes.json().catch(() => []) : [];
+    return bandRentTargets(teams, payments, reminders, today);
+}
+
 export async function onRequest(context) {
     const { request, env } = context;
     const corsHeaders = corsFor(request.headers.get('Origin'));
@@ -73,10 +186,16 @@ export async function onRequest(context) {
         const rows = await listRes.json();
         const bookings = Array.isArray(rows) ? rows : [];
 
+        // 월세 문자: 솔라피 키 미설정 = 기능 꺼짐 (조회조차 하지 않는다)
+        const smsOn = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
+        const bandTargets = smsOn ? await loadBandRentTargets(env, sbHeaders, today) : [];
+
         // GET: 드라이런 진단 — 발송·선점 없이 대상 요약만 (공개 응답이므로 개인정보 제외)
         if (request.method === 'GET') {
             return json({ 오늘_KST: today, 대상_기간: `${today} ~ ${until}`,
-                발송_대기: bookings.length, 대상_이용일: bookings.map(b => b.date) });
+                발송_대기: bookings.length, 대상_이용일: bookings.map(b => b.date),
+                월세_문자: smsOn ? '켜짐' : '꺼짐(솔라피 키 없음)',
+                월세_발송_대기: bandTargets.map(x => ({ 회차: x.n, 입금일: x.due, 종류: x.kind })) });
         }
         if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
@@ -102,6 +221,42 @@ export async function onRequest(context) {
             sent++;
         }
 
+        // 고정 합주팀 입금 안내 문자 — band_rent_reminders 행 INSERT 로 선점(PK 중복 = 이미 발송 → 409 → skip)
+        let bandSent = 0;
+        for (const x of bandTargets) {
+            const to = String(x.team.leader_phone || x.team.phone || '').replace(/\D/g, '');
+            if (!/^01[016789][0-9]{7,8}$/.test(to)) continue;
+            const claimTs = new Date().toISOString();
+            const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/band_rent_reminders`, {
+                method: 'POST',
+                headers: { ...sbHeaders, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+                body: JSON.stringify({ team_id: x.team.id, cycle_no: x.n, kind: x.kind, sent_at: claimTs }),
+            });
+            if (!claimRes.ok) continue;
+            const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
+                method: 'POST',
+                headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: {
+                    to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text: bandRentText(x.team, x.n, x.kind, today),
+                    subject: '게더 올 어라운드 사용료 안내', // LMS 제목(40byte 이내) — 미지정 시 본문 첫 줄이 잘려 두 번 보인다
+                } }),
+            });
+            if (!smsRes.ok) {
+                // 발송 실패 → 내가 찍은 선점만 되돌려(타임스탬프 일치 조건) 다음 날 재시도 여지를 남긴다
+                await fetch(`${SUPABASE_URL}/rest/v1/band_rent_reminders?team_id=eq.${x.team.id}&cycle_no=eq.${x.n}&kind=eq.${x.kind}&sent_at=eq.${encodeURIComponent(claimTs)}`,
+                    { method: 'DELETE', headers: sbHeaders }).catch(() => {});
+                continue;
+            }
+            bandSent++;
+            const name = x.team.band_name_kr || x.team.name || '';
+            await fetch(`${origin}/notify-admins`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: '💰 월세 입금 안내 문자 발송',
+                    body: `${name} · ${x.n}차 · 입금일 ${mdOf(x.due)} · ${x.kind === 'last' ? '시작 전날 리마인드' : '입금일 안내'}`,
+                    roles: ['운영 총괄'] }),
+            }).catch(() => {});
+        }
+
         // 매월 1일(KST): 보유기간(1년) 만료 건 파기 — 이용일과 접수일이 모두 1년 경과한 행만.
         // 며칠 지나 실행돼도 같은 집합을 지우는 멱등 동작이라 반복·지연 호출 모두 안전하다.
         let purged = 0;
@@ -116,7 +271,8 @@ export async function onRequest(context) {
                 purged = Array.isArray(deleted) ? deleted.length : 0;
             }
         }
-        return json({ ok: true, checked: bookings.length, sent, purged });
+        return json({ ok: true, checked: bookings.length, sent, purged,
+            band_checked: bandTargets.length, band_sent: bandSent, ...(smsOn ? {} : { band: 'sms-disabled' }) });
     } catch (e) {
         return json({ error: String(e && e.message || e) }, 500);
     }

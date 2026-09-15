@@ -1,7 +1,8 @@
-# 공간 대관 이용일 임박(D-2) 알림 크론
+# 공간 대관 이용일 임박(D-2) 알림 + 고정 합주팀 회차 사용료 입금 안내 문자 크론
 # 매일 08:00 KST(23:00 UTC)에 /send-reminders 를 호출해, 이용일이 이틀 앞으로
-# 다가온 승인 예약을 관리자 푸시로 알린다. 엔드포인트는 reminder_sent_at 선점으로
-# 건당 1회만 발송하므로 중복 실행·수동 실행(workflow_dispatch) 모두 안전하다.
+# 다가온 승인 예약을 관리자 푸시로 알리고, 입금일(다음 회차 시작 7일 전)이 된 합주팀
+# 대표자에게 솔라피 문자를 보낸다(미납 시 시작 전날 1회 더). 엔드포인트는 reminder_sent_at /
+# band_rent_reminders 선점으로 건당 1회만 발송하므로 중복 실행·수동 실행(workflow_dispatch) 모두 안전하다.
 name: perf-booking-reminder
 
 on:

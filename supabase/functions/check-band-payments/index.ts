@@ -1,6 +1,11 @@
 // Supabase Edge Function: check-band-payments
 // 매일 스케줄로 실행, 납부일 임박/초과 팀을 관리자에게 Web Push로 알림.
 //
+// 납부일 계산은 회차 모델(index.html bandCycle* · functions/send-reminders.js 와 동일)을 따른다:
+//   시작일_n = band_start_date + 28n, 입금일_n = 시작일_n − 7 (n≥1). 해당 회차 납부 기록이 있으면 정상.
+//   band_start_date 가 없는 팀은 예전 방식(마지막 납부일 + 28일)으로 폴백.
+// 관리자 팀(게더링, 로그인 ID wearegatheo)과 사용 종료(band_ended_at) 팀은 제외.
+//
 // Deploy:
 //   supabase functions deploy check-band-payments --project-ref <PROJECT_REF> --no-verify-jwt
 //
@@ -26,19 +31,47 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function nextPaymentDate(lastPaidAt: string): Date {
-  const d = new Date(lastPaidAt);
-  d.setDate(d.getDate() + 28);
-  return d;
+const CYCLE_DAYS = 28;
+const DAY_MS = 86400000;
+const GATHEO_ADMIN_BAND_ID = "wearegatheo";
+const addDays = (ymd: string, n: number) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
+const cycleStart = (start: string, n: number) => addDays(start, CYCLE_DAYS * n);
+const cycleDue = (start: string, n: number) => (n <= 0 ? start : addDays(start, CYCLE_DAYS * n - 7));
+const nextCycle = (start: string, today: string) => {
+  const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
+  return days < 0 ? 0 : Math.floor(days / CYCLE_DAYS) + 1;
+};
+const inferCycle = (start: string, paidAt: string) =>
+  Math.max(0, Math.round((Date.parse(paidAt) - Date.parse(start)) / DAY_MS / CYCLE_DAYS));
+const diffDays = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / DAY_MS);
+
+type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null };
+type Payment = { team_id: string; paid_at: string; cycle_no: number | null };
+
+function isAdminBand(t: Team): boolean {
+  const loginId = String(t.instruments || "").trim().toLowerCase();
+  const emailId = String(t.email || "").trim().toLowerCase().split("@")[0];
+  return loginId === GATHEO_ADMIN_BAND_ID || emailId === GATHEO_ADMIN_BAND_ID;
 }
 
-function paymentStatus(nextDate: Date): "overdue" | "imminent" | "normal" {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((nextDate.getTime() - today.getTime()) / 86400000);
-  if (diff < -7) return "overdue";
-  if (diff <= 7) return "imminent";
-  return "normal";
+// 팀별 알림 판정 — status 와 표시 라벨(입금일까지 남은/지난 일수)
+function judge(t: Team, payments: Payment[], today: string): { status: "overdue" | "imminent" | "normal" | "unknown"; label: string } {
+  const mine = payments.filter((p) => p.team_id === t.id && p.paid_at);
+  if (t.band_start_date) {
+    const n = nextCycle(t.band_start_date, today);
+    if (n < 1) return { status: "normal", label: "시작 전" };
+    const paid = mine.some((p) => (Number.isInteger(p.cycle_no) ? p.cycle_no : inferCycle(t.band_start_date!, p.paid_at)) === n);
+    if (paid) return { status: "normal", label: `${n}차 납부 완료` };
+    const diff = diffDays(cycleDue(t.band_start_date, n), today);
+    const label = diff >= 0 ? `${n}차 입금일 ${diff}일 후` : `${n}차 입금일 ${-diff}일 지남`;
+    return { status: diff < 0 ? "overdue" : diff <= 7 ? "imminent" : "normal", label };
+  }
+  // 폴백: 시작일 미설정 팀은 마지막 납부일 + 28일
+  const last = mine.map((p) => p.paid_at).sort().pop();
+  if (!last) return { status: "unknown", label: "납부 이력 없음 (시작일 미설정)" };
+  const diff = diffDays(addDays(last, CYCLE_DAYS), today);
+  const label = diff >= 0 ? `${diff}일 후` : `${-diff}일 지남`;
+  return { status: diff < -7 ? "overdue" : diff <= 7 ? "imminent" : "normal", label };
 }
 
 Deno.serve(async (req) => {
@@ -68,40 +101,26 @@ Deno.serve(async (req) => {
 
     // 승인된 합주팀 목록
     const teamsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&select=id,band_name_kr`,
+      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&band_ended_at=is.null&select=id,band_name_kr,band_start_date,instruments,email`,
       { headers }
     );
-    const teams: { id: string; band_name_kr: string }[] = await teamsRes.json();
+    const teams: Team[] = ((await teamsRes.json()) as Team[]).filter((t) => !isAdminBand(t));
     if (!teams.length) {
       return new Response(JSON.stringify({ ok: true, msg: "no teams" }), { headers: corsHeaders });
     }
 
-    // 각 팀의 최근 납부일 조회
+    // 각 팀의 납부 기록 조회 (회차 번호 포함)
     const teamIds = teams.map((t) => t.id).join(",");
     const paymentsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/band_payments?team_id=in.(${teamIds})&select=team_id,paid_at&order=paid_at.desc`,
+      `${SUPABASE_URL}/rest/v1/band_payments?team_id=in.(${teamIds})&select=team_id,paid_at,cycle_no&order=paid_at.desc`,
       { headers }
     );
-    const payments: { team_id: string; paid_at: string }[] = await paymentsRes.json();
+    const payments: Payment[] = await paymentsRes.json();
 
-    // 팀별 최신 납부일 맵
-    const paymentMap: Record<string, string> = {};
-    for (const p of payments) {
-      if (!paymentMap[p.team_id]) paymentMap[p.team_id] = p.paid_at;
-    }
-
-    // 알림 대상 팀 필터
-    const today = new Date();
+    // 알림 대상 팀 필터 (KST 기준 오늘)
+    const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     const alertTeams = teams
-      .map((t) => {
-        const last = paymentMap[t.id];
-        if (!last) return { name: t.band_name_kr, label: "납부 이력 없음", status: "unknown" };
-        const next = nextPaymentDate(last);
-        const status = paymentStatus(next);
-        const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
-        const label = diff >= 0 ? `${diff}일 후` : `${-diff}일 지남`;
-        return { name: t.band_name_kr, label, status };
-      })
+      .map((t) => ({ name: t.band_name_kr, ...judge(t, payments, today) }))
       .filter((x) => x.status === "overdue" || x.status === "imminent" || x.status === "unknown");
 
     if (!alertTeams.length) {
