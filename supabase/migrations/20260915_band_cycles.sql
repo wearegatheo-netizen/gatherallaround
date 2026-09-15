@@ -4,7 +4,7 @@
 -- 내부운영 구글시트 "진행중인 고정팀" 탭을 사이트로 이식한다.
 --   시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21(마지막 주 첫 합주일),
 --   입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전), 등록(n=0)은 시작일 당일 입금.
--- 매일 08:00 KST 크론(/send-reminders)이 입금일 당일 + 미납 시 시작 전날 대표자에게 문자를 보내고,
+-- 매일 12:00 KST 크론(/send-reminders)이 미납 시 입금일 당일·4주차(시작 1주 전)·시작 전날 대표자에게 문자를 보내고,
 -- band_rent_reminders(team_id, cycle_no, kind) PK 선점으로 회차·종류별 평생 1회만 발송한다.
 -- 수식은 index.html bandCycle* / functions/send-reminders.js 와 동일하게 유지할 것.
 
@@ -27,7 +27,7 @@ alter table public.band_payments
 create table if not exists public.band_rent_reminders (
   team_id  uuid not null references public.profiles(id) on delete cascade,
   cycle_no int  not null,
-  kind     text not null check (kind in ('due','last')),  -- 입금일 안내 / 시작 전날 리마인드
+  kind     text not null check (kind in ('due','week4','last')),  -- 입금일(3주차) / 4주차(시작 1주 전) / 시작 전날
   sent_at  timestamptz not null default now(),
   primary key (team_id, cycle_no, kind)
 );

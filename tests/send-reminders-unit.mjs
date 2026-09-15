@@ -220,21 +220,53 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   chk('캐치업 발송 1건 (kind due)', j.band_sent === 1 && claimBody().kind === 'due');
   chk('본문: 입금일 지남 문구', !!msg && msg.text.includes('사용료 입금일(9/29)이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
 }
-// ── B5. 시작 전날 — due 발송됐고 미납이면 last 리마인드, last 도 발송됐으면 없음
+// ── B5. 회차당 최대 3회: due(3주차) → week4(시작 1주 전) → last(시작 전날)
 {
-  at('2026-10-12');
-  mockFetch(bandRoutes({ reminders: [{ team_id: TEAM_ID, cycle_no: 1, kind: 'due' }] }));
+  const R = (...kinds) => kinds.map(k => ({ team_id: TEAM_ID, cycle_no: 1, kind: k }));
+  at('2026-10-06'); // 시작(10/13) 1주 전 = 4주차 첫 사용일
+  mockFetch(bandRoutes({ reminders: R('due') }));
   const j = await (await run('POST', ENV_SMS)).json();
   const msg = solapiMsg();
-  chk('시작 전날: kind last 발송', j.band_sent === 1 && claimBody().kind === 'last');
-  chk('본문: 내일 시작 문구', !!msg && msg.text.includes('다음 회차(10/13(화)부터 4주)가 내일 시작됩니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
-  mockFetch(bandRoutes({ reminders: [{ team_id: TEAM_ID, cycle_no: 1, kind: 'due' }, { team_id: TEAM_ID, cycle_no: 1, kind: 'last' }] }));
-  const j2 = await (await run('POST', ENV_SMS)).json();
-  chk('둘 다 발송됨 → 대상 아님', j2.band_checked === 0);
+  chk('4주차(시작 1주 전): due 발송됐고 미납 → kind week4', j.band_sent === 1 && claimBody().kind === 'week4');
+  chk('본문: 시작 일주일 남음 문구', !!msg && msg.text.includes('다음 회차(10/13(화)부터 4주) 시작이 일주일 남았습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
+  at('2026-10-03');
+  mockFetch(bandRoutes({ reminders: R('due') }));
+  chk('시작 1주 전보다 이르면(10/03) week4 아직 아님', (await (await run('POST', ENV_SMS)).json()).band_checked === 0);
+  at('2026-10-09');
+  mockFetch(bandRoutes({ reminders: R('due') }));
+  chk('week4 캐치업(10/09, 크론 빠짐) → week4 1건', (await (await run('POST', ENV_SMS)).json()).band_sent === 1 && claimBody().kind === 'week4');
+  at('2026-10-12'); // 시작 전날
+  mockFetch(bandRoutes({ reminders: R('due', 'week4') }));
+  const j4 = await (await run('POST', ENV_SMS)).json();
+  const msg4 = solapiMsg();
+  chk('시작 전날: due·week4 발송됐고 미납 → kind last', j4.band_sent === 1 && claimBody().kind === 'last');
+  chk('본문: 내일 시작 문구', !!msg4 && msg4.text.includes('다음 회차(10/13(화)부터 4주)가 내일 시작됩니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg4?.text || '').slice(0, 120));
+  mockFetch(bandRoutes({ reminders: R('due', 'week4', 'last') }));
+  chk('3회 모두 발송됨 → 대상 아님', (await (await run('POST', ENV_SMS)).json()).band_checked === 0);
+  mockFetch(bandRoutes({ reminders: R('due') }));
+  chk('전날인데 week4 미발송이면 week4 먼저(하루 1건)', (await (await run('POST', ENV_SMS)).json()).band_sent === 1 && claimBody().kind === 'week4');
   at('2026-10-10');
-  mockFetch(bandRoutes({ reminders: [{ team_id: TEAM_ID, cycle_no: 1, kind: 'due' }] }));
-  const j3 = await (await run('POST', ENV_SMS)).json();
-  chk('due 발송 후 전날이 아니면 발송 없음', j3.band_checked === 0);
+  mockFetch(bandRoutes({ reminders: R('due', 'week4') }));
+  chk('due·week4 발송 후 전날이 아니면 발송 없음', (await (await run('POST', ENV_SMS)).json()).band_checked === 0);
+  // 납부 완료면 어떤 단계든 발송 없음
+  at('2026-10-12');
+  mockFetch(bandRoutes({ reminders: R('due', 'week4'), payments: [{ team_id: TEAM_ID, paid_at: '2026-10-11', cycle_no: 1 }] }));
+  chk('납부 완료 후엔 last 도 발송 없음', (await (await run('POST', ENV_SMS)).json()).band_checked === 0);
+}
+// ── B5-2. scope — 08:00 크론(booking) 은 문자 없음, 12:00 크론(band) 은 대관 푸시·파기 없음
+{
+  at('2026-09-29');
+  const runScope = (scope) => onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' }, body: JSON.stringify({ scope }) }), env: ENV_SMS });
+  mockFetch([['performance_bookings?status=eq.approved', { body: [BK()] }], ['reminder_sent_at=is.null', { method: 'PATCH', body: [BK()] }], ['/notify-admins', { method: 'POST', body: { ok: true } }]]);
+  const jb = await (await runScope('booking')).json();
+  chk('scope booking: 대관 푸시 1건, 팀 조회·문자 없음', jb.ok && jb.sent === 1 && jb.band_checked === 0 && !calls.some(c => c.url.includes('profiles?member_type') || c.url.includes('solapi')), JSON.stringify(jb));
+  mockFetch([['performance_bookings?status=eq.approved', { body: [BK()] }], ...bandRoutes().slice(1)]);
+  const jband = await (await runScope('band')).json();
+  chk('scope band: 문자 1건, 대관 선점 PATCH 없음(checked 0)', jband.ok && jband.band_sent === 1 && jband.checked === 0 && jband.sent === 0 && !calls.some(c => c.method === 'PATCH' && c.url.includes('reminder_sent_at')), JSON.stringify(jband));
+  Date.now = () => Date.parse('2026-10-01T12:00:00+09:00');
+  mockFetch([['performance_bookings?status=eq.approved', { body: [] }], ...bandRoutes().slice(1)]);
+  const j1 = await (await runScope('band')).json();
+  chk('scope band 는 매월 1일에도 파기 안 함', j1.purged === 0 && !calls.some(c => c.method === 'DELETE' && c.url.includes('performance_bookings')));
 }
 // ── B6. 선점 경합(409) → 발송 없음 / 솔라피 실패 → 선점 롤백
 {
@@ -312,6 +344,9 @@ const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_P
   mockFetch(testRoutes());
   await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'last' });
   chk('테스트: kind last → 시작 전날 리마인드 문구', !!solapiMsg() && solapiMsg().text.includes('가 내일 시작됩니다'), (solapiMsg()?.text || '').slice(0, 130));
+  mockFetch(testRoutes());
+  await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'week4' });
+  chk('테스트: kind week4 → 시작 일주일 전 문구(다음 회차 9/22 시작)', !!solapiMsg() && solapiMsg().text.includes('다음 회차(9/22(화)부터 4주) 시작이 일주일 남았습니다'), (solapiMsg()?.text || '').slice(0, 130));
   mockFetch(testRoutes({ solapi: 500 }));
   const r5 = await runTest({ action: 'test_band_sms', sb_token: 'tok' });
   chk('테스트: 솔라피 실패 → 502', r5.status === 502);

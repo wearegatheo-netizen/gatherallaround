@@ -8,7 +8,9 @@
 //    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
 // 2) 회차 모델(index.html bandCycle* · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지할 것):
 //      시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21, 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전)
-//    입금일 당일(kind 'due', 크론이 빠졌으면 시작 전날까지 캐치업) + 그래도 미납이면 시작 전날(kind 'last').
+//    미납이면 회차당 최대 3회: 입금일 당일(kind 'due', 3주차) → 시작 1주 전(kind 'week4', 4주차) → 시작 전날(kind 'last').
+//    크론이 빠진 날은 다음 실행에서 캐치업(due·week4 는 시작 전까지, last 는 전날만), 하루 한 팀 최대 1건.
+//    호출 scope: {scope:'booking'}(08:00 크론 — 대관 D-2 푸시·파기) / {scope:'band'}(12:00 크론 — 합주팀 문자) / 없음 = 둘 다.
 //    관리자 문자 테스트: POST {action:'test_band_sms', sb_token} — 게더링 밴드 계정(Supabase 세션)만, 본인 번호로만 발송.
 //    band_rent_reminders(team_id, cycle_no, kind) PK 로 회차·종류별 평생 1회 선점. 관리자 팀(게더링)은 제외.
 //    솔라피 키가 없으면 이 블록은 조용히 꺼진다(/send-sms 와 같은 정책).
@@ -91,6 +93,8 @@ export function bandRentText(team, n, kind, today) {
     const cycle = `[${name}] 팀 고정 합주 다음 회차(${mdOf(startN)}(${wdOf(startN)})부터 4주)`;
     const lead = kind === 'last'
         ? `${cycle}가 내일 시작됩니다. 아직 입금 확인이 되지 않아 안내드립니다.`
+        : kind === 'week4'
+        ? `${cycle} 시작이 일주일 남았습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
         : today > due
             ? `${cycle} 사용료 입금일(${mdOf(due)})이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
             : `${cycle} 사용료 입금일이 오늘(${mdOf(due)})입니다.`;
@@ -150,8 +154,10 @@ export function bandRentTargets(teams, payments, reminders, today) {
         const due = bandCycleDue(t.band_start_date, n);
         const startN = bandCycleStart(t.band_start_date, n);
         if (today < due || today >= startN) continue;
-        if (!sentSet.has(`${t.id}:${n}:due`)) out.push({ team: t, n, kind: 'due', due, startN });
-        else if (today === addDays(startN, -1) && !sentSet.has(`${t.id}:${n}:last`)) out.push({ team: t, n, kind: 'last', due, startN });
+        const sent = (k) => sentSet.has(`${t.id}:${n}:${k}`);
+        if (!sent('due')) out.push({ team: t, n, kind: 'due', due, startN });                                                   // 3주차(입금일)~
+        else if (today >= addDays(startN, -7) && !sent('week4')) out.push({ team: t, n, kind: 'week4', due, startN });          // 4주차(시작 1주 전)~
+        else if (today === addDays(startN, -1) && !sent('last')) out.push({ team: t, n, kind: 'last', due, startN });           // 시작 전날만
     }
     return out;
 }
@@ -203,9 +209,10 @@ export async function onRequest(context) {
         if (!prof || prof.member_type !== 'band' || !isAdminBand(prof)) return json({ ok: false, error: 'forbidden', message: '게더링 관리자 계정만 사용할 수 있습니다.' }, 403);
         const to = String(prof.leader_phone || prof.phone || '').replace(/\D/g, '');
         if (!/^01[016789][0-9]{7,8}$/.test(to)) return json({ ok: false, error: 'bad-phone', message: '관리자 계정의 휴대폰 번호가 올바르지 않습니다.' }, 400);
-        const kind = body.kind === 'last' ? 'last' : 'due';
-        // 샘플: 오늘이 1차 입금일(=시작일 + 14)이 되도록 시작일을 잡는다 → 문구가 실제 발송 시와 같다
-        const sample = { band_name_kr: prof.band_name_kr || prof.name || '게더링', band_start_date: addDays(today, kind === 'last' ? -27 : -BAND_DUE_OFFSET), band_fee: prof.band_fee || 300000 };
+        const kind = ['due', 'week4', 'last'].includes(body.kind) ? body.kind : 'due';
+        // 샘플: 오늘이 해당 발송일(입금일 = 시작일 + 14 / 4주차 = +21 / 전날 = +27)이 되도록 시작일을 잡는다 → 문구가 실제 발송 시와 같다
+        const back = kind === 'last' ? 27 : kind === 'week4' ? 21 : BAND_DUE_OFFSET;
+        const sample = { band_name_kr: prof.band_name_kr || prof.name || '게더링', band_start_date: addDays(today, -back), band_fee: prof.band_fee || 300000 };
         const text = '[테스트] ' + bandRentText(sample, 1, kind, today);
         const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
             method: 'POST',
@@ -228,8 +235,10 @@ export async function onRequest(context) {
         const rows = await listRes.json();
         const bookings = Array.isArray(rows) ? rows : [];
 
+        // scope: 'booking'(대관 푸시·파기만) / 'band'(합주팀 문자만) / 그 외 둘 다. GET 드라이런은 항상 둘 다 보여준다.
+        const scope = body && (body.scope === 'booking' || body.scope === 'band') ? body.scope : 'all';
         // 월세 문자: 솔라피 키 미설정 = 기능 꺼짐 (조회조차 하지 않는다)
-        const bandTargets = smsOn ? await loadBandRentTargets(env, sbHeaders, today) : [];
+        const bandTargets = smsOn && (request.method === 'GET' || scope !== 'booking') ? await loadBandRentTargets(env, sbHeaders, today) : [];
 
         // GET: 드라이런 진단 — 발송·선점 없이 대상 요약만 (공개 응답이므로 개인정보 제외)
         if (request.method === 'GET') {
@@ -242,7 +251,7 @@ export async function onRequest(context) {
 
         const origin = new URL(request.url).origin;
         let sent = 0;
-        for (const bk of bookings) {
+        for (const bk of (scope === 'band' ? [] : bookings)) {
             // 선점: reminder_sent_at이 아직 null인 행만 — 갱신된 행이 없으면 남이 이미 처리한 것
             const claimRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/performance_bookings?id=eq.${bk.id}&reminder_sent_at=is.null`,
@@ -293,7 +302,7 @@ export async function onRequest(context) {
             await fetch(`${origin}/notify-admins`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: '💰 월세 입금 안내 문자 발송',
-                    body: `${name} · ${x.n}차 · 입금일 ${mdOf(x.due)} · ${x.kind === 'last' ? '시작 전날 리마인드' : '입금일 안내'}`,
+                    body: `${name} · ${x.n}차 · 입금일 ${mdOf(x.due)} · ${{ due: '입금일 안내', week4: '시작 1주 전', last: '시작 전날' }[x.kind] || x.kind}`,
                     roles: ['운영 총괄'] }),
             }).catch(() => {});
         }
@@ -301,7 +310,7 @@ export async function onRequest(context) {
         // 매월 1일(KST): 보유기간(1년) 만료 건 파기 — 이용일과 접수일이 모두 1년 경과한 행만.
         // 며칠 지나 실행돼도 같은 집합을 지우는 멱등 동작이라 반복·지연 호출 모두 안전하다.
         let purged = 0;
-        if (today.endsWith('-01')) {
+        if (today.endsWith('-01') && scope !== 'band') {
             const cutoffDate = kstDateStr(-365);
             const cutoffTs = new Date(Date.now() - 365 * 86400e3).toISOString();
             const delRes = await fetch(
@@ -312,7 +321,7 @@ export async function onRequest(context) {
                 purged = Array.isArray(deleted) ? deleted.length : 0;
             }
         }
-        return json({ ok: true, checked: bookings.length, sent, purged,
+        return json({ ok: true, scope, checked: scope === 'band' ? 0 : bookings.length, sent, purged,
             band_checked: bandTargets.length, band_sent: bandSent, ...(smsOn ? {} : { band: 'sms-disabled' }) });
     } catch (e) {
         return json({ error: String(e && e.message || e) }, 500);

@@ -11411,8 +11411,11 @@
             state.bandAdminCache = { teams, paymentsMap, remindersMap };
             if (tab === 'roster') { renderBandRosterTab(view, teams, paymentsMap, remindersMap); return; }
             const smsBar = `<div class="band-roster-toolbar" style="margin-bottom:12px">
-                    <span class="band-muted">입금 안내 문자는 매일 08:00에 자동 발송됩니다 — 다음 회차 시작 2주 전(3주차 사용일) · 미납 시 시작 전날 1회 더</span>
-                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this)">📱 문자 테스트(내 번호로)</button>
+                    <span class="band-muted">입금 안내 문자는 매일 12:00에 자동 발송 — 미납 시 회차당 최대 3회: 입금일(3주차, 시작 2주 전) · 4주차(시작 1주 전) · 시작 전날</span>
+                    <span class="gaa-btn-row" style="gap:4px"><span class="band-muted">📱 문자 테스트(내 번호로):</span>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due')">입금일</button>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'week4')">4주차</button>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'last')">전날</button></span>
                 </div>`;
             if (!approved.length) { view.innerHTML = smsBar + _bandEmptyHTML('승인된 팀이 없습니다.'); return; }
             view.innerHTML = smsBar + approved.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
@@ -11653,9 +11656,9 @@
         }
 
         // 관리자 문자 테스트 — 게더링 계정의 Supabase 세션 토큰으로 서버가 본인 확인 후, 관리자 본인 번호로만 샘플 문자를 보낸다
-        async function sendBandSmsTest(btn) {
+        async function sendBandSmsTest(btn, kind) {
             if (!supabaseClient || !isBandAdmin()) return;
-            const kind = confirm('입금일 당일 안내 문자를 내 번호로 보냅니다.\n[확인] 입금일 안내 · [취소] 시작 전날 리마인드') ? 'due' : 'last';
+            if (!['due', 'week4', 'last'].includes(kind)) kind = 'due';
             _bandBusy(btn, true, '발송 중…');
             try {
                 const { data } = await supabaseClient.auth.getSession();
@@ -11690,7 +11693,7 @@
         }
         function bandReminderLogHTML(reminders, n) {
             const all = (reminders || []).slice().sort((a, b) => String(a.sent_at).localeCompare(String(b.sent_at)));
-            const label = { due: '입금일 안내', last: '시작 전날 리마인드' };
+            const label = { due: '입금일 안내', week4: '4주차 리마인드', last: '시작 전날 리마인드' };
             const fmt = (r) => `${label[r.kind] || r.kind} ${bandMD(new Date(r.sent_at).toLocaleDateString('en-CA'))} 발송`;
             const rows = all.filter(r => r.cycle_no === n);
             if (rows.length) return `<div class="band-muted">문자: ${rows.map(fmt).join(' · ')}</div>`;
