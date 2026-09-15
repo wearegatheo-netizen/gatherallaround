@@ -11740,8 +11740,10 @@
             view.innerHTML = html;
         }
         function setBandRosterView(v) { state.bandRosterView = v; renderBandAdminTab(); }
+        // 실사용 회차: 납부 기록 수가 있으면 그 값, 없으면 시작일~종료일 기간을 28일로 나눠 반올림(시트 이관 팀 등)
         function bandUsageText(t, rows) {
-            const count = Object.keys(bandPaidMap(t, rows)).length;
+            let count = Object.keys(bandPaidMap(t, rows)).length;
+            if (!count && t.band_start_date && t.band_ended_at) count = Math.max(1, Math.round(bandDiffDays(t.band_ended_at, t.band_start_date) / BAND_CYCLE_DAYS));
             const range = t.band_start_date ? `${bandYMDShort(t.band_start_date)} ~ ${bandYMDShort(t.band_ended_at)}` : bandYMDShort(t.band_ended_at);
             return `${count}회 (${range})`;
         }

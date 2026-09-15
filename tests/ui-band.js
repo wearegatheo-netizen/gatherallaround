@@ -30,8 +30,6 @@ const TABLES = {
     { id: 'p3', team_id: VANDOR, paid_at: '2026-07-07', cycle_no: 2, amount: 250000, note: '' },
     { id: 'p4', team_id: VANDOR, paid_at: '2026-08-07', cycle_no: 3, amount: 250000, note: '' },
     { id: 'p5', team_id: VANDOR, paid_at: '2026-08-30', cycle_no: 4, amount: 250000, note: '카톡 확인' },
-    { id: 'p6', team_id: PURPLE, paid_at: '2026-04-12', cycle_no: 0, amount: 250000, note: '' },
-    { id: 'p7', team_id: PURPLE, paid_at: '2026-05-10', cycle_no: 1, amount: 250000, note: '' },
   ],
   band_rent_reminders: [{ team_id: VANDOR, cycle_no: 4, kind: 'due', sent_at: '2026-08-30T23:00:00Z' }],
   band_notices: [{ id: 'n1', title: '9월 공지', content: '냉방기 리모컨은 선반 위', created_by: '게더링', created_at: '2026-09-01T00:00:00Z' }],
@@ -156,7 +154,7 @@ const FAKE_SB = `
   chk('현황표(카드): 진행중 2팀·대기 1팀·히스토리 1팀, 관리자 팀 제외', cards.includes('진행중인 고정팀 <span class="band-muted">2팀') && cards.includes('대기팀 <span class="band-muted">1팀') && cards.includes('히스토리 <span class="band-muted">1팀') && !cards.includes('게더링'));
   chk('현황표(카드): 벤더 회차 스트립(등록 ✓ 5/17 … 5차 ✓ 9/26)', cards.includes('등록 ✓ 5/17') && cards.includes('1차 ✓ 6/8') && cards.includes('4차 ✓ 8/30') && cards.includes('5차 ✓ 9/26'));
   chk('현황표(카드): 아나하 1차 입금일 10/6 칩', cards.includes('1차 입금일 10/6'));
-  chk('현황표: 히스토리 실사용 "2회 (26/04/12 ~ 26/08/09)"', cards.includes('2회 (26/04/12 ~ 26/08/09)'));
+  chk('현황표: 히스토리 실사용 — 납부 행 없으면 기간/28일 반올림 "4회 (26/04/12 ~ 26/08/09)"(시트와 동일)', cards.includes('4회 (26/04/12 ~ 26/08/09)'));
   chk('현황표: 대기팀 신규팀 표시', cards.includes('신규팀') && cards.includes('수 주간'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-roster-cards-light.png'), fullPage: true });
   await p.evaluate(() => setBandRosterView('table'));
