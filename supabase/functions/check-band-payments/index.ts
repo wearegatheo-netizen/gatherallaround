@@ -2,7 +2,7 @@
 // 매일 스케줄로 실행, 납부일 임박/초과 팀을 관리자에게 Web Push로 알림.
 //
 // 납부일 계산은 회차 모델(index.html bandCycle* · functions/send-reminders.js 와 동일)을 따른다:
-//   시작일_n = band_start_date + 28n, 입금일_n = 시작일_n − 7 (n≥1). 해당 회차 납부 기록이 있으면 정상.
+//   시작일_n = band_start_date + 28n, 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일). 해당 회차 납부 기록이 있으면 정상.
 //   band_start_date 가 없는 팀은 예전 방식(마지막 납부일 + 28일)으로 폴백.
 // 관리자 팀(게더링, 로그인 ID wearegatheo)과 사용 종료(band_ended_at) 팀은 제외.
 //
@@ -36,13 +36,15 @@ const DAY_MS = 86400000;
 const GATHEO_ADMIN_BAND_ID = "wearegatheo";
 const addDays = (ymd: string, n: number) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
 const cycleStart = (start: string, n: number) => addDays(start, CYCLE_DAYS * n);
-const cycleDue = (start: string, n: number) => (n <= 0 ? start : addDays(start, CYCLE_DAYS * n - 7));
+const DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일
+const cycleDue = (start: string, n: number) => (n <= 0 ? start : addDays(start, CYCLE_DAYS * n - DUE_OFFSET));
 const nextCycle = (start: string, today: string) => {
   const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
   return days < 0 ? 0 : Math.floor(days / CYCLE_DAYS) + 1;
 };
+// 구형 납부 행 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7)
 const inferCycle = (start: string, paidAt: string) =>
-  Math.max(0, Math.round((Date.parse(paidAt) - Date.parse(start)) / DAY_MS / CYCLE_DAYS));
+  Math.max(0, Math.floor(((Date.parse(paidAt) - Date.parse(start)) / DAY_MS + 21) / CYCLE_DAYS));
 const diffDays = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / DAY_MS);
 
 type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null };

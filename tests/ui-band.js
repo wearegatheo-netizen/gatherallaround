@@ -113,10 +113,11 @@ const FAKE_SB = `
   const teamsHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
   chk('팀 항목은 중첩 카드가 아닌 구분선 리스트(테두리·배경 없음)', await p.evaluate(() => { const c = document.querySelector('#bandAdminView .band-team-card:nth-child(2)'); const cs = c && getComputedStyle(c); return !!cs && cs.borderLeftWidth === '0px' && cs.borderTopWidth === '1px' && cs.borderRadius === '0px'; }));
   chk('팀 관리: 벤더 계약 정보(시작일·보증금·사용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
-  chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/27', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/27</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
-  chk('팀 관리: 벤더 상태 칩 "입금일 12일 후"', teamsHtml.includes('입금일 12일 후'));
+  chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/20(시작 2주 전)', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/20</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
+  chk('팀 관리: 벤더 상태 칩 "입금일 5일 후"(임박)', teamsHtml.includes('입금일 5일 후') && /status-pending[^>]*>입금일 5일 후/.test(teamsHtml));
+  chk('팀 관리: 문자 안내 바 + 테스트 버튼', teamsHtml.includes('다음 회차 시작 2주 전') && teamsHtml.includes('sendBandSmsTest'));
   chk('팀 관리: 벤더 문자 발송 이력(최근 4차 입금일 안내, KST 날짜)', teamsHtml.includes('최근 문자: 4차 입금일 안내 8/31 발송'), teamsHtml.match(/최근 문자[^<]*/)?.[0]);
-  chk('팀 관리: 아나하 — 오늘 시작, 다음 1차 10/13, 입금일 10/6', teamsHtml.includes('<strong>1차</strong> 10/13(화) 시작') && teamsHtml.includes('입금일 <strong>10/6</strong>'));
+  chk('팀 관리: 아나하 — 오늘 시작, 다음 1차 10/13, 입금일 9/29', teamsHtml.includes('<strong>1차</strong> 10/13(화) 시작') && teamsHtml.includes('입금일 <strong>9/29</strong>'));
   chk('팀 관리: 관리자 팀 카드엔 계약/입금 섹션 없음 + 본인 팀 칩', teamsHtml.includes('본인 팀') && (teamsHtml.match(/계약 정보/g) || []).length === 2);
   chk('팀 관리: 인라인 스타일 버튼 없음(gaa-btn만)', !/<button[^>]*style="[^"]*border-radius/.test(teamsHtml));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-light.png'), fullPage: true });
@@ -155,7 +156,7 @@ const FAKE_SB = `
   const cards = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
   chk('현황표(카드): 진행중 2팀·대기 1팀·히스토리 1팀, 관리자 팀 제외', cards.includes('진행중인 고정팀 <span class="band-muted">2팀') && cards.includes('대기팀 <span class="band-muted">1팀') && cards.includes('히스토리 <span class="band-muted">1팀') && !cards.includes('게더링'));
   chk('현황표(카드): 벤더 회차 스트립(등록 ✓ 5/17 … 5차 ✓ 9/26)', cards.includes('등록 ✓ 5/17') && cards.includes('1차 ✓ 6/8') && cards.includes('4차 ✓ 8/30') && cards.includes('5차 ✓ 9/26'));
-  chk('현황표(카드): 아나하 1차 입금일 10/6 칩', cards.includes('1차 입금일 10/6'));
+  chk('현황표(카드): 아나하 1차 입금일 9/29 칩', cards.includes('1차 입금일 9/29'));
   chk('현황표: 히스토리 실사용 — 납부 행 없으면 기간/28일 반올림 "4회 (26/04/12 ~ 26/08/09)"(시트와 동일)', cards.includes('4회 (26/04/12 ~ 26/08/09)'));
   chk('현황표: 대기팀 신규팀 표시', cards.includes('신규팀') && cards.includes('수 주간'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-roster-cards-light.png'), fullPage: true });
@@ -164,7 +165,7 @@ const FAKE_SB = `
   const table = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
   chk('현황표(표): 시트와 같은 3행(입금/시작일/종료일) × 회차 열', table.includes('>입금<') && table.includes('>시작일<') && table.includes('>종료일<') && table.includes('12차 추가'));
   chk('현황표(표): 벤더 시작일 열 26/06/14·종료일 26/06/07·등록 입금 26/05/17 (26/05/07)', table.includes('>26/06/14<') && table.includes('>26/06/07<') && table.includes('26/05/17 (26/05/07)'));
-  chk('현황표(표): 아나하 1차 입금 셀 "입금일 26/10/06"', table.includes('입금일 26/10/06'));
+  chk('현황표(표): 아나하 1차 입금 셀 "입금일 26/09/29"', table.includes('입금일 26/09/29'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-roster-table-light.png'), fullPage: true });
   const [dl] = await Promise.all([p.waitForEvent('download'), p.evaluate(() => downloadBandRosterCsv())]);
   const csvPath = await dl.path();

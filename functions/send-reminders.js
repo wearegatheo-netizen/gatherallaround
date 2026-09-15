@@ -7,8 +7,9 @@
 // 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
 //    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
 // 2) 회차 모델(index.html bandCycle* · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지할 것):
-//      시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21, 입금일_n = 시작일_n − 7 (n≥1)
+//      시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21, 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전)
 //    입금일 당일(kind 'due', 크론이 빠졌으면 시작 전날까지 캐치업) + 그래도 미납이면 시작 전날(kind 'last').
+//    관리자 문자 테스트: POST {action:'test_band_sms', sb_token} — 게더링 밴드 계정(Supabase 세션)만, 본인 번호로만 발송.
 //    band_rent_reminders(team_id, cycle_no, kind) PK 로 회차·종류별 평생 1회 선점. 관리자 팀(게더링)은 제외.
 //    솔라피 키가 없으면 이 블록은 조용히 꺼진다(/send-sms 와 같은 정책).
 // 3) 파기: 매월 1일(KST) 호출이면 이용일·접수일이 모두 1년 넘게 지난 행을 DELETE —
@@ -62,15 +63,16 @@ const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js b
 export const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
 export const bandCycleStart = (start, n) => addDays(start, BAND_CYCLE_DAYS * n);
 export const bandCycleEnd = (start, n) => addDays(start, BAND_CYCLE_DAYS * n + 21);
-export const bandCycleDue = (start, n) => (n <= 0 ? start : addDays(start, BAND_CYCLE_DAYS * n - 7));
+export const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (3주차 사용일)
+export const bandCycleDue = (start, n) => (n <= 0 ? start : addDays(start, BAND_CYCLE_DAYS * n - BAND_DUE_OFFSET));
 // 다음 회차 번호: 오늘이 속한 회차 + 1 (시작일 전이면 0 = 등록 회차, 문자 대상 아님)
 export const bandNextCycle = (start, today) => {
     const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
     return days < 0 ? 0 : Math.floor(days / BAND_CYCLE_DAYS) + 1;
 };
-// 구형 납부 행(cycle_no 없음) 귀속: 납부일에 가장 가까운 회차 시작일
+// 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7) — 입금일(시작 2주 전) 일주일 앞부터 시작 후 일주일까지
 export const bandInferCycle = (start, paidAt) =>
-    Math.max(0, Math.round((Date.parse(paidAt) - Date.parse(start)) / DAY_MS / BAND_CYCLE_DAYS));
+    Math.max(0, Math.floor(((Date.parse(paidAt) - Date.parse(start)) / DAY_MS + 21) / BAND_CYCLE_DAYS));
 
 const isAdminBand = (t) => {
     const loginId = String(t.instruments || '').trim().toLowerCase();
@@ -105,6 +107,19 @@ ${BAND_BANK_LINE}
 ※ 연장하지 않으실 경우 미리 말씀해주시면 감사하겠습니다. 보증금은 사용 종료 시 반환됩니다.
 ※ 문의: 010-5109-1042`;
 }
+
+// Supabase 세션 토큰 검증 — GoTrue 가 토큰 주인을 돌려준다 (밴드 계정은 Supabase auth 로그인)
+async function verifySb(env, jwt) {
+    if (!jwt || typeof jwt !== 'string' || jwt.length > 4096) return null;
+    try {
+        const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+            headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + jwt } });
+        if (!r.ok) return null;
+        const u = await r.json().catch(() => null);
+        return u && u.id ? String(u.id) : null;
+    } catch (_) { return null; }
+}
+const maskPhone = (v) => String(v).replace(/^(\d{3})\d+(\d{4})$/, '$1****$2');
 
 // 솔라피 인증 — send-sms.js 와 동일 (Pages Functions 는 파일별 격리 Worker 라 복사해 둔다)
 const toHex = (buf) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -174,6 +189,33 @@ export async function onRequest(context) {
 
     const today = kstDateStr(0);
     const until = kstDateStr(2);
+    const smsOn = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
+    const body = request.method === 'POST' ? await request.json().catch(() => ({})) : {};
+
+    // ── 관리자 문자 테스트: 게더링 밴드 계정이 본인 번호로 입금 안내 문자 샘플을 받아 본다 (선점·이력 기록 없음)
+    if (request.method === 'POST' && body && body.action === 'test_band_sms') {
+        if (!smsOn) return json({ ok: false, error: 'sms-disabled', message: '솔라피 키(SOLAPI_API_KEY/SECRET, SMS_SENDER)가 설정되지 않았습니다.' }, 400);
+        const uid = await verifySb(env, body.sb_token);
+        if (!uid) return json({ ok: false, error: 'auth', message: '로그인이 만료되었습니다. 다시 로그인해주세요.' }, 401);
+        const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id,name,band_name_kr,leader_phone,phone,instruments,email,member_type,band_start_date,band_fee&limit=1`,
+            { headers: sbHeaders });
+        const [prof] = pr.ok ? await pr.json().catch(() => []) : [];
+        if (!prof || prof.member_type !== 'band' || !isAdminBand(prof)) return json({ ok: false, error: 'forbidden', message: '게더링 관리자 계정만 사용할 수 있습니다.' }, 403);
+        const to = String(prof.leader_phone || prof.phone || '').replace(/\D/g, '');
+        if (!/^01[016789][0-9]{7,8}$/.test(to)) return json({ ok: false, error: 'bad-phone', message: '관리자 계정의 휴대폰 번호가 올바르지 않습니다.' }, 400);
+        const kind = body.kind === 'last' ? 'last' : 'due';
+        // 샘플: 오늘이 1차 입금일(=시작일 + 14)이 되도록 시작일을 잡는다 → 문구가 실제 발송 시와 같다
+        const sample = { band_name_kr: prof.band_name_kr || prof.name || '게더링', band_start_date: addDays(today, kind === 'last' ? -27 : -BAND_DUE_OFFSET), band_fee: prof.band_fee || 300000 };
+        const text = '[테스트] ' + bandRentText(sample, 1, kind, today);
+        const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
+            method: 'POST',
+            headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject: '게더 올 어라운드 사용료 안내(테스트)' } }),
+        });
+        if (!smsRes.ok) return json({ ok: false, error: 'solapi', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
+        return json({ ok: true, to: maskPhone(to), kind, preview: text });
+    }
+
     const listUrl = `${SUPABASE_URL}/rest/v1/performance_bookings`
         + `?status=eq.approved&reminder_sent_at=is.null&date=gte.${today}&date=lte.${until}&select=*`;
 
@@ -187,7 +229,6 @@ export async function onRequest(context) {
         const bookings = Array.isArray(rows) ? rows : [];
 
         // 월세 문자: 솔라피 키 미설정 = 기능 꺼짐 (조회조차 하지 않는다)
-        const smsOn = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
         const bandTargets = smsOn ? await loadBandRentTargets(env, sbHeaders, today) : [];
 
         // GET: 드라이런 진단 — 발송·선점 없이 대상 요약만 (공개 응답이므로 개인정보 제외)

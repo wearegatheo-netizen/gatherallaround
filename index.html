@@ -11410,8 +11410,12 @@
             const [paymentsMap, remindersMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids)]);
             state.bandAdminCache = { teams, paymentsMap, remindersMap };
             if (tab === 'roster') { renderBandRosterTab(view, teams, paymentsMap, remindersMap); return; }
-            if (!approved.length) { view.innerHTML = _bandEmptyHTML('승인된 팀이 없습니다.'); return; }
-            view.innerHTML = approved.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
+            const smsBar = `<div class="band-roster-toolbar" style="margin-bottom:12px">
+                    <span class="band-muted">입금 안내 문자는 매일 08:00에 자동 발송됩니다 — 다음 회차 시작 2주 전(3주차 사용일) · 미납 시 시작 전날 1회 더</span>
+                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this)">📱 문자 테스트(내 번호로)</button>
+                </div>`;
+            if (!approved.length) { view.innerHTML = smsBar + _bandEmptyHTML('승인된 팀이 없습니다.'); return; }
+            view.innerHTML = smsBar + approved.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
             if (!window.__paymentAlertSent) {
                 window.__paymentAlertSent = true;
                 checkPaymentAlerts(approved, paymentsMap);
@@ -11420,15 +11424,17 @@
 
         // ── 고정 합주팀 회차 모델 (functions/send-reminders.js · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지) ──
         // 시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21(마지막 주 첫 합주일),
-        // 입금일_n = 시작일_n − 7 (n≥1), 등록(n=0)은 시작일 당일. 문자는 입금일 당일 + 미납 시 시작 전날.
+        // 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전), 등록(n=0)은 시작일 당일. 문자는 입금일 당일 + 미납 시 시작 전날.
         const BAND_CYCLE_DAYS = 28;
         const _bandAddDays = (ymd, n) => new Date(Date.parse(ymd) + n * 86400e3).toISOString().slice(0, 10);
         const bandCycleStart = (start, n) => _bandAddDays(start, BAND_CYCLE_DAYS * n);
         const bandCycleEnd = (start, n) => _bandAddDays(start, BAND_CYCLE_DAYS * n + 21);
-        const bandCycleDue = (start, n) => (n <= 0 ? start : _bandAddDays(start, BAND_CYCLE_DAYS * n - 7));
+        const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (functions/send-reminders.js BAND_DUE_OFFSET 와 동일)
+        const bandCycleDue = (start, n) => (n <= 0 ? start : _bandAddDays(start, BAND_CYCLE_DAYS * n - BAND_DUE_OFFSET));
         const bandDiffDays = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400e3);
         const bandNextCycle = (start, today) => { const d = bandDiffDays(today, start); return d < 0 ? 0 : Math.floor(d / BAND_CYCLE_DAYS) + 1; };
-        const bandInferCycle = (start, paidAt) => Math.max(0, Math.round(bandDiffDays(paidAt, start) / BAND_CYCLE_DAYS));
+        // 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7)
+        const bandInferCycle = (start, paidAt) => Math.max(0, Math.floor((bandDiffDays(paidAt, start) + 21) / BAND_CYCLE_DAYS));
         const bandTodayStr = () => new Date().toLocaleDateString('en-CA'); // 로컬(KST) 기준 YYYY-MM-DD
         const bandCycleLabel = (n) => (n === 0 ? '등록' : `${n}차`);
         const bandMD = (ymd) => { if (!ymd) return '-'; const [, m, d] = ymd.split('-').map(Number); return `${m}/${d}`; };
@@ -11436,7 +11442,7 @@
         const bandYMDShort = (ymd) => (ymd ? String(ymd).slice(2).replace(/-/g, '/') : ''); // 26/09/15 (시트 표기)
         const bandWon = (n) => (Number(n) > 0 ? Number(n).toLocaleString('ko-KR') + '원' : '');
 
-        // 납부 행의 회차: cycle_no 우선, 구형 행(없음)은 납부일에 가장 가까운 회차 시작일
+        // 납부 행의 회차: cycle_no 우선, 구형 행(없음)은 납부 창([시작일−21, 시작일+7))으로 귀속
         function bandPaymentCycle(team, p) {
             if (Number.isInteger(p.cycle_no)) return p.cycle_no;
             return team.band_start_date && p.paid_at ? bandInferCycle(team.band_start_date, p.paid_at) : null;
@@ -11644,6 +11650,24 @@
                     </span>
                 </div>`;
             }).join('');
+        }
+
+        // 관리자 문자 테스트 — 게더링 계정의 Supabase 세션 토큰으로 서버가 본인 확인 후, 관리자 본인 번호로만 샘플 문자를 보낸다
+        async function sendBandSmsTest(btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const kind = confirm('입금일 당일 안내 문자를 내 번호로 보냅니다.\n[확인] 입금일 안내 · [취소] 시작 전날 리마인드') ? 'due' : 'last';
+            _bandBusy(btn, true, '발송 중…');
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                const token = data && data.session && data.session.access_token;
+                if (!token) { showToast('로그인 세션이 없습니다. 다시 로그인해주세요.'); return; }
+                const res = await fetch('/send-reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'test_band_sms', sb_token: token, kind }) });
+                const out = await res.json().catch(() => ({}));
+                if (!res.ok || !out.ok) { console.error('band sms test:', res.status, out); showToast(out.message || '문자 테스트에 실패했습니다.'); return; }
+                showToast(`${out.to}로 테스트 문자를 보냈습니다.`);
+            } catch (e) { console.error('band sms test error:', e); showToast('서버와 통신하지 못했습니다.'); }
+            finally { _bandBusy(btn, false); }
         }
 
         // 관리자 진입 시 1회 — 입금일 임박·지남·미설정 팀 푸시

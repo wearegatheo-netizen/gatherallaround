@@ -137,7 +137,7 @@ const notifyPayload = () => {
 // ═══════════ 고정 합주팀 회차 사용료 입금 안내 문자 ═══════════
 const ENV_SMS = { ...ENV, SOLAPI_API_KEY: 'sol-key', SOLAPI_API_SECRET: 'sol-secret', SMS_SENDER: '010-5109-1042' };
 const TEAM_ID = '33333333-3333-4333-8333-333333333333';
-// 아나하: 화·수 야간, 시작 2026-09-15(화) → 1차 시작 10/13, 입금일 10/06, 종료일 10/06
+// 아나하: 화·수 야간, 시작 2026-09-15(화) → 1차 시작 10/13, 입금일 09/29(시작 2주 전 = 3주차 사용일), 등록 종료일 10/06
 const TEAM = (over = {}) => ({
   id: TEAM_ID, name: '신선진', band_name_kr: '아나하', leader_phone: '010-6787-1995', phone: null,
   band_start_date: '2026-09-15', band_fee: 300000, instruments: 'anaha', email: 'anaha@band.gatheo.kr', ...over,
@@ -160,16 +160,17 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
 {
   chk('벤더 05/17 → 1~4차 시작일', ['2026-06-14', '2026-07-12', '2026-08-09', '2026-09-06'].every((d, i) => bandCycleStart('2026-05-17', i + 1) === d));
   chk('벤더 등록 회차 종료일 06/07', bandCycleEnd('2026-05-17', 0) === '2026-06-07');
-  chk('아나하 09/15 → 1차 입금일 10/06 = 등록 종료일', bandCycleDue('2026-09-15', 1) === '2026-10-06' && bandCycleEnd('2026-09-15', 0) === '2026-10-06');
+  chk('아나하 09/15 → 1차 입금일 09/29 = 시작일 + 14(3주차 사용일) · 등록 종료일 10/06', bandCycleDue('2026-09-15', 1) === '2026-09-29' && bandCycleEnd('2026-09-15', 0) === '2026-10-06');
+  chk('벤더 05/17 → 1차 입금일 05/31 (다음 시작 06/14 의 2주 전)', bandCycleDue('2026-05-17', 1) === '2026-05-31');
   chk('등록(0차) 입금일 = 시작일', bandCycleDue('2026-05-17', 0) === '2026-05-17');
-  chk('구형 납부 귀속: 06/08→1차, 07/07→2차, 08/07→3차, 08/30→4차, 늦은 06/20→1차',
-    [['2026-06-08', 1], ['2026-07-07', 2], ['2026-08-07', 3], ['2026-08-30', 4], ['2026-06-20', 1]].every(([d, n]) => bandInferCycle('2026-05-17', d) === n));
+  chk('구형 납부 귀속(창 [시작−21, 시작+7)): 05/17→등록, 06/08→1차, 07/07→2차, 08/07→3차, 08/30→4차, 늦은 06/20→1차, 이른 05/31→1차, 등록 늦은 05/23→등록',
+    [['2026-05-17', 0], ['2026-06-08', 1], ['2026-07-07', 2], ['2026-08-07', 3], ['2026-08-30', 4], ['2026-06-20', 1], ['2026-05-31', 1], ['2026-05-23', 0]].every(([d, n]) => bandInferCycle('2026-05-17', d) === n));
   chk('다음 회차: 시작 전 0, 시작일 1, 27일째 1, 28일째 2', bandNextCycle('2026-09-15', '2026-09-01') === 0
     && bandNextCycle('2026-09-15', '2026-09-15') === 1 && bandNextCycle('2026-09-15', '2026-10-12') === 1 && bandNextCycle('2026-09-15', '2026-10-13') === 2);
 }
 // ── B1. 입금일 당일·미납 → 선점 후 문자 + 관리자 푸시
 {
-  at('2026-10-06');
+  at('2026-09-29');
   mockFetch(bandRoutes());
   const j = await (await run('POST', ENV_SMS)).json();
   const msg = solapiMsg();
@@ -178,33 +179,33 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   chk('선점 행: team·1차·due', !!cb && cb.team_id === TEAM_ID && cb.cycle_no === 1 && cb.kind === 'due' && !!cb.sent_at);
   chk('선점 POST 가 솔라피보다 먼저', calls.findIndex(c => /band_rent_reminders$/.test(c.url)) < calls.findIndex(c => c.url.includes('api.solapi.com')));
   chk('수신·발신 번호 숫자만', !!msg && msg.to === '01067871995' && msg.from === '01051091042');
-  chk('본문: 팀명·다음 회차·오늘 입금일', !!msg && msg.text.includes('[아나하] 팀 고정 합주 다음 회차(10/13(화)부터 4주) 사용료 입금일이 오늘(10/6)입니다.'), (msg?.text || '').slice(0, 120));
+  chk('본문: 팀명·다음 회차·오늘 입금일', !!msg && msg.text.includes('[아나하] 팀 고정 합주 다음 회차(10/13(화)부터 4주) 사용료 입금일이 오늘(9/29)입니다.'), (msg?.text || '').slice(0, 120));
   chk('본문: 사용료 금액·계좌', !!msg && msg.text.includes('사용료(300,000원)를') && msg.text.includes('토스뱅크 1000-2274-7678 최경수'));
   chk('본문: 이모지 없음(EUC-KR 안전)', !!msg && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(msg.text));
   chk('LMS 제목 지정', !!msg && msg.subject === '게더 올 어라운드 사용료 안내');
   const p = notifyPayload();
-  chk('관리자 푸시: 팀·회차·입금일, 운영 총괄만', !!p && p.title.includes('월세') && p.body.includes('아나하') && p.body.includes('1차') && p.body.includes('10/6')
+  chk('관리자 푸시: 팀·회차·입금일, 운영 총괄만', !!p && p.title.includes('월세') && p.body.includes('아나하') && p.body.includes('1차') && p.body.includes('9/29')
     && JSON.stringify(p.roles) === '["운영 총괄"]', p && p.body);
 }
 // ── B2. 해당 회차 납부 기록 있으면 발송 없음 (cycle_no 명시 / 구형 행 귀속)
 {
-  at('2026-10-06');
+  at('2026-09-29');
   mockFetch(bandRoutes({ payments: [{ team_id: TEAM_ID, paid_at: '2026-10-01', cycle_no: 1 }] }));
   const j = await (await run('POST', ENV_SMS)).json();
   chk('cycle_no=1 납부 → 대상 아님', j.band_checked === 0 && !calls.some(c => c.url.includes('api.solapi.com')));
-  mockFetch(bandRoutes({ payments: [{ team_id: TEAM_ID, paid_at: '2026-10-05', cycle_no: null }] }));
+  mockFetch(bandRoutes({ payments: [{ team_id: TEAM_ID, paid_at: '2026-09-28', cycle_no: null }] }));
   const j2 = await (await run('POST', ENV_SMS)).json();
-  chk('구형 행(10/05, cycle_no 없음) → 1차로 귀속되어 대상 아님', j2.band_checked === 0);
+  chk('구형 행(09/28, cycle_no 없음) → 1차 납부 창(09/22~10/19)이라 1차로 귀속되어 대상 아님', j2.band_checked === 0);
   mockFetch(bandRoutes({ payments: [{ team_id: TEAM_ID, paid_at: '2026-09-15', cycle_no: null }] }));
   const j3 = await (await run('POST', ENV_SMS)).json();
   chk('등록(0차) 납부만 있으면 1차는 미납 → 대상', j3.band_checked === 1);
 }
 // ── B3. 입금일 전 / 시작일 이후는 대상 아님
 {
-  at('2026-10-05');
+  at('2026-09-28');
   mockFetch(bandRoutes());
   const j = await (await run('POST', ENV_SMS)).json();
-  chk('입금일 전날(10/05): 대상 아님', j.band_checked === 0);
+  chk('입금일 전날(09/28): 대상 아님', j.band_checked === 0);
   at('2026-10-13');
   mockFetch(bandRoutes({ reminders: [{ team_id: TEAM_ID, cycle_no: 1, kind: 'due' }] }));
   const j2 = await (await run('POST', ENV_SMS)).json();
@@ -217,7 +218,7 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   const j = await (await run('POST', ENV_SMS)).json();
   const msg = solapiMsg();
   chk('캐치업 발송 1건 (kind due)', j.band_sent === 1 && claimBody().kind === 'due');
-  chk('본문: 입금일 지남 문구', !!msg && msg.text.includes('사용료 입금일(10/6)이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
+  chk('본문: 입금일 지남 문구', !!msg && msg.text.includes('사용료 입금일(9/29)이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
 }
 // ── B5. 시작 전날 — due 발송됐고 미납이면 last 리마인드, last 도 발송됐으면 없음
 {
@@ -273,12 +274,55 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   mockFetch(bandRoutes());
   const g = await (await run('GET', ENV_SMS)).json();
   chk('GET 드라이런: 대상 요약만(PII 없음), 선점·발송 없음', g['월세_문자'] === '켜짐' && Array.isArray(g['월세_발송_대기']) && g['월세_발송_대기'].length === 1
-    && g['월세_발송_대기'][0]['회차'] === 1 && g['월세_발송_대기'][0]['입금일'] === '2026-10-06'
+    && g['월세_발송_대기'][0]['회차'] === 1 && g['월세_발송_대기'][0]['입금일'] === '2026-09-29'
     && !JSON.stringify(g).includes('아나하') && !JSON.stringify(g).includes('1995')
     && !calls.some(c => c.method === 'POST'), JSON.stringify(g));
   mockFetch([['performance_bookings?status=eq.approved', { body: [] }]]);
   const off = await (await run('POST', ENV)).json();
   chk('솔라피 키 없음 → 팀 조회조차 없음 + band: sms-disabled', off.band === 'sms-disabled' && !calls.some(c => c.url.includes('profiles')));
+}
+
+
+// ═══════════ 관리자 문자 테스트 액션 (test_band_sms) ═══════════
+const ADMIN_UID = 'a0000000-0000-4000-8000-000000000001';
+const ADMIN_PROF = { id: ADMIN_UID, name: '최경수', band_name_kr: '게더링', leader_phone: '010-5109-1042', phone: null, instruments: 'wearegatheo', email: 'wearegatheo@band.gatheo.kr', member_type: 'band', band_start_date: null, band_fee: null };
+const runTest = (body, env = ENV_SMS) => onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env });
+const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_PROF, solapi = 200 } = {}) => [
+  ['/auth/v1/user', { status: userStatus, body: user }],
+  ['profiles?id=eq.', { body: prof ? [prof] : [] }],
+  ['api.solapi.com/messages', { method: 'POST', status: solapi, body: {} }],
+];
+{
+  at('2026-09-15');
+  mockFetch(testRoutes());
+  const r = await runTest({ action: 'test_band_sms' });
+  chk('테스트: sb_token 없음 → 401, 조회·발송 없음', r.status === 401 && !calls.some(c => c.url.includes('profiles') || c.url.includes('solapi')));
+  mockFetch(testRoutes({ userStatus: 401, user: { message: 'invalid' } }));
+  const r2 = await runTest({ action: 'test_band_sms', sb_token: 'bad' });
+  chk('테스트: 만료 토큰 → 401', r2.status === 401);
+  mockFetch(testRoutes({ prof: { ...ADMIN_PROF, instruments: 'vandor', email: 'vandor@band.gatheo.kr', band_name_kr: '벤더' } }));
+  const r3 = await runTest({ action: 'test_band_sms', sb_token: 'tok' });
+  chk('테스트: 일반 밴드 계정 → 403, 발송 없음', r3.status === 403 && !calls.some(c => c.url.includes('solapi')));
+  mockFetch(testRoutes());
+  const r4 = await runTest({ action: 'test_band_sms', sb_token: 'tok' });
+  const j4 = await r4.json(); const msg = solapiMsg();
+  chk('테스트: 게더링 계정 → 본인 번호로 [테스트] 문자, 오늘이 입금일인 샘플(다음 회차 9/29 시작)', r4.status === 200 && j4.ok === true && !!msg && msg.to === '01051091042'
+    && msg.text.startsWith('[테스트] ') && msg.text.includes('[게더링] 팀 고정 합주 다음 회차(9/29(화)부터 4주) 사용료 입금일이 오늘(9/15)입니다.') && msg.text.includes('사용료(300,000원)'), (msg?.text || '').slice(0, 130));
+  chk('테스트: 번호 마스킹 응답 + 선점·이력 기록 없음 + 관리자 푸시 없음', j4.to === '010****1042' && !calls.some(c => c.url.includes('band_rent_reminders') || c.url.includes('/notify-admins')), j4.to);
+  mockFetch(testRoutes());
+  await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'last' });
+  chk('테스트: kind last → 시작 전날 리마인드 문구', !!solapiMsg() && solapiMsg().text.includes('가 내일 시작됩니다'), (solapiMsg()?.text || '').slice(0, 130));
+  mockFetch(testRoutes({ solapi: 500 }));
+  const r5 = await runTest({ action: 'test_band_sms', sb_token: 'tok' });
+  chk('테스트: 솔라피 실패 → 502', r5.status === 502);
+  mockFetch([]);
+  const r6 = await runTest({ action: 'test_band_sms', sb_token: 'tok' }, ENV);
+  chk('테스트: 솔라피 키 없음 → 400 sms-disabled', r6.status === 400 && (await r6.json()).error === 'sms-disabled');
+  // 크론 호출(본문 없음)은 그대로 정상 실행
+  at('2026-09-15');
+  mockFetch([['performance_bookings?status=eq.approved', { body: [] }]]);
+  const r7 = await onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com' } }), env: ENV });
+  chk('본문 없는 크론 POST → 정상 실행(ok)', r7.status === 200 && (await r7.json()).ok === true);
 }
 
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);
