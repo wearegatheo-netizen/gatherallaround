@@ -18,3 +18,20 @@ jobs:
             curl -sS --max-time 60 "https://gatherallaround.com/$path" || true
             echo; echo
           done
+      - name: Supabase Edge Function / RPC 존재 확인 (커뮤니티 인증·메일)
+        # 더미 값으로 호출해 배포 여부만 본다 — 404/NOT_FOUND면 미배포. 키는 공개 페이지 소스에서 추출.
+        run: |
+          PAGE=$(curl -sS --max-time 60 https://gatherallaround.com/)
+          URL=$(echo "$PAGE" | grep -o "https://[a-z]*\.supabase\.co" | head -1)
+          KEY=$(echo "$PAGE" | grep -o "const SUPABASE_KEY = '[^']*'" | sed "s/.*'\(.*\)'/\1/")
+          for fn in verify-community-admin verify-meeting-password; do
+            code=$(curl -sS -o /tmp/out -w "%{http_code}" --max-time 30 -X POST "$URL/functions/v1/$fn" \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+              -d '{"password":"__probe__","meetingId":"00000000-0000-4000-8000-000000000000"}')
+            echo "edge $fn -> HTTP $code: $(head -c 160 /tmp/out)"; echo
+          done
+          for rpc in community_update_meeting community_delete_meeting; do
+            code=$(curl -sS -o /tmp/out -w "%{http_code}" --max-time 30 -X POST "$URL/rest/v1/rpc/$rpc" \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
+            echo "rpc $rpc -> HTTP $code: $(head -c 160 /tmp/out)"; echo
+          done

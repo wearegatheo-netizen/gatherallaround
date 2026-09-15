@@ -8671,9 +8671,41 @@
         }
 
         function communityToggleCreate() {
-            state.communityCreateOpen = !state.communityCreateOpen;
-            if (state.communityCreateOpen) state.communityCreateFields = [];
+            // 열기 전에 사전 미팅 확인 게이트를 거친다 (닫기는 즉시)
+            if (!state.communityCreateOpen) { showCommunityPreMeetingGate(); return; }
+            state.communityCreateOpen = false;
             renderCommunityList();
+        }
+        function _openCommunityCreate() {
+            state.communityCreateOpen = true;
+            state.communityCreateFields = [];
+            renderCommunityList();
+        }
+
+        // 모임 생성 게이트 — 사전 미팅 여부 확인. '아니오'면 사전 미팅 신청 구글폼으로 안내.
+        const COMMUNITY_PREMEETING_FORM_URL = 'https://forms.gle/FRPAsjnbKJwMDHmE7';
+        function showCommunityPreMeetingGate() {
+            document.getElementById('commPreMeetingModal')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'commPreMeetingModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+            overlay.innerHTML = `<div style="background:var(--wds-white);border-radius:var(--wds-radius-l);padding:28px 24px 24px;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.25);text-align:center;word-break:keep-all;">
+                <div style="font-size:2rem;line-height:1;margin-bottom:12px">🤝</div>
+                <h3 style="margin:0 0 10px;font-size:1.05rem;font-weight:800;color:var(--wds-black);">모임 관련 사전 미팅을 진행하셨나요?</h3>
+                <p style="margin:0 0 22px;font-size:0.86rem;color:var(--wds-gray-700);line-height:1.6;">사전 미팅을 거치지 않은 모임은 삭제될 수 있습니다.<br>아직이라면 <b>아니오</b>를 눌러 사전 미팅 신청 폼을 먼저 작성해주세요.</p>
+                <div style="display:flex;gap:8px;">
+                    <button type="button" class="gaa-btn gaa-btn-secondary" style="flex:1" onclick="communityPreMeetingAnswer(false)">아니오</button>
+                    <button type="button" class="gaa-btn gaa-btn-primary" style="flex:1" onclick="communityPreMeetingAnswer(true)">예</button>
+                </div>
+            </div>`;
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+            document.body.appendChild(overlay);
+        }
+        function communityPreMeetingAnswer(yes) {
+            document.getElementById('commPreMeetingModal')?.remove();
+            if (yes) { _openCommunityCreate(); return; }
+            window.open(COMMUNITY_PREMEETING_FORM_URL, '_blank', 'noopener');
+            showToast('사전 미팅 신청 폼이 열렸습니다. 미팅 후 모임을 만들어주세요.');
         }
 
         function renderCommunityCreateFieldEditor() {
