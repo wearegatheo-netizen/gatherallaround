@@ -7061,16 +7061,38 @@
             privacyAgree: false, // [필수] 개인정보 수집·이용 동의
         };
 
+        // ── 공용 시간표 달력 컨텍스트 ─────────────────────────────────────────
+        // 공간 대관 페이지와 커뮤니티 모임 등록 폼이 같은 달력 렌더러(월간 상태·주간 슬롯)를 쓴다.
+        // state: {calView, viewDate, selectedDate, startSlot, endSlot, rangeConflicts, blocks}
+        // ids: 컨테이너·라벨·월간/주간 토글 버튼 id, minSlots: 최소 선택 슬롯 수, onChange: 선택 변경 콜백
+        let _calCtx = null;
+        const _cs = () => (_calCtx ? _calCtx.state : _perfState);
+        function _perfCalCtx() {
+            return { state: _perfState, minSlots: 3, onChange: _perfCalOnChange,
+                ids: { container: 'perfCalContainer', label: 'perfCalLabel', monthBtn: 'perfCalMonthBtn', weekBtn: 'perfCalWeekBtn' } };
+        }
+        // 대관 페이지: 범위 선택이 완성되면 인원·다음 단계 섹션과 요금 표시
+        function _perfCalOnChange() {
+            const s = _perfState;
+            const done = s.startSlot !== null && s.endSlot !== null;
+            const phs = document.getElementById('perfHeadcountSection'); if (phs) phs.style.display = done ? 'block' : 'none';
+            const ps1 = document.getElementById('perfStep1Next'); if (ps1) ps1.style.display = done ? 'block' : 'none';
+            if (done) renderPerfFee();
+        }
+        const _calMin = () => (_calCtx && _calCtx.minSlots) || 3;
+        const _calIds = () => (_calCtx ? _calCtx.ids : _perfCalCtx().ids);
+        const _calChanged = () => { if (_calCtx && _calCtx.onChange) _calCtx.onChange(); };
+
         async function loadPerfBlocks() {
             if (!supabaseClient) return;
             const { data } = await supabaseClient.from('time_blocks').select('*');
-            _perfState.blocks = data || [];
+            _cs().blocks = data || [];
         }
 
         function perfBlocksForDate(dateStr) {
             const date = new Date(dateStr + 'T00:00:00');
             const dow = date.getDay();
-            return (_perfState.blocks || []).filter(b => {
+            return (_cs().blocks || []).filter(b => {
                 if (b.day_of_week !== dow) return false;
                 if (b.start_date && dateStr < b.start_date) return false;
                 if (b.end_date && dateStr > b.end_date) return false;
@@ -7080,7 +7102,7 @@
 
         async function loadPerfRangeConflicts(startDate, endDate) {
             if (!supabaseClient) return;
-            if (!_perfState.blocks.length) await loadPerfBlocks();
+            if (!_cs().blocks.length) await loadPerfBlocks();
             const [resResult, pbResult] = await Promise.all([
                 supabaseClient.from('reservations').select('res_date,start_time,end_time')
                     .gte('res_date', startDate).lte('res_date', endDate)
@@ -7099,11 +7121,11 @@
                 if (!map[b.date]) map[b.date] = [];
                 map[b.date].push({ start_time: b.start_time, end_time: b.end_time });
             });
-            _perfState.rangeConflicts = map;
+            _cs().rangeConflicts = map;
         }
 
         function getDateConflicts(dateStr) {
-            const base = _perfState.rangeConflicts[dateStr] || [];
+            const base = _cs().rangeConflicts[dateStr] || [];
             const blocks = perfBlocksForDate(dateStr).map(b => ({ start_time: b.start_time, end_time: b.end_time }));
             return [...base, ...blocks];
         }
@@ -7129,6 +7151,7 @@
             document.getElementById('performance-booking-page').classList.remove('hidden');
             const now = new Date();
             _perfState = { calView: 'month', viewDate: now, selectedDate: null, conflicts: [], rangeConflicts: {}, blocks: [], startSlot: null, endSlot: null, headcount: 5, step: 1, howFound: '', howFoundOther: '', audienceTbd: false, privacyAgree: false };
+            _calCtx = _perfCalCtx();
             renderPerfStep1();
         }
 
@@ -7143,8 +7166,8 @@
                         <div class="perf-section">
                             <div class="perf-section-title">날짜 / 시간 선택</div>
                             <div class="perf-cal-toggle">
-                                <button id="perfCalMonthBtn" class="${_perfState.calView==='month'?'active':''}" onclick="setPerfCalView('month')">월간</button>
-                                <button id="perfCalWeekBtn" class="${_perfState.calView==='week'?'active':''}" onclick="setPerfCalView('week')">주간</button>
+                                <button id="perfCalMonthBtn" class="${_cs().calView==='month'?'active':''}" onclick="setPerfCalView('month')">월간</button>
+                                <button id="perfCalWeekBtn" class="${_cs().calView==='week'?'active':''}" onclick="setPerfCalView('week')">주간</button>
                             </div>
                             <div class="perf-cal-nav">
                                 <button onclick="perfCalPrev()">◀</button>
@@ -7153,18 +7176,18 @@
                             </div>
                             <div id="perfCalContainer"></div>
                         </div>
-                        <div class="perf-section" id="perfHeadcountSection" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
+                        <div class="perf-section" id="perfHeadcountSection" style="display:${_cs().startSlot!==null&&_cs().endSlot!==null?'block':'none'}">
                             <div class="perf-section-title">인원수</div>
                             <div style="display:flex;align-items:center;gap:12px">
-                                <input type="number" id="perfHeadcount" min="1" max="20" value="${_perfState.headcount}"
-                                    oninput="let v=parseInt(this.value)||1; if(v>20){v=20; this.value='20';} _perfState.headcount=Math.max(1,Math.min(20,v)); renderPerfFee()"
+                                <input type="number" id="perfHeadcount" min="1" max="20" value="${_cs().headcount}"
+                                    oninput="let v=parseInt(this.value)||1; if(v>20){v=20; this.value='20';} _cs().headcount=Math.max(1,Math.min(20,v)); renderPerfFee()"
                                     style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-family:inherit;outline:none">
                                 <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
                             </div>
                             <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px;line-height:1.5">관람객 수가 아직 미정이면 우선 <strong>공연진 인원만</strong> 입력하세요. 다음 단계에서 체크할 수 있습니다.</div>
                             <div id="perfFeeSummary"></div>
                         </div>
-                        <div id="perfStep1Next" style="display:${_perfState.startSlot!==null&&_perfState.endSlot!==null?'block':'none'}">
+                        <div id="perfStep1Next" style="display:${_cs().startSlot!==null&&_cs().endSlot!==null?'block':'none'}">
                             <button onclick="goPerfStep2()" style="width:100%;padding:14px;background:var(--wds-primary);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">예약 신청하기 →</button>
                         </div>
                     </div>
@@ -7203,40 +7226,41 @@
                     </div>
                 </div>`;
             renderPerfCal();
-            if (_perfState.startSlot !== null && _perfState.endSlot !== null) renderPerfFee();
+            if (_cs().startSlot !== null && _cs().endSlot !== null) renderPerfFee();
         }
 
         function setPerfCalView(view) {
-            _perfState.calView = view;
-            document.querySelectorAll('.perf-cal-toggle button').forEach(b => b.classList.remove('active'));
-            document.getElementById(view === 'week' ? 'perfCalWeekBtn' : 'perfCalMonthBtn').classList.add('active');
+            _cs().calView = view;
+            const ids = _calIds();
+            document.getElementById(ids.monthBtn)?.classList.toggle('active', view === 'month');
+            document.getElementById(ids.weekBtn)?.classList.toggle('active', view === 'week');
             renderPerfCal();
         }
 
         function perfCalPrev() {
-            const d = new Date(_perfState.viewDate);
-            if (_perfState.calView === 'month') d.setMonth(d.getMonth() - 1);
+            const d = new Date(_cs().viewDate);
+            if (_cs().calView === 'month') d.setMonth(d.getMonth() - 1);
             else d.setDate(d.getDate() - 7);
-            _perfState.viewDate = d; renderPerfCal();
+            _cs().viewDate = d; renderPerfCal();
         }
         function perfCalNext() {
-            const d = new Date(_perfState.viewDate);
-            if (_perfState.calView === 'month') d.setMonth(d.getMonth() + 1);
+            const d = new Date(_cs().viewDate);
+            if (_cs().calView === 'month') d.setMonth(d.getMonth() + 1);
             else d.setDate(d.getDate() + 7);
-            _perfState.viewDate = d; renderPerfCal();
+            _cs().viewDate = d; renderPerfCal();
         }
 
         async function renderPerfCal() {
-            const container = document.getElementById('perfCalContainer');
-            const label = document.getElementById('perfCalLabel');
+            const container = document.getElementById(_calIds().container);
+            const label = document.getElementById(_calIds().label);
             if (!container) return;
             await loadPerfBlocks();
-            if (_perfState.calView === 'month') {
-                const d = _perfState.viewDate;
+            if (_cs().calView === 'month') {
+                const d = _cs().viewDate;
                 if (label) label.textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
                 await renderPerfMonth(container);
             } else {
-                const base = new Date(_perfState.viewDate);
+                const base = new Date(_cs().viewDate);
                 base.setDate(base.getDate() - base.getDay());
                 const end = new Date(base); end.setDate(base.getDate() + 6);
                 if (label) label.textContent = `${base.getMonth()+1}/${base.getDate()} ~ ${end.getMonth()+1}/${end.getDate()}`;
@@ -7246,7 +7270,7 @@
 
         async function renderPerfMonth(container) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--wds-gray-500);font-size:0.85rem">불러오는 중…</div>';
-            const d = _perfState.viewDate;
+            const d = _cs().viewDate;
             const y = d.getFullYear(), m = d.getMonth();
             const firstDay = new Date(y, m, 1).getDay();
             const lastDate = new Date(y, m+1, 0).getDate();
@@ -7265,7 +7289,7 @@
                 const dateStr = date.toLocaleDateString('en-CA');
                 const isPast = date < today;
                 const isToday = date.getTime() === today.getTime();
-                const isSelected = _perfState.selectedDate === dateStr;
+                const isSelected = _cs().selectedDate === dateStr;
                 const cs = isPast ? '' : dateConflictStatus(dateStr);
                 const day = document.createElement('div'); day.className = 'calendar-day';
                 if (isToday) day.classList.add('today');
@@ -7308,13 +7332,13 @@
             legend.style.cssText = 'font-size:0.72rem;color:var(--wds-gray-500);margin-top:8px';
             legend.innerHTML = '· 날짜를 선택하면 시간 슬롯이 표시됩니다';
             container.appendChild(legend);
-            if (_perfState.selectedDate) renderPerfWeekTimePicker(container);
+            if (_cs().selectedDate) renderPerfWeekTimePicker(container);
         }
 
         async function renderPerfWeek(container) {
             const prevWc = container.querySelector('.weekly-container');
             const prevScroll = prevWc ? { left: prevWc.scrollLeft, top: prevWc.scrollTop } : null;
-            const base = new Date(_perfState.viewDate);
+            const base = new Date(_cs().viewDate);
             base.setDate(base.getDate() - base.getDay());
             const weekStart = base.toLocaleDateString('en-CA');
             const weekEnd = new Date(base); weekEnd.setDate(base.getDate() + 6);
@@ -7365,8 +7389,8 @@
                         s.textContent = '예약불가';
                     } else {
                         s.style.cursor = 'pointer';
-                        if (_perfState.selectedDate === dateStr && _perfState.startSlot !== null) {
-                            const sStart = _perfState.startSlot, sEnd = _perfState.endSlot;
+                        if (_cs().selectedDate === dateStr && _cs().startSlot !== null) {
+                            const sStart = _cs().startSlot, sEnd = _cs().endSlot;
                             if (sEnd !== null && idx >= sStart && idx <= sEnd) s.classList.add('selected');
                             else if (sEnd === null && idx === sStart) s.classList.add('selected');
                         }
@@ -7380,32 +7404,25 @@
             if (prevScroll) { wrap.scrollLeft = prevScroll.left; wrap.scrollTop = prevScroll.top; }
             const help = document.createElement('div');
             help.style.cssText = 'font-size:0.75rem;color:var(--wds-gray-500);margin-top:8px;text-align:center';
-            help.textContent = '시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 3시간)';
+            help.textContent = _calMin() > 1 ? `시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 ${_calMin()}시간)` : '시작 슬롯 → 종료 슬롯 순서로 클릭 (1시간이면 같은 슬롯을 두 번)';
             container.appendChild(help);
         }
 
         function perfWeekSlotClick(dateStr, idx) {
-            if (_perfState.selectedDate !== dateStr || _perfState.startSlot === null) {
-                _perfState.selectedDate = dateStr;
-                _perfState.startSlot = idx;
-                _perfState.endSlot = null;
-                const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-                const _phs = document.getElementById('perfHeadcountSection'); if (_phs) _phs.style.display = 'none';
-                const _ps1 = document.getElementById('perfStep1Next'); if (_ps1) _ps1.style.display = 'none';
-                return;
+            const st = _cs(), min = _calMin();
+            const rerender = () => { const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy }); _calChanged(); };
+            // 새 시작 선택: 다른 날짜, 시작 미선택, 또는 이미 완성된 범위에서 더 앞 슬롯 클릭
+            if (st.selectedDate !== dateStr || st.startSlot === null || idx < st.startSlot) {
+                st.selectedDate = dateStr; st.startSlot = idx; st.endSlot = null;
+                rerender(); return;
             }
-            const startSlot = _perfState.startSlot;
+            const startSlot = st.startSlot;
             if (idx === startSlot) {
-                _perfState.startSlot = null; _perfState.endSlot = null;
-                const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-                const _phs = document.getElementById('perfHeadcountSection'); if (_phs) _phs.style.display = 'none';
-                const _ps1 = document.getElementById('perfStep1Next'); if (_ps1) _ps1.style.display = 'none';
-                return;
+                // 1시간 허용 컨텍스트에서 같은 슬롯 재클릭 = 1슬롯 범위 확정, 그 외엔 선택 해제
+                if (min <= 1 && st.endSlot === null) { st.endSlot = idx; rerender(); return; }
+                st.startSlot = null; st.endSlot = null; rerender(); return;
             }
-            if (idx < startSlot + 2) {
-                alert('최소 3시간 이상 선택해주세요.');
-                return;
-            }
+            if (idx - startSlot + 1 < min) { alert(`최소 ${min}시간 이상 선택해주세요.`); return; }
             const conflicts = getDateConflicts(dateStr);
             for (let j = startSlot; j <= idx; j++) {
                 const conf = conflicts.some(c => {
@@ -7414,25 +7431,22 @@
                 });
                 if (conf) { alert('선택 범위 내에 예약불가 슬롯이 있습니다.'); return; }
             }
-            _perfState.endSlot = idx;
-            const sy = window.scrollY; renderPerfCal(); window.scrollTo({ top: sy });
-            const _phsB = document.getElementById('perfHeadcountSection'); if (_phsB) _phsB.style.display = 'block';
-            const _ps1B = document.getElementById('perfStep1Next'); if (_ps1B) _ps1B.style.display = 'block';
-            renderPerfFee();
+            st.endSlot = idx;
+            rerender();
         }
 
         function selectPerfDate(dateStr) {
-            _perfState.selectedDate = dateStr;
-            _perfState.startSlot = null;
-            _perfState.endSlot = null;
-            _perfState.viewDate = new Date(dateStr + 'T00:00:00');
-            _perfState.calView = 'week';
-            document.querySelectorAll('.perf-cal-toggle button').forEach(b => b.classList.remove('active'));
-            const wBtn = document.getElementById('perfCalWeekBtn');
-            if (wBtn) wBtn.classList.add('active');
+            const st = _cs();
+            st.selectedDate = dateStr;
+            st.startSlot = null;
+            st.endSlot = null;
+            st.viewDate = new Date(dateStr + 'T00:00:00');
+            st.calView = 'week';
+            const ids = _calIds();
+            document.getElementById(ids.monthBtn)?.classList.remove('active');
+            document.getElementById(ids.weekBtn)?.classList.add('active');
             renderPerfCal();
-            document.getElementById('perfHeadcountSection').style.display = 'none';
-            document.getElementById('perfStep1Next').style.display = 'none';
+            _calChanged();
         }
 
         function renderPerfWeekTimePicker(container) {
@@ -7440,14 +7454,14 @@
         }
 
         function renderPerfTimePicker(container) {
-            if (!_perfState.selectedDate) {
+            if (!_cs().selectedDate) {
                 const hint = document.createElement('div');
                 hint.style.cssText = 'font-size:0.8rem;color:var(--wds-gray-500);text-align:center;padding:16px 0';
                 hint.textContent = '날짜를 선택하면 시간 슬롯이 표시됩니다';
                 container.appendChild(hint);
                 return;
             }
-            const dateStr = _perfState.selectedDate;
+            const dateStr = _cs().selectedDate;
             const conflicts = getDateConflicts(dateStr);
             const titleEl = document.createElement('div');
             titleEl.style.cssText = 'font-size:0.82rem;font-weight:700;color:var(--wds-gray-700);margin:12px 0 4px';
@@ -7455,7 +7469,7 @@
             container.appendChild(titleEl);
             const hintEl = document.createElement('div');
             hintEl.style.cssText = 'font-size:0.74rem;color:var(--wds-gray-500);margin-bottom:10px';
-            hintEl.textContent = '시작 → 종료 순서로 클릭 (최소 3시간)';
+            hintEl.textContent = _calMin() > 1 ? `시작 → 종료 순서로 클릭 (최소 ${_calMin()}시간)` : '시작 → 종료 순서로 클릭 (1시간이면 같은 슬롯을 두 번)';
             container.appendChild(hintEl);
             const grid = document.createElement('div');
             grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
@@ -7467,11 +7481,11 @@
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
                     return idx >= cs && idx <= ce;
                 });
-                const { startSlot, endSlot } = _perfState;
+                const { startSlot, endSlot } = _cs();
                 if (isConflict) {
                     slot.classList.add('unavailable');
                     slot.innerHTML = `<div style="font-size:0.78rem">${time}</div><div style="font-size:0.64rem">예약불가</div>`;
-                } else if (startSlot !== null && endSlot === null && idx !== startSlot && idx < startSlot + 2) {
+                } else if (startSlot !== null && endSlot === null && idx > startSlot && idx - startSlot + 1 < _calMin()) {
                     slot.classList.add('end-disabled');
                     slot.innerHTML = `<div style="font-size:0.82rem;font-weight:700">${time}</div><div style="font-size:0.64rem;opacity:0.6">~${endTime}</div>`;
                 } else {
@@ -8471,6 +8485,21 @@
                         <label class="gforms-label">모임명<span class="req">*</span></label>
                         <input type="text" id="cc_title" class="gforms-input" placeholder="모임 제목을 입력해주세요">
                     </div>
+                    <div class="gforms-card" id="ccCalCard">
+                        <label class="gforms-label">공간 시간표에서 날짜·시간 선택</label>
+                        <p style="margin:0 0 10px;font-size:0.8rem;color:var(--wds-gray-500);line-height:1.5">게더 올 어라운드 공간의 예약·대관 현황입니다. 비어 있는 시간을 고르면 아래 날짜·시간이 자동 입력됩니다. (다른 장소라면 아래에 직접 입력하세요)</p>
+                        <div class="perf-cal-toggle">
+                            <button type="button" id="ccCalMonthBtn" class="active" onclick="setPerfCalView('month')">월간</button>
+                            <button type="button" id="ccCalWeekBtn" onclick="setPerfCalView('week')">주간</button>
+                        </div>
+                        <div class="perf-cal-nav">
+                            <button type="button" onclick="perfCalPrev()">◀</button>
+                            <span id="ccCalLabel"></span>
+                            <button type="button" onclick="perfCalNext()">▶</button>
+                        </div>
+                        <div id="ccCalContainer"></div>
+                        <div id="ccCalSummary" style="margin-top:10px;font-size:0.86rem;font-weight:700;color:var(--wds-primary);min-height:20px"></div>
+                    </div>
                     <div class="gforms-card">
                         <label class="gforms-label">모임 날짜<span class="req">*</span></label>
                         <input type="date" id="cc_date" class="gforms-input">
@@ -8599,7 +8628,35 @@
             }
 
             el.innerHTML = html;
-            if (state.communityCreateOpen) renderCommunityCreateFieldEditor();
+            if (state.communityCreateOpen) { renderCommunityCreateFieldEditor(); initCommunityCal(); }
+        }
+
+        // 모임 등록 폼의 공간 시간표 달력 — 대관 달력 렌더러를 커뮤니티 컨텍스트로 구동
+        let _ccCalState = null;
+        function initCommunityCal() {
+            if (!document.getElementById('ccCalContainer')) return;
+            _ccCalState = { calView: 'month', viewDate: new Date(), selectedDate: null, startSlot: null, endSlot: null, rangeConflicts: {}, blocks: [] };
+            _calCtx = { state: _ccCalState, minSlots: 1, onChange: _ccCalOnChange,
+                ids: { container: 'ccCalContainer', label: 'ccCalLabel', monthBtn: 'ccCalMonthBtn', weekBtn: 'ccCalWeekBtn' } };
+            renderPerfCal();
+        }
+        function _ccCalOnChange() {
+            const st = _ccCalState; if (!st) return;
+            const dateEl = document.getElementById('cc_date');
+            const sEl = document.getElementById('cc_start_time');
+            const eEl = document.getElementById('cc_end_time');
+            const sum = document.getElementById('ccCalSummary');
+            if (st.selectedDate && dateEl) dateEl.value = st.selectedDate;
+            if (st.startSlot !== null && sEl) sEl.value = TIMES[st.startSlot];
+            if (st.endSlot !== null && eEl) eEl.value = TIMES[st.endSlot];
+            if (!sum) return;
+            if (st.selectedDate && st.startSlot !== null && st.endSlot !== null) {
+                sum.textContent = `선택: ${st.selectedDate.replace(/-/g, '.')} ${TIMES[st.startSlot]} ~ ${TIMES[st.endSlot + 1] || '23:00'} → 아래 날짜·시간에 입력됨`;
+            } else if (st.selectedDate && st.startSlot !== null) {
+                sum.textContent = `${st.selectedDate.replace(/-/g, '.')} ${TIMES[st.startSlot]} 시작 — 종료 슬롯을 클릭하세요`;
+            } else if (st.selectedDate) {
+                sum.textContent = `${st.selectedDate.replace(/-/g, '.')} — 시작 시간 슬롯을 클릭하세요`;
+            } else sum.textContent = '';
         }
 
         function communitySetTab(tab) {

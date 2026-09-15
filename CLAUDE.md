@@ -16,7 +16,11 @@
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
   D-2 관리자 알림: GitHub Actions 크론(매일 08:00 KST) → `/send-reminders`
   (`reminder_sent_at` 선점으로 건당 1회, 놓친 날은 D-1/D-DAY 캐치업, 푸시는 `/notify-admins` 재사용).
-- 테스트: `tests/` (event-api·send-sms 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
+- 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
+  `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
+  커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
+  달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
+- 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins 단위, shows/host UI — Playwright는 scratchpad node_modules 필요)
 - 개발 브랜치: `claude/remove-main-page-button-oi3bml`
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)
