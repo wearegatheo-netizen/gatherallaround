@@ -134,18 +134,7 @@ const FAKE_SB = `
   chk('팀 관리: 벤더 계약 정보(시작일·보증금·이용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
   chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/20(시작 2주 전)', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/20</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
   chk('팀 관리: 벤더 상태 칩 "입금일 5일 후"(임박)', teamsHtml.includes('입금일 5일 후') && /status-pending[^>]*>입금일 5일 후/.test(teamsHtml));
-  chk('팀 관리: 문자 안내 바(12:00·3회) + 테스트 버튼 3종 + 푸시 테스트 버튼', teamsHtml.includes('12:00') && teamsHtml.includes("sendBandSmsTest(this, 'due')") && teamsHtml.includes("sendBandSmsTest(this, 'week4')") && teamsHtml.includes("sendBandSmsTest(this, 'last')") && teamsHtml.includes("sendBandSmsTest(this, 'due', 'push')") && teamsHtml.includes('푸시 테스트'));
-  chk('푸시 테스트 버튼 → /send-reminders 에 push:"only" 로 요청(문자 아님)', await p.evaluate(async () => {
-    const orig = window.__fakeSb.auth.getSession;
-    window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-test' } } });
-    window.__fetchCalls = [];
-    const btn = [...document.querySelectorAll('#bandAdminView button')].find(b => b.getAttribute('onclick') === "sendBandSmsTest(this, 'due', 'push')");
-    await sendBandSmsTest(btn, 'due', 'push');
-    window.__fakeSb.auth.getSession = orig;
-    const c = (window.__fetchCalls || []).find(c => c.url === '/send-reminders');
-    const b = c && JSON.parse(c.body);
-    return !!b && b.action === 'test_band_sms' && b.sb_token === 'tok-test' && b.push === 'only' && b.kind === 'due' && !btn.disabled;
-  }), await p.evaluate(() => JSON.stringify((window.__fetchCalls || []).map(c => c.url))));
+  chk('팀 관리: 문자·푸시 테스트 버튼은 팀 관리 탭에 없음(알림 테스트 탭으로 이동)', !teamsHtml.includes('sendBandSmsTest(') && !teamsHtml.includes('문자 테스트') && teamsHtml.indexOf('계약 팀') < 200);
   chk('팀 관리: 벤더 문자 발송 이력(최근 4차 입금일 안내, KST 날짜)', teamsHtml.includes('최근 문자: 4차 입금일 안내 8/31 발송'), teamsHtml.match(/최근 문자[^<]*/)?.[0]);
   chk('팀 관리: 아나하 — 오늘 시작, 다음 1차 10/13, 입금일 9/29', teamsHtml.includes('<strong>1차</strong> 10/13(화) 시작') && teamsHtml.includes('입금일 <strong>9/29</strong>'));
   chk('팀 관리: 관리자 팀 카드엔 계약/입금 섹션 없음 + "관리 팀" 칩', teamsHtml.includes('>관리 팀</span>') && !teamsHtml.includes('본인 팀') && (teamsHtml.match(/계약 정보/g) || []).length === 2);
@@ -227,6 +216,38 @@ const FAKE_SB = `
   const csv = require('fs').readFileSync(csvPath, 'utf8');
   chk('CSV: BOM + 3구역 + 벤더 3행', csv.charCodeAt(0) === 0xFEFF && csv.includes('▶ 진행중인 고정팀') && csv.includes('▶ 대기팀') && csv.includes('▶ 히스토리') && csv.includes('1,일 야간,벤더,권율,010-7484-0121,26/05/17,6개월 이상 (보증금 25만 완),입금,26/05/17 (26/05/07)'), csv.split('\n')[2]);
   chk('CSV: 벤더 종료일 행 26/06/07·26/07/05', csv.includes(',종료일,26/06/07,26/07/05,'));
+
+  // ── 4b. 알림 테스트 탭 — 문자 3종 + 푸시 버튼, 요청 본문 검증
+  await p.evaluate(() => setBandAdminTab('test'));
+  await p.waitForTimeout(500);
+  const testHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
+  chk('알림 테스트 탭: 서브탭 활성 + 문자 테스트 3종 + 푸시 테스트 버튼 + 12:00 안내', await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="test"]').classList.contains('active'))
+    && testHtml.includes('12:00') && testHtml.includes("sendBandSmsTest(this, 'due')") && testHtml.includes("sendBandSmsTest(this, 'week4')") && testHtml.includes("sendBandSmsTest(this, 'last')") && testHtml.includes("sendBandSmsTest(this, 'due', 'push')")
+    && testHtml.includes('내 번호로만') && testHtml.includes('운영 총괄'));
+  chk('알림 테스트 탭: 버튼은 gaa-btn-sm(38px), 팀 카드 없음', await p.evaluate(() => { const b = document.querySelectorAll('#bandAdminView .gaa-btn-sm'); return b.length === 4 && [...b].every(x => x.offsetHeight >= 38) && !document.querySelector('#bandAdminView .band-team-card'); }));
+  chk('푸시 테스트 버튼 → /send-reminders 에 push:"only" 로 요청(문자 아님)', await p.evaluate(async () => {
+    const orig = window.__fakeSb.auth.getSession;
+    window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-test' } } });
+    window.__fetchCalls = [];
+    const btn = [...document.querySelectorAll('#bandAdminView button')].find(b => b.getAttribute('onclick') === "sendBandSmsTest(this, 'due', 'push')");
+    await sendBandSmsTest(btn, 'due', 'push');
+    window.__fakeSb.auth.getSession = orig;
+    const c = (window.__fetchCalls || []).find(c => c.url === '/send-reminders');
+    const b = c && JSON.parse(c.body);
+    return !!b && b.action === 'test_band_sms' && b.sb_token === 'tok-test' && b.push === 'only' && b.kind === 'due' && !btn.disabled;
+  }), await p.evaluate(() => JSON.stringify((window.__fetchCalls || []).map(c => c.url))));
+  chk('문자 테스트 버튼(4주차) → kind:"week4", push 없음', await p.evaluate(async () => {
+    const orig = window.__fakeSb.auth.getSession;
+    window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-test' } } });
+    window.__fetchCalls = [];
+    const btn = [...document.querySelectorAll('#bandAdminView button')].find(b => b.getAttribute('onclick') === "sendBandSmsTest(this, 'week4')");
+    await sendBandSmsTest(btn, 'week4');
+    window.__fakeSb.auth.getSession = orig;
+    const c = (window.__fetchCalls || []).find(c => c.url === '/send-reminders');
+    const b = c && JSON.parse(c.body);
+    return !!b && b.kind === 'week4' && !('push' in b);
+  }));
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-test-tab-light.png'), fullPage: true });
 
   // ── 5. 탈퇴 처리 → band_ended_at 기록
   await p.evaluate(() => setBandAdminTab('teams'));

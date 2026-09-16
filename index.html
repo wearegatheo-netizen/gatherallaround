@@ -2011,6 +2011,7 @@
                     <div class="admin-subtab active" data-tab="pending" onclick="setBandAdminTab('pending')">가입 신청</div>
                     <div class="admin-subtab" data-tab="teams" onclick="setBandAdminTab('teams')">팀 관리</div>
                     <div class="admin-subtab" data-tab="roster" onclick="setBandAdminTab('roster')">📋 현황표</div>
+                    <div class="admin-subtab" data-tab="test" onclick="setBandAdminTab('test')">🧪 알림 테스트</div>
                 </div>
                 <div id="bandAdminView"></div>
             </div>
@@ -11423,6 +11424,7 @@
             const pendingCount = teams.filter(t => t.status === 'pending').length;
             const pendingTab = document.querySelector('#bandAdminSection .admin-subtab[data-tab="pending"]');
             if (pendingTab) pendingTab.textContent = pendingCount ? `가입 신청 (${pendingCount})` : '가입 신청';
+            if (tab === 'test') { view.innerHTML = bandTestTabHTML(); return; }
             if (tab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
                 if (!pending.length) { view.innerHTML = _bandEmptyHTML('대기 중인 가입 신청이 없습니다.'); return; }
@@ -11434,23 +11436,13 @@
             const [paymentsMap, remindersMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids)]);
             state.bandAdminCache = { teams, paymentsMap, remindersMap };
             if (tab === 'roster') { renderBandRosterTab(view, teams, paymentsMap, remindersMap); return; }
-            const smsBar = `<div class="band-roster-toolbar" style="margin-bottom:12px">
-                    <span class="band-muted">입금 안내 문자는 매일 12:00에 자동 발송 — 미납 시 회차당 최대 3회: 입금일(3주차, 시작 2주 전) · 4주차(시작 1주 전) · 시작 전날</span>
-                    <span class="gaa-btn-row" style="gap:4px"><span class="band-muted">📱 문자 테스트(내 번호로):</span>
-                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due')">입금일</button>
-                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'week4')">4주차</button>
-                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'last')">전날</button></span>
-                    <span class="gaa-btn-row" style="gap:4px"><span class="band-muted">🔔 푸시 테스트(운영 총괄에게, 문자 없이):</span>
-                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due', 'push')">발송 알림</button></span>
-                </div>`;
             // 관리 팀(게더링 운영 계정)은 계약·회차·문자 대상이 아니므로 계약 팀 목록과 분리해 보여준다
             const adminTeams = approved.filter(t => _isAdminBandProfile(t));
             const contractTeams = approved.filter(t => !_isAdminBandProfile(t));
             const group = (title, note, body) => `<div class="band-team-group">
                     <div class="band-group-title"><span>${title}</span>${note ? `<span class="band-muted">${note}</span>` : ''}</div>${body}</div>`;
             const cards = (list) => list.map(t => bandAdminTeamCard(t, 'approved', paymentsMap, remindersMap)).join('');
-            view.innerHTML = smsBar
-                + group(`🎸 계약 팀 <span class="band-muted">${contractTeams.length}팀</span>`, '',
+            view.innerHTML = group(`🎸 계약 팀 <span class="band-muted">${contractTeams.length}팀</span>`, '',
                     contractTeams.length ? cards(contractTeams) : _bandEmptyHTML('승인된 계약 팀이 없습니다.'))
                 + (adminTeams.length ? group('🛠️ 관리 팀', '게더링 운영 계정 · 계약·회차·입금 안내 문자 대상이 아닙니다', cards(adminTeams)) : '');
         }
@@ -11686,6 +11678,28 @@
         }
 
         // 관리자 문자 테스트 — 게더링 계정의 Supabase 세션 토큰으로 서버가 본인 확인 후, 관리자 본인 번호로만 샘플 문자를 보낸다
+        // ── 알림 테스트 탭: 입금 안내 문자·관리자 푸시를 실제 발송과 같은 경로로 시험 (본인 번호·운영 총괄에게만) ──
+        function bandTestTabHTML() {
+            return `
+                <div class="band-card-section" style="margin-top:0;padding-top:0;border-top:0">
+                    <div class="band-card-head"><span>📱 입금 안내 문자 테스트</span></div>
+                    <div class="band-muted">실제 문자는 매일 12:00에 자동 발송 — 미납 시 회차당 최대 3회: 입금일(3주차, 시작 2주 전) · 4주차(시작 1주 전) · 시작 전날.<br>
+                        아래 버튼은 <strong>내 번호로만</strong> [테스트] 표시가 붙은 같은 문구를 보냅니다. 발송 이력·회차 기록에는 남지 않습니다.</div>
+                    <div class="gaa-btn-row" style="margin-top:10px">
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due')">입금일 안내</button>
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'week4')">4주차 리마인드</button>
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'last')">시작 전날 리마인드</button>
+                    </div>
+                </div>
+                <div class="band-card-section">
+                    <div class="band-card-head"><span>🔔 관리자 푸시 테스트</span></div>
+                    <div class="band-muted">실제 문자가 나가면 운영 총괄에게 「💰 월세 입금 안내 문자 발송」 푸시가 1건 갑니다.<br>
+                        아래 버튼은 문자 없이 그 푸시만 [테스트] 표시로 보냅니다 — 운영 총괄로 푸시를 켠 모든 기기에 도착합니다.</div>
+                    <div class="gaa-btn-row" style="margin-top:10px">
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due', 'push')">발송 알림 푸시</button>
+                    </div>
+                </div>`;
+        }
         // mode 'push' → 문자 없이 실제 발송 때와 같은 관리자 푸시([테스트] 표시)만 보낸다
         async function sendBandSmsTest(btn, kind, mode) {
             if (!supabaseClient || !isBandAdmin()) return;
