@@ -100,7 +100,12 @@ const FAKE_SB = `
     document.getElementById('bgm-player')?.remove();
     applyTheme('light');
     supabaseClient = window.__fakeSb; // sendAdminPush 는 실제 함수 그대로 — /notify-admins 는 정적 서버라 404 → 직접 발송 폴백(구독 0건)으로 조용히 끝난다
+    // 관리자 푸시 호출 기록(응답은 실제 그대로) — 팀 관리 진입 시 클라이언트 푸시가 없는지 검사하는 데 쓴다
+    window.__fetchCalls = [];
+    const realFetch = window.fetch.bind(window);
+    window.fetch = (url, opts) => { window.__fetchCalls.push({ url: String(url), body: opts && opts.body }); return realFetch(url, opts); };
   });
+  chk('사전 확인: 푸시 기록 래퍼가 sendAdminPush 의 /notify-admins 호출을 잡는다', await p.evaluate(async () => { await sendAdminPush('probe', 'probe'); const hit = (window.__fetchCalls || []).some(c => c.url === '/notify-admins' && /probe/.test(c.body || '')); window.__fetchCalls = []; return hit; }));
 
   // ── 1. 관리자 로그인 → 팀 관리 탭
   await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);
@@ -250,7 +255,6 @@ const FAKE_SB = `
   // ── 7. 가입 신청 → 관리자 푸시(/notify-admins) + 관리자 탭 대기 건수 배지
   await p.evaluate(() => {
     window.__fetchCalls = [];
-    const real = window.fetch.bind(window);
     window.fetch = (url, opts) => { window.__fetchCalls.push({ url: String(url), body: opts && opts.body }); return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })); };
     window.__fakeSb.auth.signUp = async () => ({ data: { user: { id: 'f0000000-0000-4000-8000-000000000006' } }, error: null });
     _hideAllScreens(); document.getElementById('landing-page-band').classList.remove('hidden'); showBandSignupForm();
