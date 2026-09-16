@@ -89,7 +89,8 @@
   전역 `input[type="text"]{height:52px}`·`[style]{height:auto}` 규칙 때문에 밴드 입력 선택자는 `#band-main-content input.band-input`로 특이도를 올려 둠.
   밴드 페이지는 `fullwidth-view`(본문 좌우 패딩 0) — 새 화면도 `#band-main-content { margin:-12px -6px }` 같은 음수 마진 해킹 금지.
   "댓글" 섹션의 정식 명칭은 "요청사항"(팀→게더링 요청 창구, 테이블·함수명은 band_comments 유지).
-  팀 관리 탭은 `.band-team-group`(+`.band-group-title`)으로 「계약 팀 N팀」→「관리 팀(게더링 운영 계정)」 순 분리, 관리 팀은 계약·회차·문자·납부 알림 대상에서 제외.
+  팀 관리 탭은 `.band-team-group`(+`.band-group-title`)으로 「계약 팀 N팀」→「관리 팀(게더링 운영 계정)」 순 분리, 관리 팀은 계약·회차·문자 대상에서 제외.
+  요금 명칭은 화면·문자 모두 「이용료」(사용료 ✗). 미납 관리자 푸시는 문자 발송 시 서버(`/send-reminders`)만 보내며, 페이지 접근 시 클라이언트 푸시는 없음(2026-09-16 제거).
   여러 소제목(계약 정보·회차·입금)을 가진 팀 항목은 `.band-team-card.block` — 이름 줄(`.band-card-top`)이 섹션 카드 폭 전체의 배경 띠(헤더,
   `margin:0 calc(-1*var(--b-card-pad))`, 관리 팀은 `.admin` 파란 톤)가 되어 팀 경계를 소제목 구분선과 구별한다(팀 관리·현황표 카드 공통). 가입 신청 목록은 단순 구분선 리스트. 시드 표식 메모 "시트 이관"은 DB엔 두고 화면에서만 `_bandDisplayNote()`로 숨김.
   `.band-form-grid`는 `minmax(0,1fr)` 열 + `label{min-width:0}` — date/number 입력은 `appearance:none`으로 모바일 고유 폭 넘침 방지.

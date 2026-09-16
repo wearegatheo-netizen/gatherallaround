@@ -126,7 +126,7 @@ const FAKE_SB = `
     const first = a.querySelector(':scope > .band-card-top + .band-card-section');
     return gap >= 24 && !!first && getComputedStyle(first).borderTopWidth === '0px';
   }), await p.evaluate(() => { const [a, b] = document.querySelector('#bandAdminView .band-team-group').querySelectorAll('.band-team-card.block'); return `gap=${b.querySelector(':scope > .band-card-top').getBoundingClientRect().top - a.lastElementChild.getBoundingClientRect().bottom}`; }));
-  chk('팀 관리: 벤더 계약 정보(시작일·보증금·사용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
+  chk('팀 관리: 벤더 계약 정보(시작일·보증금·이용료)', teamsHtml.includes('2026-05-17(일)') && teamsHtml.includes('250,000원 · 5/7 입금') && teamsHtml.includes('6개월 이상'));
   chk('팀 관리: 벤더 회차 요약 — 이번 회차 4차, 다음 5차 10/4 시작, 입금일 9/20(시작 2주 전)', teamsHtml.includes('이번 회차 <strong>4차</strong> 9/6 ~ 9/27') && teamsHtml.includes('<strong>5차</strong> 10/4(일) 시작') && teamsHtml.includes('입금일 <strong>9/20</strong>'), teamsHtml.match(/이번 회차[^<]*<strong>[^<]*<\/strong>[^<]*/)?.[0]);
   chk('팀 관리: 벤더 상태 칩 "입금일 5일 후"(임박)', teamsHtml.includes('입금일 5일 후') && /status-pending[^>]*>입금일 5일 후/.test(teamsHtml));
   chk('팀 관리: 문자 안내 바(12:00·3회) + 테스트 버튼 3종', teamsHtml.includes('12:00') && teamsHtml.includes("sendBandSmsTest(this, 'due')") && teamsHtml.includes("sendBandSmsTest(this, 'week4')") && teamsHtml.includes("sendBandSmsTest(this, 'last')"));
@@ -143,6 +143,8 @@ const FAKE_SB = `
       && getComputedStyle(adminCards[0].querySelector(':scope > .band-card-top')).backgroundColor !== getComputedStyle(g[0].querySelector('.band-team-card.block > .band-card-top')).backgroundColor;
   }), await p.evaluate(() => [...document.querySelectorAll('#bandAdminView .band-group-title')].map(e => e.textContent.trim()).join(' | ')));
   chk('팀 관리: 인라인 스타일 버튼 없음(gaa-btn만)', !/<button[^>]*style="[^"]*border-radius/.test(teamsHtml));
+  chk('팀 관리 진입 시 "월세 납부 알림" 푸시를 보내지 않음(문자 발송 시 서버 푸시로 대체)', await p.evaluate(() => !(window.__fetchCalls || []).some(c => c.url === '/notify-admins' && /월세|납부/.test(c.body || ''))));
+  chk('팀 관리: 요금 표기는 "이용료"(사용료 표기 없음)', teamsHtml.includes('이용료(4주)') && teamsHtml.includes('이용료 250,000원') && !teamsHtml.includes('사용료'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-light.png'), fullPage: true });
   await p.evaluate(() => applyTheme('dark')); await p.waitForTimeout(150); await p.screenshot({ path: path.join(SHOT_DIR, 'band-teams-dark.png'), fullPage: true }); await p.evaluate(() => applyTheme('light'));
 
@@ -160,7 +162,7 @@ const FAKE_SB = `
   const defCycle = await p.evaluate((id) => document.getElementById('bp-cycle-' + id).value, VANDOR);
   const defAmount = await p.evaluate((id) => document.getElementById('bp-amount-' + id).value, VANDOR);
   const defDate = await p.evaluate((id) => document.getElementById('bp-date-' + id).value, VANDOR);
-  chk('입금 폼 기본값: 5차 · 사용료 250000 · 오늘', defCycle === '5' && defAmount === '250000' && defDate === '2026-09-15', `${defCycle}/${defAmount}/${defDate}`);
+  chk('입금 폼 기본값: 5차 · 이용료 250000 · 오늘', defCycle === '5' && defAmount === '250000' && defDate === '2026-09-15', `${defCycle}/${defAmount}/${defDate}`);
   chk('입금 폼(420px): 납부일 date 입력이 폼 칸 안에 들어옴(넘침 없음)', await p.evaluate((id) => {
     const box = document.getElementById('bp-form-' + id), d = document.getElementById('bp-date-' + id), b = box.getBoundingClientRect(), r = d.getBoundingClientRect();
     const lab = d.parentElement.getBoundingClientRect();

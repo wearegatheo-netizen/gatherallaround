@@ -11451,10 +11451,6 @@
                 + group(`🎸 계약 팀 <span class="band-muted">${contractTeams.length}팀</span>`, '',
                     contractTeams.length ? cards(contractTeams) : _bandEmptyHTML('승인된 계약 팀이 없습니다.'))
                 + (adminTeams.length ? group('🛠️ 관리 팀', '게더링 운영 계정 · 계약·회차·입금 안내 문자 대상이 아닙니다', cards(adminTeams)) : '');
-            if (!window.__paymentAlertSent) {
-                window.__paymentAlertSent = true;
-                checkPaymentAlerts(contractTeams, paymentsMap);
-            }
         }
 
         // ── 고정 합주팀 회차 모델 (functions/send-reminders.js · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지) ──
@@ -11543,7 +11539,7 @@
             } catch (_) { return {}; }
         }
 
-        // ── 계약 정보(시작일·개월수·보증금·사용료) 인라인 폼 ──
+        // ── 계약 정보(시작일·개월수·보증금·이용료) 인라인 폼 ──
         function bandContractFormHTML(t) {
             const id = t.id;
             return `
@@ -11552,7 +11548,7 @@
                     <label>예상 사용 개월수<input type="text" id="bc-months-${id}" class="band-input" placeholder="예: 6개월 이상" value="${escAttr(t.band_expected_months || '')}"></label>
                     <label>보증금(원)<input type="number" id="bc-deposit-${id}" class="band-input" inputmode="numeric" placeholder="200000" value="${escAttr(t.band_deposit ?? '')}"></label>
                     <label>보증금 입금일<input type="date" id="bc-deposit-at-${id}" class="band-input" value="${escAttr(t.band_deposit_paid_at || '')}"></label>
-                    <label>회차(4주) 사용료(원)<input type="number" id="bc-fee-${id}" class="band-input" inputmode="numeric" placeholder="300000" value="${escAttr(t.band_fee ?? '')}"></label>
+                    <label>회차(4주) 이용료(원)<input type="number" id="bc-fee-${id}" class="band-input" inputmode="numeric" placeholder="300000" value="${escAttr(t.band_fee ?? '')}"></label>
                     <label>메모<input type="text" id="bc-memo-${id}" class="band-input" placeholder="캐비넷 등" value="${escAttr(t.band_memo || '')}"></label>
                 </div>
                 <div id="bc-result-${id}" class="band-form-result"></div>
@@ -11587,7 +11583,6 @@
                 }).eq('id', teamId);
                 if (error) { console.error('band contract save error:', error); showErr('저장하지 못했습니다. 잠시 후 다시 시도해주세요. (컬럼이 없다면 20260915 마이그레이션을 먼저 실행하세요)'); return; }
                 showToast('계약 정보를 저장했습니다.');
-                window.__paymentAlertSent = false;
                 renderBandAdminTab();
             } finally { _bandBusy(btn, false); }
         }
@@ -11653,7 +11648,6 @@
                 const { error } = await q;
                 if (error) { console.error('band payment save error:', error); showErr('저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
                 showToast(editId ? '납부 기록을 수정했습니다.' : '납부 기록을 저장했습니다.');
-                window.__paymentAlertSent = false;
                 renderBandAdminTab();
             } finally { _bandBusy(btn, false); }
         }
@@ -11663,7 +11657,6 @@
             const { error } = await supabaseClient.from('band_payments').delete().eq('id', paymentId);
             if (error) { console.error('band payment delete error:', error); showToast('삭제하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
             showToast('납부 기록을 삭제했습니다.');
-            window.__paymentAlertSent = false;
             renderBandAdminTab();
         }
         function toggleBandPaymentHistory(teamId, btnEl) {
@@ -11709,22 +11702,12 @@
         }
 
         // 관리자 진입 시 1회 — 입금일 임박·지남·미설정 팀 푸시
-        function checkPaymentAlerts(teams, paymentsMap) {
-            const alerts = teams
-                .filter(t => !_isAdminBandProfile(t))
-                .map(t => ({ name: t.band_name_kr, info: bandCycleInfo(t, (paymentsMap || {})[t.id] || []) }))
-                .filter(x => ['overdue', 'due_today', 'imminent', 'unknown'].includes(x.info.status));
-            if (!alerts.length) return;
-            const msg = alerts.map(a => `${a.name}: ${a.info.label}`).join('\n');
-            if (typeof sendAdminPush === 'function') sendAdminPush('💰 월세 납부 알림', msg);
-        }
-
         // 회차 안내 문장 (관리자 카드·팀 본인 화면 공용)
         function bandCycleSummaryHTML(t, info) {
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';
             if (info.mode === 'legacy') return `<div class="band-muted">시작일 미설정 — 마지막 납부일(${escHtml(info.lastPaid)}) 기준 다음 납부 예정 ${escHtml(info.next)}. 계약 정보를 입력하면 회차·문자 안내가 시작됩니다.</div>`;
-            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 사용료는 시작일에 입금</div>`;
-            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · 입금일 <strong>${bandMD(info.due)}</strong>${t.band_fee ? ` · 사용료 ${bandWon(t.band_fee)}` : ''}</div>`;
+            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 이용료는 시작일에 입금</div>`;
+            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · 입금일 <strong>${bandMD(info.due)}</strong>${t.band_fee ? ` · 이용료 ${bandWon(t.band_fee)}` : ''}</div>`;
         }
         function bandReminderLogHTML(reminders, n) {
             const all = (reminders || []).slice().sort((a, b) => String(a.sent_at).localeCompare(String(b.sent_at)));
@@ -11759,7 +11742,7 @@
                             ${kv('시작일', t.band_start_date ? `${escHtml(t.band_start_date)}(${bandWD(t.band_start_date)})` : '')}
                             ${kv('예상 사용', escHtml(t.band_expected_months || ''))}
                             ${kv('보증금', t.band_deposit ? `${bandWon(t.band_deposit)}${t.band_deposit_paid_at ? ' · ' + bandMD(t.band_deposit_paid_at) + ' 입금' : ' · 미입금'}` : '')}
-                            ${kv('사용료(4주)', bandWon(t.band_fee))}
+                            ${kv('이용료(4주)', bandWon(t.band_fee))}
                         </div>
                         ${_bandDisplayNote(t.band_memo) ? `<div class="band-muted">메모: ${escHtml(_bandDisplayNote(t.band_memo))}</div>` : ''}
                         <div id="bc-form-${t.id}" class="band-inline-form" hidden>${bandContractFormHTML(t)}</div>

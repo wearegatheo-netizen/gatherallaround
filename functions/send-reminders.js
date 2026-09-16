@@ -1,8 +1,8 @@
 // Cloudflare Pages Function: /send-reminders
 // 1) 공간 대관 이용일 임박(D-2) 관리자 푸시 알림
-// 2) 고정 합주팀 회차 사용료(월세) 입금 안내 문자 — 입금일 당일 + 미납 시 시작 전날
+// 2) 고정 합주팀 회차 이용료(월세) 입금 안내 문자 — 미납 시 회차당 최대 3회(입금일·시작 1주 전·시작 전날), 발송 시 관리자 푸시
 // 3) 매월 1일 개인정보 보유기간 만료 건 파기
-// 매일 08:00 KST에 GitHub Actions 크론(.github/workflows/perf-reminder.yml)이 POST로 호출한다.
+// 1)·3)은 매일 08:00 KST(perf-reminder.yml, scope=booking), 2)는 12:00 KST(band-rent-sms.yml, scope=band) 크론이 POST로 호출한다.
 //
 // 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
 //    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
@@ -96,9 +96,9 @@ export function bandRentText(team, n, kind, today) {
         : kind === 'week4'
         ? `${cycle} 시작이 일주일 남았습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
         : today > due
-            ? `${cycle} 사용료 입금일(${mdOf(due)})이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
-            : `${cycle} 사용료 입금일이 오늘(${mdOf(due)})입니다.`;
-    const fee = Number(team.band_fee) > 0 ? `사용료(${Number(team.band_fee).toLocaleString('ko-KR')}원)` : '사용료';
+            ? `${cycle} 이용료 입금일(${mdOf(due)})이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.`
+            : `${cycle} 이용료 입금일이 오늘(${mdOf(due)})입니다.`;
+    const fee = Number(team.band_fee) > 0 ? `이용료(${Number(team.band_fee).toLocaleString('ko-KR')}원)` : '이용료';
     return `안녕하세요! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
 
 ${lead}
@@ -107,9 +107,7 @@ ${fee}를 아래 계좌로 입금해주시면 다음 회차 이용이 연장됩�
 
 ${BAND_BANK_LINE}
 
-※ 입금자명은 팀명 또는 대표자명으로 부탁드립니다.
-※ 연장하지 않으실 경우 미리 말씀해주시면 감사하겠습니다. 보증금은 사용 종료 시 반환됩니다.
-※ 문의: 010-5109-1042`;
+※ 연장하지 않으실 경우 미리 말씀해주시면 감사하겠습니다. 보증금은 사용 종료 시 반환됩니다.`;
 }
 
 // Supabase 세션 토큰 검증 — GoTrue 가 토큰 주인을 돌려준다 (밴드 계정은 Supabase auth 로그인)
@@ -217,7 +215,7 @@ export async function onRequest(context) {
         const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
             method: 'POST',
             headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject: '게더 올 어라운드 사용료 안내(테스트)' } }),
+            body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject: '게더 올 어라운드 이용료 안내(테스트)' } }),
         });
         if (!smsRes.ok) return json({ ok: false, error: 'solapi', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
         return json({ ok: true, to: maskPhone(to), kind, preview: text });
@@ -288,7 +286,7 @@ export async function onRequest(context) {
                 headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: {
                     to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text: bandRentText(x.team, x.n, x.kind, today),
-                    subject: '게더 올 어라운드 사용료 안내', // LMS 제목(40byte 이내) — 미지정 시 본문 첫 줄이 잘려 두 번 보인다
+                    subject: '게더 올 어라운드 이용료 안내', // LMS 제목(40byte 이내) — 미지정 시 본문 첫 줄이 잘려 두 번 보인다
                 } }),
             });
             if (!smsRes.ok) {

@@ -134,7 +134,7 @@ const notifyPayload = () => {
 }
 
 
-// ═══════════ 고정 합주팀 회차 사용료 입금 안내 문자 ═══════════
+// ═══════════ 고정 합주팀 회차 이용료 입금 안내 문자 ═══════════
 const ENV_SMS = { ...ENV, SOLAPI_API_KEY: 'sol-key', SOLAPI_API_SECRET: 'sol-secret', SMS_SENDER: '010-5109-1042' };
 const TEAM_ID = '33333333-3333-4333-8333-333333333333';
 // 아나하: 화·수 야간, 시작 2026-09-15(화) → 1차 시작 10/13, 입금일 09/29(시작 2주 전 = 3주차 사용일), 등록 종료일 10/06
@@ -179,10 +179,12 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   chk('선점 행: team·1차·due', !!cb && cb.team_id === TEAM_ID && cb.cycle_no === 1 && cb.kind === 'due' && !!cb.sent_at);
   chk('선점 POST 가 솔라피보다 먼저', calls.findIndex(c => /band_rent_reminders$/.test(c.url)) < calls.findIndex(c => c.url.includes('api.solapi.com')));
   chk('수신·발신 번호 숫자만', !!msg && msg.to === '01067871995' && msg.from === '01051091042');
-  chk('본문: 팀명·다음 회차·오늘 입금일', !!msg && msg.text.includes('[아나하] 팀 고정 합주 다음 회차(10/13(화)부터 4주) 사용료 입금일이 오늘(9/29)입니다.'), (msg?.text || '').slice(0, 120));
-  chk('본문: 사용료 금액·계좌', !!msg && msg.text.includes('사용료(300,000원)를') && msg.text.includes('토스뱅크 1000-2274-7678 최경수'));
+  chk('본문: 팀명·다음 회차·오늘 입금일', !!msg && msg.text.includes('[아나하] 팀 고정 합주 다음 회차(10/13(화)부터 4주) 이용료 입금일이 오늘(9/29)입니다.'), (msg?.text || '').slice(0, 120));
+  chk('본문: 이용료 금액·계좌', !!msg && msg.text.includes('이용료(300,000원)를') && msg.text.includes('토스뱅크 1000-2274-7678 최경수'));
   chk('본문: 이모지 없음(EUC-KR 안전)', !!msg && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(msg.text));
-  chk('LMS 제목 지정', !!msg && msg.subject === '게더 올 어라운드 사용료 안내');
+  chk('LMS 제목 지정', !!msg && msg.subject === '게더 올 어라운드 이용료 안내');
+  chk('본문: 추가 안내는 연장 안내 1줄만(입금자명·문의 줄 없음, "사용료" 표기 없음)', !!msg && msg.text.includes('※ 연장하지 않으실 경우') && !msg.text.includes('입금자명') && !msg.text.includes('※ 문의') && !msg.text.includes('사용료')
+    && msg.text.trim().endsWith('보증금은 사용 종료 시 반환됩니다.'), (msg?.text || '').split('\n').slice(-3).join(' / '));
   const p = notifyPayload();
   chk('관리자 푸시: 팀·회차·입금일, 운영 총괄만', !!p && p.title.includes('월세') && p.body.includes('아나하') && p.body.includes('1차') && p.body.includes('9/29')
     && JSON.stringify(p.roles) === '["운영 총괄"]', p && p.body);
@@ -218,7 +220,7 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   const j = await (await run('POST', ENV_SMS)).json();
   const msg = solapiMsg();
   chk('캐치업 발송 1건 (kind due)', j.band_sent === 1 && claimBody().kind === 'due');
-  chk('본문: 입금일 지남 문구', !!msg && msg.text.includes('사용료 입금일(9/29)이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
+  chk('본문: 입금일 지남 문구', !!msg && msg.text.includes('이용료 입금일(9/29)이 지났습니다. 아직 입금 확인이 되지 않아 안내드립니다.'), (msg?.text || '').slice(0, 120));
 }
 // ── B5. 회차당 최대 3회: due(3주차) → week4(시작 1주 전) → last(시작 전날)
 {
@@ -282,7 +284,7 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
     del && del.url.slice(del.url.indexOf('?')));
   chk('솔라피 실패 시 관리자 푸시 없음', !calls.some(c => c.url.includes('/notify-admins')));
 }
-// ── B7. 제외 조건 — 관리자 팀 / 사용료 미설정 / 연락처 불량
+// ── B7. 제외 조건 — 관리자 팀 / 이용료 미설정 / 연락처 불량
 {
   at('2026-10-06');
   mockFetch(bandRoutes({ teams: [TEAM({ instruments: 'wearegatheo', band_name_kr: '게더링' }), TEAM({ id: '44444444-4444-4444-8444-444444444444', email: 'wearegatheo@band.gatheo.kr', instruments: 'x' })] }));
@@ -291,7 +293,7 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   mockFetch(bandRoutes({ teams: [TEAM({ band_fee: null })] }));
   await run('POST', ENV_SMS);
   const msg = solapiMsg();
-  chk('사용료 미설정 → 금액 괄호 없이 "사용료를"', !!msg && msg.text.includes('\n사용료를 아래 계좌로') && !msg.text.includes('사용료('));
+  chk('이용료 미설정 → 금액 괄호 없이 "이용료를"', !!msg && msg.text.includes('\n이용료를 아래 계좌로') && !msg.text.includes('이용료('));
   mockFetch(bandRoutes({ teams: [TEAM({ leader_phone: '02-123-4567', phone: null })] }));
   const j3 = await (await run('POST', ENV_SMS)).json();
   chk('휴대폰 번호 아니면 선점·발송 없음', j3.band_checked === 1 && j3.band_sent === 0 && !claimBody());
@@ -339,7 +341,7 @@ const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_P
   const r4 = await runTest({ action: 'test_band_sms', sb_token: 'tok' });
   const j4 = await r4.json(); const msg = solapiMsg();
   chk('테스트: 게더링 계정 → 본인 번호로 [테스트] 문자, 오늘이 입금일인 샘플(다음 회차 9/29 시작)', r4.status === 200 && j4.ok === true && !!msg && msg.to === '01051091042'
-    && msg.text.startsWith('[테스트] ') && msg.text.includes('[게더링] 팀 고정 합주 다음 회차(9/29(화)부터 4주) 사용료 입금일이 오늘(9/15)입니다.') && msg.text.includes('사용료(300,000원)'), (msg?.text || '').slice(0, 130));
+    && msg.text.startsWith('[테스트] ') && msg.text.includes('[게더링] 팀 고정 합주 다음 회차(9/29(화)부터 4주) 이용료 입금일이 오늘(9/15)입니다.') && msg.text.includes('이용료(300,000원)'), (msg?.text || '').slice(0, 130));
   chk('테스트: 번호 마스킹 응답 + 선점·이력 기록 없음 + 관리자 푸시 없음', j4.to === '010****1042' && !calls.some(c => c.url.includes('band_rent_reminders') || c.url.includes('/notify-admins')), j4.to);
   mockFetch(testRoutes());
   await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'last' });
