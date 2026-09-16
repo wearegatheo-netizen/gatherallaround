@@ -11440,6 +11440,8 @@
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due')">입금일</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'week4')">4주차</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'last')">전날</button></span>
+                    <span class="gaa-btn-row" style="gap:4px"><span class="band-muted">🔔 푸시 테스트(운영 총괄에게, 문자 없이):</span>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due', 'push')">발송 알림</button></span>
                 </div>`;
             // 관리 팀(게더링 운영 계정)은 계약·회차·문자 대상이 아니므로 계약 팀 목록과 분리해 보여준다
             const adminTeams = approved.filter(t => _isAdminBandProfile(t));
@@ -11684,24 +11686,30 @@
         }
 
         // 관리자 문자 테스트 — 게더링 계정의 Supabase 세션 토큰으로 서버가 본인 확인 후, 관리자 본인 번호로만 샘플 문자를 보낸다
-        async function sendBandSmsTest(btn, kind) {
+        // mode 'push' → 문자 없이 실제 발송 때와 같은 관리자 푸시([테스트] 표시)만 보낸다
+        async function sendBandSmsTest(btn, kind, mode) {
             if (!supabaseClient || !isBandAdmin()) return;
             if (!['due', 'week4', 'last'].includes(kind)) kind = 'due';
+            const pushOnly = mode === 'push';
             _bandBusy(btn, true, '발송 중…');
             try {
                 const { data } = await supabaseClient.auth.getSession();
                 const token = data && data.session && data.session.access_token;
                 if (!token) { showToast('로그인 세션이 없습니다. 다시 로그인해주세요.'); return; }
                 const res = await fetch('/send-reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'test_band_sms', sb_token: token, kind }) });
+                    body: JSON.stringify({ action: 'test_band_sms', sb_token: token, kind, ...(pushOnly ? { push: 'only' } : {}) }) });
                 const out = await res.json().catch(() => ({}));
-                if (!res.ok || !out.ok) { console.error('band sms test:', res.status, out); showToast(out.message || '문자 테스트에 실패했습니다.'); return; }
+                if (!res.ok || !out.ok) { console.error('band sms test:', res.status, out); showToast(out.message || (pushOnly ? '푸시 테스트에 실패했습니다.' : '문자 테스트에 실패했습니다.')); return; }
+                if (pushOnly) {
+                    const n = out.push && out.push.sent;
+                    showToast(n ? `운영 총괄 ${n}명에게 테스트 푸시를 보냈습니다.` : '푸시 구독이 없어 전달된 기기가 없습니다. 관리자 화면에서 푸시 알림을 켜주세요.');
+                    return;
+                }
                 showToast(`${out.to}로 테스트 문자를 보냈습니다.`);
             } catch (e) { console.error('band sms test error:', e); showToast('서버와 통신하지 못했습니다.'); }
             finally { _bandBusy(btn, false); }
         }
 
-        // 관리자 진입 시 1회 — 입금일 임박·지남·미설정 팀 푸시
         // 회차 안내 문장 (관리자 카드·팀 본인 화면 공용)
         function bandCycleSummaryHTML(t, info) {
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';

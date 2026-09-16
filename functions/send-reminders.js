@@ -84,6 +84,7 @@ const isAdminBand = (t) => {
 const mdOf = (ymd) => { const [, m, d] = ymd.split('-').map(Number); return `${m}/${d}`; };
 const wdOf = (ymd) => ['일', '월', '화', '수', '목', '금', '토'][new Date(ymd + 'T00:00:00Z').getUTCDay()];
 
+const BAND_KIND_LABEL = { due: '입금일 안내', week4: '시작 1주 전', last: '시작 전날' }; // 관리자 푸시 본문의 발송 종류 표기
 // 입금 안내 문자. 90byte 초과 → 솔라피가 LMS로 자동 전환. 이모지는 EUC-KR에서 깨질 수 있어 넣지 않는다.
 export function bandRentText(team, n, kind, today) {
     const start = team.band_start_date;
@@ -198,7 +199,10 @@ export async function onRequest(context) {
 
     // ── 관리자 문자 테스트: 게더링 밴드 계정이 본인 번호로 입금 안내 문자 샘플을 받아 본다 (선점·이력 기록 없음)
     if (request.method === 'POST' && body && body.action === 'test_band_sms') {
-        if (!smsOn) return json({ ok: false, error: 'sms-disabled', message: '솔라피 키(SOLAPI_API_KEY/SECRET, SMS_SENDER)가 설정되지 않았습니다.' }, 400);
+        // push: 'only' → 문자 없이 관리자 푸시만 / true → 문자 + 푸시 / 없음 → 문자만. 푸시는 실제 발송 때와 같은 경로·대상(운영 총괄)에 [테스트] 표시로 간다.
+        const pushOnly = body.push === 'only';
+        const wantPush = pushOnly || body.push === true;
+        if (!pushOnly && !smsOn) return json({ ok: false, error: 'sms-disabled', message: '솔라피 키(SOLAPI_API_KEY/SECRET, SMS_SENDER)가 설정되지 않았습니다.' }, 400);
         const uid = await verifySb(env, body.sb_token);
         if (!uid) return json({ ok: false, error: 'auth', message: '로그인이 만료되었습니다. 다시 로그인해주세요.' }, 401);
         const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id,name,band_name_kr,leader_phone,phone,instruments,email,member_type,band_start_date,band_fee&limit=1`,
@@ -206,19 +210,35 @@ export async function onRequest(context) {
         const [prof] = pr.ok ? await pr.json().catch(() => []) : [];
         if (!prof || prof.member_type !== 'band' || !isAdminBand(prof)) return json({ ok: false, error: 'forbidden', message: '게더링 관리자 계정만 사용할 수 있습니다.' }, 403);
         const to = String(prof.leader_phone || prof.phone || '').replace(/\D/g, '');
-        if (!/^01[016789][0-9]{7,8}$/.test(to)) return json({ ok: false, error: 'bad-phone', message: '관리자 계정의 휴대폰 번호가 올바르지 않습니다.' }, 400);
+        if (!pushOnly && !/^01[016789][0-9]{7,8}$/.test(to)) return json({ ok: false, error: 'bad-phone', message: '관리자 계정의 휴대폰 번호가 올바르지 않습니다.' }, 400);
         const kind = ['due', 'week4', 'last'].includes(body.kind) ? body.kind : 'due';
         // 샘플: 오늘이 해당 발송일(입금일 = 시작일 + 14 / 4주차 = +21 / 전날 = +27)이 되도록 시작일을 잡는다 → 문구가 실제 발송 시와 같다
         const back = kind === 'last' ? 27 : kind === 'week4' ? 21 : BAND_DUE_OFFSET;
         const sample = { band_name_kr: prof.band_name_kr || prof.name || '게더링', band_start_date: addDays(today, -back), band_fee: prof.band_fee || 300000 };
         const text = '[테스트] ' + bandRentText(sample, 1, kind, today);
-        const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
-            method: 'POST',
-            headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject: '게더 올 어라운드 이용료 안내(테스트)' } }),
-        });
-        if (!smsRes.ok) return json({ ok: false, error: 'solapi', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
-        return json({ ok: true, to: maskPhone(to), kind, preview: text });
+        if (!pushOnly) {
+            const smsRes = await fetch('https://api.solapi.com/messages/v4/send', {
+                method: 'POST',
+                headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject: '게더 올 어라운드 이용료 안내(테스트)' } }),
+            });
+            if (!smsRes.ok) return json({ ok: false, error: 'solapi', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
+        }
+        let push = null;
+        if (wantPush) {
+            // 실제 발송 블록의 푸시와 제목·본문 형식·대상(운영 총괄)을 맞추고 [테스트] 만 앞에 붙인다
+            const origin = new URL(request.url).origin;
+            const pr = await fetch(`${origin}/notify-admins`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: '[테스트] 💰 월세 입금 안내 문자 발송',
+                    body: `${sample.band_name_kr} · 1차 · 입금일 ${mdOf(bandCycleDue(sample.band_start_date, 1))} · ${BAND_KIND_LABEL[kind] || kind}`,
+                    roles: ['운영 총괄'] }),
+            }).catch(() => null);
+            const pj = pr ? await pr.json().catch(() => ({})) : {};
+            push = pr && pr.ok && pj.ok !== false ? { ok: true, sent: Number(pj.sent) || 0 } : { ok: false, status: pr ? pr.status : 0 };
+            if (pushOnly && !push.ok) return json({ ok: false, error: 'push', message: '관리자 푸시 발송에 실패했습니다.', push }, 502);
+        }
+        return json({ ok: true, to: pushOnly ? null : maskPhone(to), kind, preview: text, push });
     }
 
     const listUrl = `${SUPABASE_URL}/rest/v1/performance_bookings`
@@ -300,7 +320,7 @@ export async function onRequest(context) {
             await fetch(`${origin}/notify-admins`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: '💰 월세 입금 안내 문자 발송',
-                    body: `${name} · ${x.n}차 · 입금일 ${mdOf(x.due)} · ${{ due: '입금일 안내', week4: '시작 1주 전', last: '시작 전날' }[x.kind] || x.kind}`,
+                    body: `${name} · ${x.n}차 · 입금일 ${mdOf(x.due)} · ${BAND_KIND_LABEL[x.kind] || x.kind}`,
                     roles: ['운영 총괄'] }),
             }).catch(() => {});
         }

@@ -321,10 +321,11 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
 const ADMIN_UID = 'a0000000-0000-4000-8000-000000000001';
 const ADMIN_PROF = { id: ADMIN_UID, name: '최경수', band_name_kr: '게더링', leader_phone: '010-5109-1042', phone: null, instruments: 'wearegatheo', email: 'wearegatheo@band.gatheo.kr', member_type: 'band', band_start_date: null, band_fee: null };
 const runTest = (body, env = ENV_SMS) => onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env });
-const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_PROF, solapi = 200 } = {}) => [
+const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_PROF, solapi = 200, push = { ok: true, sent: 2 }, pushStatus = 200 } = {}) => [
   ['/auth/v1/user', { status: userStatus, body: user }],
   ['profiles?id=eq.', { body: prof ? [prof] : [] }],
   ['api.solapi.com/messages', { method: 'POST', status: solapi, body: {} }],
+  ['/notify-admins', { method: 'POST', status: pushStatus, body: push }],
 ];
 {
   at('2026-09-15');
@@ -343,6 +344,26 @@ const testRoutes = ({ user = { id: ADMIN_UID }, userStatus = 200, prof = ADMIN_P
   chk('테스트: 게더링 계정 → 본인 번호로 [테스트] 문자, 오늘이 입금일인 샘플(다음 회차 9/29 시작)', r4.status === 200 && j4.ok === true && !!msg && msg.to === '01051091042'
     && msg.text.startsWith('[테스트] ') && msg.text.includes('[게더링] 팀 고정 합주 다음 회차(9/29(화)부터 4주) 이용료 입금일이 오늘(9/15)입니다.') && msg.text.includes('이용료(300,000원)'), (msg?.text || '').slice(0, 130));
   chk('테스트: 번호 마스킹 응답 + 선점·이력 기록 없음 + 관리자 푸시 없음', j4.to === '010****1042' && !calls.some(c => c.url.includes('band_rent_reminders') || c.url.includes('/notify-admins')), j4.to);
+  // 푸시 테스트(push:'only') — 문자 없이 실제 발송과 같은 형식의 [테스트] 푸시만, 운영 총괄 대상
+  mockFetch(testRoutes());
+  const rp = await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'week4', push: 'only' });
+  const jp = await rp.json(); const p5 = calls.find(c => c.url.includes('/notify-admins'));
+  const pb5 = p5 ? JSON.parse(p5.body) : null;
+  chk('푸시 테스트: 솔라피 호출 없음 + /notify-admins 1회(운영 총괄, [테스트] 제목, 팀·회차·입금일·종류)', rp.status === 200 && jp.ok === true && jp.to === null
+    && !calls.some(c => c.url.includes('solapi')) && calls.filter(c => c.url.includes('/notify-admins')).length === 1
+    && !!pb5 && pb5.title === '[테스트] 💰 월세 입금 안내 문자 발송' && pb5.body === '게더링 · 1차 · 입금일 9/8 · 시작 1주 전' && JSON.stringify(pb5.roles) === '["운영 총괄"]', pb5 ? pb5.body : '');
+  chk('푸시 테스트: 전달 건수 응답(sent=2), 선점·이력 기록 없음', jp.push && jp.push.ok === true && jp.push.sent === 2 && !calls.some(c => c.url.includes('band_rent_reminders')), JSON.stringify(jp.push));
+  mockFetch(testRoutes({ pushStatus: 502, push: { error: 'boom' } }));
+  const rp2 = await runTest({ action: 'test_band_sms', sb_token: 'tok', push: 'only' });
+  chk('푸시 테스트: /notify-admins 실패 → 502 + 실패 사유', rp2.status === 502 && (await rp2.json()).error === 'push');
+  mockFetch(testRoutes());
+  const rp3 = await runTest({ action: 'test_band_sms', sb_token: 'tok', push: 'only' }, ENV);
+  chk('푸시 테스트: 솔라피 키 없어도 푸시만은 동작(200, 솔라피 호출 없음)', rp3.status === 200 && (await rp3.json()).push.sent === 2 && !calls.some(c => c.url.includes('solapi')), String(rp3.status));
+  mockFetch(testRoutes());
+  const rp4 = await runTest({ action: 'test_band_sms', sb_token: 'tok', push: true });
+  const jp4 = await rp4.json();
+  chk('문자+푸시(push:true): 솔라피 1회 + 푸시 1회, 응답에 to·push 모두', rp4.status === 200 && jp4.to === '010****1042' && jp4.push && jp4.push.sent === 2
+    && calls.filter(c => c.url.includes('solapi')).length === 1 && calls.filter(c => c.url.includes('/notify-admins')).length === 1);
   mockFetch(testRoutes());
   await runTest({ action: 'test_band_sms', sb_token: 'tok', kind: 'last' });
   chk('테스트: kind last → 시작 전날 리마인드 문구', !!solapiMsg() && solapiMsg().text.includes('가 내일 시작됩니다'), (solapiMsg()?.text || '').slice(0, 130));
