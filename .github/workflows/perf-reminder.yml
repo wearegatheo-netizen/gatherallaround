@@ -1,12 +1,15 @@
 # 공간 대관 이용일 임박(D-2) 알림 크론 (+ 매월 1일 보유기간 만료 건 파기)
-# 매일 08:00 KST(23:00 UTC)에 /send-reminders 를 scope=booking 으로 호출해, 이용일이 이틀 앞으로
-# 다가온 승인 예약을 관리자 푸시로 알린다. 합주팀 입금 안내 문자는 band-rent-sms.yml(12:00 KST)이 담당.
+# 매일 07:47 KST(22:47 UTC)에 /send-reminders 를 scope=booking 으로 호출해, 이용일이 이틀 앞으로
+# 다가온 승인 예약을 관리자 푸시로 알린다. 합주팀 입금 안내 문자는 band-rent-sms.yml(11:07 KST)이 담당.
+# GitHub 예약 실행은 정각 스케줄이 혼잡 시간대에 1~2시간 지연되는 일이 잦아(2026-09 실측 09:49~10:16 도착),
+# 정각을 피한 분(分)으로 잡고 10:17 KST 예비 실행을 하나 더 둔다 — 선점 덕에 두 번 돌아도 알림은 1회.
 # 엔드포인트는 reminder_sent_at 선점으로 건당 1회만 발송하므로 중복 실행·수동 실행(workflow_dispatch) 모두 안전하다.
 name: perf-booking-reminder
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # 23:00 UTC = 다음날 08:00 KST
+    - cron: '47 22 * * *'  # 22:47 UTC = 다음날 07:47 KST (본 실행)
+    - cron: '17 1 * * *'   # 01:17 UTC = 10:17 KST (지연·누락 대비 예비 실행)
   workflow_dispatch: {}
 
 jobs:

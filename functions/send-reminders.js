@@ -2,7 +2,8 @@
 // 1) 공간 대관 이용일 임박(D-2) 관리자 푸시 알림
 // 2) 고정 합주팀 회차 이용료(월세) 입금 안내 문자 — 미납 시 회차당 최대 3회(입금일·시작 1주 전·시작 전날), 발송 시 관리자 푸시
 // 3) 매월 1일 개인정보 보유기간 만료 건 파기
-// 1)·3)은 매일 08:00 KST(perf-reminder.yml, scope=booking), 2)는 12:00 KST(band-rent-sms.yml, scope=band) 크론이 POST로 호출한다.
+// 1)·3)은 매일 07:47 KST(perf-reminder.yml, scope=booking, 10:17 예비), 2)는 11:07 KST(band-rent-sms.yml, scope=band, 13:37 예비)
+// GitHub Actions 크론이 POST로 호출한다. (정각 스케줄은 수 시간 지연·누락이 잦아 정각을 피하고 예비 실행을 둠 — 선점으로 중복 발송 없음)
 //
 // 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
 //    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
@@ -10,7 +11,7 @@
 //      시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21, 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전)
 //    미납이면 회차당 최대 3회: 입금일 당일(kind 'due', 3주차) → 시작 1주 전(kind 'week4', 4주차) → 시작 전날(kind 'last').
 //    크론이 빠진 날은 다음 실행에서 캐치업(due·week4 는 시작 전까지, last 는 전날만), 하루 한 팀 최대 1건.
-//    호출 scope: {scope:'booking'}(08:00 크론 — 대관 D-2 푸시·파기) / {scope:'band'}(12:00 크론 — 합주팀 문자) / 없음 = 둘 다.
+//    호출 scope: {scope:'booking'}(아침 크론 — 대관 D-2 푸시·파기) / {scope:'band'}(오전 크론 — 합주팀 문자) / 없음 = 둘 다.
 //    관리자 문자 테스트: POST {action:'test_band_sms', sb_token} — 게더링 밴드 계정(Supabase 세션)만, 본인 번호로만 발송.
 //    band_rent_reminders(team_id, cycle_no, kind) PK 로 회차·종류별 평생 1회 선점. 관리자 팀(게더링)은 제외.
 //    솔라피 키가 없으면 이 블록은 조용히 꺼진다(/send-sms 와 같은 정책).

@@ -1,12 +1,15 @@
 # 고정 합주팀 회차 사용료 입금 안내 문자 크론
-# 매일 12:00 KST(03:00 UTC)에 /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다.
+# 매일 11:07 KST(02:07 UTC)에 /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다.
+# GitHub 예약 실행은 정각 스케줄이 혼잡 시간대에 수 시간 지연·누락되는 일이 잦아(2026-09 실측 4~5시간),
+# 정각을 피한 분(分)으로 잡고 13:37 KST 예비 실행을 하나 더 둔다 — 선점 덕에 두 번 돌아도 발송은 1회.
 # 회차당 최대 3회: 입금일(3주차 사용일 = 다음 시작 2주 전) → 4주차(시작 1주 전) → 시작 전날.
 # band_rent_reminders(team_id, cycle_no, kind) 선점으로 회차·종류별 1회만 발송하므로 중복 실행·수동 실행 모두 안전하다.
 name: band-rent-sms
 
 on:
   schedule:
-    - cron: '0 3 * * *'    # 03:00 UTC = 12:00 KST
+    - cron: '7 2 * * *'    # 02:07 UTC = 11:07 KST (본 실행)
+    - cron: '37 4 * * *'   # 04:37 UTC = 13:37 KST (지연·누락 대비 예비 실행)
   workflow_dispatch: {}
 
 jobs:

@@ -16,9 +16,10 @@
   계약 정보(`band_start_date/band_expected_months/band_deposit/band_deposit_paid_at/band_fee/band_ended_at/band_memo`),
   납부 장부 `band_payments`(+`cycle_no`, `amount`; 구형 행은 납부 창 [시작일_n−21, 시작일_n+7) 로 귀속). 수식은 세 곳을 항상 동일하게:
   `index.html bandCycle*` / `functions/send-reminders.js` / `supabase/functions/check-band-payments`.
-  입금 안내 문자: 매일 12:00 KST 크론(`band-rent-sms.yml`, `{scope:'band'}`) → `/send-reminders` 월세 블록 — 미납 시 회차당 최대 3회:
+  입금 안내 문자: 매일 11:07 KST 크론(`band-rent-sms.yml`, `{scope:'band'}`, 13:37 예비 실행) → `/send-reminders` 월세 블록 — 미납 시 회차당 최대 3회:
   입금일 당일(`due`, 3주차) → 시작 1주 전(`week4`, 4주차) → 시작 전날(`last`). `band_rent_reminders(team_id, cycle_no, kind)` PK 선점으로
-  회차·종류별 1회, 솔라피 키 없으면 블록 꺼짐. 대관 D-2 푸시·파기는 08:00 크론(`perf-reminder.yml`, `{scope:'booking'}`)이 담당.
+  회차·종류별 1회, 솔라피 키 없으면 블록 꺼짐. 대관 D-2 푸시·파기는 07:47 크론(`perf-reminder.yml`, `{scope:'booking'}`, 10:17 예비)이 담당.
+  ※ GitHub 정각(`0 h * * *`) 스케줄은 혼잡 시간대에 수 시간 지연·누락됨(2026-09 실측) — 크론은 정각을 피한 분으로 잡고 예비 실행을 둘 것.
   관리자 문자 테스트: 관리자 「🧪 알림 테스트」 서브탭(`bandTestTabHTML`, 팀 관리 탭엔 없음) → `/send-reminders` `{action:'test_band_sms', sb_token, kind}`(게더링 밴드 계정 세션만, 본인 번호로만).
   [푸시 테스트]는 같은 액션에 `push:'only'` — 문자 없이 실제 발송 때와 같은 `/notify-admins` 푸시(운영 총괄, `[테스트]` 제목)만; `push:true`면 문자+푸시.
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
@@ -26,7 +27,7 @@
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
-  D-2 관리자 알림: GitHub Actions 크론(매일 08:00 KST, `{scope:'booking'}`) → `/send-reminders`
+  D-2 관리자 알림: GitHub Actions 크론(매일 07:47 KST + 10:17 예비, `{scope:'booking'}`) → `/send-reminders`
   (`reminder_sent_at` 선점으로 건당 1회, 놓친 날은 D-1/D-DAY 캐치업, 푸시는 `/notify-admins` 재사용).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
