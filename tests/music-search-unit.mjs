@@ -181,8 +181,13 @@ const SP_ARTISTS = { body: { artists: { items: [
   mockFetch([['itunes.apple.com', { status: 403, body: {} }]]);
   j = await (await run('', ENV_NONE, {})).json();
   chk('진단: 애플 실패면 상태 코드 문구', j.애플_KR_뮤직비디오 === 'error: apple 403');
-  globalThis.fetch = () => { throw new TypeError('boom'); };
+  mockFetch([['itunes.apple.com', { status: 500, body: {} }]]);
+  globalThis.fetch = () => { throw new TypeError('boom'); }; // 동기 throw 도 allSettled 가 거부로 받아 502
   r = await run('q=x', ENV_NONE);
+  chk('외부 호출이 동기 예외를 던져도 502 upstream', r.status === 502 && (await r.json()).errors.apple === 'boom');
+  globalThis.caches = { get default() { throw new Error('cache broken'); } }; // 런타임 객체 자체가 깨진 경우
+  r = await run('q=x', ENV_NONE);
+  delete globalThis.caches;
   chk('예기치 못한 예외 → JSON 500 internal (Cloudflare 기본 오류문 아님)', r.status === 500 && (await r.json()).error === 'internal');
   _resetSpotifyToken();
   mockFetch([['itunes.apple.com', APPLE_MV], ['accounts.spotify.com/api/token', SP_TOKEN]]);
