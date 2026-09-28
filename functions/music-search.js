@@ -19,6 +19,12 @@
 //   성공 응답은 Cache API·브라우저에 1일 캐시.
 // Env: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
 
+// 외부 호출 공통 헤더 — Workers 서브요청은 User-Agent 가 비어 있어 일부 엣지(애플)가 거부한다
+const UPSTREAM_HEADERS = {
+    Accept: 'application/json',
+    'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.5',
+    'User-Agent': 'Mozilla/5.0 (compatible; gatherallaround-music-search/1.0; +https://gatherallaround.com)',
+};
 const MAX_Q = 60;
 const MAX_LIMIT = 12;
 const CACHE_TTL = 86400; // 1일
@@ -67,7 +73,7 @@ export async function appleSearch(q, type, limit) {
     u.searchParams.set('entity', 'musicVideo');
     u.searchParams.set('lang', 'ko_kr');
     u.searchParams.set('limit', String(type === 'artist' ? 25 : Math.min(limit * 2, 25)));
-    const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+    const r = await fetch(u.toString(), { headers: UPSTREAM_HEADERS });
     if (!r.ok) throw new Error('apple ' + r.status);
     const d = await r.json().catch(() => ({}));
     const rows = Array.isArray(d.results) ? d.results : [];
@@ -143,6 +149,15 @@ export async function onRequest(context) {
     const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
         status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders, ...extra },
     });
+    try {
+        return await handle(context, json, corsHeaders);
+    } catch (e) {
+        return json({ ok: false, error: 'internal', message: String(e && e.message || e).slice(0, 200) }, 500);
+    }
+}
+
+async function handle(context, json, corsHeaders) {
+    const { request, env } = context;
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
     if (request.method !== 'GET') return json({ ok: false, error: 'method' }, 405);
 
@@ -155,7 +170,7 @@ export async function onRequest(context) {
     // 진단 — 키 원문 없이 설정·연결 상태만
     if (!q) {
         const out = { 환경변수_SPOTIFY: spotifyOn, 스포티파이_인증: spotifyOn ? null : '꺼짐(키 없음)', 애플_KR_뮤직비디오: null };
-        try { out.애플_KR_뮤직비디오 = (await appleSearch('잔나비', 'song', 3)).length; } catch (e) { out.애플_KR_뮤직비디오 = 'error'; }
+        try { out.애플_KR_뮤직비디오 = (await appleSearch('잔나비', 'song', 3)).length; } catch (e) { out.애플_KR_뮤직비디오 = 'error: ' + String(e && e.message || e).slice(0, 120); }
         if (spotifyOn) { try { await spotifyToken(env); out.스포티파이_인증 = 'ok'; } catch (e) { out.스포티파이_인증 = String(e.message || e); } }
         return json(out);
     }
@@ -181,11 +196,14 @@ export async function onRequest(context) {
         apple: ap.status === 'fulfilled' ? apple.length : 'error',
         spotify: !spotifyOn ? 'disabled' : (sp.status === 'fulfilled' ? spotify.length : 'error'),
     };
+    const errors = {};
+    if (ap.status === 'rejected') errors.apple = String(ap.reason && ap.reason.message || ap.reason).slice(0, 120);
+    if (spotifyOn && sp.status === 'rejected') errors.spotify = String(sp.reason && sp.reason.message || sp.reason).slice(0, 120);
     if (ap.status === 'rejected' && (!spotifyOn || sp.status === 'rejected')) {
-        return json({ ok: false, error: 'upstream', sources }, 502);
+        return json({ ok: false, error: 'upstream', sources, errors }, 502);
     }
     const results = mergeResults(apple, spotify, type, limit);
-    const body = { ok: true, q, type, results, sources };
+    const body = { ok: true, q, type, results, sources, ...(Object.keys(errors).length ? { errors } : {}) };
     const allGood = ap.status === 'fulfilled' && (!spotifyOn || sp.status === 'fulfilled');
     const res = json(body, 200, allGood ? { 'Cache-Control': `public, max-age=${CACHE_TTL}` } : { 'Cache-Control': 'no-store' });
     if (cache && allGood) {

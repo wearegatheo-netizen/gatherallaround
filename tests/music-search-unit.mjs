@@ -131,7 +131,7 @@ const SP_ARTISTS = { body: { artists: { items: [
   mockFetch([['itunes.apple.com', { status: 503, body: {} }], ['accounts.spotify.com/api/token', SP_TOKEN], ['api.spotify.com/v1/search', SP_TRACKS]]);
   let r = await run('q=잔나비');
   let j = await r.json();
-  chk('애플 실패 → 스포티파이 결과로 200, sources.apple=error, 캐시 안 함', r.status === 200 && j.ok && j.sources.apple === 'error' && j.results.length === 3 && r.headers.get('Cache-Control') === 'no-store');
+  chk('애플 실패 → 스포티파이 결과로 200, sources.apple=error(+errors.apple 상태), 캐시 안 함', r.status === 200 && j.ok && j.sources.apple === 'error' && j.errors.apple === 'apple 503' && j.results.length === 3 && r.headers.get('Cache-Control') === 'no-store');
   _resetSpotifyToken();
   mockFetch([['itunes.apple.com', APPLE_MV], ['accounts.spotify.com/api/token', { status: 400, body: { error: 'invalid_client' } }]]);
   r = await run('q=잔나비');
@@ -140,7 +140,8 @@ const SP_ARTISTS = { body: { artists: { items: [
   _resetSpotifyToken();
   mockFetch([['itunes.apple.com', { status: 500, body: {} }], ['accounts.spotify.com/api/token', { status: 500, body: {} }]]);
   r = await run('q=잔나비');
-  chk('둘 다 실패 → 502 upstream', r.status === 502 && (await r.json()).error === 'upstream');
+  j = await r.json();
+  chk('둘 다 실패 → 502 upstream + 원인 상태', r.status === 502 && j.error === 'upstream' && j.errors.apple === 'apple 500' && j.errors.spotify === 'spotify token 500');
   _resetSpotifyToken();
   mockFetch([['itunes.apple.com', { status: 500, body: {} }]]);
   r = await run('q=잔나비', ENV_NONE);
@@ -175,6 +176,14 @@ const SP_ARTISTS = { body: { artists: { items: [
   r = await run('', ENV_NONE, {});
   j = await r.json();
   chk('q 없는 GET = 진단(출처 무관): 키 없음 표시, 애플 프로브 건수', r.status === 200 && j.환경변수_SPOTIFY === false && j.스포티파이_인증 === '꺼짐(키 없음)' && j.애플_KR_뮤직비디오 === 3);
+  const au2 = calls.find(c => c.url.includes('itunes'));
+  chk('외부 호출에 User-Agent·Accept-Language 동봉', /gatherallaround/.test(au2.headers['User-Agent']) && /ko-KR/.test(au2.headers['Accept-Language']));
+  mockFetch([['itunes.apple.com', { status: 403, body: {} }]]);
+  j = await (await run('', ENV_NONE, {})).json();
+  chk('진단: 애플 실패면 상태 코드 문구', j.애플_KR_뮤직비디오 === 'error: apple 403');
+  globalThis.fetch = () => { throw new TypeError('boom'); };
+  r = await run('q=x', ENV_NONE);
+  chk('예기치 못한 예외 → JSON 500 internal (Cloudflare 기본 오류문 아님)', r.status === 500 && (await r.json()).error === 'internal');
   _resetSpotifyToken();
   mockFetch([['itunes.apple.com', APPLE_MV], ['accounts.spotify.com/api/token', SP_TOKEN]]);
   j = await (await run('', ENV_SP, {})).json();
