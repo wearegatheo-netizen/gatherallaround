@@ -35,26 +35,13 @@ jobs:
               -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
             echo "rpc $rpc -> HTTP $code: $(head -c 160 /tmp/out)"; echo
           done
-      - name: iTunes Search API 도달성·CORS 확인 (마이페이지 가수·곡 검색)
-        # 브라우저 fetch와 같은 조건(Origin 헤더)으로 호출해 상태 코드·CORS 헤더·국가별 결과 수를 본다.
+      - name: iTunes Search API 확인 (마이페이지 가수·곡 검색)
+        # 2026-09-28 확인: KR 스토어는 entity=song 결과가 0건(전 검색어) — 뮤직비디오·아티스트만 반환. US/JP 스토어는 song 정상(영문 표기).
+        # 브라우저 fetch와 같은 조건(Origin 헤더)으로 CORS 헤더와 스토어·entity별 결과 수를 본다. 키·개인정보 없음.
         run: |
-          echo "== 헤더 (country=KR, term=iu)"
           curl -sS -D - -o /dev/null --max-time 30 -H "Origin: https://gatherallaround.com" \
-            "https://itunes.apple.com/search?term=iu&entity=song&limit=1&country=KR" | grep -i "^HTTP\|access-control\|retry-after" || true
-          echo; echo "== 국가·검색어별 결과 수 (entity=song, lang=ko_kr)"
-          for c in KR US JP; do for t in "아이유" "iu" "잔나비" "bts"; do
-            out=$(curl -sS -G --max-time 30 -H "Origin: https://gatherallaround.com" \
-              --data-urlencode "term=$t" --data-urlencode "entity=song" --data-urlencode "limit=3" \
-              --data-urlencode "country=$c" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search")
-            echo "country=$c term=$t -> $(echo "$out" | jq -c '{n:.resultCount, first:(.results[0] // {} | {artistName,trackName})}' 2>/dev/null || echo "$out" | head -c 150)"
-          done; done
-          echo; echo "== KR 스토어 entity 별 (term=아이유 / 잔나비)"
-          for t in "아이유" "잔나비"; do for q in "entity=song" "entity=musicArtist" "entity=album" "entity=musicVideo" "media=music&entity=musicTrack"; do
-            out=$(curl -sS -G --max-time 30 --data-urlencode "term=$t" --data-urlencode "country=KR" --data-urlencode "limit=3" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
-            echo "KR $t $q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName,collectionName,kind,wrapperType}]}' 2>/dev/null || echo "$out" | head -c 150)"
-          done; done
-          echo; echo "== US 스토어 lang=ko_kr 로컬라이즈 여부 (term=잔나비 entity=song / musicArtist)"
-          for q in "entity=song" "entity=musicArtist"; do
-            out=$(curl -sS -G --max-time 30 --data-urlencode "term=잔나비" --data-urlencode "country=US" --data-urlencode "limit=3" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
-            echo "US 잔나비 $q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName,wrapperType}]}' 2>/dev/null || echo "$out" | head -c 150)"
+            "https://itunes.apple.com/search?term=iu&entity=song&limit=1&country=KR" | grep -i "^HTTP\|access-control" || true
+          for q in "country=KR&entity=song" "country=KR&entity=musicVideo" "country=KR&entity=musicArtist" "country=US&entity=song"; do
+            out=$(curl -sS -G --max-time 30 --data-urlencode "term=잔나비" --data-urlencode "limit=2" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
+            echo "$q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName}]}' 2>/dev/null || echo "$out" | head -c 150)"
           done
