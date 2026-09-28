@@ -654,6 +654,8 @@
         .mt-sel-chip button { background: none; border: none; cursor: pointer; color: var(--wds-primary); font-size: 1rem; line-height: 1; padding: 0; font-weight: 700; }
         .mt-result-chip { padding: 4px 10px; border: 1px solid var(--wds-primary); border-radius: 14px; font-size: 0.78rem; cursor: pointer; background: none; font-family: inherit; color: var(--wds-primary); transition: all 0.12s; }
         .mt-result-chip:hover { background: var(--wds-primary); color: white; }
+        .mt-result-chip.mt-result-manual { border-style: dashed; border-color: var(--wds-gray-400); color: var(--wds-gray-600); }
+        .mt-result-chip.mt-result-manual:hover { background: var(--wds-gray-600); border-color: var(--wds-gray-600); color: white; }
         .board-row-wrap { border: 1px solid var(--wds-gray-300); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: var(--wds-white); transition: border-color 0.15s; }
         .board-row-wrap:has(.board-row.active) { border-color: var(--wds-primary); }
         .board-row { padding: 13px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: background 0.12s; }
@@ -1140,6 +1142,8 @@
         .music-result-info { min-width: 0; flex: 1; }
         .music-result-title { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .music-result-artist { font-size: 0.78rem; color: var(--wds-gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .music-result.music-result-manual { border: 1px dashed var(--wds-gray-400); border-radius: 6px; margin-top: 4px; }
+        .music-result.music-result-manual .music-result-title { color: var(--wds-gray-600); }
         .team-form-actions { display: flex; gap: 8px; margin-top: 12px; }
         .team-form-actions button { flex: 1; padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-weight: 700; font-size: 0.9rem; font-family: inherit; }
         .team-save-btn { background: var(--wds-primary); color: white; }
@@ -5082,26 +5086,43 @@
             if (cnt) cnt.textContent = `(최대 ${MAX}개${maxed ? ' · 최대 선택됨' : ''})`;
         }
 
+        // 가수·곡 검색 — 서버 함수 /music-search 가 애플 KR 뮤직비디오(한글 표기·표지) + 스포티파이(커버리지) 결과를 합쳐 준다.
+        // (2026-09-28: 브라우저가 직접 호출하던 iTunes KR 곡 검색이 전부 0건이 되어 서버 혼합 검색으로 교체)
+        async function musicSearch(q, type, limit = 8) {
+            const r = await fetch(`/music-search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}`);
+            const d = await r.json().catch(() => null);
+            if (!r.ok || !d || !d.ok) throw new Error((d && d.error) || ('HTTP ' + r.status));
+            return Array.isArray(d.results) ? d.results : [];
+        }
+        const _musicMsg = (msg, err) => `<p style="font-size:0.8rem;color:${err ? '#e74c3c' : 'var(--wds-gray-500)'};padding:4px">${msg}</p>`;
+        // 곡 결과 한 줄. manual=true 면 검색에 없는 곡을 입력한 제목 그대로 등록하는 줄(가수 비움)
+        function _musicRow(r, onclick, manual) {
+            const t = escapeHtml(r.title || ''), a = escapeHtml(r.artist || ''), aw = escapeHtml(r.artwork || '');
+            return `<div class="music-result${manual ? ' music-result-manual' : ''}" data-title="${t}" data-artist="${a}" data-artwork="${aw}" onclick="${onclick}">
+                ${aw ? `<img src="${aw}" alt="" loading="lazy">` : ''}
+                <div class="music-result-info">
+                    <div class="music-result-title">${manual ? '＋ "' + t + '" 제목으로 직접 등록' : t}</div>
+                    <div class="music-result-artist">${manual ? '검색에 없는 곡을 입력한 그대로 추가합니다' : a}</div>
+                </div>
+            </div>`;
+        }
+
         async function searchMtArtist(cid) {
             const inp = document.getElementById(cid + '_as');
             const res = document.getElementById(cid + '_ar');
             if (!inp || !res) return;
             const q = inp.value.trim(); if (!q) return;
-            res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">검색 중...</p>';
-            try {
-                // entity=song으로 검색해야 artistName이 한국어로 반환됨
-                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12&country=KR&lang=ko_kr`);
-                const d = await r.json();
-                if (!d.results || !d.results.length) { res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">결과 없음</p>'; return; }
-                // song 결과에서 아티스트명 중복 제거
-                const seen = new Set();
-                const uniq = d.results.filter(s => {
-                    const n = s.artistName || '';
-                    if (!n || seen.has(n)) return false;
-                    seen.add(n); return true;
-                }).slice(0, 6);
-                res.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${uniq.map(a => `<button type="button" class="mt-result-chip" data-name="${escapeHtml(a.artistName||'')}" onclick="addMtArtist(this,'${cid}')">${escapeHtml(a.artistName||'')}</button>`).join('')}</div>`;
-            } catch(e) { res.innerHTML = '<p style="font-size:0.8rem;color:#e74c3c;padding:4px">검색 실패</p>'; }
+            res.innerHTML = _musicMsg('검색 중...');
+            let names = [], failed = false;
+            try { names = (await musicSearch(q, 'artist', 8)).map(a => a && a.name).filter(Boolean); }
+            catch (e) { failed = true; console.error('artist search', e); }
+            const chip = (name, manual) => `<button type="button" class="mt-result-chip${manual ? ' mt-result-manual' : ''}" data-name="${escapeHtml(name)}" onclick="addMtArtist(this,'${cid}')">${manual ? '＋ "' + escapeHtml(name) + '" 그대로 추가' : escapeHtml(name)}</button>`;
+            const chips = names.map(n => chip(n, false));
+            // 검색에 없는 가수는 입력한 이름 그대로 등록 — 결과에 같은 이름이 있으면 생략
+            if (!names.some(n => n.toLowerCase() === q.toLowerCase())) chips.push(chip(q, true));
+            const note = failed ? _musicMsg('검색에 실패했습니다. 입력한 이름 그대로 추가할 수 있습니다.', true)
+                : (names.length ? '' : _musicMsg('검색 결과가 없습니다. 입력한 이름 그대로 추가할 수 있습니다.'));
+            res.innerHTML = `${note}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${chips.join('')}</div>`;
         }
 
         function addMtArtist(el, cid) {
@@ -5117,19 +5138,14 @@
             const res = document.getElementById(cid + '_sr');
             if (!inp || !res) return;
             const q = inp.value.trim(); if (!q) return;
-            res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">검색 중...</p>';
-            try {
-                const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=6&country=KR`);
-                const d = await r.json();
-                if (!d.results || !d.results.length) { res.innerHTML = '<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:4px">결과 없음</p>'; return; }
-                res.innerHTML = d.results.map(r => {
-                    const t = escapeHtml(r.trackName||''), a = escapeHtml(r.artistName||''), aw = escapeHtml(r.artworkUrl60||r.artworkUrl100||'');
-                    return `<div class="music-result" data-title="${t}" data-artist="${a}" data-artwork="${aw}" onclick="addMtSong(this,'${cid}')">
-                        ${aw ? `<img src="${aw}" alt="">` : ''}
-                        <div class="music-result-info"><div class="music-result-title">${t}</div><div class="music-result-artist">${a}</div></div>
-                    </div>`;
-                }).join('');
-            } catch(e) { res.innerHTML = '<p style="font-size:0.8rem;color:#e74c3c;padding:4px">검색 실패</p>'; }
+            res.innerHTML = _musicMsg('검색 중...');
+            let rows = [], failed = false;
+            try { rows = await musicSearch(q, 'song', 8); }
+            catch (e) { failed = true; console.error('song search', e); }
+            const onclick = `addMtSong(this,'${cid}')`;
+            const note = failed ? _musicMsg('검색에 실패했습니다. 제목을 그대로 등록할 수 있습니다.', true)
+                : (rows.length ? '' : _musicMsg('검색 결과가 없습니다. 제목을 그대로 등록할 수 있습니다.'));
+            res.innerHTML = note + rows.map(r => _musicRow(r, onclick, false)).join('') + _musicRow({ title: q }, onclick, true);
         }
 
         function addMtSong(el, cid) {
@@ -5345,26 +5361,15 @@
             const results = document.getElementById('musicResults');
             results.innerHTML = '<p style="font-size:0.85rem;color:var(--wds-gray-500);padding:8px">검색 중...</p>';
             try {
-                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=8&country=KR`);
-                const data = await res.json();
-                if (!data.results || data.results.length === 0) {
-                    results.innerHTML = '<p style="font-size:0.85rem;color:var(--wds-gray-500);padding:8px">검색 결과가 없습니다.</p>';
+                const rows = await musicSearch(query, 'song', 8);
+                if (!rows.length) {
+                    results.innerHTML = '<p style="font-size:0.85rem;color:var(--wds-gray-500);padding:8px">검색 결과가 없습니다. 아래 「직접 입력」으로 추가할 수 있습니다.</p>';
                     return;
                 }
-                results.innerHTML = data.results.map(r => {
-                    const t = escapeHtml(r.trackName || '');
-                    const a = escapeHtml(r.artistName || '');
-                    const aw = escapeHtml(r.artworkUrl60 || r.artworkUrl100 || '');
-                    return `<div class="music-result" onclick="selectMusic(this)" data-title="${t}" data-artist="${a}" data-artwork="${aw}">
-                        ${aw ? `<img src="${aw}" alt="">` : ''}
-                        <div class="music-result-info">
-                            <div class="music-result-title">${t}</div>
-                            <div class="music-result-artist">${a}</div>
-                        </div>
-                    </div>`;
-                }).join('');
+                results.innerHTML = rows.map(r => _musicRow(r, 'selectMusic(this)', false)).join('');
             } catch (e) {
-                results.innerHTML = '<p style="font-size:0.85rem;color:#e74c3c;padding:8px">검색 실패: ' + e.message + '</p>';
+                console.error('team song search', e);
+                results.innerHTML = '<p style="font-size:0.85rem;color:#e74c3c;padding:8px">검색에 실패했습니다. 아래 「직접 입력」으로 추가할 수 있습니다.</p>';
             }
         }
 

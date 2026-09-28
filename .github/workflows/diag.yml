@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: GET diagnostics
         run: |
-          for path in send-email send-sms send-reminders; do
+          for path in send-email send-sms send-reminders music-search; do
             echo "== /$path"
             curl -sS --max-time 60 "https://gatherallaround.com/$path" || true
             echo; echo
@@ -44,4 +44,12 @@ jobs:
           for q in "country=KR&entity=song" "country=KR&entity=musicVideo" "country=KR&entity=musicArtist" "country=US&entity=song"; do
             out=$(curl -sS -G --max-time 30 --data-urlencode "term=잔나비" --data-urlencode "limit=2" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
             echo "$q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName}]}' 2>/dev/null || echo "$out" | head -c 150)"
+          done
+      - name: /music-search 혼합 검색 샘플 (애플 KR 뮤직비디오 + 스포티파이)
+        # 검색은 우리 사이트 출처만 받으므로 Referer 를 붙인다. 결과 건수·출처만 출력.
+        run: |
+          for t in song artist; do
+            out=$(curl -sS -G --max-time 60 -H "Referer: https://gatherallaround.com/" \
+              --data-urlencode "q=잔나비" --data-urlencode "type=$t" --data-urlencode "limit=6" "https://gatherallaround.com/music-search")
+            echo "type=$t -> $(echo "$out" | jq -c '{ok, sources, results:[.results[] | (.title // .name) + " / " + (.artist // "") + " [" + .source + "]"]}' 2>/dev/null || echo "$out" | head -c 300)"
           done
