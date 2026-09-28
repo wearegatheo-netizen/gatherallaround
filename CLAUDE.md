@@ -10,11 +10,12 @@
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
   QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
-- 가수·곡 검색(마이페이지 음악 취향·팀 연습곡): `functions/music-search.js` — 애플 iTunes **KR 뮤직비디오**(한글 표기·표지) + 스포티파이
-  (Client Credentials, Env `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`, 없으면 애플만) 결과를 서버에서 합쳐 반환.
-  2026-09-28 iTunes KR 스토어 `entity=song` 결과가 전부 0건으로 바뀌어(코드 변경 없이 깨짐) 브라우저 직접 호출을 이것으로 교체.
-  클라는 `musicSearch(q,type,limit)` 경유(`searchMtArtist/searchMtSong/searchMusic`), 결과 없음·실패 시 입력값 그대로 등록하는 칩/줄 제공.
-  검색은 우리 출처(Sec-Fetch-Site/Origin/Referer)만, q≤60자, 성공 응답 1일 캐시. 상태는 `functions-diagnostics` 워크플로로 확인.
+- 가수·곡 검색(마이페이지 음악 취향·팀 연습곡): 두 축을 **브라우저 `musicSearch(q,type,limit)`** 가 합친다 —
+  ① 애플 iTunes **KR 뮤직비디오**(한글 표기·표지) 브라우저 직접 호출(`_appleMusicSearch`; Workers 에서 부르면 애플이 429 로 막음, 실측)
+  ② 스포티파이는 `functions/music-search.js` 프록시(Client Credentials, Env `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`, 없으면 빈 결과).
+  2026-09-28 iTunes KR 스토어 `entity=song` 결과가 전부 0건으로 바뀌어(코드 변경 없이 깨짐) 교체. 합치기 `_mergeMusicResults`(애플 먼저·정규화 키 중복 제거),
+  결과 없음·실패 시 입력값 그대로 등록하는 칩/줄. 서버 함수는 우리 출처만(Sec-Fetch-Site/Origin/Referer), q≤60자, 1일 캐시,
+  실패는 **500** JSON(502 는 Cloudflare 가 본문을 가림). 상태는 `functions-diagnostics` 워크플로로 확인.
 - 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송 — 예약번호·4시간 자동취소 안내 포함)
 - 고정 합주팀(밴드 계정, `profiles.member_type='band'`): 회차 모델은 내부운영 시트 "진행중인 고정팀"과 동일 —
   `band_start_date` + 28n = 시작일_n, 종료일_n = 시작일_n + 21, **입금일_n = 시작일_n − 14**(n≥1, 3주차 사용일 = 다음 시작일 2주 전; 등록은 시작일 당일).

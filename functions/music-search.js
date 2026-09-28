@@ -1,30 +1,23 @@
-// Cloudflare Pages Function: /music-search — 마이페이지·팀 연습곡의 가수/곡 검색
+// Cloudflare Pages Function: /music-search — 스포티파이 검색 프록시 (마이페이지 음악 취향·팀 연습곡 검색의 한 축)
 //
-// 배경(2026-09-28): 브라우저가 직접 쓰던 애플 iTunes Search API가 한국 스토어(country=KR)에서
-// 곡(entity=song) 결과를 전부 0건으로 돌려주기 시작했다(뮤직비디오·아티스트만 반환). 코드 변경 없이 깨진 것.
-// 대응: 애플 KR 뮤직비디오 검색(한글 표기·표지) + 스포티파이 검색(커버리지·앨범아트)을 서버에서 합쳐 준다.
-//   - 애플 결과를 앞에, 스포티파이 결과를 뒤에. 같은 곡(제목+가수 정규화 일치)은 한 번만.
-//   - 스포티파이는 Client Credentials — 시크릿은 서버에만, 토큰은 isolate 메모리에 캐시(만료 1분 전 갱신).
-//   - 키가 없으면 스포티파이 블록은 조용히 꺼지고 애플 결과만 준다(sources.spotify:'disabled').
-//   - 한 쪽이 실패해도 다른 쪽 결과는 준다. 둘 다 실패하면 502.
+// 배경(2026-09-28): 브라우저가 직접 쓰던 애플 iTunes Search API가 한국 스토어(country=KR)에서 곡(entity=song)
+// 결과를 전부 0건으로 돌려주기 시작했다(뮤직비디오·아티스트만 반환). 코드 변경 없이 깨진 것. 대응은 두 축:
+//   1) 애플 KR 뮤직비디오 검색(한글 표기·표지) — 브라우저가 직접 호출(CORS *). Cloudflare Workers 에서 호출하면
+//      공유 egress IP 라 애플이 429 로 막아(실측) 서버로 옮길 수 없다.
+//   2) 스포티파이 검색(커버리지·앨범아트) — 이 함수. Client Credentials 시크릿은 서버에만, 토큰은 isolate 메모리 캐시.
+// 두 결과 합치기(애플 먼저·정규화 키 중복 제거)는 index.html musicSearch() 가 한다.
 //
 // GET /music-search?q=<검색어>&type=song|artist&limit=<1..12>
-//   → { ok:true, q, type, results, sources:{ apple:<n>|'error', spotify:<n>|'error'|'disabled' } }
-//     song  결과: [{ title, artist, artwork, source:'apple'|'spotify' }]
-//     artist 결과: [{ name, image, source }]
+//   → { ok:true, q, type, results, sources:{ spotify:<n>|'disabled' } }
+//     song 결과: [{ title, artist, artwork, source:'spotify' }] / artist 결과: [{ name, image, source }]
+//   키 없음 → ok:true, results:[] (클라는 애플만으로 동작). 스포티파이 실패 → 500 { ok:false, error:'upstream' }
+//   (502 로 주면 Cloudflare 가 본문을 자체 오류문 "error code: 502" 로 바꿔 진단이 안 된다 — 실측)
 // GET /music-search (q 없음) → 진단 JSON(키 원문 없음)
-//
 // 남용 방지(보안 아님, 스포티파이 쿼터 보호): 검색은 우리 사이트에서 온 요청만
 //   (Sec-Fetch-Site same-origin/same-site 또는 Origin/Referer 호스트가 우리 도메인), q ≤ 60자, limit ≤ 12,
 //   성공 응답은 Cache API·브라우저에 1일 캐시.
 // Env: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
 
-// 외부 호출 공통 헤더 — Workers 서브요청은 User-Agent 가 비어 있어 일부 엣지(애플)가 거부한다
-const UPSTREAM_HEADERS = {
-    Accept: 'application/json',
-    'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.5',
-    'User-Agent': 'Mozilla/5.0 (compatible; gatherallaround-music-search/1.0; +https://gatherallaround.com)',
-};
 const MAX_Q = 60;
 const MAX_LIMIT = 12;
 const CACHE_TTL = 86400; // 1일
@@ -54,41 +47,11 @@ export function fromOurSite(request) {
     return isOurHost(hostOf(request.headers.get('Origin') || '')) || isOurHost(hostOf(request.headers.get('Referer') || ''));
 }
 
-// 정규화 키 — 대소문자·공백·기호·괄호 안 부제("(feat. X)", "[Live]") 무시
-export const normKey = (s) => String(s || '').toLowerCase().normalize('NFKC')
-    .replace(/\(.*?\)|\[.*?\]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
-
 // 이미지 목록에서 100px 이상 중 가장 작은 것(목록용) — 없으면 가장 큰 것
 export function pickImage(images) {
     const arr = Array.isArray(images) ? images.filter(i => i && i.url).slice().sort((a, b) => (a.width || 0) - (b.width || 0)) : [];
     const s = arr.find(i => (i.width || 0) >= 100) || arr[arr.length - 1];
     return s ? s.url : '';
-}
-
-// ── 애플 iTunes KR 뮤직비디오 ────────────────────────────────────────────────
-export async function appleSearch(q, type, limit) {
-    const u = new URL('https://itunes.apple.com/search');
-    u.searchParams.set('term', q);
-    u.searchParams.set('country', 'KR');
-    u.searchParams.set('entity', 'musicVideo');
-    u.searchParams.set('lang', 'ko_kr');
-    u.searchParams.set('limit', String(type === 'artist' ? 25 : Math.min(limit * 2, 25)));
-    const r = await fetch(u.toString(), { headers: UPSTREAM_HEADERS });
-    if (!r.ok) throw new Error('apple ' + r.status);
-    const d = await r.json().catch(() => ({}));
-    const rows = Array.isArray(d.results) ? d.results : [];
-    if (type === 'artist') {
-        // 뮤직비디오의 artistName은 "Agust D & 아이유"처럼 합작 표기가 섞이므로 쪼개고, 검색어를 포함한 이름을 앞으로
-        const names = [];
-        for (const x of rows) for (const part of String(x.artistName || '').split(/\s*[&,]\s*|\s+feat\.?\s+/i)) if (part.trim()) names.push(part.trim());
-        const ql = q.toLowerCase();
-        names.sort((a, b) => Number(b.toLowerCase().includes(ql)) - Number(a.toLowerCase().includes(ql)));
-        return names.map(name => ({ name, image: '', source: 'apple' }));
-    }
-    return rows.filter(x => x.trackName).map(x => ({
-        title: String(x.trackName), artist: String(x.artistName || ''),
-        artwork: x.artworkUrl100 || x.artworkUrl60 || '', source: 'apple',
-    }));
 }
 
 // ── 스포티파이 (Client Credentials) ─────────────────────────────────────────
@@ -130,21 +93,8 @@ export async function spotifySearch(env, q, type, limit) {
     }));
 }
 
-// ── 합치기 — 애플(한글) 먼저, 스포티파이로 채움. 애플이 많아도 스포티파이 자리 일부는 남긴다 ──
-export function mergeResults(apple, spotify, type, limit) {
-    const keyOf = type === 'artist' ? (x => normKey(x.name)) : (x => normKey(x.title) + '|' + normKey(x.artist));
-    const seen = new Set();
-    const uniq = (list) => list.filter(x => { const k = keyOf(x); if (!k || seen.has(k)) return false; seen.add(k); return true; });
-    const a = uniq(apple);
-    const s = uniq(spotify);
-    const appleCap = s.length ? Math.max(1, Math.ceil(limit * 0.6)) : limit; // 스포티파이가 있으면 애플은 60%까지만 먼저
-    const out = a.slice(0, appleCap).concat(s);
-    if (out.length < limit) out.push(...a.slice(appleCap)); // 스포티파이가 적으면 남은 애플로 채움
-    return out.slice(0, limit);
-}
-
 export async function onRequest(context) {
-    const { request, env } = context;
+    const { request } = context;
     const corsHeaders = corsFor(request.headers.get('Origin'));
     const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), {
         status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders, ...extra },
@@ -169,12 +119,17 @@ async function handle(context, json, corsHeaders) {
 
     // 진단 — 키 원문 없이 설정·연결 상태만
     if (!q) {
-        const out = { 환경변수_SPOTIFY: spotifyOn, 스포티파이_인증: spotifyOn ? null : '꺼짐(키 없음)', 애플_KR_뮤직비디오: null };
-        try { out.애플_KR_뮤직비디오 = (await appleSearch('잔나비', 'song', 3)).length; } catch (e) { out.애플_KR_뮤직비디오 = 'error: ' + String(e && e.message || e).slice(0, 120); }
-        if (spotifyOn) { try { await spotifyToken(env); out.스포티파이_인증 = 'ok'; } catch (e) { out.스포티파이_인증 = String(e.message || e); } }
+        const out = { 환경변수_SPOTIFY: spotifyOn, 스포티파이_인증: spotifyOn ? null : '꺼짐(키 없음)', 스포티파이_검색: null };
+        if (spotifyOn) {
+            try { await spotifyToken(env); out.스포티파이_인증 = 'ok'; } catch (e) { out.스포티파이_인증 = String(e.message || e).slice(0, 120); }
+            if (out.스포티파이_인증 === 'ok') {
+                try { out.스포티파이_검색 = (await spotifySearch(env, '잔나비', 'song', 3)).length; } catch (e) { out.스포티파이_검색 = 'error: ' + String(e.message || e).slice(0, 120); }
+            }
+        }
         return json(out);
     }
     if (!fromOurSite(request)) return json({ ok: false, error: 'forbidden' }, 403);
+    if (!spotifyOn) return json({ ok: true, q, type, results: [], sources: { spotify: 'disabled' } });
 
     // 캐시 — 검색어·종류·개수만으로 키를 만들어 www/pages.dev 가 공유
     const cacheKey = new Request(`https://gatherallaround.com/music-search?q=${encodeURIComponent(q.toLowerCase())}&type=${type}&limit=${limit}`);
@@ -186,27 +141,12 @@ async function handle(context, json, corsHeaders) {
         } catch (_) { /* 캐시 장애는 무시 */ }
     }
 
-    const [ap, sp] = await Promise.allSettled([
-        appleSearch(q, type, limit),
-        spotifyOn ? spotifySearch(env, q, type, limit) : Promise.resolve(null),
-    ]);
-    const apple = ap.status === 'fulfilled' ? ap.value : [];
-    const spotify = sp.status === 'fulfilled' && sp.value ? sp.value : [];
-    const sources = {
-        apple: ap.status === 'fulfilled' ? apple.length : 'error',
-        spotify: !spotifyOn ? 'disabled' : (sp.status === 'fulfilled' ? spotify.length : 'error'),
-    };
-    const errors = {};
-    if (ap.status === 'rejected') errors.apple = String(ap.reason && ap.reason.message || ap.reason).slice(0, 120);
-    if (spotifyOn && sp.status === 'rejected') errors.spotify = String(sp.reason && sp.reason.message || sp.reason).slice(0, 120);
-    if (ap.status === 'rejected' && (!spotifyOn || sp.status === 'rejected')) {
-        return json({ ok: false, error: 'upstream', sources, errors }, 502);
-    }
-    const results = mergeResults(apple, spotify, type, limit);
-    const body = { ok: true, q, type, results, sources, ...(Object.keys(errors).length ? { errors } : {}) };
-    const allGood = ap.status === 'fulfilled' && (!spotifyOn || sp.status === 'fulfilled');
-    const res = json(body, 200, allGood ? { 'Cache-Control': `public, max-age=${CACHE_TTL}` } : { 'Cache-Control': 'no-store' });
-    if (cache && allGood) {
+    let results;
+    try { results = await spotifySearch(env, q, type, limit); }
+    catch (e) { return json({ ok: false, error: 'upstream', errors: { spotify: String(e && e.message || e).slice(0, 120) } }, 500, { 'Cache-Control': 'no-store' }); }
+
+    const res = json({ ok: true, q, type, results, sources: { spotify: results.length } }, 200, { 'Cache-Control': `public, max-age=${CACHE_TTL}` });
+    if (cache) {
         try { const put = cache.put(cacheKey, res.clone()); if (context.waitUntil) context.waitUntil(put); else await put; } catch (_) { /* 무시 */ }
     }
     return res;
