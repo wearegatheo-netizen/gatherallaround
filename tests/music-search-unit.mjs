@@ -106,10 +106,15 @@ const SP_ARTISTS = { body: { artists: { items: [
 // ── 5. 실패 — 500 JSON (502 는 Cloudflare 가 본문을 가림), 캐시 안 함
 {
   _resetSpotifyToken();
-  mockFetch([['accounts.spotify.com/api/token', { status: 400, body: { error: 'invalid_client' } }]]);
+  mockFetch([['accounts.spotify.com/api/token', { status: 400, body: { error: 'invalid_client', error_description: 'Invalid client secret' } }]]);
   let r = await run('q=잔나비');
   let j = await r.json();
-  chk('인증 실패 → 500 upstream + 원인 상태, no-store', r.status === 500 && j.ok === false && j.error === 'upstream' && j.errors.spotify === 'spotify token 400' && r.headers.get('Cache-Control') === 'no-store');
+  chk('인증 실패 → 500 upstream + 원인 상태·메시지, no-store', r.status === 500 && j.ok === false && j.error === 'upstream' && j.errors.spotify === 'spotify token 400: Invalid client secret' && r.headers.get('Cache-Control') === 'no-store');
+  _resetSpotifyToken();
+  mockFetch([['accounts.spotify.com/api/token', SP_TOKEN], ['api.spotify.com/v1/search', { status: 403, body: { error: { status: 403, message: 'Spotify Premium required' } } }]]);
+  r = await run('q=잔나비');
+  j = await r.json();
+  chk('검색 403 → 본문 메시지 동봉 "spotify 403: ..."', r.status === 500 && j.errors.spotify === 'spotify 403: Spotify Premium required');
   _resetSpotifyToken();
   mockFetch([['accounts.spotify.com/api/token', SP_TOKEN], ['api.spotify.com/v1/search', { status: 429, body: {} }]]);
   r = await run('q=잔나비');
@@ -159,7 +164,7 @@ const SP_ARTISTS = { body: { artists: { items: [
   _resetSpotifyToken();
   mockFetch([['accounts.spotify.com/api/token', { status: 400, body: { error: 'invalid_client' } }]]);
   j = await (await run('', ENV_SP, {})).json();
-  chk('진단: 인증 실패면 상태 문구, 검색 프로브 생략', j.스포티파이_인증 === 'spotify token 400' && j.스포티파이_검색 === null);
+  chk('진단: 인증 실패면 상태 문구, 검색 프로브 생략', j.스포티파이_인증 === 'spotify token 400: invalid_client' && j.스포티파이_검색 === null);
 }
 
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);

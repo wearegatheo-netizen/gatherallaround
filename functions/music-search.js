@@ -55,6 +55,13 @@ export function pickImage(images) {
 }
 
 // ── 스포티파이 (Client Credentials) ─────────────────────────────────────────
+// 오류 본문에서 사람이 읽을 메시지만 짧게 — 진단용(키·토큰 없음). {"error":{"message":..}} / {"error_description":..} / 텍스트
+function spotifyErrMsg(text) {
+    let m = '';
+    try { const j = JSON.parse(text); m = (j.error && j.error.message) || j.error_description || (typeof j.error === 'string' ? j.error : ''); } catch { m = String(text || ''); }
+    m = String(m || '').replace(/\s+/g, ' ').trim().slice(0, 150);
+    return m ? ': ' + m : '';
+}
 let _spToken = { value: '', exp: 0 };
 export const _resetSpotifyToken = () => { _spToken = { value: '', exp: 0 }; };
 
@@ -65,7 +72,7 @@ async function spotifyToken(env) {
         headers: { Authorization: 'Basic ' + btoa(env.SPOTIFY_CLIENT_ID + ':' + env.SPOTIFY_CLIENT_SECRET), 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'grant_type=client_credentials',
     });
-    if (!r.ok) throw new Error('spotify token ' + r.status);
+    if (!r.ok) throw new Error('spotify token ' + r.status + spotifyErrMsg(await r.text().catch(() => '')));
     const d = await r.json().catch(() => ({}));
     if (!d.access_token) throw new Error('spotify token empty');
     _spToken = { value: d.access_token, exp: Date.now() + (Number(d.expires_in) || 3600) * 1000 };
@@ -81,7 +88,7 @@ export async function spotifySearch(env, q, type, limit) {
     const call = async () => fetch(u.toString(), { headers: { Authorization: 'Bearer ' + await spotifyToken(env) } });
     let r = await call();
     if (r.status === 401) { _resetSpotifyToken(); r = await call(); } // 토큰 만료·폐기 → 1회 재발급
-    if (!r.ok) throw new Error('spotify ' + r.status);
+    if (!r.ok) throw new Error('spotify ' + r.status + spotifyErrMsg(await r.text().catch(() => '')));
     const d = await r.json().catch(() => ({}));
     if (type === 'artist') {
         return ((d.artists && d.artists.items) || []).filter(a => a && a.name)
