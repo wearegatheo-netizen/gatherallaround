@@ -5089,9 +5089,10 @@
         // 가수·곡 검색 — 두 축을 브라우저에서 합친다.
         //  1) 애플 iTunes KR 뮤직비디오(한글 표기·표지): 브라우저가 직접 호출(CORS *). 서버(Cloudflare Workers)에서 부르면
         //     공유 IP 라 애플이 429 로 막아(2026-09-28 실측) 클라이언트에 둔다. 뮤직비디오가 있는 곡만 나온다.
-        //  2) 스포티파이(커버리지·앨범아트): 시크릿이 필요해 서버 함수 /music-search 경유.
+        //  2) Deezer(커버리지·앨범아트, 무료·키 없음): CORS 가 없어 서버 함수 /music-search 경유.
+        //     (스포티파이는 2025년 이후 앱 소유 계정 프리미엄 구독 필수 정책이라 제외)
         // 배경: 2026-09-28 iTunes KR 곡(entity=song) 검색이 전부 0건으로 바뀌어 기존 직접 호출이 멈춤.
-        // 합치기: 애플 먼저(스포티파이가 있으면 60%까지), 제목+가수 정규화 키로 중복 제거, 한쪽 실패는 다른 쪽으로.
+        // 합치기: 애플 먼저(Deezer 가 있으면 60%까지), 제목+가수 정규화 키로 중복 제거, 한쪽 실패는 다른 쪽으로.
         const _musicKey = (v) => String(v || '').toLowerCase().normalize('NFKC').replace(/\(.*?\)|\[.*?\]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
         async function _appleMusicSearch(q, type, limit) {
             const u = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&country=KR&entity=musicVideo&lang=ko_kr&limit=${type === 'artist' ? 25 : Math.min(limit * 2, 25)}`;
@@ -5109,26 +5110,26 @@
             }
             return rows.filter(x => x.trackName).map(x => ({ title: String(x.trackName), artist: String(x.artistName || ''), artwork: x.artworkUrl100 || x.artworkUrl60 || '', source: 'apple' }));
         }
-        async function _spotifyMusicSearch(q, type, limit) {
+        async function _deezerMusicSearch(q, type, limit) {
             const r = await fetch(`/music-search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}`);
             const d = await r.json().catch(() => null);
             if (!r.ok || !d || !d.ok) throw new Error((d && d.error) || ('HTTP ' + r.status));
             return Array.isArray(d.results) ? d.results : [];
         }
-        function _mergeMusicResults(apple, spotify, type, limit) {
+        function _mergeMusicResults(apple, other, type, limit) {
             const keyOf = type === 'artist' ? (x => _musicKey(x.name)) : (x => _musicKey(x.title) + '|' + _musicKey(x.artist));
             const seen = new Set();
             const uniq = (list) => (list || []).filter(x => { const k = keyOf(x); if (!k || seen.has(k)) return false; seen.add(k); return true; });
-            const a = uniq(apple), s = uniq(spotify);
+            const a = uniq(apple), s = uniq(other);
             const appleCap = s.length ? Math.max(1, Math.ceil(limit * 0.6)) : limit;
             const out = a.slice(0, appleCap).concat(s);
             if (out.length < limit) out.push(...a.slice(appleCap));
             return out.slice(0, limit);
         }
         async function musicSearch(q, type, limit = 8) {
-            const [a, s] = await Promise.allSettled([_appleMusicSearch(q, type, limit), _spotifyMusicSearch(q, type, limit)]);
+            const [a, s] = await Promise.allSettled([_appleMusicSearch(q, type, limit), _deezerMusicSearch(q, type, limit)]);
             if (a.status === 'rejected') console.warn('apple search', a.reason);
-            if (s.status === 'rejected') console.warn('spotify search', s.reason);
+            if (s.status === 'rejected') console.warn('deezer search', s.reason);
             if (a.status === 'rejected' && s.status === 'rejected') throw new Error('music search failed');
             return _mergeMusicResults(a.status === 'fulfilled' ? a.value : [], s.status === 'fulfilled' ? s.value : [], type, limit);
         }

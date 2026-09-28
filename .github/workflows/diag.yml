@@ -45,7 +45,7 @@ jobs:
             out=$(curl -sS -G --max-time 30 --data-urlencode "term=잔나비" --data-urlencode "limit=2" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
             echo "$q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName}]}' 2>/dev/null || echo "$out" | head -c 150)"
           done
-      - name: /music-search 혼합 검색 샘플 (애플 KR 뮤직비디오 + 스포티파이)
+      - name: /music-search 검색 샘플 (Deezer 프록시 — 애플 KR 뮤직비디오는 브라우저 직접 호출)
         # 검색은 우리 사이트 출처만 받으므로 Referer 를 붙인다. 결과 건수·출처만 출력.
         run: |
           for t in song artist; do
