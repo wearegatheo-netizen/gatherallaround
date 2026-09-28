@@ -35,3 +35,21 @@ jobs:
               -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
             echo "rpc $rpc -> HTTP $code: $(head -c 160 /tmp/out)"; echo
           done
+      - name: iTunes Search API 도달성·CORS 확인 (마이페이지 가수·곡 검색)
+        # 브라우저 fetch와 같은 조건(Origin·Referer·모바일 UA)으로 호출해 상태 코드와 CORS 헤더를 본다.
+        run: |
+          probe() {
+            echo "== $1"
+            curl -sS -G -D /tmp/h -o /tmp/b --max-time 30 \
+              -H "Origin: https://gatherallaround.com" -H "Referer: https://gatherallaround.com/" \
+              -H "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1" \
+              --data-urlencode "term=$2" --data-urlencode "entity=song" --data-urlencode "limit=1" --data-urlencode "country=KR" $3 \
+              "https://itunes.apple.com/search" || true
+            grep -i "^HTTP\|access-control\|content-type\|x-apple\|^location\|retry-after" /tmp/h || true
+            echo "body: $(head -c 200 /tmp/b)"; echo
+          }
+          probe "한글 검색 + lang=ko_kr (가수 검색 경로)" "아이유" "--data-urlencode lang=ko_kr"
+          probe "영문 검색 (곡 검색 경로)" "iu" ""
+          echo "== Origin 없이(서버 간 호출)"
+          curl -sS -o /tmp/b -w "HTTP %{http_code}\n" --max-time 30 "https://itunes.apple.com/search?term=iu&entity=song&limit=1&country=KR" || true
+          echo "body: $(head -c 120 /tmp/b)"
