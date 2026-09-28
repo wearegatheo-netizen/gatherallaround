@@ -48,8 +48,13 @@ jobs:
               --data-urlencode "country=$c" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search")
             echo "country=$c term=$t -> $(echo "$out" | jq -c '{n:.resultCount, first:(.results[0] // {} | {artistName,trackName})}' 2>/dev/null || echo "$out" | head -c 150)"
           done; done
-          echo; echo "== KR 변형: media=music&entity=musicTrack / entity 없음 / lang 없음"
-          for q in "media=music&entity=musicTrack" "media=music" "entity=song"; do
-            out=$(curl -sS -G --max-time 30 --data-urlencode "term=아이유" --data-urlencode "country=KR" --data-urlencode "limit=3" "https://itunes.apple.com/search?$q")
-            echo "$q -> $(echo "$out" | jq -c '{n:.resultCount, first:(.results[0] // {} | {artistName,trackName,kind})}' 2>/dev/null || echo "$out" | head -c 150)"
+          echo; echo "== KR 스토어 entity 별 (term=아이유 / 잔나비)"
+          for t in "아이유" "잔나비"; do for q in "entity=song" "entity=musicArtist" "entity=album" "entity=musicVideo" "media=music&entity=musicTrack"; do
+            out=$(curl -sS -G --max-time 30 --data-urlencode "term=$t" --data-urlencode "country=KR" --data-urlencode "limit=3" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
+            echo "KR $t $q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName,collectionName,kind,wrapperType}]}' 2>/dev/null || echo "$out" | head -c 150)"
+          done; done
+          echo; echo "== US 스토어 lang=ko_kr 로컬라이즈 여부 (term=잔나비 entity=song / musicArtist)"
+          for q in "entity=song" "entity=musicArtist"; do
+            out=$(curl -sS -G --max-time 30 --data-urlencode "term=잔나비" --data-urlencode "country=US" --data-urlencode "limit=3" --data-urlencode "lang=ko_kr" "https://itunes.apple.com/search?$q")
+            echo "US 잔나비 $q -> $(echo "$out" | jq -c '{n:.resultCount, r:[.results[:2][] | {artistName,trackName,wrapperType}]}' 2>/dev/null || echo "$out" | head -c 150)"
           done
