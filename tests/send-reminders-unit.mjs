@@ -183,8 +183,9 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   chk('본문: 이용료 금액·계좌', !!msg && msg.text.includes('이용료(300,000원)를') && msg.text.includes('토스뱅크 1000-2274-7678 최경수'));
   chk('본문: 이모지 없음(EUC-KR 안전)', !!msg && !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(msg.text));
   chk('LMS 제목 지정', !!msg && msg.subject === '게더 올 어라운드 이용료 안내');
-  chk('본문: 추가 안내는 연장 안내 1줄만(입금자명·문의 줄 없음, "사용료" 표기 없음)', !!msg && msg.text.includes('※ 연장하지 않으실 경우') && !msg.text.includes('입금자명') && !msg.text.includes('※ 문의') && !msg.text.includes('사용료')
+  chk('본문: 추가 안내는 캐비넷 안내 + 연장 안내 2줄(입금자명·문의 줄 없음, "사용료" 표기 없음)', !!msg && msg.text.includes('※ 캐비넷 추가 이용시 위 금액에 2만원 추가해서 보내주시면 됩니다.\n※ 연장하지 않으실 경우') && !msg.text.includes('입금자명') && !msg.text.includes('※ 문의') && !msg.text.includes('사용료')
     && msg.text.trim().endsWith('보증금은 사용 종료 시 반환됩니다.'), (msg?.text || '').split('\n').slice(-3).join(' / '));
+  chk('본문: 캐비넷 안내는 계좌 줄 바로 다음("위 금액" 참조)', !!msg && msg.text.indexOf('토스뱅크') < msg.text.indexOf('※ 캐비넷') && msg.text.slice(msg.text.indexOf('토스뱅크'), msg.text.indexOf('※ 캐비넷')).split('\n').length === 3);
   const p = notifyPayload();
   chk('관리자 푸시: 팀·회차·입금일, 운영 총괄만', !!p && p.title.includes('월세') && p.body.includes('아나하') && p.body.includes('1차') && p.body.includes('9/29')
     && JSON.stringify(p.roles) === '["운영 총괄"]', p && p.body);
