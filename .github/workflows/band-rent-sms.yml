@@ -1,37 +1,57 @@
-# 고정 합주팀 회차 이용료 입금 안내 문자 크론
-# /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다. 목표 발송 시각은 정오 무렵.
+# 고정 합주팀 회차 이용료 입금 안내 문자 크론 — 목표 발송 시각 매일 12:00 KST
+# /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다.
 # GitHub 예약 실행은 분(分)과 무관하게 매번 4시간 49분~6시간 33분 늦게 돈다(2026-09-16~28 실측 14회, 정각 회피 효과 없음).
-# 그래서 예약 시각을 그만큼 당겨 06:07 KST 본 실행이 11:30~12:40 KST 에 도착하도록 잡고, 예비 실행을 셋 더 둔다.
-# 서버는 KST 11:00 이전 도착분을 건너뛰므로(BAND_SMS_EARLIEST_HOUR) 지연이 사라져 새벽에 돌아도 문자는 나가지 않고,
-# 11시 이후 처음 도착한 실행이 보낸다. band_rent_reminders(team_id, cycle_no, kind) 선점으로 회차·종류별 1회만
-# 발송하므로 하루 네 번 돌거나 수동 실행해도 중복은 없다. 회차당 최대 3회: 입금일 → 4주차(시작 1주 전) → 시작 전날.
+# 그래서 ① 예약을 그만큼 당겨 걸고(06:37 본 실행 → 지연 반영 시 11:26~13:10 도착), ② 러너가 정오 전에 도착하면
+# 정오까지 잠들었다가 호출한다(공개 저장소라 대기 시간 무료). 어느 실행이 먼저 오든 발송은 12:00(늦어도 첫 도착 시각)이다.
+# 예비 실행 셋은 지연이 줄거나 사라진 날·본 실행 누락 대비. band_rent_reminders(team_id, cycle_no, kind) 선점으로
+# 회차·종류별 1회만 발송하므로 여러 실행이 정오에 같이 깨어나도 중복은 없다. 서버는 KST 11:00 이전 호출을 추가로 차단(2차 안전망).
+# 회차당 최대 3회: 입금일(3주차 사용일 = 다음 시작 2주 전) → 4주차(시작 1주 전) → 시작 전날.
 name: band-rent-sms
 
 on:
   schedule:
-    - cron: '7 21 * * *'   # 21:07 UTC = 다음날 06:07 KST (본 실행 — 지연 반영 시 11:30~12:40 도착)
-    - cron: '7 23 * * *'   # 23:07 UTC = 다음날 08:07 KST (예비 1 — 13:00~14:40)
-    - cron: '7 2 * * *'    # 02:07 UTC = 11:07 KST (예비 2 — 지연이 사라진 날 대비)
-    - cron: '37 4 * * *'   # 04:37 UTC = 13:37 KST (예비 3)
+    - cron: '37 21 * * *'  # 21:37 UTC = 다음날 06:37 KST (본 실행 — 제시간이면 정오까지 최대 5h23m 대기)
+    - cron: '7 23 * * *'   # 23:07 UTC = 다음날 08:07 KST (예비 1)
+    - cron: '7 2 * * *'    # 02:07 UTC = 11:07 KST (예비 2)
+    - cron: '37 4 * * *'   # 04:37 UTC = 13:37 KST (예비 3 — 정오 이후 도착이라 즉시 호출)
   workflow_dispatch:
     inputs:
       force:
-        description: '발송 창(KST 11:00 이후) 무시하고 지금 발송'
+        description: '정오 대기·발송 창(KST 11:00 이후) 모두 무시하고 지금 발송'
         type: boolean
         default: false
 
 jobs:
   sms:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 350   # GitHub 작업 한도 6h — 06:37 제시간 도착 시 정오까지 5h23m 대기 + 호출
     steps:
-      - name: Call /send-reminders (scope=band)
+      - name: 정오까지 대기 후 /send-reminders (scope=band) 호출
+        env:
+          FORCE: ${{ inputs.force || false }}
         run: |
           set +e
+          kst() { TZ=Asia/Seoul date "$@"; }
+          if [ "$FORCE" = "true" ]; then
+            echo "== force: 대기 생략, 즉시 발송 (KST $(kst +%H:%M))"
+          else
+            now=$(kst +%s)
+            target=$(kst -d "$(kst +%Y-%m-%d) 12:00:00" +%s)
+            wait=$((target - now))
+            if [ "$wait" -gt 20400 ]; then
+              # 정오까지 5h40m 넘게 남음 = 자정 직후 도착(전날 예약분이 극단적으로 지연) — 작업 한도를 넘기므로 건너뜀
+              echo "== KST $(kst +%H:%M) 도착: 정오까지 ${wait}s — 너무 길어 이번 실행은 건너뜀"; exit 0
+            elif [ "$wait" -gt 0 ]; then
+              echo "== KST $(kst +%H:%M) 도착: 정오까지 ${wait}s 대기"
+              sleep "$wait"
+            else
+              echo "== KST $(kst +%H:%M) 도착: 정오 지남, 즉시 호출"
+            fi
+          fi
           for host in gatherallaround.com www.gatherallaround.com gatherallaround.pages.dev; do
-            echo "== try $host"
+            echo "== try $host (KST $(kst +%H:%M:%S))"
             out=$(curl -sS --fail-with-body --max-time 60 -X POST "https://$host/send-reminders" \
-              -H "Content-Type: application/json" -d "{\"scope\":\"band\",\"force\":${{ inputs.force || false }}}" 2>&1)
+              -H "Content-Type: application/json" -d "{\"scope\":\"band\",\"force\":$FORCE}" 2>&1)
             rc=$?
             echo "$out"
             if [ $rc -eq 0 ]; then echo "== success via $host"; exit 0; fi

@@ -2,9 +2,10 @@
 // 1) 공간 대관 이용일 임박(D-2) 관리자 푸시 알림
 // 2) 고정 합주팀 회차 이용료(월세) 입금 안내 문자 — 미납 시 회차당 최대 3회(입금일·시작 1주 전·시작 전날), 발송 시 관리자 푸시
 // 3) 매월 1일 개인정보 보유기간 만료 건 파기
-// 1)·3)은 매일 07:47 KST(perf-reminder.yml, scope=booking, 10:17 예비), 2)는 band-rent-sms.yml(scope=band, 06:07·08:07·11:07·13:37 KST)
+// 1)·3)은 매일 07:47 KST(perf-reminder.yml, scope=booking, 10:17 예비), 2)는 band-rent-sms.yml(scope=band, 06:37·08:07·11:07·13:37 KST 예약)
 // GitHub Actions 크론이 POST로 호출한다. GitHub 예약은 분과 무관하게 약 5시간 반 늦게 돌아(2026-09 실측 4h49~6h33) 그만큼 당겨 걸었고,
-// 2)는 KST BAND_SMS_EARLIEST_HOUR(11시) 이전 도착분을 건너뛴다(선점 없음 → 다음 실행이 발송). {force:true} 면 창을 무시(수동 실행용).
+// 러너가 정오 전에 도착하면 12:00 KST 까지 기다렸다 호출한다(목표 발송 정오). 2)는 그래도 KST BAND_SMS_EARLIEST_HOUR(11시) 이전
+// 호출이 오면 건너뛴다(2차 안전망, 선점 없음 → 다음 실행이 발송). {force:true} 면 창을 무시(수동 실행용).
 // 선점(band_rent_reminders PK / reminder_sent_at)으로 하루 여러 번 돌아도 중복 발송은 없다.
 //
 // 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
