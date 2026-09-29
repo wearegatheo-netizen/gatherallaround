@@ -142,7 +142,7 @@ const TEAM = (over = {}) => ({
   id: TEAM_ID, name: '신선진', band_name_kr: '아나하', leader_phone: '010-6787-1995', phone: null,
   band_start_date: '2026-09-15', band_fee: 300000, instruments: 'anaha', email: 'anaha@band.gatheo.kr', ...over,
 });
-const at = (ymd) => { Date.now = () => Date.parse(`${ymd}T08:00:00+09:00`); };
+const at = (ymd, hm = '12:00') => { Date.now = () => Date.parse(`${ymd}T${hm}:00+09:00`); }; // 기본 정오 — 월세 발송 창(11시 이후) 안
 const bandRoutes = ({ teams = [TEAM()], payments = [], reminders = [], claim = { status: 201 }, solapi = { status: 200 } } = {}) => [
   ['performance_bookings?status=eq.approved', { body: [] }],
   ['profiles?member_type=eq.band', { body: teams }],
@@ -255,6 +255,33 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   at('2026-10-12');
   mockFetch(bandRoutes({ reminders: R('due', 'week4'), payments: [{ team_id: TEAM_ID, paid_at: '2026-10-11', cycle_no: 1 }] }));
   chk('납부 완료 후엔 last 도 발송 없음', (await (await run('POST', ENV_SMS)).json()).band_checked === 0);
+}
+// ── B5-3. 발송 창 — KST 11:00 이전 도착분은 건너뜀(선점·조회 없음), force 면 무시, GET 드라이런은 창 상태 표시
+{
+  at('2026-09-29', '06:20'); // 06:07 예약 크론이 지연 없이 돈 경우
+  mockFetch(bandRoutes());
+  const runBand = (extra = {}) => onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'band', ...extra }) }), env: ENV_SMS });
+  const je = await (await runBand()).json();
+  chk('06:20 도착: before-window — 팀 조회·선점·문자 없음, 창 시각 안내', je.ok === true && je.band === 'before-window' && je.band_window_from === '11:00 KST' && je.band_checked === 0
+    && !calls.some(c => c.url.includes('profiles?member_type') || /band_rent_reminders/.test(c.url) || c.url.includes('solapi')), JSON.stringify(je));
+  mockFetch(bandRoutes());
+  const jf = await (await runBand({ force: true })).json();
+  chk('06:20 + force:true → 창 무시하고 발송 1건', jf.band_sent === 1 && !jf.band, JSON.stringify(jf));
+  at('2026-09-29', '10:59'); mockFetch(bandRoutes());
+  const j59 = await (await runBand()).json();
+  chk('10:59 도착: 아직 닫힘', j59.band === 'before-window' && j59.band_sent === 0);
+  at('2026-09-29', '11:00'); mockFetch(bandRoutes());
+  const j11 = await (await runBand()).json();
+  chk('11:00 도착: 열림 — 발송 1건, band 표식 없음', j11.band_sent === 1 && !('band' in j11), JSON.stringify(j11));
+  at('2026-09-29', '06:20'); mockFetch(bandRoutes());
+  const g = await (await onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'GET', headers: { Origin: 'https://gatherallaround.com' } }), env: ENV_SMS })).json();
+  chk('GET 드라이런(06:20): 창 닫힘 표시 + 대상은 그대로 보여줌', g['월세_발송_창'] === '닫힘(KST 11:00 이후 발송)' && g['월세_발송_대기'].length === 1 && !calls.some(c => c.url.includes('solapi') || (c.method === 'POST' && /band_rent_reminders$/.test(c.url))), JSON.stringify(g));
+  at('2026-09-29', '12:00'); mockFetch(bandRoutes());
+  const g2 = await (await onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'GET', headers: { Origin: 'https://gatherallaround.com' } }), env: ENV_SMS })).json();
+  chk('GET 드라이런(12:00): 창 열림', g2['월세_발송_창'] === '열림');
+  at('2026-09-29', '06:20'); mockFetch(bandRoutes());
+  const jb0 = await (await onRequest({ request: new Request('https://gatherallaround.com/send-reminders', { method: 'POST', headers: { Origin: 'https://gatherallaround.com', 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: 'booking' }) }), env: ENV_SMS })).json();
+  chk('scope booking 은 창과 무관(band 표식 없음)', !('band' in jb0), JSON.stringify(jb0));
 }
 // ── B5-2. scope — 08:00 크론(booking) 은 문자 없음, 12:00 크론(band) 은 대관 푸시·파기 없음
 {

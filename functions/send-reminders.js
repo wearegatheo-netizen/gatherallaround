@@ -2,8 +2,10 @@
 // 1) 공간 대관 이용일 임박(D-2) 관리자 푸시 알림
 // 2) 고정 합주팀 회차 이용료(월세) 입금 안내 문자 — 미납 시 회차당 최대 3회(입금일·시작 1주 전·시작 전날), 발송 시 관리자 푸시
 // 3) 매월 1일 개인정보 보유기간 만료 건 파기
-// 1)·3)은 매일 07:47 KST(perf-reminder.yml, scope=booking, 10:17 예비), 2)는 11:07 KST(band-rent-sms.yml, scope=band, 13:37 예비)
-// GitHub Actions 크론이 POST로 호출한다. (정각 스케줄은 수 시간 지연·누락이 잦아 정각을 피하고 예비 실행을 둠 — 선점으로 중복 발송 없음)
+// 1)·3)은 매일 07:47 KST(perf-reminder.yml, scope=booking, 10:17 예비), 2)는 band-rent-sms.yml(scope=band, 06:07·08:07·11:07·13:37 KST)
+// GitHub Actions 크론이 POST로 호출한다. GitHub 예약은 분과 무관하게 약 5시간 반 늦게 돌아(2026-09 실측 4h49~6h33) 그만큼 당겨 걸었고,
+// 2)는 KST BAND_SMS_EARLIEST_HOUR(11시) 이전 도착분을 건너뛴다(선점 없음 → 다음 실행이 발송). {force:true} 면 창을 무시(수동 실행용).
+// 선점(band_rent_reminders PK / reminder_sent_at)으로 하루 여러 번 돌아도 중복 발송은 없다.
 //
 // 1) 크론이 하루 건너뛰어도 따라잡을 수 있게 오늘(KST)~이틀 뒤 사이의 승인 예약 중
 //    아직 알림이 안 나간 건을 전부 처리한다 (D-2가 기본, 놓친 건은 D-1/D-DAY로 발송).
@@ -86,6 +88,9 @@ const mdOf = (ymd) => { const [, m, d] = ymd.split('-').map(Number); return `${m
 const wdOf = (ymd) => ['일', '월', '화', '수', '목', '금', '토'][new Date(ymd + 'T00:00:00Z').getUTCDay()];
 
 const BAND_KIND_LABEL = { due: '입금일 안내', week4: '시작 1주 전', last: '시작 전날' }; // 관리자 푸시 본문의 발송 종류 표기
+// 입금 안내 문자 발송 창: KST 이 시각 이전에 도착한 크론 실행은 문자를 보내지 않는다 (예약을 당겨 건 크론이 지연 없이 새벽에 돌 때 대비)
+export const BAND_SMS_EARLIEST_HOUR = 11;
+const kstHour = () => new Date(Date.now() + 9 * 3600e3).getUTCHours();
 // 입금 안내 문자. 90byte 초과 → 솔라피가 LMS로 자동 전환. 이모지는 EUC-KR에서 깨질 수 있어 넣지 않는다.
 export function bandRentText(team, n, kind, today) {
     const start = team.band_start_date;
@@ -258,13 +263,18 @@ export async function onRequest(context) {
         // scope: 'booking'(대관 푸시·파기만) / 'band'(합주팀 문자만) / 그 외 둘 다. GET 드라이런은 항상 둘 다 보여준다.
         const scope = body && (body.scope === 'booking' || body.scope === 'band') ? body.scope : 'all';
         // 월세 문자: 솔라피 키 미설정 = 기능 꺼짐 (조회조차 하지 않는다)
-        const bandTargets = smsOn && (request.method === 'GET' || scope !== 'booking') ? await loadBandRentTargets(env, sbHeaders, today) : [];
+        // 월세 문자 발송 창: KST 11시 전 도착분은 조회조차 하지 않고 건너뛴다(force 면 무시). GET 드라이런은 창과 무관하게 대상을 보여준다.
+        const bandForce = !!(body && body.force === true);
+        const bandWindowOpen = bandForce || kstHour() >= BAND_SMS_EARLIEST_HOUR;
+        const bandActive = smsOn && (request.method === 'GET' || scope !== 'booking');
+        const bandTargets = bandActive && (request.method === 'GET' || bandWindowOpen) ? await loadBandRentTargets(env, sbHeaders, today) : [];
 
         // GET: 드라이런 진단 — 발송·선점 없이 대상 요약만 (공개 응답이므로 개인정보 제외)
         if (request.method === 'GET') {
             return json({ 오늘_KST: today, 대상_기간: `${today} ~ ${until}`,
                 발송_대기: bookings.length, 대상_이용일: bookings.map(b => b.date),
                 월세_문자: smsOn ? '켜짐' : '꺼짐(솔라피 키 없음)',
+                월세_발송_창: kstHour() >= BAND_SMS_EARLIEST_HOUR ? '열림' : `닫힘(KST ${BAND_SMS_EARLIEST_HOUR}:00 이후 발송)`,
                 월세_발송_대기: bandTargets.map(x => ({ 회차: x.n, 입금일: x.due, 종류: x.kind })) });
         }
         if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
@@ -342,7 +352,8 @@ export async function onRequest(context) {
             }
         }
         return json({ ok: true, scope, checked: scope === 'band' ? 0 : bookings.length, sent, purged,
-            band_checked: bandTargets.length, band_sent: bandSent, ...(smsOn ? {} : { band: 'sms-disabled' }) });
+            band_checked: bandTargets.length, band_sent: bandSent,
+            ...(!smsOn ? { band: 'sms-disabled' } : (bandActive && !bandWindowOpen ? { band: 'before-window', band_window_from: `${BAND_SMS_EARLIEST_HOUR}:00 KST` } : {})) });
     } catch (e) {
         return json({ error: String(e && e.message || e) }, 500);
     }

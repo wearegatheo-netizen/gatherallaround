@@ -23,10 +23,13 @@
   계약 정보(`band_start_date/band_expected_months/band_deposit/band_deposit_paid_at/band_fee/band_ended_at/band_memo`),
   납부 장부 `band_payments`(+`cycle_no`, `amount`; 구형 행은 납부 창 [시작일_n−21, 시작일_n+7) 로 귀속). 수식은 세 곳을 항상 동일하게:
   `index.html bandCycle*` / `functions/send-reminders.js` / `supabase/functions/check-band-payments`.
-  입금 안내 문자: 매일 11:07 KST 크론(`band-rent-sms.yml`, `{scope:'band'}`, 13:37 예비 실행) → `/send-reminders` 월세 블록 — 미납 시 회차당 최대 3회:
+  입금 안내 문자: 크론 4회(06:07·08:07·11:07·13:37 KST, `band-rent-sms.yml`, `{scope:'band'}`) → `/send-reminders` 월세 블록.
+  **KST 11:00 이전 도착분은 건너뜀**(`BAND_SMS_EARLIEST_HOUR`, 선점 없음 → 다음 실행이 발송; 수동 실행은 workflow_dispatch `force`=`{force:true}`로 무시).
+  GitHub 예약이 분과 무관하게 4h49~6h33 늦게 도는 실측(2026-09-16~28)을 반영해 06:07 본 실행이 11:30~12:40에 도착하는 배치. 미납 시 회차당 최대 3회:
   입금일 당일(`due`, 3주차) → 시작 1주 전(`week4`, 4주차) → 시작 전날(`last`). `band_rent_reminders(team_id, cycle_no, kind)` PK 선점으로
   회차·종류별 1회, 솔라피 키 없으면 블록 꺼짐. 대관 D-2 푸시·파기는 07:47 크론(`perf-reminder.yml`, `{scope:'booking'}`, 10:17 예비)이 담당.
-  ※ GitHub 정각(`0 h * * *`) 스케줄은 혼잡 시간대에 수 시간 지연·누락됨(2026-09 실측) — 크론은 정각을 피한 분으로 잡고 예비 실행을 둘 것.
+  ※ GitHub 스케줄은 정각 여부와 무관하게 약 5시간 반 늦게 돈다(2026-09 실측, 정각 회피 효과 없음) — 시각이 중요한 크론은 그만큼 당겨 걸고
+  서버 쪽 발송 창으로 이른 도착을 막을 것. 지연 폭이 바뀌면 `band-rent-sms` 실행 이력(Actions)으로 재측정해 예약 시각을 조정.
   관리자 문자 테스트: 관리자 「🧪 알림 테스트」 서브탭(`bandTestTabHTML`, 팀 관리 탭엔 없음) → `/send-reminders` `{action:'test_band_sms', sb_token, kind}`(게더링 밴드 계정 세션만, 본인 번호로만).
   [푸시 테스트]는 같은 액션에 `push:'only'` — 문자 없이 실제 발송 때와 같은 `/notify-admins` 푸시(운영 총괄, `[테스트]` 제목)만; `push:true`면 문자+푸시.
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).

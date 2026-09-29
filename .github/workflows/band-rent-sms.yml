@@ -1,16 +1,24 @@
-# 고정 합주팀 회차 사용료 입금 안내 문자 크론
-# 매일 11:07 KST(02:07 UTC)에 /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다.
-# GitHub 예약 실행은 정각 스케줄이 혼잡 시간대에 수 시간 지연·누락되는 일이 잦아(2026-09 실측 4~5시간),
-# 정각을 피한 분(分)으로 잡고 13:37 KST 예비 실행을 하나 더 둔다 — 선점 덕에 두 번 돌아도 발송은 1회.
-# 회차당 최대 3회: 입금일(3주차 사용일 = 다음 시작 2주 전) → 4주차(시작 1주 전) → 시작 전날.
-# band_rent_reminders(team_id, cycle_no, kind) 선점으로 회차·종류별 1회만 발송하므로 중복 실행·수동 실행 모두 안전하다.
+# 고정 합주팀 회차 이용료 입금 안내 문자 크론
+# /send-reminders 를 scope=band 로 호출해, 미납 팀 대표자에게 솔라피 문자를 보낸다. 목표 발송 시각은 정오 무렵.
+# GitHub 예약 실행은 분(分)과 무관하게 매번 4시간 49분~6시간 33분 늦게 돈다(2026-09-16~28 실측 14회, 정각 회피 효과 없음).
+# 그래서 예약 시각을 그만큼 당겨 06:07 KST 본 실행이 11:30~12:40 KST 에 도착하도록 잡고, 예비 실행을 셋 더 둔다.
+# 서버는 KST 11:00 이전 도착분을 건너뛰므로(BAND_SMS_EARLIEST_HOUR) 지연이 사라져 새벽에 돌아도 문자는 나가지 않고,
+# 11시 이후 처음 도착한 실행이 보낸다. band_rent_reminders(team_id, cycle_no, kind) 선점으로 회차·종류별 1회만
+# 발송하므로 하루 네 번 돌거나 수동 실행해도 중복은 없다. 회차당 최대 3회: 입금일 → 4주차(시작 1주 전) → 시작 전날.
 name: band-rent-sms
 
 on:
   schedule:
-    - cron: '7 2 * * *'    # 02:07 UTC = 11:07 KST (본 실행)
-    - cron: '37 4 * * *'   # 04:37 UTC = 13:37 KST (지연·누락 대비 예비 실행)
-  workflow_dispatch: {}
+    - cron: '7 21 * * *'   # 21:07 UTC = 다음날 06:07 KST (본 실행 — 지연 반영 시 11:30~12:40 도착)
+    - cron: '7 23 * * *'   # 23:07 UTC = 다음날 08:07 KST (예비 1 — 13:00~14:40)
+    - cron: '7 2 * * *'    # 02:07 UTC = 11:07 KST (예비 2 — 지연이 사라진 날 대비)
+    - cron: '37 4 * * *'   # 04:37 UTC = 13:37 KST (예비 3)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '발송 창(KST 11:00 이후) 무시하고 지금 발송'
+        type: boolean
+        default: false
 
 jobs:
   sms:
@@ -23,7 +31,7 @@ jobs:
           for host in gatherallaround.com www.gatherallaround.com gatherallaround.pages.dev; do
             echo "== try $host"
             out=$(curl -sS --fail-with-body --max-time 60 -X POST "https://$host/send-reminders" \
-              -H "Content-Type: application/json" -d '{"scope":"band"}' 2>&1)
+              -H "Content-Type: application/json" -d "{\"scope\":\"band\",\"force\":${{ inputs.force || false }}}" 2>&1)
             rc=$?
             echo "$out"
             if [ $rc -eq 0 ]; then echo "== success via $host"; exit 0; fi

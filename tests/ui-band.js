@@ -221,8 +221,8 @@ const FAKE_SB = `
   await p.evaluate(() => setBandAdminTab('test'));
   await p.waitForTimeout(500);
   const testHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
-  chk('알림 테스트 탭: 서브탭 활성 + 문자 테스트 3종 + 푸시 테스트 버튼 + 11:07(예비 13:37) 안내', await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="test"]').classList.contains('active'))
-    && testHtml.includes('11:07') && testHtml.includes('13:37') && testHtml.includes("sendBandSmsTest(this, 'due')") && testHtml.includes("sendBandSmsTest(this, 'week4')") && testHtml.includes("sendBandSmsTest(this, 'last')") && testHtml.includes("sendBandSmsTest(this, 'due', 'push')")
+  chk('알림 테스트 탭: 서브탭 활성 + 문자 테스트 3종 + 푸시 테스트 버튼 + 발송 창(11:00 이후·크론 4회) 안내', await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="test"]').classList.contains('active'))
+    && testHtml.includes('11:00 이후') && testHtml.includes('06:07') && testHtml.includes('13:37') && testHtml.includes("sendBandSmsTest(this, 'due')") && testHtml.includes("sendBandSmsTest(this, 'week4')") && testHtml.includes("sendBandSmsTest(this, 'last')") && testHtml.includes("sendBandSmsTest(this, 'due', 'push')")
     && testHtml.includes('내 번호로만') && testHtml.includes('운영 총괄'));
   chk('알림 테스트 탭: 버튼은 gaa-btn-sm(38px), 팀 카드 없음', await p.evaluate(() => { const b = document.querySelectorAll('#bandAdminView .gaa-btn-sm'); return b.length === 4 && [...b].every(x => x.offsetHeight >= 38) && !document.querySelector('#bandAdminView .band-team-card'); }));
   chk('푸시 테스트 버튼 → /send-reminders 에 push:"only" 로 요청(문자 아님)', await p.evaluate(async () => {

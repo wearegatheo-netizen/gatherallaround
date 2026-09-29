@@ -11727,7 +11727,7 @@
             return `
                 <div class="band-card-section" style="margin-top:0;padding-top:0;border-top:0">
                     <div class="band-card-head"><span>📱 입금 안내 문자 테스트</span></div>
-                    <div class="band-muted">실제 문자는 매일 11:07에 자동 발송(GitHub 크론, 지연 대비 13:37 예비 실행) — 미납 시 회차당 최대 3회: 입금일(3주차, 시작 2주 전) · 4주차(시작 1주 전) · 시작 전날.<br>
+                    <div class="band-muted">실제 문자는 매일 11:00 이후 첫 크론 실행에서 자동 발송(GitHub 예약 06:07·08:07·11:07·13:37, 약 5시간 반 지연을 감안한 배치 · 11시 전 도착분은 건너뜀) — 미납 시 회차당 최대 3회: 입금일(3주차, 시작 2주 전) · 4주차(시작 1주 전) · 시작 전날.<br>
                         아래 버튼은 <strong>내 번호로만</strong> [테스트] 표시가 붙은 같은 문구를 보냅니다. 발송 이력·회차 기록에는 남지 않습니다.</div>
                     <div class="gaa-btn-row" style="margin-top:10px">
                         <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'due')">입금일 안내</button>
