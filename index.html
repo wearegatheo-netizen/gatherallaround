@@ -1655,16 +1655,14 @@
         <div id="installBannerActions" style="margin-top:11px">
             <button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-primary" type="button" id="installBannerBtn" onclick="triggerInstall()">설치하기</button>
         </div>
-        <div id="installBannerIosGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-700);line-height:1.55;background:var(--wds-gray-100);border-radius:9px;padding:10px 12px">
-            <div>① 하단 <strong>공유</strong> 버튼 <span style="display:inline-block;border:1px solid var(--wds-gray-300);border-radius:5px;padding:0 5px;font-size:0.72rem">􀈂</span> 을 누르세요.</div>
-            <div style="margin-top:4px">② <strong>홈 화면에 추가</strong>를 선택하세요.</div>
-        </div>
+        <div id="installBannerIosGuide" class="install-guide" style="display:none"></div>
+        <div id="installBannerAndroidGuide" class="install-guide" style="display:none"></div>
         <div id="installBannerInappBtn" style="display:none;margin-top:11px">
             <button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-primary" type="button" onclick="openInExternalBrowser()">기본 브라우저로 열기</button>
         </div>
-        <div id="installBannerInappGuide" style="display:none;margin-top:10px;font-size:0.8rem;color:var(--wds-gray-700);line-height:1.55;background:var(--wds-gray-100);border-radius:9px;padding:10px 12px">
-            앱 설치는 <strong>Safari/Chrome 등 기본 브라우저</strong>에서만 가능해요.<br>
-            우측 하단(또는 우측 상단) <strong>⋯ 메뉴</strong>를 눌러 <strong>‘다른 브라우저로 열기’</strong>를 선택해 주세요.
+        <div id="installBannerInappGuide" class="install-guide" style="display:none">
+            앱 설치는 <strong>Safari·Chrome 등 기본 브라우저</strong>에서만 가능해요.<br>
+            오른쪽 아래(또는 위) <strong>··· / ⋮ 메뉴</strong> → <strong>‘Safari로 열기’</strong> 또는 <strong>‘다른 브라우저로 열기’</strong>를 선택해 주세요.
         </div>
     </div>
 
@@ -13030,7 +13028,13 @@
             return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         }
         function _isIOS() {
-            return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+            const ua = navigator.userAgent || '';
+            if (/iphone|ipad|ipod/i.test(ua) && !window.MSStream) return true;
+            return /macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1; // iPadOS 13+ 는 Mac Safari UA 로 보인다
+        }
+        // iOS 에서 Safari 인가 (Chrome·Firefox·Edge·Opera 는 각자 UA 표식이 있다) — 인앱은 _isInAppBrowser 가 먼저 걸러낸다
+        function _isIOSSafari() {
+            return _isIOS() && !/crios|fxios|edgios|opr\/|opt\/|yabrowser|duckduckgo/i.test(navigator.userAgent || '');
         }
         function _isAndroid() {
             return /android/i.test(navigator.userAgent);
@@ -13038,7 +13042,7 @@
         // 카카오톡/인스타/페북/네이버/라인 등 인앱 브라우저(WebView) 감지 — PWA 설치 불가
         function _isInAppBrowser() {
             const ua = (navigator.userAgent || '').toLowerCase();
-            return /kakaotalk|instagram|fban|fbav|fb_iab|line\/|naver|whale|daumapps|everytimeapp|band\//.test(ua);
+            return /kakaotalk|instagram|fban|fbav|fb_iab|line\/|naver\(inapp|daumapps|everytimeapp|band\//.test(ua);
         }
 
         // Android/Chrome: 설치 가능 시점에 이벤트 발생
@@ -13054,6 +13058,28 @@
             try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (_) {}
         });
 
+        // 설치 절차 안내 문구 — 2026-09 기준 최신 OS·브라우저 UI 로 점검
+        //  · iOS 26 Safari: 하단 공유 → (목록 아래) 홈 화면에 추가 → 추가. 컴팩트 레이아웃이면 주소창 옆 ··· → 공유.
+        //    iOS 26 부터 추가 시트에 '웹 앱으로 열기' 토글이 있다(기본 켜짐). Chrome 등 타 브라우저도 iOS 16.4+ 부터 같은 방식.
+        //  · Android Chrome: ⋮ → '홈 화면에 추가' → 팝업에서 '설치'(기존 '앱 설치' 항목은 이렇게 바뀌었다).
+        //    삼성 인터넷: 하단 ≡ → 현재 페이지 추가 → 홈 화면 (주소창 설치 아이콘도 가능).
+        const _SHARE_ICON = '<svg class="ig-ico" viewBox="0 0 24 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="공유"><path d="M12 3v14"/><path d="M7 8l5-5 5 5"/><path d="M8 12H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V13a1 1 0 0 0-1-1h-3"/></svg>';
+        function _installGuideHTML(kind) {
+            const step = (mark, html) => `<div class="ig-step">${mark} ${html}</div>`;
+            if (kind === 'ios-safari') {
+                return step('①', `Safari 아래쪽 <strong>공유</strong> ${_SHARE_ICON} 버튼을 누르세요. <span class="ig-sub">(주소창 옆 <strong>···</strong> 메뉴만 보이면 ··· → 공유)</span>`)
+                    + step('②', `목록을 아래로 내려 <strong>홈 화면에 추가</strong>를 선택하세요.`)
+                    + step('③', `오른쪽 위 <strong>추가</strong>를 누르세요. <span class="ig-sub">(‘웹 앱으로 열기’는 켠 채로)</span>`);
+            }
+            if (kind === 'ios-other') {
+                return step('①', `주소창 옆 <strong>⋮</strong> 메뉴(또는 공유 ${_SHARE_ICON} 버튼) → <strong>공유</strong>를 누르세요.`)
+                    + step('②', `<strong>홈 화면에 추가</strong>를 선택한 뒤 오른쪽 위 <strong>추가</strong>를 누르세요.`)
+                    + `<div class="ig-step ig-sub">항목이 안 보이면 이 주소를 <strong>Safari</strong>에서 열어 진행해 주세요.</div>`;
+            }
+            return step('•', `<strong>Chrome</strong>: 오른쪽 위 <strong>⋮</strong> 메뉴 → <strong>홈 화면에 추가</strong> → <strong>설치</strong>`)
+                + step('•', `<strong>삼성 인터넷</strong>: 아래 <strong>≡</strong> 메뉴 → <strong>현재 페이지 추가</strong> → <strong>홈 화면</strong> <span class="ig-sub">(주소창의 설치 아이콘도 돼요)</span>`);
+        }
+
         function maybeShowInstallBanner() {
             if (_isStandalone()) return;                 // 이미 설치/실행 중
             try { if (localStorage.getItem(INSTALL_DISMISS_KEY)) return; } catch (_) {}
@@ -13062,11 +13088,14 @@
             const title = document.getElementById('installBannerTitle');
             const desc = document.getElementById('installBannerDesc');
             const iosGuide = document.getElementById('installBannerIosGuide');
+            const androidGuide = document.getElementById('installBannerAndroidGuide');
             const actions = document.getElementById('installBannerActions');
             const inappBtn = document.getElementById('installBannerInappBtn');
             const inappGuide = document.getElementById('installBannerInappGuide');
             // 모든 보조 섹션 초기화
-            [iosGuide, actions, inappBtn, inappGuide].forEach(el => { if (el) el.style.display = 'none'; });
+            [iosGuide, androidGuide, actions, inappBtn, inappGuide].forEach(el => { if (el) el.style.display = 'none'; });
+            if (title) title.textContent = '앱으로 설치하기';
+            if (desc) desc.textContent = '홈 화면에 추가해 앱처럼 빠르게 이용하세요.';
 
             if (_isInAppBrowser()) {
                 // 카카오톡 등 인앱 브라우저 → 설치 불가, 기본 브라우저로 유도
@@ -13077,11 +13106,16 @@
                 else { if (inappGuide) inappGuide.style.display = 'block'; }
                 banner.style.display = 'block';
             } else if (_isIOS()) {
-                // iOS Safari: beforeinstallprompt 미지원 → 홈 화면 추가 수동 안내
-                if (iosGuide) iosGuide.style.display = 'block';
+                // iOS 는 beforeinstallprompt 가 없다 → 브라우저별 홈 화면 추가 수동 안내
+                if (iosGuide) { iosGuide.innerHTML = _installGuideHTML(_isIOSSafari() ? 'ios-safari' : 'ios-other'); iosGuide.style.display = 'block'; }
                 banner.style.display = 'block';
             } else if (_deferredInstallPrompt) {
                 if (actions) actions.style.display = 'block';
+                banner.style.display = 'block';
+            } else if (_isAndroid()) {
+                // 설치 이벤트가 아직/전혀 없는 안드로이드(삼성 인터넷·Firefox 등) → 메뉴 경로 수동 안내.
+                // 이벤트가 나중에 오면 beforeinstallprompt 핸들러가 다시 그려 [설치하기] 버튼으로 바뀐다.
+                if (androidGuide) { androidGuide.innerHTML = _installGuideHTML('android'); androidGuide.style.display = 'block'; }
                 banner.style.display = 'block';
             }
         }
@@ -13121,9 +13155,10 @@
         }
 
         function initInstallBanner() {
-            // iOS·인앱 브라우저는 beforeinstallprompt 이벤트가 없으므로
-            // 로드 시 직접 판단(약간 지연 — 첫 화면 안정화 후)
+            // iOS·인앱 브라우저는 beforeinstallprompt 이벤트가 없으므로 로드 시 직접 판단(첫 화면 안정화 후).
+            // 안드로이드는 이벤트를 조금 기다렸다가(Chrome 은 보통 수 초 안에 준다) 없으면 수동 안내로.
             if (_isIOS() || _isInAppBrowser()) setTimeout(maybeShowInstallBanner, 1200);
+            else if (_isAndroid()) setTimeout(maybeShowInstallBanner, 3000);
         }
 
         async function getAdminPushSubscriptions() {
@@ -16312,6 +16347,11 @@ ${body}
         body.gatheo-nav #bgm-playlist-panel { bottom: calc(var(--gnav-h) + 56px); }
         body.gatheo-nav #auto-toast { bottom: calc(var(--gnav-h) + 72px); }
         #installBanner { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+        #installBanner .install-guide { margin-top: 10px; font-size: 0.8rem; color: var(--wds-gray-700); line-height: 1.55; background: var(--wds-gray-100); border-radius: 9px; padding: 10px 12px; }
+        #installBanner .install-guide .ig-step { margin-top: 4px; }
+        #installBanner .install-guide .ig-step:first-child { margin-top: 0; }
+        #installBanner .install-guide .ig-sub { color: var(--wds-gray-500); }
+        #installBanner .install-guide .ig-ico { display: inline-block; vertical-align: -3px; width: 14px; height: 16px; }
         body.gatheo-nav #installBanner { bottom: calc(var(--gnav-h) + 72px); }
     </style>
 
