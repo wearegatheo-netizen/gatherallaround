@@ -7305,8 +7305,8 @@
                         <div class="perf-section" id="perfHeadcountSection" style="display:${_cs().startSlot!==null&&_cs().endSlot!==null?'block':'none'}">
                             <div class="perf-section-title">인원수</div>
                             <div style="display:flex;align-items:center;gap:12px">
-                                <input type="number" id="perfHeadcount" min="1" max="20" value="${_cs().headcount}"
-                                    oninput="let v=parseInt(this.value)||1; if(v>20){v=20; this.value='20';} _cs().headcount=Math.max(1,Math.min(20,v)); renderPerfFee()"
+                                <input type="number" id="perfHeadcount" min="1" max="${PERF_MAX_HEADCOUNT}" value="${_cs().headcount}"
+                                    oninput="let v=parseInt(this.value)||1; if(v>PERF_MAX_HEADCOUNT){v=PERF_MAX_HEADCOUNT; this.value=String(PERF_MAX_HEADCOUNT);} _cs().headcount=Math.max(1,Math.min(PERF_MAX_HEADCOUNT,v)); renderPerfFee()"
                                     style="width:80px;height:40px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-family:inherit;outline:none">
                                 <span style="font-size:0.85rem;color:var(--wds-gray-600)">명</span>
                             </div>
@@ -7727,6 +7727,7 @@
         const PERF_AUDIENCE_TBD_MARK = '[관람객 미정·당일 추가결제]';
 
         // 예약번호: 6자리, 공연 예매번호와 동일 charset (헷갈리는 I/L/O/0/1 제외)
+        const PERF_MAX_HEADCOUNT = 30; // 공간 대관 예약 가능 최대 인원 (2026-09-30: 20 → 30)
         const PERF_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
         function genPerfBookingCode() {
             const buf = new Uint32Array(6);
