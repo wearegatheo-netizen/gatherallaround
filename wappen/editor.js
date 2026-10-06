@@ -39,6 +39,9 @@ export class WappenEditor {
         canvas.addEventListener('pointerup', this._onUp);
         canvas.addEventListener('pointercancel', this._onUp);
         canvas.addEventListener('lostpointercapture', this._onUp);
+        this._onGesture = (e) => e.preventDefault();   // iOS Safari: 캔버스 위 핀치가 페이지 확대로 새지 않게
+        canvas.addEventListener('gesturestart', this._onGesture);
+        canvas.addEventListener('gesturechange', this._onGesture);
         window.addEventListener('keydown', this._onKey);
         this.ro = new ResizeObserver(() => this.fit());
         this.ro.observe(canvas.parentElement);
@@ -274,6 +277,8 @@ export class WappenEditor {
         c.removeEventListener('pointerup', this._onUp);
         c.removeEventListener('pointercancel', this._onUp);
         c.removeEventListener('lostpointercapture', this._onUp);
+        c.removeEventListener('gesturestart', this._onGesture);
+        c.removeEventListener('gesturechange', this._onGesture);
         window.removeEventListener('keydown', this._onKey);
     }
 }

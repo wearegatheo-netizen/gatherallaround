@@ -239,14 +239,14 @@ const navigate = (hash) => { if (location.hash === hash) render(); else location
 const replaceHash = (hash) => { history.replaceState(null, '', location.pathname + location.search + hash); };
 let cleanup = null;
 const setCleanup = (fn) => { cleanup = fn; };
-function setActiveNav(key) { $$('#mainNav a').forEach(a => a.classList.toggle('active', a.dataset.nav === key)); }
+function setActiveNav(key) { $$('#mainNav a, #bottomNav a').forEach(a => a.classList.toggle('active', a.dataset.nav === key)); }
 
 async function render() {
     if (cleanup) { try { cleanup(); } catch (_) {} cleanup = null; }
     document.body.classList.remove('editing');
     const r = parseHash();
     const top = r.segs[0] || 'home';
-    setActiveNav({ home: 'home', ranking: 'ranking', items: 'items', request: 'items', new: 'new', admin: 'admin' }[top] || '');
+    setActiveNav({ home: 'home', ranking: 'ranking', items: 'items', request: 'items', new: 'new', admin: 'admin', me: 'me' }[top] || '');
     app.className = 'wp-container';
     app.innerHTML = loadingHTML();
     window.scrollTo(0, 0);
@@ -706,7 +706,7 @@ async function viewWork(r) {
         ${p ? `<div class="section-title"><h2>같은 프로젝트의 다른 작품</h2><a class="more" href="#/project/${p.id}">모두 보기 ›</a></div><div class="strip" id="moreStrip">${loadingHTML()}</div>` : ''}`;
 
     function renderReactions() {
-        $('#reactBar').innerHTML = REACTIONS.map(x => `<button type="button" class="reaction-btn ${mineKind === x.key ? 'active' : ''}" data-react="${x.key}" title="${esc(x.label)}">${x.emoji} <span>${esc(x.label)}</span> <span class="n">${num(counts[x.key] || 0)}</span></button>`).join('');
+        $('#reactBar').innerHTML = REACTIONS.map(x => `<button type="button" class="reaction-btn ${mineKind === x.key ? 'active' : ''}" data-react="${x.key}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${x.emoji} <span class="lbl">${esc(x.label)}</span> <span class="n">${num(counts[x.key] || 0)}</span></button>`).join('');
     }
     renderReactions();
     let busy = false;

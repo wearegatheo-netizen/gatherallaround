@@ -89,7 +89,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('홈: 프로젝트 카드 2개', await p.locator('.card-grid .card').count() === 2);
     chk('홈: 인기 작품 스트립(랭킹 RPC)', await p.locator('#popStrip .card').count() === 1);
     await shot(p, 'home');
-    chk('홈: 로그인 상태 — 아바타 버튼', await p.locator('.wp-avatar-btn').count() === 1 && (await p.locator('.wp-avatar-btn').innerText()).includes('길동'));
+    chk('홈: 로그인 상태 — 아바타 버튼', await p.locator('.wp-avatar-btn').count() === 1 && (await p.locator('.wp-avatar-btn').textContent()).includes('길동'));   // ≤480px 는 닉네임 숨김 → textContent
     await p.click('.chips a:has-text("인쇄")');
     await p.waitForFunction(() => location.hash.includes('group=print'));
     await p.waitForSelector('.chips.scroll a:has-text("A4")');
@@ -99,11 +99,24 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('홈: 사이즈 필터(A4) → 1개', (await p.locator('.card-grid .card .card-title').innerText()) === 'A4 포스터');
     chk('홈: 필터가 supabase eq(size_key) 로 전달', await p.evaluate(() => window.__sbCalls.some(c => c.table === 'wappen_projects' && c.filters.some(f => f[0] === 'size_key' && f[1] === 'a4'))));
 
+    // 1b. 새 프로젝트 화면 (사이즈 선택·업로드 영역) + 모바일 하단 탭바
+    await p.goto(`${BASE}/wappen/#/new`); await p.waitForSelector('.size-opt');
+    chk('새 프로젝트: 인쇄 사이즈 7개·A4 기본 선택', await p.locator('.size-opt').count() === 7 && (await p.locator('.size-opt.active b').innerText()) === 'A4');
+    await p.click('.size-opt[data-k="a3"]'); await p.click('#orientRow [data-o="landscape"]');
+    chk('새 프로젝트: A3 가로 → 4961×3508px 안내', (await p.locator('#sizeHelp').innerText()).includes('4961×3508px'));
+    const dz = await p.locator('#drop').boundingBox();
+    chk('새 프로젝트: 업로드 영역이 블록(폭 ≥ 200px)', dz && dz.width > 200 && dz.height > 60);
+    const bottomNavVisible = await p.locator('#bottomNav').isVisible();
+    chk(`하단 탭바: ${VW < 640 ? '모바일에서 표시' : '데스크톱에서 숨김'}`, bottomNavVisible === (VW <= 640));
+    if (VW <= 640) chk('하단 탭바: 만들기 활성', (await p.locator('#bottomNav a[data-nav="new"]').getAttribute('class') || '').includes('active'));
+    await shot(p, 'new');
+
     // 2. 에디터
     await p.goto(`${BASE}/wappen/#/edit/${PID}`);
     await p.waitForSelector('#edCanvas');
     await p.waitForFunction(() => window.wappen && window.wappen.editor && document.querySelectorAll('.ed-item').length === 2);
     chk('에디터: 와펜 서랍 2개·편집 모드 body.editing', await p.evaluate(() => document.body.classList.contains('editing')));
+    chk('에디터: 하단 탭바 숨김', !(await p.locator('#bottomNav').isVisible()));
     await p.click('.ed-item:first-child');
     await p.waitForFunction(() => window.wappen.editor.items.length === 1);
     let it = await p.evaluate(() => window.wappen.editor.items[0]);

@@ -127,5 +127,8 @@
   다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
 - **공유**: 카카오톡이 해시를 버리므로 `/wappen/?w=<작품>`·`?p=<프로젝트>` 쿼리 → `functions/_middleware.js` 가 OG 주입(`?news=` 분기는 그대로), 페이지가 로드 시 해시 라우트로 치환.
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
+- 모바일(≤640px)은 헤더 메뉴 대신 **하단 탭바**(`.wp-bottom-nav`, 편집 화면에선 숨김). 설치형(PWA, 상태바 black-translucent)·노치 대응은
+  `--wp-safe-top/--wp-safe-bottom`(env(safe-area-inset-*))을 헤더·에디터·탭바·시트가 공유. `label.dropzone` 은 반드시 `display:block`(inline 이면 점선 테두리가 깨짐).
+  이미지 업로드 UI 가 추가되면 같은 `.dropzone` 클래스를 쓸 것.
 - 테스트: `tests/wappen-api-unit.mjs`·`tests/middleware-unit.mjs`(node) · `tests/ui-wappen.js`(Playwright, 가짜 supabase/Kakao/API, `VIEWPORT=390x844 DARK=1 SHOT_DIR=` 옵션).
   운영 절차·한도·주의는 `docs/WAPPEN-RUNBOOK.md`. 마이그레이션 `supabase/migrations/20261006_wappen.sql` 은 **master 머지 전에** SQL Editor 에서 실행.
