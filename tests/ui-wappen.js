@@ -27,6 +27,7 @@ const WORK = { id: WID, project_id: PID, author_id: UID, author_name: '길동', 
 const FAKE = `
 window.__sbCalls = []; window.__apiCalls = []; window.__blobs = []; window.__downloads = [];
 const TABLES = ${JSON.stringify({ wappen_projects: [PROJECT, PROJECT2], wappen_items: ITEMS, wappen_works: [WORK] })};
+window.TABLES = TABLES;   // 테스트에서 "다른 사람이 올린 데이터"를 흉내낼 때 접근
 const RANK = [{ rank: 1, id: '${WID}', title: '내 작품', preview_url: '${BASE}/icon-512.png', preview_w: 1080, preview_h: 1080, author_name: '길동', author_avatar: null, project_id: '${PID}', project_title: '테스트 프로젝트', size_key: 'ig_square', orientation: 'portrait', score: 2, total: 2 }];
 function builder(table) {
   const st = { table, filters: [], single: false, range: null };
@@ -88,6 +89,13 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.waitForSelector('.card-grid .card', { timeout: 15000 });
     chk('홈: 프로젝트 카드 2개', await p.locator('.card-grid .card').count() === 2);
     chk('홈: 인기 작품 스트립(랭킹 RPC)', await p.locator('#popStrip .card').count() === 1);
+    await p.waitForSelector('#newStrip .card');
+    chk('홈: 방금 올라온 작품 스트립', await p.locator('#newStrip .card').count() === 1);
+    // 라이브 갱신: 다른 사람이 프로젝트를 올린 상황을 흉내(가짜 DB 에 추가) → liveKick → 깜빡임 없이 카드 3개
+    await p.evaluate(() => { window.TABLES.wappen_projects.push({ ...window.TABLES.wappen_projects[0], id: '33333333-3333-4333-8333-333333333399', title: '라이브 프로젝트', created_at: new Date(Date.now() + 1000).toISOString() }); window.wappen.liveKick('realtime'); });
+    await p.waitForFunction(() => document.querySelectorAll('.card-grid .card').length === 3, null, { timeout: 10000 });
+    chk('라이브 갱신: 새 프로젝트가 새로고침 없이 나타남', (await p.locator('.card-grid .card .card-title').allInnerTexts()).includes('라이브 프로젝트'));
+    await p.evaluate(() => { window.TABLES.wappen_projects.pop(); });
     await shot(p, 'home');
     chk('홈: 로그인 상태 — 아바타 버튼', await p.locator('.wp-avatar-btn').count() === 1 && (await p.locator('.wp-avatar-btn').textContent()).includes('길동'));   // ≤480px 는 닉네임 숨김 → textContent
     await p.click('.chips a:has-text("인쇄")');

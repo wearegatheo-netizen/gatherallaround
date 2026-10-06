@@ -31,7 +31,37 @@ export const heart = (cx, cy, s) => `M ${cx} ${cy + 0.44 * s} C ${cx - 0.2 * s} 
 export const dot = (cx, cy, r, fill = ink) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"/>`;
 export const line = (x1, y1, x2, y2, w = SW, color = ink) => `<path d="M ${x1} ${y1} L ${x2} ${y2}" stroke="${color}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`;
 export const stroke = (d, w = SW, color = ink, extra = '') => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
-export const shine = (cx, cy, rx, ry, rot = -30) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff" fill-opacity=".55" transform="rotate(${rot} ${cx} ${cy})"/>`;
+export const shine = (cx, cy, rx, ry, rot = -30, op = .55) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff" fill-opacity="${op}" transform="rotate(${rot} ${cx} ${cy})"/>`;
+
+// ── 입체(볼륨) 표현: 방사형 그라데이션 + 아래쪽 그늘(클립) + 하이라이트 ─────────
+const hex2rgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+export const shade = (h, k) => { const [r, g, b] = hex2rgb(h); return k >= 0 ? rgb2hex(r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k) : rgb2hex(r * (1 + k), g * (1 + k), b * (1 + k)); };
+let gid = 0;
+export const sphere = (base, { cx = '36%', cy = '30%', r = '78%', light = .5, dark = -.38 } = {}) => {
+    const id = 'g' + (++gid);
+    return { fill: `url(#${id})`, def: `<radialGradient id="${id}" cx="${cx}" cy="${cy}" r="${r}"><stop offset="0" stop-color="${shade(base, light)}"/><stop offset=".42" stop-color="${base}"/><stop offset="1" stop-color="${shade(base, dark)}"/></radialGradient>` };
+};
+// 조각 d 를 입체 패치로: 그라데이션 채움 + 외곽선 + (클립된) 아래 그늘 + 스티치 + 하이라이트
+export const vol = (d, base, { gl = null, sh = [600, 760, 420, 260], shOp = .14, cx, cy, light, dark } = {}) => {
+    const g2 = sphere(base, { cx, cy, light, dark }); const cid = 'c' + (++gid);
+    return `<defs>${g2.def}<clipPath id="${cid}"><path d="${d}"/></clipPath></defs>` + P(d, g2.fill)
+        + (sh ? `<g clip-path="url(#${cid})"><ellipse cx="${sh[0]}" cy="${sh[1]}" rx="${sh[2]}" ry="${sh[3]}" fill="#000" fill-opacity="${shOp}"/></g>` : '')
+        + stitch(d) + (gl ? shine(...gl) : '');
+};
+// 3차 베지어 중심선을 따라 폭이 변하는 띠의 외곽 경로 (바나나 등)
+export const ribbon = ([p0, p1, p2, p3], widthAt, n = 48) => {
+    const pt = (t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
+    const L = [], R = [];
+    for (let i = 0; i <= n; i++) {
+        const t = i / n, [x, y] = pt(t), [x2, y2] = pt(Math.min(1, t + 0.01)), [x1, y1] = pt(Math.max(0, t - 0.01));
+        const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, w = widthAt(t) / 2;
+        L.push([x + nx * w, y + ny * w]); R.push([x - nx * w, y - ny * w]);
+    }
+    const f = (p) => p.map(v => v.toFixed(1)).join(' ');
+    return 'M ' + L.map(f).join(' L ') + ' L ' + R.reverse().map(f).join(' L ') + ' Z';
+};
+export const leaf = (cx, cy, rx, ry, rot, fill = C.dgreen) => g(P(ellipse(cx, cy, rx, ry), fill) + stroke(`M ${cx - rx + 20} ${cy} L ${cx + rx - 20} ${cy}`, 7, '#fff', 'stroke-opacity=".45"'), `rotate(${rot} ${cx} ${cy})`);
 export const g = (inner, transform) => `<g transform="${transform}">${inner}</g>`;
 
 // 귀여운 얼굴: 점 눈(+하이라이트), 볼터치, 입
@@ -310,5 +340,96 @@ add('smile', '스마일', '캐릭터·자연', ['웃음', '노랑', '해피'],
     + dot(390, 440, 34) + dot(610, 440, 34) + dot(402, 428, 12, '#fff') + dot(622, 428, 12, '#fff')
     + stroke(`M 330 600 q 170 150 340 0`, 22) + dot(280, 560, 36, C.blush) + dot(720, 560, 36, C.blush));
 
+// 7) 과일 — 얼굴 없음, 입체(그라데이션·하이라이트) 표현
+const FR = '과일';
+add('fruit-apple', '사과', FR, ['빨강', '과일', '입체'],
+    stroke(`M 500 300 C 505 240 520 200 545 160`, 22, C.brown) + leaf(585, 215, 95, 40, -35)
+    + vol(`M 500 300 C 330 210 150 330 170 560 C 190 760 350 905 500 870 C 650 905 810 760 830 560 C 850 330 670 210 500 300 Z`, '#E8434A', { gl: [370, 430, 70, 36, -30, .5] }));
+add('fruit-pear', '배', FR, ['노랑', '과일', '입체'],
+    stroke(`M 500 230 C 505 180 520 140 545 100`, 20, C.brown) + leaf(570, 165, 80, 34, -40)
+    + vol(`M 500 230 C 420 230 395 340 375 430 C 320 530 230 590 240 710 C 255 860 380 910 500 910 C 620 910 745 860 760 710 C 770 590 680 530 625 430 C 605 340 580 230 500 230 Z`, '#CFD64A', { gl: [400, 620, 60, 110, -20, .45], sh: [620, 820, 380, 220] }));
+add('fruit-banana', '바나나', FR, ['노랑', '과일', '입체'], (() => {
+    const ctrl = [[190, 300], [230, 720], [640, 840], [880, 640]];
+    const body = ribbon(ctrl, (t) => 70 + 150 * Math.sin(Math.PI * t) ** 0.8);
+    const ridge = ribbon(ctrl, (t) => 2 + 60 * Math.sin(Math.PI * t) ** 0.8);
+    return vol(body, '#F7D23E', { cx: '38%', cy: '35%', gl: [400, 560, 150, 34, 38, .4], sh: [640, 800, 340, 160] })
+        + `<path d="${ridge}" fill="none" stroke="${ink}" stroke-opacity=".22" stroke-width="7"/>`
+        + patch(ellipse(190, 300, 28, 44), shade('#8B5A2B', -.15)) + patch(ellipse(880, 640, 34, 30), shade('#8B5A2B', -.15));
+})());
+add('fruit-grapes', '포도', FR, ['보라', '과일', '입체'], (() => {
+    const s1 = sphere('#7B4FC4'); const rows = [[420, [350, 450, 550, 650]], [560, [400, 500, 600]], [700, [450, 550]], [830, [500]]];
+    return `<defs>${s1.def}</defs>` + stroke(`M 500 330 C 500 280 510 230 525 180`, 22, C.brown) + leaf(600, 270, 110, 48, -25)
+        + rows.map(([y, xs]) => xs.map(x => P(circle(x, y, 96), s1.fill) + shine(x - 30, y - 34, 26, 15, -30, .5)).join('')).join('');
+})());
+add('fruit-peach', '복숭아', FR, ['핑크', '과일', '입체'],
+    stroke(`M 500 230 C 500 190 505 160 520 130`, 20, C.brown) + leaf(430, 200, 95, 40, -40)
+    + vol(circle(500, 560, 335), '#F58B6B', { gl: [370, 450, 70, 40, -30, .5] })
+    + stroke(`M 500 232 C 470 420 470 640 500 890`, 16, ink, 'stroke-opacity=".3"'));
+add('fruit-tangerine', '귤', FR, ['주황', '과일', '입체'],
+    vol(circle(500, 560, 335), '#FF9F2E', { gl: [370, 450, 70, 40, -30, .5] })
+    + [[320, 480], [400, 420], [480, 390], [560, 400], [640, 440], [700, 520], [330, 580], [410, 560], [500, 540], [590, 560], [670, 610], [360, 680], [450, 700], [540, 720], [630, 700], [720, 650], [420, 790], [520, 820], [620, 790]]
+        .map(([x, y]) => dot(x, y, 7, 'rgba(0,0,0,.14)')).join('')
+    + patch(star(500, 232, 72, 30, 5, -90), C.dgreen) + dot(500, 232, 16, C.brown));
+add('fruit-pineapple', '파인애플', FR, ['노랑', '여름', '입체'], (() => {
+    const body = ellipse(500, 640, 235, 300); const cid = 'c' + (++gid);
+    const leaves = [[500, 340, 500, 70, 545, 330], [480, 345, 380, 110, 505, 330], [520, 345, 625, 110, 500, 330], [470, 350, 300, 210, 490, 335], [530, 350, 700, 210, 510, 335], [460, 360, 260, 300, 480, 345], [540, 360, 740, 300, 520, 345]];
+    return leaves.slice().reverse().map(([x1, y1, x2, y2, x3, y3]) => P(poly([[x1, y1], [x2, y2], [x3, y3]]), C.dgreen)).join('')
+        + vol(body, '#F5B32F', { gl: [410, 470, 60, 100, -20, .35], sh: [600, 860, 300, 180] })
+        + `<defs><clipPath id="${cid}"><path d="${body}"/></clipPath></defs><g clip-path="url(#${cid})">`
+        + [-500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500].map(k => stroke(`M ${260 + k} 340 L ${740 + k} 940`, 9, ink, 'stroke-opacity=".3"') + stroke(`M ${740 - k} 340 L ${260 - k} 940`, 9, ink, 'stroke-opacity=".3"')).join('') + '</g>';
+})());
+add('fruit-kiwi', '키위', FR, ['초록', '단면', '입체'],
+    vol(circle(500, 500, 400), '#8B6B3E', { gl: null, sh: null })
+    + (() => { const s2 = sphere('#9CCB4A', { cx: '50%', cy: '50%', light: .4, dark: -.25 }); return `<defs>${s2.def}</defs><path d="${circle(500, 500, 352)}" fill="${s2.fill}" stroke="${ink}" stroke-width="8"/>`; })()
+    + `<path d="${ellipse(500, 500, 95, 130)}" fill="#EAF2C6"/>`
+    + [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(a => `<ellipse cx="500" cy="300" rx="9" ry="20" fill="${ink}" transform="rotate(${a} 500 500)"/>`).join(''));
+add('fruit-blueberry', '블루베리', FR, ['파랑', '과일', '입체'], (() => {
+    const s1 = sphere('#4C5FD5'); const crown = (x, y) => `<path d="${star(x, y, 40, 18, 5, -90)}" fill="${shade('#4C5FD5', -.5)}"/>`;
+    return `<defs>${s1.def}</defs>` + [[500, 400, 165], [360, 640, 175], [650, 630, 175]].map(([x, y, r]) => P(circle(x, y, r), s1.fill) + stitch(circle(x, y, r)) + crown(x, y - r * .45) + shine(x - r * .35, y - r * .4, r * .22, r * .12, -30, .45)).join('');
+})());
+add('fruit-mango', '망고', FR, ['주황', '열대', '입체'], (() => {
+    const d = `M 300 330 C 200 420 180 620 300 760 C 420 900 700 900 790 720 C 860 580 780 380 640 300 C 540 240 400 240 300 330 Z`; const cid = 'c' + (++gid);
+    return stroke(`M 330 330 C 300 290 280 250 270 200`, 20, C.brown) + leaf(380, 230, 110, 40, -20)
+        + vol(d, '#FFA62B', { gl: [400, 450, 80, 45, -25, .5] })
+        + `<defs><clipPath id="${cid}"><path d="${d}"/></clipPath><radialGradient id="${cid}b"><stop offset="0" stop-color="#E8434A" stop-opacity=".6"/><stop offset="1" stop-color="#E8434A" stop-opacity="0"/></radialGradient></defs><g clip-path="url(#${cid})"><ellipse cx="690" cy="430" rx="300" ry="260" fill="url(#${cid}b)"/></g>` + stitch(d);
+})());
+add('fruit-avocado', '아보카도', FR, ['초록', '단면', '입체'],
+    vol(`M 500 110 C 660 110 770 320 770 540 C 770 760 650 910 500 910 C 350 910 230 760 230 540 C 230 320 340 110 500 110 Z`, '#2F6B3A', { gl: null, shOp: .18 })
+    + `<path d="M 500 165 C 630 165 715 345 715 540 C 715 735 620 860 500 860 C 380 860 285 735 285 540 C 285 345 370 165 500 165 Z" fill="#C5DD7A"/>`
+    + `<path d="M 500 200 C 610 200 680 365 680 540 C 680 710 600 825 500 825 C 400 825 320 710 320 540 C 320 365 390 200 500 200 Z" fill="#DCEBA0"/>`
+    + vol(circle(500, 600, 150), '#8B4A2B', { gl: [450, 550, 40, 24, -30, .45], sh: [560, 680, 140, 90] }));
+add('fruit-lemon-slice', '레몬 단면', FR, ['노랑', '단면', '상큼'], (() => {
+    const s1 = sphere('#F9D71C', { cx: '45%', cy: '42%', light: .3, dark: -.2 });
+    return `<defs>${s1.def}</defs>` + P(circle(500, 500, 400), s1.fill) + stitch(circle(500, 500, 400))
+        + `<path d="${circle(500, 500, 340)}" fill="#FFF3A6" stroke="${ink}" stroke-width="8"/>` + `<path d="${circle(500, 500, 300)}" fill="#FFE264"/>`
+        + [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<path d="M 500 500 L 500 200" stroke="#FFF3A6" stroke-width="16" stroke-linecap="round" transform="rotate(${a} 500 500)"/>`).join('') + dot(500, 500, 34, '#FFF3A6');
+})());
+add('fruit-plum', '자두', FR, ['보라', '과일', '입체'],
+    stroke(`M 500 230 C 500 190 505 160 520 130`, 20, C.brown) + leaf(575, 200, 85, 36, -35)
+    + vol(circle(500, 560, 335), '#6B2F8A', { gl: [370, 450, 70, 40, -30, .5] }) + stroke(`M 520 232 C 560 420 560 640 520 890`, 16, ink, 'stroke-opacity=".3"'));
+add('fruit-melon', '멜론 조각', FR, ['주황', '여름', '입체'],
+    vol(`M 100 400 A 400 400 0 0 0 900 400 Z`, '#8FBF5A', { gl: null, sh: null, cx: '50%', cy: '20%' })
+    + `<path d="M 150 400 A 350 350 0 0 0 850 400 Z" fill="#DDEFB0"/>`
+    + (() => { const s2 = sphere('#F5A95F', { cx: '50%', cy: '20%', light: .3, dark: -.2 }); return `<defs>${s2.def}</defs><path d="M 190 400 A 310 310 0 0 0 810 400 Z" fill="${s2.fill}" stroke="${ink}" stroke-width="8"/>`; })()
+    + stroke(`M 150 400 A 350 350 0 0 0 850 400`, 5, ink, 'stroke-opacity=".25" stroke-dasharray="4 26"'));
+add('fruit-strawberry', '딸기', FR, ['빨강', '과일', '입체'],
+    vol(`M 500 900 C 250 800 160 600 180 430 C 200 300 350 260 500 300 C 650 260 800 300 820 430 C 840 600 750 800 500 900 Z`, '#E8434A', { gl: [360, 420, 60, 34, -30, .45], sh: [600, 760, 380, 240] })
+    + [[380, 450], [520, 420], [640, 480], [330, 600], [470, 560], [600, 640], [420, 720], [560, 760], [500, 870]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="14" ry="22" fill="${C.cream}" fill-opacity=".9"/>`).join('')
+    + patch(`M 500 300 L 380 150 L 460 270 L 500 100 L 540 270 L 620 150 Z`, C.dgreen));
+add('fruit-cherry', '체리', FR, ['빨강', '과일', '입체'], (() => {
+    const s1 = sphere('#D62839');
+    return `<defs>${s1.def}</defs>` + stroke(`M 380 600 C 420 360 520 240 540 120 M 640 640 C 620 400 570 260 540 120`, 22, C.brown) + leaf(620, 180, 110, 48, -25)
+        + P(circle(370, 640, 170), s1.fill) + stitch(circle(370, 640, 170)) + P(circle(650, 680, 160), s1.fill) + stitch(circle(650, 680, 160))
+        + shine(310, 570, 40, 24, -30, .5) + shine(600, 615, 36, 20, -30, .5);
+})());
+add('fruit-watermelon', '수박 조각', FR, ['빨강', '여름', '입체'],
+    vol(`M 100 400 A 400 400 0 0 0 900 400 Z`, '#3DAA5C', { gl: null, sh: null, cx: '50%', cy: '20%' })
+    + `<path d="M 160 400 A 340 340 0 0 0 840 400 Z" fill="${C.cream}"/>`
+    + (() => { const s2 = sphere('#FF5C6C', { cx: '50%', cy: '15%', light: .25, dark: -.22 }); return `<defs>${s2.def}</defs><path d="M 210 400 A 290 290 0 0 0 790 400 Z" fill="${s2.fill}"/>`; })()
+    + [[380, 470], [500, 560], [620, 470], [450, 630], [560, 640], [500, 450]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="13" ry="21" fill="${ink}"/>`).join(''));
+add('fruit-lemon', '레몬', FR, ['노랑', '과일', '입체'],
+    leaf(540, 225, 120, 46, -15)
+    + vol(`M 120 520 C 120 300 330 250 500 250 C 670 250 880 300 880 520 C 880 740 670 790 500 790 C 330 790 120 740 120 520 Z`, '#F9D71C', { gl: [320, 420, 80, 40, -20, .5], sh: [620, 700, 360, 170] }));
+
 export const DESIGNS = D;
-export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연'];
+export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연', '과일'];

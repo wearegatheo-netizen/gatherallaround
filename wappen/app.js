@@ -288,6 +288,33 @@ const navigate = (hash) => { if (location.hash === hash) render(); else location
 const replaceHash = (hash) => { history.replaceState(null, '', location.pathname + location.search + hash); };
 let cleanup = null;
 const setCleanup = (fn) => { cleanup = fn; };
+// ── 라이브 갱신: 보이는 화면의 목록을 Realtime 이벤트·탭 복귀·주기(25초)로 조용히 다시 그린다 ──
+// 뷰는 setLive(fn) 으로 "깜빡임 없이 다시 그리는 함수"를 등록하고, render() 가 화면을 바꿀 때 해제한다.
+// Supabase Realtime 은 supabase_realtime 발행에 테이블이 등록된 경우(20261007 마이그레이션)만 이벤트가 오고,
+// 아니면 조용히 폴링만 동작한다. 내용이 바뀐 경우에만 DOM 을 갈아끼우도록 각 뷰가 서명(sig)을 비교한다.
+let liveFn = null, liveDebounce = 0, liveLast = 0;
+const setLive = (fn) => { liveFn = fn; };
+function liveKick(reason) {
+    if (!liveFn || document.hidden) return;
+    const minGap = reason === 'realtime' ? 400 : 4000;           // 포커스 이벤트 연타 방지
+    if (Date.now() - liveLast < minGap) return;
+    clearTimeout(liveDebounce);
+    liveDebounce = setTimeout(async () => { liveLast = Date.now(); try { await liveFn(reason); } catch (_) {} }, reason === 'realtime' ? 500 : 0);
+}
+function initLive() {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) liveKick('visible'); });
+    window.addEventListener('pageshow', (e) => { if (e.persisted) liveKick('pageshow'); });
+    window.addEventListener('focus', () => liveKick('focus'));
+    setInterval(() => liveKick('poll'), 25000);
+    try {
+        if (!sb || typeof sb.channel !== 'function') return;
+        const ch = sb.channel('wappen-live');
+        for (const table of ['wappen_works', 'wappen_projects']) ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => liveKick('realtime'));
+        ch.on('postgres_changes', { event: '*', schema: 'public', table: 'wappen_items' }, () => { state.items = null; liveKick('realtime'); });
+        ch.subscribe();
+    } catch (_) {}
+}
+const sigOf = (rows, pick) => rows.map(pick).join('|');
 // 뷰 안에서 #app 에 거는 위임 리스너는 반드시 이걸로 — 다음 render() 때 자동 해제(누적 방지)
 let viewAbort = null;
 const onAppClick = (fn) => app.addEventListener('click', fn, { signal: viewAbort.signal });
@@ -295,6 +322,7 @@ function setActiveNav(key) { $$('#mainNav a, #bottomNav a').forEach(a => a.class
 
 async function render() {
     if (cleanup) { try { cleanup(); } catch (_) {} cleanup = null; }
+    liveFn = null;
     if (viewAbort) viewAbort.abort();
     viewAbort = new AbortController();
     document.body.classList.remove('editing');
@@ -422,36 +450,53 @@ async function viewHome(r) {
             <div class="hero-actions"><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/new">${icon('plus')} 프로젝트 만들기</a><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/ranking">${icon('trophy')} 랭킹</a></div></section>
         <div class="section-title"><h2 id="popTitle">🔥 이번 주 인기 작품</h2><a class="more" href="#/ranking">더 보기 ${icon('chevron')}</a></div>
         <div class="strip" id="popStrip">${loadingHTML()}</div>
+        <div class="section-title"><h2>✨ 방금 올라온 작품</h2></div>
+        <div class="strip" id="newStrip">${loadingHTML()}</div>
         <div class="section-title"><h2>프로젝트</h2><a class="more" href="#/new">${icon('plus')} 새 프로젝트</a></div>
         ${sizeChipsHTML(f.group, f.size, (o) => mk({ ...o, q: f.text }))}
         <div class="filter-bar"><div class="search-box">${icon('search')}<input id="homeSearch" placeholder="프로젝트 검색 (제목)" value="${esc(f.text)}" maxlength="40"></div>
             <div class="seg"><button type="button" class="${f.sort === 'new' ? 'active' : ''}" data-sort="new">최신</button><button type="button" class="${f.sort === 'popular' ? 'active' : ''}" data-sort="popular">인기</button></div></div>
         <div id="projGrid">${loadingHTML()}</div>`;
 
-    // 인기 작품 — 이번 주 → 없으면 누적
-    (async () => {
+    // 인기 작품 — 이번 주 → 없으면 누적. 조용한 갱신(quiet)은 내용이 바뀐 경우만 교체.
+    let popSig = null, newSig = null, projSig = null;
+    async function loadPopular() {
         const strip = $('#popStrip'); if (!strip) return;
         try {
             let rows = await fetchRanking('week', null, 10);
             if (!rows.length) { rows = await fetchRanking('all', null, 10); const t = $('#popTitle'); if (t && rows.length) t.textContent = '🏆 인기 작품'; }
             if (!strip.isConnected) return;
+            const sig = sigOf(rows, x => x.id + ':' + x.score); if (sig === popSig) return; popSig = sig;
             strip.innerHTML = rows.length ? rows.map(x => workCardHTML(rankRowToWork(x), { showProject: false })).join('')
                 : `<div class="empty" style="width:100%;padding:24px">아직 반응을 받은 작품이 없어요. 첫 작품을 만들어보세요!</div>`;
-        } catch (_) { strip.innerHTML = `<div class="empty" style="width:100%">인기 작품을 불러오지 못했습니다.</div>`; }
-    })();
+        } catch (_) { if (popSig === null) strip.innerHTML = `<div class="empty" style="width:100%">인기 작품을 불러오지 못했습니다.</div>`; }
+    }
+    async function loadNewest() {
+        const strip = $('#newStrip'); if (!strip) return;
+        try {
+            const rows = (await fetchWorks({ sort: 'new', limit: 10 })).slice(0, 10);
+            if (!strip.isConnected) return;
+            const sig = sigOf(rows, x => x.id + ':' + x.reaction_count); if (sig === newSig) return; newSig = sig;
+            strip.innerHTML = rows.length ? rows.map(x => workCardHTML(x)).join('')
+                : `<div class="empty" style="width:100%;padding:24px">아직 작품이 없어요. 프로젝트를 골라 첫 작품을 만들어보세요!</div>`;
+        } catch (_) { if (newSig === null) strip.innerHTML = ''; }
+    }
+    loadPopular(); loadNewest();
 
     const grid = $('#projGrid');
-    async function loadProjects() {
-        grid.innerHTML = loadingHTML();
+    async function loadProjects(quiet = false) {
+        if (!quiet) { grid.innerHTML = loadingHTML(); projSig = null; }
         try {
             const rows = await fetchProjects(f);
             if (!grid.isConnected) return;
+            const sig = sigOf(rows, r => r.id + ':' + r.works_count + ':' + r.title); if (quiet && sig === projSig) return; projSig = sig;
             const hasMore = rows.length > PAGE; const list = rows.slice(0, PAGE);
             grid.innerHTML = (list.length ? `<div class="card-grid">${list.map(projectCardHTML).join('')}</div>` : emptyHTML('🗂️', f.text || f.size || f.group ? '조건에 맞는 프로젝트가 없어요.' : '아직 프로젝트가 없어요.', '<a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/new">첫 프로젝트 만들기</a>'))
                 + pagerHTML(f.page, hasMore, (pg) => mk({ page: pg, q: f.text }));
-        } catch (_) { grid.innerHTML = errorHTML(); }
+        } catch (_) { if (!quiet) grid.innerHTML = errorHTML(); }
     }
     loadProjects();
+    setLive(() => Promise.all([loadProjects(true), loadPopular(), loadNewest()]));
     // 검색은 포커스 유지를 위해 해시만 교체하고 그리드만 다시 그린다
     $('#homeSearch').addEventListener('input', debounce((e) => { f.text = e.target.value.trim(); f.page = 0; replaceHash(mk({ q: f.text })); loadProjects(); }, 350));
     $$('.seg [data-sort]').forEach(b => b.addEventListener('click', () => navigate(mk({ sort: b.dataset.sort === 'new' ? '' : b.dataset.sort, q: f.text }))));
@@ -492,21 +537,26 @@ async function viewProject(r) {
                 </div>
             </div>
         </div>
-        <div class="section-title"><h2>작품 ${num(p.works_count)}</h2>
+        <div class="section-title"><h2 id="worksTitle">작품 ${num(p.works_count)}</h2>
             <div class="seg"><a class="${sort === 'popular' ? 'active' : ''}" href="${mk({ sort: '' })}">인기</a><a class="${sort === 'new' ? 'active' : ''}" href="${mk({ sort: 'new' })}">최신</a></div></div>
         <div id="worksGrid">${loadingHTML()}</div>`;
 
-    (async () => {
-        const grid = $('#worksGrid');
+    let worksSig = null;
+    async function loadWorks(quiet = false) {
+        const grid = $('#worksGrid'); if (!grid) return;
         try {
             const rows = await fetchWorks({ project_id: id, sort, page });
             if (!grid.isConnected) return;
+            const sig = sigOf(rows, w => w.id + ':' + w.reaction_count + ':' + w.title); if (quiet && sig === worksSig) return; worksSig = sig;
             const hasMore = rows.length > PAGE, list = rows.slice(0, PAGE);
             grid.innerHTML = (list.length ? `<div class="card-grid">${list.map(w => workCardHTML(w, { showProject: false })).join('')}</div>`
                 : emptyHTML('🎨', '아직 작품이 없어요. 첫 작품을 만들어보세요!', `<a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">꾸미기 시작</a>`))
                 + pagerHTML(page, hasMore, (pg) => mk({ page: pg, sort: sort === 'popular' ? '' : sort }));
-        } catch (_) { grid.innerHTML = errorHTML(); }
-    })();
+            const h = $('#worksTitle'); if (h && list.length) h.textContent = `작품 ${num(page === 0 && !hasMore ? list.length : Math.max(p.works_count, list.length))}`;
+        } catch (_) { if (!quiet) grid.innerHTML = errorHTML(); }
+    }
+    loadWorks();
+    setLive(() => loadWorks(true));
 
     onAppClick(async (e) => {
         const b = e.target.closest('[data-act]'); if (!b) return;
@@ -796,12 +846,28 @@ async function viewWork(r) {
         else { showToast(out.message || '반응을 저장하지 못했어요.'); mineKind = prev; }
         renderReactions(); busy = false;
     });
-    if (p) (async () => {
-        const strip = $('#moreStrip');
+    let stripSig = null;
+    async function loadOthers() {
+        const strip = $('#moreStrip'); if (!strip || !p) return;
         try { const rows = (await fetchWorks({ project_id: p.id, sort: 'popular', limit: 11 })).filter(x => x.id !== id).slice(0, 10);
-            if (strip.isConnected) strip.innerHTML = rows.length ? rows.map(x => workCardHTML(x, { showProject: false })).join('') : `<div class="empty" style="width:100%;padding:20px">아직 다른 작품이 없어요. <a href="#/edit/${p.id}">첫 번째로 꾸며보기</a></div>`; }
-        catch (_) { strip.innerHTML = ''; }
-    })();
+            if (!strip.isConnected) return;
+            const sig = sigOf(rows, x => x.id + ':' + x.reaction_count); if (sig === stripSig) return; stripSig = sig;
+            strip.innerHTML = rows.length ? rows.map(x => workCardHTML(x, { showProject: false })).join('') : `<div class="empty" style="width:100%;padding:20px">아직 다른 작품이 없어요. <a href="#/edit/${p.id}">첫 번째로 꾸며보기</a></div>`; }
+        catch (_) { if (stripSig === null) strip.innerHTML = ''; }
+    }
+    loadOthers();
+    // 라이브: 다른 사람의 반응이 반영된 집계를 받아오고(내가 누르는 중이면 건너뜀), 다른 작품 스트립 갱신
+    setLive(async () => {
+        await loadOthers();
+        if (busy) return;
+        const fresh = await q(sb.from('wappen_works').select('reaction_count,reaction_counts').eq('id', id).maybeSingle()).catch(() => null);
+        if (!fresh || busy) return;
+        const next = fresh.reaction_counts || {};
+        if (JSON.stringify(next) === JSON.stringify(counts)) return;
+        Object.keys(counts).forEach(k => delete counts[k]); Object.assign(counts, next);
+        const t = $('#reactTotal'); if (t) t.textContent = num(fresh.reaction_count);
+        renderReactions();
+    });
     onAppClick(async (e) => {
         const b = e.target.closest('.detail-info [data-act]'); if (!b) return;
         let act = b.dataset.act;
@@ -886,8 +952,12 @@ async function viewRanking(r) {
         <div class="seg"><a class="${period === 'week' ? 'active' : ''}" href="${mk({ period: '' })}">이번 주</a><a class="${period === 'all' ? 'active' : ''}" href="${mk({ period: 'all' })}">전체</a></div></div>
         ${sizeChipsHTML(group, size, mk)}
         <div id="rankList" style="margin-top:14px">${loadingHTML()}</div>`;
+    let rankSig = null;
+    async function loadRank(quiet = false) {
     try {
         const rows = await fetchRanking(period, size || group || null, 50);
+        const el = $('#rankList'); if (!el) return;
+        const sig = sigOf(rows, x => x.id + ':' + x.score); if (quiet && sig === rankSig) return; rankSig = sig;
         const medal = ['🥇', '🥈', '🥉'];
         $('#rankList').innerHTML = rows.length ? `<div class="rank-list">${rows.map(x => `<a class="rank-row" href="#/work/${x.id}">
                 <div class="rank-no ${x.rank <= 3 ? 'top' : ''}">${x.rank <= 3 ? medal[x.rank - 1] : x.rank}</div>
@@ -895,7 +965,10 @@ async function viewRanking(r) {
                 <div class="rank-info"><b>${esc(x.title)}</b><div class="card-meta">${avatarHTML(x.author_name, x.author_avatar)}<span>${esc(x.author_name)}</span><span>·</span><span>${esc(presetOf(x.size_key)?.label || x.size_key)}</span></div></div>
                 <div class="rank-score">❤️ ${num(x.score)}</div></a>`).join('')}</div>`
             : emptyHTML('🏆', period === 'week' ? '이번 주에 반응을 받은 작품이 아직 없어요.' : '아직 반응을 받은 작품이 없어요.', '<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/">작품 둘러보기</a>');
-    } catch (_) { $('#rankList').innerHTML = errorHTML(); }
+    } catch (_) { if (!quiet) $('#rankList').innerHTML = errorHTML(); }
+    }
+    await loadRank();
+    setLive(() => loadRank(true));
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -915,6 +988,8 @@ async function viewItems(r) {
         <div class="card-box" style="margin-top:22px;text-align:center"><b>원하는 와펜이 없나요?</b><p class="muted" style="margin:6px 0 12px">이름과 설명(참고 이미지)을 보내주시면 검토 후 추가해드려요.</p><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/request">${icon('send')} 와펜 요청하기</a></div>`;
     $('#itemSearch').addEventListener('input', debounce((e) => navigate(mk({ q: e.target.value.trim() })), 350));
     const inp = $('#itemSearch'); if (text) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    const itemsSig = sigOf(items, i => i.id);
+    setLive(async () => { const fresh = await fetchItems(true); if (sigOf(fresh, i => i.id) !== itemsSig && document.activeElement !== $('#itemSearch')) render(); });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1203,7 +1278,8 @@ function boot() {
     // 전역 위임: 로그인 게이트 버튼
     app.addEventListener('click', async (e) => { const b = e.target.closest('[data-act="login"]'); if (!b) return; if (await kakaoLogin()) render(); });
     window.addEventListener('hashchange', render);
-    window.wappen = { state, api, render, navigate, editor: null };
+    window.wappen = { state, api, render, navigate, editor: null, liveKick };
+    initLive();
     if (!sb) { app.innerHTML = errorHTML('필수 스크립트를 불러오지 못했습니다. 새로고침 해주세요.'); return; }
     // 인증 복원은 최대 2초만 기다리고 화면을 그린다 (공개 페이지는 로그인 없이도 보여야 함)
     Promise.race([bootAuth(), new Promise(r => setTimeout(r, 2000))]).catch(() => {}).then(render);
