@@ -221,7 +221,7 @@ export async function onRequest(context) {
 
     // GET: 셀프 진단 (PII 없음) — functions-diagnostics 워크플로가 호출
     if (request.method === 'GET') {
-        const out = { 시각: nowIso() };
+        const out = { 시각: nowIso(), 기본_와펜_세트: { version: SEED_VERSION, count: SEED_ITEMS.length } };   // 새 번들이 배포됐는지 확인용
         try {
             out.환경변수_SUPABASE = !!(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
             if (out.환경변수_SUPABASE) {
@@ -530,7 +530,7 @@ export async function onRequest(context) {
         }
 
         if (action === 'admin_seed_status') {
-            const r = await sbFetch(env, `wappen_items?select=image_url&image_url=like.${encodeURIComponent(SEED_BASE + '*')}`);
+            const r = await sbFetch(env, 'wappen_items?select=image_url&limit=5000');
             if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
             const have = new Set((await r.json()).map(x => x.image_url));
             const missing = SEED_ITEMS.filter(it => !have.has(SEED_BASE + it.file)).length;
@@ -538,7 +538,7 @@ export async function onRequest(context) {
         }
 
         if (action === 'admin_seed_items') {
-            const r0 = await sbFetch(env, `wappen_items?select=image_url&image_url=like.${encodeURIComponent(SEED_BASE + '*')}`);
+            const r0 = await sbFetch(env, 'wappen_items?select=image_url&limit=5000');
             if (!r0.ok) return fail(500, 'db', '기존 와펜을 확인하지 못했습니다.', { detail: await sbDetail(r0) });
             const have = new Set((await r0.json()).map(x => x.image_url));
             const rows = SEED_ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !have.has(SEED_BASE + it.file)).map(({ it, i }) => ({

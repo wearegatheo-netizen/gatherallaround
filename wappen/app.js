@@ -1097,7 +1097,10 @@ async function adminItems(body) {
     const seedCard = seed.ok ? `<div class="card-box" style="margin-bottom:12px"><div class="row between">
             <div><b>기본 와펜 세트</b> <span class="status-badge sm ${seed.missing ? 'status-pending' : 'status-approved'}">${seed.missing ? `${num(seed.missing)}개 미설치` : '설치됨'}</span>
                 <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 도형·동물·음악·음식·글자·캐릭터 — 직접 그린 원본(저작권 문제 없음). 설치된 것은 건너뛰어요.</div></div>
-            ${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}</div></div>` : '';
+            ${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}</div></div>`
+        : `<div class="card-box" style="margin-bottom:12px"><div class="row between"><div><b>기본 와펜 세트</b> <span class="status-badge sm status-rejected">상태 확인 실패</span>
+            <div class="muted" style="margin-top:4px">${esc(seed.message || '')}${seed.error === 'unknown_action' ? ' — 서버 배포가 아직 반영되지 않았어요. 잠시 후 다시 시도해주세요.' : ''}</div></div>
+            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="seed-retry">${icon('remix')} 다시 확인</button></div></div>`;
     const byCat = {}; for (const it of out.items) (byCat[it.category] = byCat[it.category] || []).push(it);
     body.innerHTML = seedCard + `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
         ${out.items.length ? Object.entries(byCat).map(([c, list]) => `<div class="card-box"><b>${esc(c)} <span class="muted">${list.length}</span></b><div class="list">${list.map(i => `<div class="list-row">
@@ -1106,9 +1109,10 @@ async function adminItems(body) {
             : emptyHTML('🧩', '등록된 와펜이 없어요. 첫 와펜을 등록해주세요.')}`;
     const refresh = () => adminItems(body);
     body.onclick = async (e) => {
-        const b = e.target.closest('[data-act="new-item"],[data-act="seed"],[data-edit],[data-hide],[data-del]'); if (!b) return;
+        const b = e.target.closest('[data-act="new-item"],[data-act="seed"],[data-act="seed-retry"],[data-edit],[data-hide],[data-del]'); if (!b) return;
         const item = out.items.find(i => i.id === (b.dataset.edit || b.dataset.hide || b.dataset.del));
         if (b.dataset.act === 'new-item') itemFormModal({}, refresh);
+        else if (b.dataset.act === 'seed-retry') refresh();
         else if (b.dataset.act === 'seed') {
             b.disabled = true;
             const o = await api('admin_seed_items');

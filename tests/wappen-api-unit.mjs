@@ -88,6 +88,7 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   ]);
   const { status, out } = await jrun(null, 'GET');
   chk('GET 진단 200·테이블·RPC·버킷', status === 200 && out.wappen_users_테이블 === true && out.wappen_ranking_rpc === true && out.wappen_버킷 === true && out.버킷_공개 === true);
+  chk('GET 진단에 기본 와펜 세트 버전·개수', out.기본_와펜_세트 && out.기본_와펜_세트.version === 1 && out.기본_와펜_세트.count === SEED_ITEMS.length);
   chk('진단에 PII 없음', !JSON.stringify(out).includes('kakao_id'));
 }
 // ── 3. 로그인
@@ -352,7 +353,7 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK()]);
   chk('일반 사용자 admin_seed_items → 403', (await jrun({ action: 'admin_seed_items', session: S })).status === 403);
   let inserted;
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&image_url=like.', { body: [{ image_url: SEED_BASE + SEED_ITEMS[0].file }, { image_url: SEED_BASE + SEED_ITEMS[1].file }] }],
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&limit=5000', { body: [{ image_url: SEED_BASE + SEED_ITEMS[0].file }, { image_url: SEED_BASE + SEED_ITEMS[1].file }, { image_url: 'https://sb.test/storage/v1/object/public/wappen/items/x.png' }] }],
     ['wappen_items', { method: 'POST', body: (rec) => { inserted = rec.json; return []; } }]]);
   let { status, out } = await jrun({ action: 'admin_seed_status', session: S });
   chk('admin_seed_status: 설치 2·미설치 N-2', status === 200 && out.total === SEED_ITEMS.length && out.installed === 2 && out.missing === SEED_ITEMS.length - 2);
@@ -360,7 +361,7 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   chk('admin_seed_items: 없는 것만 한 번에 insert', status === 200 && out.added === SEED_ITEMS.length - 2 && out.skipped === 2 && Array.isArray(inserted) && inserted.length === SEED_ITEMS.length - 2);
   chk('seed 행: 정적 URL·크기·태그·작성자', inserted.every(r => r.image_url.startsWith(SEED_BASE) && r.width_px > 0 && r.height_px > 0 && Array.isArray(r.tags) && r.created_by === ADM && r.name && r.category)
     && !inserted.some(r => r.image_url.endsWith(SEED_ITEMS[0].file)));
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&image_url=like.', { body: SEED_ITEMS.map(it => ({ image_url: SEED_BASE + it.file })) }]]);
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&limit=5000', { body: SEED_ITEMS.map(it => ({ image_url: SEED_BASE + it.file })) }]]);
   ({ status, out } = await jrun({ action: 'admin_seed_items', session: S }));
   chk('모두 설치됨 → insert 없이 added 0', status === 200 && out.added === 0 && !calls.some(c => c.method === 'POST' && c.url.endsWith('/wappen_items')));
 }
