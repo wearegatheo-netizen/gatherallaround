@@ -11,6 +11,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const KAKAO_KEY = '9627dd6537f30f1c42b30de51ceea2cf';
 const API_URL = '/wappen-api';
 const SITE_URL = 'https://gatherallaround.com/wappen/';
+// 공유 URL 은 루트+쿼리(?wp=프로젝트 / ?ww=작품) — 카카오톡 공유에서 동작이 검증된 유일한 형태.
+// 하위 경로(/wappen/?p=)는 카톡 인앱 브라우저에서 포털로 떨어졌다(2026-10-06). 루트 index.html 맨 앞 스크립트가 /wappen/#/… 로 넘긴다.
+const SHARE_BASE = 'https://gatherallaround.com/';
+const shareUrl = (kind, id) => `${SHARE_BASE}?${kind === 'work' ? 'ww' : 'wp'}=${id}`;
 const SESSION_KEY = 'wappen_session';
 const RETURN_KEY = 'wappen_return';
 const PAGE = 24;
@@ -517,8 +521,8 @@ async function viewProject(r) {
             ]);
             if (!act) return;
         }
-        if (act === 'share') shareSheet({ title: `${p.title} · 와펜 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: `${SITE_URL}?p=${id}`, imageUrl: p.thumb_url || p.base_image_url });
-        if (act === 'copy') copyText(`${SITE_URL}?p=${id}`);
+        if (act === 'share') shareSheet({ title: `${p.title} · 와펜 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: shareUrl('project', id), imageUrl: p.thumb_url || p.base_image_url });
+        if (act === 'copy') copyText(shareUrl('project', id));
         if (act === 'report') reportModal('project', id);
         if (act === 'edit') {
             const title = await promptModal({ title: '제목 수정', value: p.title, max: LIMITS.title }); if (title == null) return;
@@ -810,8 +814,8 @@ async function viewWork(r) {
             ]);
             if (!act) return;
         }
-        if (act === 'share') shareSheet({ title: `${w.title} · 와펜 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: `${SITE_URL}?w=${id}`, imageUrl: w.preview_url });
-        if (act === 'copy') copyText(`${SITE_URL}?w=${id}`);
+        if (act === 'share') shareSheet({ title: `${w.title} · 와펜 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: shareUrl('work', id), imageUrl: w.preview_url });
+        if (act === 'copy') copyText(shareUrl('work', id));
         if (act === 'edit' && p) navigate(`#/edit/${p.id}?work=${id}`);
         if (act === 'report') reportModal('work', id);
         if (act === 'download') downloadSheet(w, p);
@@ -1157,7 +1161,7 @@ function boot() {
     initKakao();
     // 카카오톡 등 메신저는 #hash 를 버리므로 공유 링크는 ?w= / ?p= 쿼리로 들어온다 → 해시 라우트로 치환
     const sp = new URLSearchParams(location.search);
-    const w = sp.get('w'), p = sp.get('p');
+    const w = sp.get('ww') || sp.get('w'), p = sp.get('wp') || sp.get('p');
     if (UUID_RE.test(w || '')) history.replaceState(null, '', location.pathname + '#/work/' + w.toLowerCase());
     else if (UUID_RE.test(p || '')) history.replaceState(null, '', location.pathname + '#/project/' + p.toLowerCase());
     else if (location.search) history.replaceState(null, '', location.pathname + (location.hash || ''));

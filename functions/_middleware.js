@@ -1,14 +1,15 @@
 // Cloudflare Pages middleware
 // ?news=<fileId> 요청에 대해 Drive에서 기사 제목을 가져와 OG 태그를 동적으로 주입.
 // 메신저 크롤러(KakaoTalk, Facebook 등)가 정적 HTML을 읽을 때 기사별 미리보기가 표시됨.
-// /wappen/?w=<작품 id> · /wappen/?p=<프로젝트 id> 요청에는 와펜 꾸미기 작품·프로젝트별 OG 태그를 주입
-// (해시 라우트는 크롤러가 못 보므로 공유 링크는 쿼리로 들어온다 — wappen/app.js 가 로드 시 해시로 치환).
+// 와펜 꾸미기 공유 링크에는 작품·프로젝트별 OG 태그를 주입: 표준 형태는 루트 /?wp=<프로젝트 id> · /?ww=<작품 id>
+// (카카오톡 공유에서 검증된 루트+쿼리 — 루트 index.html 맨 앞 스크립트가 /wappen/#/… 로 넘긴다),
+// 예전 형태 /wappen/?p= · /wappen/?w= 도 계속 받는다. 해시 라우트는 크롤러가 못 보므로 전부 쿼리.
 
 // Drive API 키는 Cloudflare 환경변수(DRIVE_API_KEY)에서 읽는다.
 // 미설정 시 기존 하드코딩 값으로 폴백(하위호환). 설정 후 이 폴백 값은 콘솔에서 폐기/제한 권장.
 const DRIVE_API_KEY_FALLBACK = 'AIzaSyDk7iyY1XU0mepXOOqwY6h5YitbHHg6t40';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const WAPPEN_SITE = 'https://gatherallaround.com/wappen/';
+const WAPPEN_SHARE = 'https://gatherallaround.com/';   // og:url — 재공유돼도 같은 표준 형태 유지
 
 function escapeAttr(s) {
     return String(s)
@@ -18,27 +19,38 @@ function escapeAttr(s) {
         .replace(/>/g, '&gt;');
 }
 
+// 와펜 공유 요청의 (작품 id, 프로젝트 id) — 루트는 wp/ww, /wappen/ 은 예전 p/w 도 허용
+function wappenShareIds(url) {
+    const sp = url.searchParams;
+    const root = /^\/(index\.html)?$/.test(url.pathname), sub = /^\/wappen\/?(index\.html)?$/.test(url.pathname);
+    if (!root && !sub) return null;
+    const w = sp.get('ww') || (sub ? sp.get('w') : null), p = sp.get('wp') || (sub ? sp.get('p') : null);
+    if (UUID_RE.test(w || '')) return { w: w.toLowerCase() };
+    if (UUID_RE.test(p || '')) return { p: p.toLowerCase() };
+    return null;
+}
+
 // 와펜 공유 요청이면 OG 데이터를, 아니면 null. service role 로 1행만 읽는다(공개 상태만, PII 없음).
 async function wappenOg(env, url) {
-    if (!/^\/wappen\/?(index\.html)?$/.test(url.pathname)) return null;
-    const w = url.searchParams.get('w'), p = url.searchParams.get('p');
-    if (!UUID_RE.test(w || '') && !UUID_RE.test(p || '')) return null;
+    const ids = wappenShareIds(url);
+    if (!ids) return null;
+    const w = ids.w, p = ids.p;
     if (!env || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
     const headers = { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` };
     const get = async (q) => { const r = await fetch(`${env.SUPABASE_URL}/rest/v1/${q}`, { headers }); if (!r.ok) return null; const rows = await r.json().catch(() => null); return Array.isArray(rows) ? rows[0] || null : null; };
-    if (UUID_RE.test(w || '')) {
-        const id = w.toLowerCase();
+    if (w) {
+        const id = w;
         const row = await get(`wappen_works?id=eq.${id}&status=eq.active&select=title,author_name,preview_url,preview_w,preview_h,wappen_projects(title,status)&limit=1`);
         if (!row || !row.preview_url) return null;
         const proj = row.wappen_projects && row.wappen_projects.status === 'active' ? row.wappen_projects.title : '';
         return { title: `${row.title} — ${row.author_name}님의 와펜 작품`, desc: `${proj ? proj + ' 프로젝트 · ' : ''}와펜을 붙여 꾸민 작품을 구경하고 반응을 남겨보세요`,
-            image: row.preview_url, w: row.preview_w, h: row.preview_h, url: `${WAPPEN_SITE}?w=${id}` };
+            image: row.preview_url, w: row.preview_w, h: row.preview_h, url: `${WAPPEN_SHARE}?ww=${id}` };
     }
-    const id = p.toLowerCase();
+    const id = p;
     const row = await get(`wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count,width_px,height_px&limit=1`);
     if (!row) return null;
     return { title: `${row.title} — 와펜 꾸미기 프로젝트`, desc: row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`,
-        image: row.thumb_url || row.base_image_url, w: null, h: null, url: `${WAPPEN_SITE}?p=${id}` };
+        image: row.thumb_url || row.base_image_url, w: null, h: null, url: `${WAPPEN_SHARE}?wp=${id}` };
 }
 
 export async function onRequest(context) {
@@ -46,7 +58,7 @@ export async function onRequest(context) {
     const DRIVE_API_KEY = (env && env.DRIVE_API_KEY) || DRIVE_API_KEY_FALLBACK;
     const url = new URL(request.url);
     const newsId = url.searchParams.get('news');
-    const wappenShare = url.pathname.startsWith('/wappen') && (url.searchParams.has('w') || url.searchParams.has('p'));
+    const wappenShare = !newsId && !!wappenShareIds(url);
 
     const response = await next();
 

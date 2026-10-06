@@ -200,7 +200,11 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.click('[data-act="share"]');
     await p.click('[data-s="kakao"]');
     const share = await p.evaluate(() => window.__kakaoShare);
-    chk('공유: 카카오 feed 에 ?w= 링크·미리보기 이미지', share && share.objectType === 'feed' && share.content.link.webUrl.includes(`?w=${WID}`) && share.content.imageUrl.includes('icon-512'));
+    chk('공유: 카카오 feed 링크는 루트+쿼리(?ww=)·미리보기 이미지', share && share.objectType === 'feed' && share.content.link.webUrl === `https://gatherallaround.com/?ww=${WID}` && share.content.link.mobileWebUrl === share.content.link.webUrl && share.buttons[0].link.webUrl === share.content.link.webUrl && share.content.imageUrl.includes('icon-512'));
+    await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item[data-more="copy"]');
+    await p.evaluate(() => { window.__copied = null; navigator.clipboard.writeText = async (t) => { window.__copied = t; }; });
+    await p.click('.sheet-item[data-more="copy"]'); await p.waitForFunction(() => window.__copied !== null);
+    chk('링크 복사도 루트+쿼리 형태', (await p.evaluate(() => window.__copied)) === `https://gatherallaround.com/?ww=${WID}`);
 
     // 6. 랭킹·카탈로그·요청·내 페이지 렌더
     await p.goto(`${BASE}/wappen/#/ranking`); await p.waitForSelector('.rank-row');
@@ -214,7 +218,16 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('관리자: 일반 사용자 접근 거절', (await p.locator('.empty').innerText()).includes('관리자만'));
     // 쿼리 진입 → 해시 치환
     await p.goto(`${BASE}/wappen/?w=${WID}`); await p.waitForSelector('.reaction-bar');
-    chk('공유 링크 ?w= → #/work/ 치환', await p.evaluate(() => location.hash === '#/work/44444444-4444-4444-8444-444444444444' && location.search === ''));
+    chk('예전 공유 링크 /wappen/?w= → #/work/ 치환', await p.evaluate(() => location.hash === '#/work/44444444-4444-4444-8444-444444444444' && location.search === ''));
+    await p.goto(`${BASE}/wappen/?wp=${PID}`); await p.waitForSelector('.action-row');
+    chk('/wappen/?wp= 직접 진입 → #/project/', await p.evaluate(() => location.hash === '#/project/33333333-3333-4333-8333-333333333333'));
+    // 루트 index.html 로 들어온 공유 링크(카카오톡 표준 형태) → 맨 앞 스크립트가 와펜 해시 라우트로 즉시 넘김
+    await p.goto(`${BASE}/?wp=${PID}`); await p.waitForURL(/\/wappen\/#\/project\/33333333-3333-4333-8333-333333333333$/, { timeout: 15000 }); await p.waitForSelector('.action-row');
+    chk('루트 /?wp= → /wappen/#/project/ 리다이렉트 후 프로젝트 렌더', (await p.locator('.detail-info h1').innerText()) === '테스트 프로젝트');
+    await p.goto(`${BASE}/?ww=${WID.toUpperCase()}`); await p.waitForURL(/\/wappen\/#\/work\/44444444-4444-4444-8444-444444444444$/, { timeout: 15000 }); await p.waitForSelector('.reaction-bar');
+    chk('루트 /?ww=(대문자) → /wappen/#/work/ 소문자 리다이렉트', true);
+    await p.goto(`${BASE}/?p=${PID}`); await p.waitForURL(/\/wappen\/#\/project\//, { timeout: 15000 });
+    chk('루트의 예전 ?p= 도 리다이렉트', true);
 
     chk('페이지 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
     await browser.close();

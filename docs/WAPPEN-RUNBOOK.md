@@ -22,7 +22,8 @@
    - `https://gatherallaround.com/wappen-api` (GET) → 모든 `*_테이블: true`, `wappen_ranking_rpc: true`, `wappen_버킷: true`, `버킷_공개: true`.
      Actions 의 `functions-diagnostics` 워크플로를 실행해도 같은 결과를 볼 수 있다.
    - `https://gatherallaround.com/wappen/` 접속 → 카카오 로그인 → `#/admin` 에서 와펜 PNG 등록 → 프로젝트 생성 → 꾸미기 → 저장 → 다운로드.
-   - 작품 페이지 [공유 → 링크 복사] 로 얻은 `…/wappen/?w=<id>` 를 카카오톡에 붙여 미리보기(제목·이미지)가 뜨는지 확인.
+   - 작품 페이지 [공유 → 카카오톡] 카드를 탭해 작품 화면으로 들어가는지, [링크 복사]로 얻은 `https://gatherallaround.com/?ww=<id>` 를 카톡에 붙여
+     미리보기(제목·이미지)가 뜨는지 확인. 공유 링크는 **루트+쿼리**(`?wp=`/`?ww=`)만 쓴다 — `/wappen/?p=` 같은 하위 경로 링크는 카톡에서 포털로 떨어졌다.
 
 ## 2. 구조 요약
 
@@ -35,7 +36,7 @@
 | 업로드 | `upload_sign {kind, ext}` → 서명 URL(경로·권한은 서버가 결정: `base/<uid>/`, `thumbs/<uid>/`, `previews/<uid>/`, `requests/<uid>/`, `items/`(관리자)) → 브라우저가 Storage 로 PUT. 저장 액션에서 URL 접두 재검증 |
 | 레이아웃 | `{v:1, items:[{id,x,y,w,r,fx}]}` — 비율 좌표(캔버스 폭·높이 대비), 배열 순서 = z. 서버가 범위·개수(≤200)·와펜 존재 검증 |
 | 집계 | 트리거: `wappen_reactions` → `works.reaction_count/reaction_counts`, `wappen_works` → `projects.works_count` |
-| 공유 | `?w=<작품>` / `?p=<프로젝트>` 쿼리(카카오톡이 해시를 버림) → 미들웨어가 OG 주입, 페이지가 해시로 치환 |
+| 공유 | 루트 `/?wp=<프로젝트>` / `/?ww=<작품>`(카톡 검증 형태; 해시·하위 경로는 카톡에서 유실) → 루트 index.html 맨 앞 스크립트가 `/wappen/#/…` 로 넘김, 미들웨어가 루트·`/wappen/` 쿼리에 OG 주입 |
 | 한도 | 프로젝트 20/일, 작품 100/일, 신고 20/일, 요청 10/일, 업로드 서명 200/일, 반응 600/일, 로그인 30/시간(IP). 버킷 8MB·PNG/JPEG/WebP |
 
 ## 3. 운영 작업

@@ -130,7 +130,10 @@
 - **사이즈 프리셋**은 `wappen/presets.js` 한 곳 — 브라우저와 Pages Function 이 같은 파일을 import. 인쇄(A1~A5·B4/B5 JIS, mm→300dpi px, 세로/가로)·SNS(px 고정).
   **레이아웃** `{v:1, items:[{id,x,y,w,r,fx}]}` 비율 좌표(배열 순서 = z, ≤200개) — `render.js drawScene` 하나로 에디터·미리보기(1080px JPEG)·다운로드를 그린다.
   다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
-- **공유**: 카카오톡이 해시를 버리므로 `/wappen/?w=<작품>`·`?p=<프로젝트>` 쿼리 → `functions/_middleware.js` 가 OG 주입(`?news=` 분기는 그대로), 페이지가 로드 시 해시 라우트로 치환.
+- **공유 링크는 루트+쿼리** `https://gatherallaround.com/?wp=<프로젝트>`·`?ww=<작품>`(`shareUrl()`) — 카카오톡 공유에서 동작이 검증된 유일한 형태.
+  하위 경로 `/wappen/?p=` 는 카톡 인앱 브라우저에서 포털로 떨어졌다(2026-10-06 실측, 404 SPA 폴백도 루트로 감). 루트 `index.html` `<head>` 맨 앞 인라인 스크립트가
+  `wp/ww`(예전 `p/w` 포함, UUID 검사)를 `/wappen/#/project|work/<id>` 로 `location.replace`. `functions/_middleware.js` 는 루트·`/wappen/` 양쪽 쿼리에 OG 주입
+  (`og:url` 은 루트 표준 형태, `?news=` 우선). 해시는 카톡이 버리므로 쿼리만 쓴다.
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
 - **크기 체계(2026-10-06 통일)**: 글자는 `--fs-h1 1.25 / h2 1.02 / body 0.92 / sm 0.84 / xs 0.76rem` 5단계만(예외: hero 제목·탭 라벨·메달·빈 상태 아이콘·서랍 라벨).
   버튼은 `gaa-btn` md 44px = 폼 제출 `-block`·로그인만 / `-sm` 38px = 페이지 안 모든 액션 줄·모달 액션·CTA / `-xs` 32px = 리스트 행·에디터 상단바.
