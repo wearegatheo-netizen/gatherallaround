@@ -215,8 +215,9 @@ body.dark .status-info { background: #172554; color: #93C5FD; }
 
 /* ── 프로젝트/작품 상세 ───────────────────────────── */
 .detail-head { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
-.detail-img { flex: 1 1 320px; background: var(--wp-check); border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; max-height: 70vh; }
-.detail-img img { max-height: 70vh; width: auto; max-width: 100%; object-fit: contain; }
+/* 상세 미리보기(프로젝트 기본 이미지·작품)도 꽉 채우지 않고 여백(16px)을 두고 전체가 보이게 (2026-10-07) */
+.detail-img { flex: 1 1 320px; background: var(--wp-check); border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; max-height: 70vh; padding: 16px; box-sizing: border-box; }
+.detail-img img { max-height: calc(70vh - 32px); width: auto; max-width: 100%; object-fit: contain; display: block; border-radius: 4px; }
 .detail-info { flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .detail-info h1 { margin: 0; font-size: var(--fs-h1); font-weight: 800; line-height: 1.3; word-break: keep-all; }
 .detail-info .meta-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--wds-gray-600); }
@@ -343,8 +344,8 @@ body.editing .wp-bottom-nav { display: none !important; }
     .hero .hero-actions { margin-left: 0; width: 100%; }
     .hero .hero-actions .gaa-btn { flex: 1; }
     .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .detail-img { max-height: 55vh; }
-    .detail-img img { max-height: 55vh; }
+    .detail-img { max-height: 55vh; padding: 12px; }
+    .detail-img img { max-height: calc(55vh - 24px); }
     .size-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .size-opt { padding: 8px; border-radius: 10px; }
     .size-opt small { font-size: 0.66rem; line-height: 1.3; display: block; }

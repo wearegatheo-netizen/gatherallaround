@@ -164,7 +164,7 @@
   아이콘은 `icon(name)`(app.js, 16px 단색 SVG·currentColor)만 — 버튼 텍스트에 이모지 금지(감정표현 5종·빈 상태 장식·로고만 예외, UI 테스트가 검사).
   상세 페이지 주 동작은 `.action-row`(sm 버튼 균등 분할 + 끝에 `icon-only` ⋯) 한 줄, 부가 동작(수정·숨기기·삭제·링크 복사·신고)은 `moreSheet()` 하단 시트.
   페이지 제목은 `.page-head`, 섹션은 `.section-title`(h2 + `.more`), 세그먼트 `.seg`(36px, `<a>`/`<button>` 공통), 인라인 `font-size` 금지.
-  카드·순위·목록 썸네일(`.card-thumb`·`.rank-thumb`·`.list-row .thumb`)은 **contain + 여백**(10px/3px) — 꽉 채워 자르지 않는다(2026-10-07 요청).
+  카드·순위·목록 썸네일(`.card-thumb`·`.rank-thumb`·`.list-row .thumb`)은 **contain + 여백**(10px/3px), 상세 미리보기 `.detail-img` 도 여백 16px(모바일 12px) — 꽉 채워 자르지 않는다(2026-10-07 요청).
   뷰 안에서 `#app` 에 거는 위임 리스너는 `onAppClick()`(render 마다 AbortController 로 해제 — 직접 `app.addEventListener` 하면 다음 화면에서도 살아남아 중복 동작).
 - **라이브 갱신**: 뷰가 `setLive(fn)` 으로 "조용히 다시 그리는 함수"를 등록(서명 `sigOf()` 비교로 바뀐 때만 DOM 교체, 로딩 깜빡임 없음), `render()` 가 해제.
   `initLive()` 가 탭 복귀(visibilitychange/pageshow/focus)·25초 폴링·Supabase Realtime(`wappen_works/projects/items` postgres_changes, 발행 등록은
