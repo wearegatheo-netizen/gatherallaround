@@ -131,11 +131,12 @@
   **레이아웃** `{v:1, items:[{id,x,y,w,r,fx}]}` 비율 좌표(배열 순서 = z, ≤200개) — `render.js drawScene` 하나로 에디터·미리보기(1080px JPEG)·다운로드를 그린다.
   다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
 - **공유 링크는 경로형** `https://gatherallaround.com/wp/<프로젝트>`·`/ww/<작품>`(`shareUrl()`) — Pages Function `functions/wp/[id].js`·`ww/[id].js`
-  (본체 `wappen/share-page.js`)가 **사람(브라우저 UA)은 HTTP 302** 로 `/wappen/#/project|work/<id>` 에 바로 보내고, **크롤러**(`isCrawler`: kakaotalk-scrap·
-  facebookexternalhit·curl 등, UA 없음 포함)에게만 OG 태그 HTML(즉시 이동 스크립트·meta refresh 포함)을 준다. 쿼리·해시·JS 실행에 의존하지 않아 카톡 인앱에서도 확실.
-  경위: `/wappen/?p=` → 루트 `?wp=`+인라인 리다이렉트 순으로 고쳤지만 카톡 인앱에서 계속 포털에 멈춤(2026-10-06; 운영 응답 자체는 정상이었음 — `share-diag` 워크플로 실측).
-  예전 쿼리형(`/?wp=`·`/?ww=`, `/wappen/?p=`·`?w=`)은 `functions/_middleware.js` 가 같은 규칙(사람 302 / 크롤러 OG 주입, `?news=` 우선)으로 계속 받고,
-  루트 `index.html` `<head>` 맨 앞 인라인 스크립트(`wp/ww/p/w` UUID 검사 → `location.replace`)는 정적 폴백용으로 남겨 둔다. `og:url` 은 항상 경로형.
+  (본체 `wappen/share-page.js`)가 **사람(브라우저 UA)에겐 와펜 셸을 그 URL 에서 바로 200 으로** 낸다(`appShellHTML`: `env.ASSETS.fetch('/wappen/')` + `<base href="/wappen/">` 주입
+  + `injectOg`; `app.js boot()` 가 경로 `/wp|ww/<id>` 를 `/wappen/#/project|work/<id>` 로 `replaceState`). 리다이렉트·해시·쿼리가 전혀 없어 인앱 브라우저가 깎을 것이 없다.
+  **크롤러**(`isCrawler`: kakaotalk-scrap·facebookexternalhit·curl 등, UA 없음 포함)에게만 OG 태그 HTML(즉시 이동 스크립트·meta refresh 포함). 자산 바인딩이 없거나 포털 HTML 이 오면 302 폴백.
+  경위: `/wappen/?p=` → 루트 `?wp=`+인라인 리다이렉트 → `/wp/<id>` 302+해시 순으로 고쳤지만 계속 연결 안 됨(2026-10-06~07; 운영 응답은 매번 정상 — `share-diag` 실측).
+  302 의 `#fragment` 를 인앱 브라우저가 버릴 가능성까지 없앤 형태가 현재 것. 예전 쿼리형(`/?wp=`·`/?ww=`, `/wappen/?p=`·`?w=`)은 `functions/_middleware.js` 가
+  사람은 302 → `/wp|ww/<id>`, 크롤러는 OG 주입(`?news=` 우선)으로 계속 받고, 루트 `index.html` `<head>` 맨 앞 인라인 스크립트는 정적 폴백용으로 남겨 둔다. `og:url` 은 항상 경로형.
   운영 응답 확인은 `share-diag` 워크플로(Actions, 수동: curl·카톡 인앱·스크랩 UA 별 상태/Location/og:url). 카톡 카드를 눌러도 여전히 포털이면 코드 밖 원인 —
   카카오 디벨로퍼스 [내 애플리케이션 → 플랫폼 → Web 사이트 도메인]에 `https://gatherallaround.com`(www·http 변형 아님)이 있는지 확인.
 - **이름 중복 방지(2026-10-07)**: 프로젝트 제목은 전체에서, 작품 제목은 같은 프로젝트 안에서 유일 — 키는 `titleKey()`(앞뒤·연속 공백, 대소문자 무시).

@@ -24,7 +24,7 @@
    - `https://gatherallaround.com/wappen/` 접속 → 카카오 로그인 → `#/admin` 에서 와펜 PNG 등록 → 프로젝트 생성 → 꾸미기 → 저장 → 다운로드.
    - 작품 페이지 [공유 → 카카오톡] 카드를 탭해 작품 화면으로 들어가는지, [링크 복사]로 얻은 `https://gatherallaround.com/ww/<id>` 를 카톡에 붙여
      미리보기(제목·이미지)가 뜨는지 확인. 공유 링크는 **경로형**(`/wp/<id>`·`/ww/<id>`, Pages Function 이 사람은 302·크롤러는 OG HTML) — 예전 쿼리형도 미들웨어가 같은 규칙으로 받는다.
-     외부에서 응답을 보려면 Actions 의 `wappen-share-diagnostics` 를 실제 id 로 수동 실행(카톡 인앱 UA 는 `302 → /wappen/#/…`, 스크랩 UA 는 og:url·og:image 가 그 작품으로 나와야 정상).
+     외부에서 응답을 보려면 Actions 의 `wappen-share-diagnostics` 를 실제 id 로 수동 실행(카톡 인앱 UA 는 `/wp|ww/` 에서 `200` + `<base href="/wappen/">` + 그 작품 제목, 스크랩 UA 는 og:url·og:image 가 그 작품으로 나와야 정상).
      그래도 카톡 카드가 포털로만 가면 카카오 디벨로퍼스 [플랫폼 → Web 사이트 도메인]에 `https://gatherallaround.com` 이 정확히 등록돼 있는지 확인.
 
 6. (선택) **라이브 갱신**: `supabase/migrations/20261007_wappen_realtime.sql` 을 SQL Editor 에서 실행하면 다른 사람이 올린 프로젝트·작품·반응이
@@ -43,7 +43,7 @@
 | 집계 | 트리거: `wappen_reactions` → `works.reaction_count/reaction_counts`, `wappen_works` → `projects.works_count` |
 | 이름 중복 | 프로젝트 제목 전체 유일·작품 제목 프로젝트 안 유일(공백·대소문자 무시). 서버 409 `dup_title`; 선택 마이그레이션 `20261007_wappen_unique_titles.sql` 로 DB 유일 인덱스(기존 중복은 " (2)" 자동 정리) |
 | 관리자 와펜 | 검색·분류 칩·체크박스 선택 → [선택 삭제], 분류 머리줄 [분류 전체 삭제] (`admin_items_delete`). 작품에 쓰인 와펜은 삭제 대신 숨김 |
-| 공유 | 경로형 `/wp/<프로젝트>` / `/ww/<작품>`(`functions/wp|ww/[id].js` → `wappen/share-page.js`): 사람 UA 는 302 `/wappen/#/…`, 크롤러 UA 는 OG HTML. 예전 쿼리형(`/?wp=`·`/wappen/?p=`)은 미들웨어가 같은 규칙, 루트 index.html 맨 앞 스크립트는 정적 폴백 |
+| 공유 | 경로형 `/wp/<프로젝트>` / `/ww/<작품>`(`functions/wp|ww/[id].js` → `wappen/share-page.js`): 사람 UA 는 그 URL 에서 와펜 셸 200(`<base href="/wappen/">`, 앱이 해시로 치환), 크롤러 UA 는 OG HTML. 예전 쿼리형(`/?wp=`·`/wappen/?p=`)은 미들웨어가 사람 302 → `/wp|ww/`, 루트 index.html 맨 앞 스크립트는 정적 폴백 |
 | 한도 | 프로젝트 20/일, 작품 100/일, 신고 20/일, 요청 10/일, 업로드 서명 200/일, 반응 600/일, 로그인 30/시간(IP). 버킷 8MB·PNG/JPEG/WebP |
 
 ## 3. 운영 작업

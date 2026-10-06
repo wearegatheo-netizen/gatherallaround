@@ -12,6 +12,11 @@ const mock = (routes) => { calls = []; globalThis.fetch = async (url, opts = {})
 const KAKAO_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5';
 const SCRAP_UA = 'facebookexternalhit/1.1;kakaotalk-scrap/1.0;';
 const run = (fn, path, id, env = ENV, ua = '') => fn({ request: new Request('https://gatherallaround.com' + path, ua ? { headers: { 'user-agent': ua } } : undefined), env, params: { id } });
+import { readFileSync } from 'node:fs';
+const SHELL = readFileSync(new URL('../wappen/index.html', import.meta.url), 'utf8');
+// 운영과 같은 정적 자산 바인딩 흉내 — /wappen/ 은 셸, 그 외는 포털(SPA 폴백)
+const ASSETS = { fetch: async (req) => new Response(new URL(req.url).pathname === '/wappen/' ? SHELL : '<html><head><title>Gather all around</title></head><body>portal</body></html>', { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }) };
+const ENV_A = { ...ENV, ASSETS };
 
 { // 프로젝트
   mock([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 <포스터>', author_name: '길동', description: null, thumb_url: 'https://sb.test/t.jpg', base_image_url: 'https://sb.test/b.jpg', works_count: 2 }] }]]);
@@ -41,12 +46,20 @@ const run = (fn, path, id, env = ENV, ua = '') => fn({ request: new Request('htt
   const r = await run(wp, '/wp/abc', 'abc');
   chk('잘못된 id → 302 /wappen/', r.status === 302 && r.headers.get('location') === 'https://gatherallaround.com/wappen/' && calls.length === 0);
 }
-{ // 사람(브라우저 UA) → DB 조회 없이 HTTP 302 로 앱 해시 라우트 (카톡 인앱 포함) / 크롤러 UA → OG HTML
+{ // 사람(브라우저 UA) → 와펜 셸을 이 URL 에서 바로 200 (base href 주입, OG 는 그 작품/프로젝트) / 정적 자산 바인딩이 없으면 302 폴백 / 크롤러 UA → OG HTML
+  mock([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 포스터', author_name: '길동', description: null, thumb_url: 'https://sb.test/t.jpg', base_image_url: 'https://sb.test/b.jpg', works_count: 2 }] }]]);
+  const r = await run(wp, '/wp/' + PID, PID, ENV_A, KAKAO_UA);
+  const shell = await r.text();
+  chk('카톡 인앱 브라우저 UA → 200 와펜 셸(리다이렉트 없음)·no-store', r.status === 200 && r.headers.get('content-type').includes('text/html') && r.headers.get('cache-control') === 'no-store' && shell.includes('id="app"') && shell.includes('./app.js?v='));
+  chk('셸에 <base href="/wappen/"> 가 <head> 바로 뒤에 — 상대 자산이 /wappen/ 기준', /<head>\s*<base href="\/wappen\/">/.test(shell) && (shell.match(/<base /g) || []).length === 1);
+  chk('셸의 OG·제목이 그 프로젝트로 치환', shell.includes('<title>A4 포스터 — 와펜 꾸미기 프로젝트 | 와펜 꾸미기</title>') && shell.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`) && shell.includes('<meta property="og:image" content="https://sb.test/t.jpg">'));
+  mock([['wappen_projects?id=eq.' + PID, { status: 500, body: {} }]]);
+  chk('DB 실패여도 셸은 그대로(기본 OG)', (await (await run(wp, '/wp/' + PID, PID, ENV_A, KAKAO_UA)).text()).includes('<base href="/wappen/">'));
   mock([]);
-  const r = await run(wp, '/wp/' + PID, PID, ENV, KAKAO_UA);
-  chk('카톡 인앱 브라우저 UA → 302 /wappen/#/project/<id>, 조회 없음', r.status === 302 && r.headers.get('location') === `https://gatherallaround.com/wappen/#/project/${PID}` && r.headers.get('cache-control') === 'no-store' && calls.length === 0);
-  const r2 = await run(ww, '/ww/' + WID.toUpperCase(), WID.toUpperCase(), ENV, 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
-  chk('안드로이드 크롬 UA → 302 /wappen/#/work/<소문자 id>', r2.status === 302 && r2.headers.get('location') === `https://gatherallaround.com/wappen/#/work/${WID}`);
+  const rf = await run(ww, '/ww/' + WID.toUpperCase(), WID.toUpperCase(), ENV, 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
+  chk('정적 자산 바인딩 없음(로컬) → 302 /wappen/#/work/<소문자 id> 폴백', rf.status === 302 && rf.headers.get('location') === `https://gatherallaround.com/wappen/#/work/${WID}`);
+  const ASSETS_PORTAL = { fetch: async () => new Response('<html><head><title>Gather all around</title></head><body>portal</body></html>', { status: 200 }) };
+  chk('자산이 포털 HTML 을 주면(폴백) 셸로 안 쓰고 302', (await run(wp, '/wp/' + PID, PID, { ...ENV, ASSETS: ASSETS_PORTAL }, KAKAO_UA)).status === 302);
   mock([['wappen_works?id=eq.' + WID, { body: [{ title: '첫 작품', author_name: '길동', preview_url: 'https://sb.test/p.jpg', preview_w: 1080, preview_h: 1350, wappen_projects: { title: '프로� ', status: 'active' } }] }]]);
   const r3 = await run(ww, '/ww/' + WID, WID, ENV, SCRAP_UA);
   chk('카카오톡 스크랩 크롤러 UA → 200 OG HTML', r3.status === 200 && (await r3.text()).includes('<meta property="og:image" content="https://sb.test/p.jpg">') && calls.length === 1);

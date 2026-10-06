@@ -71,9 +71,9 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   const KAKAO_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5';
   mockFetch([]);
   const r302 = await run(`/?wp=${PID}`, { ua: KAKAO_UA });
-  chk('루트 /?wp= + 카톡 인앱 UA → 302 /wappen/#/project/<id>, 조회 없음', r302.status === 302 && r302.headers.get('location') === `https://gatherallaround.com/wappen/#/project/${PID}` && calls.length === 0);
+  chk('루트 /?wp= + 카톡 인앱 UA → 302 경로형 /wp/<id>(해시 없음), 조회 없음', r302.status === 302 && r302.headers.get('location') === `https://gatherallaround.com/wp/${PID}` && calls.length === 0);
   const r302b = await run(`/wappen/?w=${WID.toUpperCase()}`, { ua: 'Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15' });
-  chk('예전 /wappen/?w=(대문자) + 사파리 UA → 302 /wappen/#/work/<소문자>', r302b.status === 302 && r302b.headers.get('location') === `https://gatherallaround.com/wappen/#/work/${WID}`);
+  chk('예전 /wappen/?w=(대문자) + 사파리 UA → 302 /ww/<소문자>', r302b.status === 302 && r302b.headers.get('location') === `https://gatherallaround.com/ww/${WID}`);
   chk('/wappen/?w=잘못된 uuid + 사람 UA → 302 아님(원본)', (await run('/wappen/?w=nope', { ua: KAKAO_UA })).status === 200);
   mockFetch([['wappen_works?id=eq.' + WID, { body: [WORK] }]]);
   chk('카카오톡 스크랩 크롤러 UA → OG 주입', (await (await run(`/?ww=${WID}`, { ua: 'facebookexternalhit/1.1;kakaotalk-scrap/1.0;' })).text()).includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">'));

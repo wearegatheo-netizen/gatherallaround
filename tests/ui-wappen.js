@@ -245,6 +245,15 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('루트 /?ww=(대문자) → /wappen/#/work/ 소문자 리다이렉트', true);
     await p.goto(`${BASE}/?p=${PID}`); await p.waitForURL(/\/wappen\/#\/project\//, { timeout: 15000 });
     chk('루트의 예전 ?p= 도 리다이렉트', true);
+    // 경로형 공유 URL /wp/<id>·/ww/<id> — 운영에선 Pages Function 이 셸(+<base href="/wappen/">)을 그 자리에서 내준다 → 여기선 route 로 흉내
+    const shell = (await (await fetch(`${BASE}/wappen/`)).text()).replace('<head>', '<head>\n    <base href="/wappen/">');
+    await p.route(/\/(wp|ww)\/[0-9a-f-]{36}$/, (route) => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: shell }));
+    await p.goto(`${BASE}/wp/${PID}`); await p.waitForURL(/\/wappen\/#\/project\/33333333-3333-4333-8333-333333333333$/, { timeout: 15000 }); await p.waitForSelector('.action-row');
+    chk('경로형 /wp/<id> → 셸이 그 자리에서 뜨고 주소는 /wappen/#/project/ 로 치환·프로젝트 렌더', (await p.locator('.detail-info h1').innerText()) === '테스트 프로젝트' && await p.evaluate(() => !!document.querySelector('base[href="/wappen/"]')));
+    await p.goto(`${BASE}/ww/${WID.toUpperCase()}`); await p.waitForURL(/\/wappen\/#\/work\/44444444-4444-4444-8444-444444444444$/, { timeout: 15000 }); await p.waitForSelector('.reaction-bar');
+    chk('경로형 /ww/<대문자 id> → /wappen/#/work/<소문자>·작품 렌더', true);
+    await p.click('#bottomNav a[data-nav="home"], .wp-nav a[href="#/"]').catch(() => {});
+    await p.goto(`${BASE}/wappen/#/`);
 
     // 7. 관리자: 와펜 요청 승인 — 참고 이미지가 자동 선택되고 등록 → admin_item_create → admin_request_resolve(approved)
     {

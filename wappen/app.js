@@ -1367,11 +1367,15 @@ async function adminUsers(body, qtext = '') {
 function boot() {
     initTheme();
     initKakao();
-    // 카카오톡 등 메신저는 #hash 를 버리므로 공유 링크는 ?w= / ?p= 쿼리로 들어온다 → 해시 라우트로 치환
+    // 공유 링크 진입: 경로형 /wp/<프로젝트>·/ww/<작품>(Pages Function 이 이 URL 에서 셸을 그대로 냄, <base href="/wappen/">) 과
+    // 예전 쿼리형 ?wp=/?ww=(?p=/?w=) 을 해시 라우트로 치환 — 메신저·인앱 브라우저가 #hash 를 버려도 경로/쿼리는 남는다
+    const pathM = location.pathname.match(/^\/(wp|ww)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i);
     const sp = new URLSearchParams(location.search);
-    const w = sp.get('ww') || sp.get('w'), p = sp.get('wp') || sp.get('p');
-    if (UUID_RE.test(w || '')) history.replaceState(null, '', location.pathname + '#/work/' + w.toLowerCase());
-    else if (UUID_RE.test(p || '')) history.replaceState(null, '', location.pathname + '#/project/' + p.toLowerCase());
+    const w = pathM && pathM[1].toLowerCase() === 'ww' ? pathM[2] : (sp.get('ww') || sp.get('w'));
+    const p = pathM && pathM[1].toLowerCase() === 'wp' ? pathM[2] : (sp.get('wp') || sp.get('p'));
+    const base = pathM ? '/wappen/' : location.pathname;
+    if (UUID_RE.test(w || '')) history.replaceState(null, '', base + '#/work/' + w.toLowerCase());
+    else if (UUID_RE.test(p || '')) history.replaceState(null, '', base + '#/project/' + p.toLowerCase());
     else if (location.search) history.replaceState(null, '', location.pathname + (location.hash || ''));
     // 전역 위임: 로그인 게이트 버튼
     app.addEventListener('click', async (e) => { const b = e.target.closest('[data-act="login"]'); if (!b) return; if (await kakaoLogin()) render(); });

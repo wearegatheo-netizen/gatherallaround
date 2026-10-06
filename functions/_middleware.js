@@ -4,7 +4,7 @@
 // 와펜 꾸미기 공유 링크(표준은 경로형 /wp/<id>·/ww/<id> — functions/wp|ww/[id].js 가 처리). 여기서는 예전 쿼리형
 // 루트 /?wp=<프로젝트 id>·/?ww=<작품 id> 와 /wappen/?p=·?w= 를 받아, 사람(브라우저)은 HTTP 302 로 /wappen/#/… 에 바로 보내고
 // (JS 실행에 의존하지 않음 — 2026-10-06 카톡 인앱에서 포털에 멈추던 문제), 크롤러에게만 작품·프로젝트별 OG 태그를 주입한다.
-import { isCrawler } from '../wappen/share-page.js';
+import { isCrawler, injectOg } from '../wappen/share-page.js';
 
 // Drive API 키는 Cloudflare 환경변수(DRIVE_API_KEY)에서 읽는다.
 // 미설정 시 기존 하드코딩 값으로 폴백(하위호환). 설정 후 이 폴백 값은 콘솔에서 폐기/제한 권장.
@@ -61,8 +61,8 @@ export async function onRequest(context) {
     const newsId = url.searchParams.get('news');
     const wappenIds = newsId ? null : wappenShareIds(url);
     const wappenShare = !!wappenIds;
-    if (wappenShare && !isCrawler(request)) {
-        const target = wappenIds.w ? `/wappen/#/work/${wappenIds.w}` : `/wappen/#/project/${wappenIds.p}`;
+    if (wappenShare && !isCrawler(request)) {   // 경로형 공유 URL 로 보낸다 — 거기서 셸이 바로 나온다(해시·쿼리 없음)
+        const target = wappenIds.w ? `/ww/${wappenIds.w}` : `/wp/${wappenIds.p}`;
         return new Response(null, { status: 302, headers: { Location: new URL(target, request.url).toString(), 'Cache-Control': 'no-store' } });
     }
 
@@ -77,22 +77,7 @@ export async function onRequest(context) {
         let og = null;
         try { og = await wappenOg(env, url); } catch (e) { og = null; }
         if (!og) return response;
-        let html = await response.text();
-        html = html
-            .replace(/<title>[^<]*<\/title>/i, `<title>${escapeAttr(og.title)} | 와펜 꾸미기</title>`)
-            .replace(/<meta name="description" content="[^"]*">/i, `<meta name="description" content="${escapeAttr(og.desc)}">`)
-            .replace(/<meta property="og:title" content="[^"]*">/i, `<meta property="og:title" content="${escapeAttr(og.title)}">`)
-            .replace(/<meta property="og:description" content="[^"]*">/i, `<meta property="og:description" content="${escapeAttr(og.desc)}">`)
-            .replace(/<meta property="og:image" content="[^"]*">/i, `<meta property="og:image" content="${escapeAttr(og.image)}">`)
-            .replace(/<meta property="og:url" content="[^"]*">/i, `<meta property="og:url" content="${escapeAttr(og.url)}">`)
-            .replace(/<meta name="twitter:image" content="[^"]*">/i, `<meta name="twitter:image" content="${escapeAttr(og.image)}">`);
-        if (og.w && og.h) {
-            html = html
-                .replace(/<meta property="og:image:width" content="[^"]*">/i, `<meta property="og:image:width" content="${og.w}">`)
-                .replace(/<meta property="og:image:height" content="[^"]*">/i, `<meta property="og:image:height" content="${og.h}">`);
-        } else {
-            html = html.replace(/\s*<meta property="og:image:(width|height)" content="[^"]*">/gi, '');
-        }
+        const html = injectOg(await response.text(), og);
         const headers = new Headers(response.headers);
         headers.set('cache-control', 'no-store');
         return new Response(html, { status: response.status, statusText: response.statusText, headers });
