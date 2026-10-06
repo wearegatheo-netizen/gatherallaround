@@ -256,8 +256,9 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
       case 'admin_request_resolve': window.__approved = body; return ok({ request: { id: body.request_id, status: body.status } });
       case 'admin_items': return ok({ items: ${JSON.stringify(ITEMS)} });
       case 'admin_items_delete': window.__bulk = body; return ok({ deleted: body.category ? 1 : (body.item_ids || []).length, hidden: 0, used_ids: [] });
-      case 'admin_seed_status': return ok({ version: 1, total: 66, installed: window.__seeded ? 66 : 0, missing: window.__seeded ? 0 : 66 });
+      case 'admin_seed_status': return ok({ version: 1, total: 66, installed: window.__seeded ? 66 : 0, missing: window.__seeded ? 0 : 66, stale: window.__pruned ? 0 : 84 });
       case 'admin_seed_items': window.__seeded = true; return ok({ added: 66, skipped: 0, total: 66 });
+      case 'admin_seed_prune': window.__pruned = true; return ok({ deleted: 80, hidden: 4 });
       default: return ok({});`);
         const pa = await ctx.newPage();
         pa.on('pageerror', (e) => errors.push('admin: ' + String(e)));
@@ -284,6 +285,11 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
         await pa.waitForFunction(() => window.__apiCalls.some(c => c.action === 'admin_seed_items'));
         await pa.waitForSelector('.status-badge.status-approved');
         chk('기본 세트 불러오기 → 설치됨', (await pa.locator('.card-box .status-badge').first().innerText()) === '설치됨' && await pa.locator('[data-act="seed"]').count() === 0);
+        // 이전 기본 세트(현재 목록에 없는 seed 행) 정리 버튼 → 확인 → admin_seed_prune → 버튼 사라짐
+        chk('이전 세트 삭제 버튼(84개)', (await pa.locator('[data-act="seed-prune"]').innerText()).includes('84개'));
+        await pa.click('[data-act="seed-prune"]'); await pa.waitForSelector('.modal [data-ok]'); await pa.click('.modal [data-ok]');
+        await pa.waitForFunction(() => window.__pruned); await pa.waitForFunction(() => !document.querySelector('[data-act="seed-prune"]'));
+        chk('이전 세트 삭제 → admin_seed_prune 호출 후 버튼 사라짐', true);
         // 와펜 목록: 검색·분류 칩·체크박스 선택 삭제·분류 전체 삭제
         await pa.goto(`${BASE}/wappen/#/admin`); await pa.waitForSelector('#itSearch');
         chk('관리자 와펜: 2개·분류 칩(전체·기호·동물)', await pa.locator('[data-sel]').count() === 2 && (await pa.$$eval('.admin-tools .chip', els => els.map(e => e.textContent.trim()))).join() === '전체,기호,동물');

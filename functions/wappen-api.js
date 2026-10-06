@@ -224,6 +224,21 @@ async function usedItemIds(env, ids) {
     return used;
 }
 
+// 와펜 여러 개 제거 — 작품 레이아웃이 참조하는 것은 숨김, 나머지 삭제 (일괄 삭제·이전 기본 세트 정리 공용). 실패는 throw.
+async function removeItems(env, ids) {
+    const used = await usedItemIds(env, ids);
+    const toHide = ids.filter(id => used.has(id)), toDel = ids.filter(id => !used.has(id));
+    for (let i = 0; i < toHide.length; i += 50) {
+        const r = await sbFetch(env, `wappen_items?id=in.(${toHide.slice(i, i + 50).join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'hidden' }) });
+        if (!r.ok) throw new Error('hide failed: ' + r.status + ' ' + await sbDetail(r));
+    }
+    for (let i = 0; i < toDel.length; i += 50) {
+        const r = await sbFetch(env, `wappen_items?id=in.(${toDel.slice(i, i + 50).join(',')})`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('delete failed: ' + r.status + ' ' + await sbDetail(r));
+    }
+    return { deleted: toDel.length, hidden: toHide.length, used_ids: toHide };
+}
+
 async function getOne(env, table, id, select = '*') {
     const r = await sbFetch(env, `${table}?id=eq.${id}&select=${encodeURIComponent(select)}&limit=1`);
     if (!r.ok) throw new Error(`${table} lookup failed: ` + r.status + ' ' + await sbDetail(r));
@@ -579,16 +594,23 @@ export async function onRequest(context) {
             return json({ ok: true, pending_requests: pending, open_reports: open, users, items });
         }
 
-        if (action === 'admin_seed_status') {
-            const r = await sbFetch(env, 'wappen_items?select=image_url&limit=5000');
+        if (action === 'admin_seed_status' || action === 'admin_seed_prune') {
+            const r = await sbFetch(env, 'wappen_items?select=id,image_url&limit=5000');
             if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
-            const have = new Set((await r.json()).map(x => x.image_url));
+            const rows = await r.json(), have = new Set(rows.map(x => x.image_url)), files = new Set(SEED_ITEMS.map(it => SEED_BASE + it.file));
             const missing = SEED_ITEMS.filter(it => !have.has(SEED_BASE + it.file)).length;
-            return json({ ok: true, version: SEED_VERSION, total: SEED_ITEMS.length, installed: SEED_ITEMS.length - missing, missing });
+            // 이전 기본 세트: 우리 seed 경로의 이미지지만 현재 목록(manifest)에 없는 행 — [이전 세트 삭제](admin_seed_prune)로 정리. 업로드 와펜(items/)은 무관.
+            const stale = rows.filter(x => String(x.image_url || '').startsWith(SEED_BASE) && !files.has(x.image_url)).map(x => x.id);
+            if (action === 'admin_seed_prune') {
+                if (!stale.length) return json({ ok: true, deleted: 0, hidden: 0, used_ids: [] });
+                try { return json({ ok: true, ...(await removeItems(env, stale)) }); }
+                catch (e) { return fail(500, 'db', '삭제하지 못했습니다.', { detail: String(e.message || e) }); }
+            }
+            return json({ ok: true, version: SEED_VERSION, total: SEED_ITEMS.length, installed: SEED_ITEMS.length - missing, missing, stale: stale.length });
         }
 
         if (action === 'admin_seed_items') {
-            const r0 = await sbFetch(env, 'wappen_items?select=image_url&limit=5000');
+            const r0 = await sbFetch(env, 'wappen_items?select=id,image_url&limit=5000');
             if (!r0.ok) return fail(500, 'db', '기존 와펜을 확인하지 못했습니다.', { detail: await sbDetail(r0) });
             const have = new Set((await r0.json()).map(x => x.image_url));
             const rows = SEED_ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !have.has(SEED_BASE + it.file)).map(({ it, i }) => ({
@@ -662,17 +684,8 @@ export async function onRequest(context) {
                 if (!ids.length || ids.length > 500 || !ids.every(isUuid)) return fail(400, 'bad_ids', '삭제할 와펜을 선택해주세요. (한 번에 500개까지)');
             }
             if (!ids.length) return json({ ok: true, deleted: 0, hidden: 0, used_ids: [] });
-            const used = await usedItemIds(env, ids);
-            const toHide = ids.filter(id => used.has(id)), toDel = ids.filter(id => !used.has(id));
-            for (let i = 0; i < toHide.length; i += 50) {
-                const r = await sbFetch(env, `wappen_items?id=in.(${toHide.slice(i, i + 50).join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'hidden' }) });
-                if (!r.ok) return fail(500, 'db', '처리하지 못했습니다.', { detail: await sbDetail(r) });
-            }
-            for (let i = 0; i < toDel.length; i += 50) {
-                const r = await sbFetch(env, `wappen_items?id=in.(${toDel.slice(i, i + 50).join(',')})`, { method: 'DELETE' });
-                if (!r.ok) return fail(500, 'db', '삭제하지 못했습니다.', { detail: await sbDetail(r) });
-            }
-            return json({ ok: true, deleted: toDel.length, hidden: toHide.length, used_ids: toHide });
+            try { return json({ ok: true, ...(await removeItems(env, ids)) }); }
+            catch (e) { return fail(500, 'db', '삭제하지 못했습니다.', { detail: String(e.message || e) }); }
         }
 
         if (action === 'admin_requests') {

@@ -1221,8 +1221,10 @@ async function adminItems(body, ui = { q: '', cat: '' }) {
     if (!out.ok) { body.innerHTML = errorHTML(out.message); return; }
     const seedCard = seed.ok ? `<div class="card-box" style="margin-bottom:12px"><div class="row between">
             <div><b>기본 와펜 세트</b> <span class="status-badge sm ${seed.missing ? 'status-pending' : 'status-approved'}">${seed.missing ? `${num(seed.missing)}개 미설치` : '설치됨'}</span>
-                <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 도형·동물·음악·음식·글자·캐릭터·과일 — 직접 그린 원본 + 자수 패치 30개. 설치된 것은 건너뛰어요.</div></div>
-            ${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}</div></div>`
+                <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 자수 패치 세트(운영자가 준 이미지를 잘라 등록). 설치된 것은 건너뛰어요.</div>
+                ${seed.stale ? `<div class="muted" style="margin-top:4px">현재 목록에 없는 이전 기본 세트 와펜 ${num(seed.stale)}개가 남아 있어요.</div>` : ''}</div>
+            <div class="gaa-btn-row">${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}
+            ${seed.stale ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" data-act="seed-prune">${icon('trash')} 이전 세트 ${num(seed.stale)}개 삭제</button>` : ''}</div></div></div>`
         : `<div class="card-box" style="margin-bottom:12px"><div class="row between"><div><b>기본 와펜 세트</b> <span class="status-badge sm status-rejected">상태 확인 실패</span>
             <div class="muted" style="margin-top:4px">${esc(seed.message || '')}${seed.error === 'unknown_action' ? ' — 서버 배포가 아직 반영되지 않았어요. 잠시 후 다시 시도해주세요.' : ''}</div></div>
             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="seed-retry">${icon('remix')} 다시 확인</button></div></div>`;
@@ -1282,6 +1284,13 @@ async function adminItems(body, ui = { q: '', cat: '' }) {
             const o = await api('admin_seed_items');
             if (o.ok) { showToast(o.added ? `기본 와펜 ${num(o.added)}개를 등록했어요.` : '이미 모두 설치되어 있어요.'); await fetchItems(true).catch(() => {}); refresh(); }
             else { showToast(o.message || '등록하지 못했습니다.'); b.disabled = false; }
+        }
+        else if (b.dataset.act === 'seed-prune') {   // 현재 목록에 없는 이전 기본 세트 행 정리 (작품에 쓰인 것은 숨김)
+            if (!await confirmModal({ title: `이전 기본 세트 와펜 ${num(seed.stale)}개를 삭제할까요?`, body: BULK_BODY, okLabel: '삭제', danger: true })) return;
+            b.disabled = true;
+            const o = await api('admin_seed_prune');
+            if (o.ok) { showToast(`${num(o.deleted || 0)}개 삭제${o.hidden ? ` · ${num(o.hidden)}개는 작품에 사용 중이라 숨김 처리` : ''}`); await fetchItems(true).catch(() => {}); refresh(); }
+            else { showToast(o.message || '삭제하지 못했습니다.'); b.disabled = false; }
         }
         else if (b.dataset.edit) itemFormModal({ item }, refresh);
         else if (b.dataset.hide) { const o = await api('admin_item_update', { item_id: item.id, status: b.dataset.status === 'hidden' ? 'active' : 'hidden' }); if (o.ok) { await fetchItems(true); refresh(); } else showToast(o.message); }

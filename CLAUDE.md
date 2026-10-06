@@ -148,13 +148,15 @@
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
   와펜 등록 폼(`itemFormModal`)은 PNG·JPG·WebP 를 받아 **클라이언트에서 PNG 로 변환**(투명 유지, MIME 대신 디코드 성공으로 판정 — iOS 는 type 이 비기도 함).
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.
-- **기본 와펜 세트**(84개, 7 카테고리 — 과일 18개는 얼굴 없는 입체 표현: `vol()` 방사 그라데이션+클립 그늘+하이라이트, `ribbon()` 곡선 띠): `tools/wappen-seed/designs.mjs` 에서 코드로 그린 원본 SVG(CC0) → `build.mjs`(Playwright 렌더) + `finish.py`(여백 자르기·256색 팔레트) →
+- **기본 와펜 세트 = 자수 패치 30개(래스터, SEED_VERSION 3)**. 코드로 그린 벡터 84개는 2026-10-07 요청으로 목록·`wappen/seed/` 에서 제거(옵트인: `build.mjs` 를 돌리면 다시 렌더·포함).
+  DB 에 남은 이전 세트 행은 관리자 카드 [이전 세트 N개 삭제] → `admin_seed_prune`(seed 경로지만 manifest 에 없는 행만 `removeItems()`: 작품에 쓰인 것은 숨김·나머지 삭제; `admin_seed_status.stale`).
+  벡터 파이프라인(7 카테고리 — 과일 18개는 얼굴 없는 입체 표현: `vol()` 방사 그라데이션+클립 그늘+하이라이트, `ribbon()` 곡선 띠): `tools/wappen-seed/designs.mjs` 에서 코드로 그린 원본 SVG(CC0) → `build.mjs`(Playwright 렌더) + `finish.py`(여백 자르기·256색 팔레트) →
   `wappen/seed/*.png` + `manifest.js`(생성 파일, 서버·클라 공용 import). 관리자 와펜 탭 [기본 와펜 세트 불러오기] → `admin_seed_items`: `image_url` 이
   `https://gatherallaround.com/wappen/seed/<file>` 인 행만 삽입(스토리지 복사 없음, 이미 있으면 건너뜀). `_headers` 가 `/wappen/seed/*` 에 CORS `*`(캔버스 오염 방지).
   한글 글자 와펜은 저장소 꾸불림체 TTF 를 빌드 때 가짜 URL(`http://seed.local/`)로 서빙해 렌더. 새 와펜은 designs.mjs 에 `add()` 한 줄 → 빌드 → 커밋.
   **래스터 세트**(2026-10-07, `kind:'raster'`, 키 `p-…`, SEED_VERSION 2): 운영자가 준 자수 패치 시트(`tools/wappen-seed/raster/*.png`, 격자 5×6)를 `raster.py` 가
   질감(국소 그라데이션) 마스크 → 닫힘·구멍 메움 → 연결 성분 → 행·열 묶음 배정(길쭉하면 잘록한 줄에서 분리) → 셀별 알파로 잘라 원본 해상도 그대로 저장(numpy·PIL 만).
-  메타는 `raster.json`(시트·rows/cols·threshold·항목 순서 = 읽기 순). `finish.py` 가 벡터 뒤에 합쳐 manifest 를 쓰고, `finish.py --reuse wappen/seed` 는 벡터 재렌더 없이 래스터만 다시 자른다.
+  메타는 `raster.json`(시트·rows/cols·threshold·항목 순서 = 읽기 순). `finish.py` 가 벡터 뒤에 합쳐 manifest 를 쓰고, `finish.py --reuse wappen/seed --no-vector` 는 벡터 없이 래스터만 다시 자른다.
   시트 한 장 추가 = raster.json 에 sheets 항목 + 이미지 커밋 → `--reuse` 실행 → 관리자 [불러오기]. 유닛 테스트는 래스터를 100~1024px·≤160KB 로 따로 검사.
   **app.js 를 고치면 `wappen/index.html` 의 `app.js?v=N` 을 반드시 올릴 것**(안 올리면 폰이 예전 코드를 씀 — 2026-10-06 두 번 누락).
 - **크기 체계(2026-10-06 통일)**: 글자는 `--fs-h1 1.25 / h2 1.02 / body 0.92 / sm 0.84 / xs 0.76rem` 5단계만(예외: hero 제목·탭 라벨·메달·빈 상태 아이콘·서랍 라벨).
