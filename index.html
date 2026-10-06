@@ -11535,8 +11535,11 @@
                 const n = bandNextCycle(start, today);
                 const paidMap = bandPaidMap(team, payments);
                 const cur = Math.max(0, n - 1);
+                // 다음 "미납" 회차: 다음 회차(n)가 이미 납부됐으면 그 뒤 첫 미납 회차 — 표·카드·요약의 "입금일" 표시는 이걸 따른다
+                let nextDueN = n; while (paidMap[nextDueN]) nextDueN++;
                 const info = { mode: 'cycle', n, cur, paidMap, start,
                     startN: bandCycleStart(start, n), endN: bandCycleEnd(start, n), due: bandCycleDue(start, n),
+                    nextDueN, nextDue: bandCycleDue(start, nextDueN),
                     curStart: bandCycleStart(start, cur), curEnd: bandCycleEnd(start, cur) };
                 if (n === 0) { info.status = 'normal'; info.paid = !!paidMap[0]; info.label = `${bandMD(start)} 시작 예정`; return info; }
                 info.paid = !!paidMap[n];
@@ -11779,7 +11782,10 @@
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';
             if (info.mode === 'legacy') return `<div class="band-muted">시작일 미설정 — 마지막 납부일(${escHtml(info.lastPaid)}) 기준 다음 납부 예정 ${escHtml(info.next)}. 계약 정보를 입력하면 회차·문자 안내가 시작됩니다.</div>`;
             if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 이용료는 시작일에 입금</div>`;
-            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · 입금일 <strong>${bandMD(info.due)}</strong>${t.band_fee ? ` · 이용료 ${bandWon(t.band_fee)}` : ''}</div>`;
+            const dueText = info.paid
+                ? `납부 완료 · ${bandCycleLabel(info.nextDueN)} 입금일 <strong>${bandMD(info.nextDue)}</strong>`
+                : `입금일 <strong>${bandMD(info.due)}</strong>`;
+            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · ${dueText}${t.band_fee ? ` · 이용료 ${bandWon(t.band_fee)}` : ''}</div>`;
         }
         function bandReminderLogHTML(reminders, n) {
             const all = (reminders || []).slice().sort((a, b) => String(a.sent_at).localeCompare(String(b.sent_at)));
@@ -11888,13 +11894,14 @@
             const info = bandCycleInfo(t, rows);
             let strip = '';
             if (info.mode === 'cycle') {
-                const maxN = Math.max(info.n, ...Object.keys(info.paidMap).map(Number));
+                const maxN = Math.max(info.n, info.nextDueN, ...Object.keys(info.paidMap).map(Number));
                 const chips = [];
                 for (let n = 0; n <= maxN; n++) {
                     const p = info.paidMap[n];
                     let cls = 'status-neutral', text;
                     if (p) { cls = 'status-approved'; text = `${bandCycleLabel(n)} ✓ ${bandMD(p.paid_at)}`; }
                     else if (n === info.n) { cls = info.status === 'overdue' ? 'status-rejected' : 'status-pending'; text = `${bandCycleLabel(n)} 입금일 ${bandMD(info.due)}`; }
+                    else if (n === info.nextDueN) { text = `${bandCycleLabel(n)} 입금일 ${bandMD(info.nextDue)}`; } // 선납 뒤 첫 미납 회차
                     else if (n < info.n) { cls = 'status-rejected'; text = `${bandCycleLabel(n)} 미납`; }
                     else text = `${bandCycleLabel(n)} ${bandMD(bandCycleStart(info.start, n))}`;
                     chips.push(`<span class="status-badge sm ${cls}">${escHtml(text)}</span>`);
@@ -11937,6 +11944,7 @@
                     if (n === 0) pay.cells[0] = { text: `${bandYMDShort(p ? p.paid_at : info.start)}${t.band_deposit_paid_at ? ' (' + bandYMDShort(t.band_deposit_paid_at) + ')' : ''}`, cls: cur + (p ? ' paid' : '') };
                     else if (p) pay.cells[n] = { text: bandYMDShort(p.paid_at), cls: cur + ' paid' };
                     else if (n <= info.n) pay.cells[n] = { text: n === info.n ? `입금일 ${bandYMDShort(info.due)}` : '미납', cls: cur + (n < info.n || info.status === 'overdue' ? ' late' : ' due') };
+                    else if (n === info.nextDueN) pay.cells[n] = { text: `입금일 ${bandYMDShort(info.nextDue)}`, cls: ' due' }; // 다음 회차를 선납한 팀 — 그 다음 입금일
                 }
             }
             return [pay, st, en];
