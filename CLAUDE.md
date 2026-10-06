@@ -130,10 +130,14 @@
 - **사이즈 프리셋**은 `wappen/presets.js` 한 곳 — 브라우저와 Pages Function 이 같은 파일을 import. 인쇄(A1~A5·B4/B5 JIS, mm→300dpi px, 세로/가로)·SNS(px 고정).
   **레이아웃** `{v:1, items:[{id,x,y,w,r,fx}]}` 비율 좌표(배열 순서 = z, ≤200개) — `render.js drawScene` 하나로 에디터·미리보기(1080px JPEG)·다운로드를 그린다.
   다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
-- **공유 링크는 루트+쿼리** `https://gatherallaround.com/?wp=<프로젝트>`·`?ww=<작품>`(`shareUrl()`) — 카카오톡 공유에서 동작이 검증된 유일한 형태.
-  하위 경로 `/wappen/?p=` 는 카톡 인앱 브라우저에서 포털로 떨어졌다(2026-10-06 실측, 404 SPA 폴백도 루트로 감). 루트 `index.html` `<head>` 맨 앞 인라인 스크립트가
-  `wp/ww`(예전 `p/w` 포함, UUID 검사)를 `/wappen/#/project|work/<id>` 로 `location.replace`. `functions/_middleware.js` 는 루트·`/wappen/` 양쪽 쿼리에 OG 주입
-  (`og:url` 은 루트 표준 형태, `?news=` 우선). 해시는 카톡이 버리므로 쿼리만 쓴다.
+- **공유 링크는 경로형** `https://gatherallaround.com/wp/<프로젝트>`·`/ww/<작품>`(`shareUrl()`) — Pages Function `functions/wp/[id].js`·`ww/[id].js`
+  (본체 `wappen/share-page.js`)가 **사람(브라우저 UA)은 HTTP 302** 로 `/wappen/#/project|work/<id>` 에 바로 보내고, **크롤러**(`isCrawler`: kakaotalk-scrap·
+  facebookexternalhit·curl 등, UA 없음 포함)에게만 OG 태그 HTML(즉시 이동 스크립트·meta refresh 포함)을 준다. 쿼리·해시·JS 실행에 의존하지 않아 카톡 인앱에서도 확실.
+  경위: `/wappen/?p=` → 루트 `?wp=`+인라인 리다이렉트 순으로 고쳤지만 카톡 인앱에서 계속 포털에 멈춤(2026-10-06; 운영 응답 자체는 정상이었음 — `share-diag` 워크플로 실측).
+  예전 쿼리형(`/?wp=`·`/?ww=`, `/wappen/?p=`·`?w=`)은 `functions/_middleware.js` 가 같은 규칙(사람 302 / 크롤러 OG 주입, `?news=` 우선)으로 계속 받고,
+  루트 `index.html` `<head>` 맨 앞 인라인 스크립트(`wp/ww/p/w` UUID 검사 → `location.replace`)는 정적 폴백용으로 남겨 둔다. `og:url` 은 항상 경로형.
+  운영 응답 확인은 `share-diag` 워크플로(Actions, 수동: curl·카톡 인앱·스크랩 UA 별 상태/Location/og:url). 카톡 카드를 눌러도 여전히 포털이면 코드 밖 원인 —
+  카카오 디벨로퍼스 [내 애플리케이션 → 플랫폼 → Web 사이트 도메인]에 `https://gatherallaround.com`(www·http 변형 아님)이 있는지 확인.
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
   와펜 등록 폼(`itemFormModal`)은 PNG·JPG·WebP 를 받아 **클라이언트에서 PNG 로 변환**(투명 유지, MIME 대신 디코드 성공으로 판정 — iOS 는 type 이 비기도 함).
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.

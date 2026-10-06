@@ -11,10 +11,11 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const KAKAO_KEY = '9627dd6537f30f1c42b30de51ceea2cf';
 const API_URL = '/wappen-api';
 const SITE_URL = 'https://gatherallaround.com/wappen/';
-// 공유 URL 은 루트+쿼리(?wp=프로젝트 / ?ww=작품) — 카카오톡 공유에서 동작이 검증된 유일한 형태.
-// 하위 경로(/wappen/?p=)는 카톡 인앱 브라우저에서 포털로 떨어졌다(2026-10-06). 루트 index.html 맨 앞 스크립트가 /wappen/#/… 로 넘긴다.
-const SHARE_BASE = 'https://gatherallaround.com/';
-const shareUrl = (kind, id) => `${SHARE_BASE}?${kind === 'work' ? 'ww' : 'wp'}=${id}`;
+// 공유 URL 은 경로 기반 https://gatherallaround.com/wp/<프로젝트> · /ww/<작품> — Pages Function(functions/wp|ww/[id].js) 이
+// OG 를 직접 내고 /wappen/#/… 로 즉시 넘긴다. 쿼리·해시가 없어 카톡·메신저가 깎을 것이 없고, 정적 폴백(404→포털)과도 무관하다.
+// 예전 형태(/?wp=, /wappen/?p=)도 계속 동작(루트 index.html 맨 앞 스크립트·미들웨어).
+const SHARE_BASE = 'https://gatherallaround.com';
+const shareUrl = (kind, id) => `${SHARE_BASE}/${kind === 'work' ? 'ww' : 'wp'}/${id}`;
 const SESSION_KEY = 'wappen_session';
 const RETURN_KEY = 'wappen_return';
 const PAGE = 24;
@@ -300,6 +301,35 @@ function liveKick(reason) {
     if (Date.now() - liveLast < minGap) return;
     clearTimeout(liveDebounce);
     liveDebounce = setTimeout(async () => { liveLast = Date.now(); try { await liveFn(reason); } catch (_) {} }, reason === 'realtime' ? 500 : 0);
+}
+// 당겨서 새로고침: 맨 위에서 아래로 70px 이상 당겼다 놓으면 현재 화면을 다시 그린다(터치 기기, 편집 화면·모달 제외).
+// iOS 설치형(PWA)·카톡 인앱 브라우저에는 브라우저 자체 새로고침이 없어 직접 구현한다.
+function initPullToRefresh() {
+    if (!('ontouchstart' in window)) return;
+    const el = document.createElement('div'); el.className = 'ptr'; el.innerHTML = icon('chevron-down'); el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+    const THRESHOLD = 70, MAX = 110;
+    let startY = 0, pulling = false, dist = 0, loading = false;
+    const canPull = () => !loading && !document.body.classList.contains('editing') && !$('.modal-backdrop') && window.scrollY <= 0;
+    document.addEventListener('touchstart', (e) => { if (!canPull() || e.touches.length !== 1) return; startY = e.touches[0].clientY; pulling = true; dist = 0; }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!pulling) return;
+        const dy = e.touches[0].clientY - startY;
+        if (dy <= 0 || window.scrollY > 0) { dist = 0; el.style.opacity = '0'; el.classList.remove('armed'); return; }
+        dist = Math.min(MAX, dy * 0.6);
+        el.style.opacity = String(Math.min(1, dist / 40)); el.style.transform = `translate(-50%, ${dist - 60}px)`; el.classList.toggle('armed', dist >= THRESHOLD);
+    }, { passive: true });
+    const end = async () => {
+        if (!pulling) return; pulling = false;
+        if (dist >= THRESHOLD) {
+            loading = true; el.classList.add('loading'); el.classList.remove('armed'); el.style.opacity = '1'; el.style.transform = 'translate(-50%, 10px)';
+            try { state.items = null; await render(); } catch (_) {}
+            setTimeout(() => { loading = false; el.classList.remove('loading'); el.style.opacity = '0'; el.style.transform = 'translate(-50%, -60px)'; }, 350);
+        } else { el.style.opacity = '0'; el.style.transform = 'translate(-50%, -60px)'; el.classList.remove('armed'); }
+        dist = 0;
+    };
+    document.addEventListener('touchend', end, { passive: true });
+    document.addEventListener('touchcancel', end, { passive: true });
 }
 function initLive() {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) liveKick('visible'); });
@@ -1280,6 +1310,7 @@ function boot() {
     window.addEventListener('hashchange', render);
     window.wappen = { state, api, render, navigate, editor: null, liveKick };
     initLive();
+    initPullToRefresh();
     if (!sb) { app.innerHTML = errorHTML('필수 스크립트를 불러오지 못했습니다. 새로고침 해주세요.'); return; }
     // 인증 복원은 최대 2초만 기다리고 화면을 그린다 (공개 페이지는 로그인 없이도 보여야 함)
     Promise.race([bootAuth(), new Promise(r => setTimeout(r, 2000))]).catch(() => {}).then(render);

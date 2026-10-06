@@ -1,4 +1,4 @@
-// functions/_middleware.js 단위 테스트 — ?news= 회귀 + 와펜 공유 OG 주입(루트 /?wp=|?ww= 표준, 예전 /wappen/?p=|?w=)
+// functions/_middleware.js 단위 테스트 — ?news= 회귀 + 와펜 공유 쿼리형(/?wp=|?ww=, 예전 /wappen/?p=|?w=): 사람 UA 302 · 크롤러 OG 주입
 // 실행: node tests/middleware-unit.mjs
 import { onRequest } from '../functions/_middleware.js';
 import { readFileSync } from 'node:fs';
@@ -20,8 +20,8 @@ function mockFetch(routes) {
     throw new Error('unexpected fetch ' + rec.url);
   };
 }
-const run = (path, { html = PAGE, ct = 'text/html; charset=utf-8', env = ENV } = {}) => onRequest({
-  request: new Request('https://gatherallaround.com' + path), env,
+const run = (path, { html = PAGE, ct = 'text/html; charset=utf-8', env = ENV, ua = '' } = {}) => onRequest({
+  request: new Request('https://gatherallaround.com' + path, ua ? { headers: { 'user-agent': ua } } : undefined), env,
   next: async () => new Response(html, { status: 200, headers: { 'content-type': ct, 'x-keep': '1' } }),
 });
 const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https://sb.test/storage/v1/object/public/wappen/previews/u/x.jpg', preview_w: 1080, preview_h: 1350, wappen_projects: { title: '여름 <포스터>', status: 'active' } };
@@ -39,7 +39,7 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   const html = await r.text();
   chk('작품 OG: title 치환', html.includes('<title>첫 작품 — 길동님의 와펜 작품 | 와펜 꾸미기</title>'));
   chk('작품 OG: og:title·description(프로젝트명 이스케이프)', html.includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">') && html.includes('여름 &lt;포스터&gt; 프로젝트 · '));
-  chk('작품 OG: og:image·크기·url(표준 루트 형태)', html.includes(`<meta property="og:image" content="${WORK.preview_url}">`) && html.includes('<meta property="og:image:width" content="1080">') && html.includes('<meta property="og:image:height" content="1350">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/?ww=${WID}">`));
+  chk('작품 OG: og:image·크기·url(표준 루트 형태)', html.includes(`<meta property="og:image" content="${WORK.preview_url}">`) && html.includes('<meta property="og:image:width" content="1080">') && html.includes('<meta property="og:image:height" content="1350">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/ww/${WID}">`));
   chk('작품 OG: twitter:image 치환·no-store', html.includes(`<meta name="twitter:image" content="${WORK.preview_url}">`) && r.headers.get('cache-control') === 'no-store');
   chk('작품 OG: service role 헤더·active 필터·1행', calls.length === 1 && calls[0].headers.apikey === 'sk' && calls[0].url.includes('status=eq.active') && calls[0].url.includes('limit=1'));
   chk('본문의 나머지는 보존', html.includes('<script type="module" src="./app.js'));
@@ -54,11 +54,11 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   mockFetch([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 포스터', author_name: '길동', description: '설명', thumb_url: 'https://sb.test/t.jpg', base_image_url: 'https://sb.test/b.jpg', works_count: 1 }] }]]);
   const html = await (await run(`/?wp=${PID}`, { html: ROOT })).text();
   chk('루트 ?wp=: title·og:title·og:image(썸네일)·og:url', html.includes('<title>A4 포스터 — 와펜 꾸미기 프로젝트 | 와펜 꾸미기</title>') && html.includes('<meta property="og:title" content="A4 포스터 — 와펜 꾸미기 프로젝트">')
-    && html.includes('<meta property="og:image" content="https://sb.test/t.jpg">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/?wp=${PID}">`) && html.includes('<body>portal</body>'));
+    && html.includes('<meta property="og:image" content="https://sb.test/t.jpg">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`) && html.includes('<body>portal</body>'));
   chk('루트 ?wp=: service role 조회 1회·active 필터', calls.length === 1 && calls[0].url.includes('wappen_projects?id=eq.') && calls[0].url.includes('status=eq.active'));
   mockFetch([['wappen_works?id=eq.' + WID, { body: [WORK] }]]);
   const html2 = await (await run(`/index.html?ww=${WID.toUpperCase()}`, { html: ROOT })).text();
-  chk('루트 /index.html?ww=(대문자 uuid): 작품 OG·소문자 id·크기', html2.includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">') && html2.includes(`?ww=${WID}">`) && html2.includes('<meta property="og:image:width" content="1080">'));
+  chk('루트 /index.html?ww=(대문자 uuid): 작품 OG·소문자 id·크기', html2.includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">') && html2.includes(`/ww/${WID}">`) && html2.includes('<meta property="og:image:width" content="1080">'));
   mockFetch([]);
   chk('루트의 예전 ?p= 는 미들웨어가 건드리지 않음(페이지 스크립트가 리다이렉트)', (await (await run(`/?p=${PID}`, { html: ROOT })).text()) === ROOT && calls.length === 0);
   chk('루트 ?wp= 잘못된 uuid → 원본', (await (await run('/?wp=abc', { html: ROOT })).text()) === ROOT && calls.length === 0);
@@ -67,6 +67,16 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   chk('?news= 가 함께 오면 뉴스 분기 우선', html3.includes('<title>N | 어제 하루, 밴드씬에서 생긴 일?!</title>') && !calls.some(c => c.url.includes('wappen_')));
 }
 { // 실패·예외는 원본 그대로
+  // 사람(브라우저 UA)은 next() 도 조회도 없이 302 → 앱 해시 라우트 (크롤러·UA 없음은 위처럼 OG 주입)
+  const KAKAO_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5';
+  mockFetch([]);
+  const r302 = await run(`/?wp=${PID}`, { ua: KAKAO_UA });
+  chk('루트 /?wp= + 카톡 인앱 UA → 302 /wappen/#/project/<id>, 조회 없음', r302.status === 302 && r302.headers.get('location') === `https://gatherallaround.com/wappen/#/project/${PID}` && calls.length === 0);
+  const r302b = await run(`/wappen/?w=${WID.toUpperCase()}`, { ua: 'Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15' });
+  chk('예전 /wappen/?w=(대문자) + 사파리 UA → 302 /wappen/#/work/<소문자>', r302b.status === 302 && r302b.headers.get('location') === `https://gatherallaround.com/wappen/#/work/${WID}`);
+  chk('/wappen/?w=잘못된 uuid + 사람 UA → 302 아님(원본)', (await run('/wappen/?w=nope', { ua: KAKAO_UA })).status === 200);
+  mockFetch([['wappen_works?id=eq.' + WID, { body: [WORK] }]]);
+  chk('카카오톡 스크랩 크롤러 UA → OG 주입', (await (await run(`/?ww=${WID}`, { ua: 'facebookexternalhit/1.1;kakaotalk-scrap/1.0;' })).text()).includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">'));
   mockFetch([['wappen_works', { body: [] }]]);
   chk('숨김/없는 작품 → 원본', (await (await run(`/wappen/?w=${WID}`)).text()) === PAGE);
   mockFetch([]);

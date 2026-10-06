@@ -303,6 +303,13 @@ body.editing .wp-footer { display: none; }
 .danger-text { color: #EF4444; }
 .profile-name { font-size: var(--fs-h2); font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
 
+/* ── 당겨서 새로고침 (터치 기기) ─────────────────────── */
+.ptr { position: fixed; left: 50%; top: calc(var(--wp-header-h) + var(--wp-safe-top) + 6px); transform: translate(-50%, -60px); width: 40px; height: 40px; border-radius: 50%; background: var(--wds-white); border: 1px solid var(--wds-gray-300); box-shadow: var(--wds-shadow-lg); display: flex; align-items: center; justify-content: center; color: var(--wds-primary); z-index: 120; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.ptr svg.ico { width: 20px; height: 20px; transition: transform .15s; }
+.ptr.armed svg.ico { transform: rotate(180deg); }
+.ptr.loading svg.ico { animation: ptr-spin .8s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+
 /* ── 모바일 하단 탭바 ─────────────────────────────── */
 .wp-bottom-nav { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 110; background: var(--wds-white); border-top: 1px solid var(--wds-gray-200); padding-bottom: var(--wp-safe-bottom); }
 .wp-bottom-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 56px; font-size: 0.68rem; font-weight: 600; color: var(--wds-gray-600); }

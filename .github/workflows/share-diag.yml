@@ -18,9 +18,10 @@ jobs:
       - name: 각 URL 형태의 응답 (상태·리다이렉트·캐시 헤더·제목·와펜 리다이렉트 스크립트 유무)
         run: |
           ID="${{ github.event.inputs.id }}"
-          for ua in "curl" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5"; do
+          # curl UA = 크롤러 취급(OG HTML 기대) / 카톡 인앱·사파리 UA = 사람(302 /wappen/#/… 기대)
+          for ua in "curl" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5" "facebookexternalhit/1.1;kakaotalk-scrap/1.0;"; do
             echo "########## UA: $ua"
-            for u in "https://gatherallaround.com/?wp=$ID" "https://gatherallaround.com/wappen/?p=$ID" "https://gatherallaround.com/wappen/" "https://gatherallaround.com/wappen" "https://gatherallaround.com/wp/$ID" "https://gatherallaround.com/wappen/app.js?v=5"; do
+            for u in "https://gatherallaround.com/wp/$ID" "https://gatherallaround.com/ww/$ID" "https://gatherallaround.com/wp/not-a-uuid" "https://gatherallaround.com/?wp=$ID" "https://gatherallaround.com/wappen/?p=$ID" "https://gatherallaround.com/wappen/" "https://gatherallaround.com/wappen/app.js?v=6"; do
               echo "== $u"
               curl -sS -A "$ua" -D /tmp/h -o /tmp/b --max-time 30 "$u" || true
               head -1 /tmp/h; grep -i "^location:\|^cache-control:\|^cf-cache-status:\|^content-type:\|^etag:" /tmp/h || true

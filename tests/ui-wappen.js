@@ -208,11 +208,11 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.click('[data-act="share"]');
     await p.click('[data-s="kakao"]');
     const share = await p.evaluate(() => window.__kakaoShare);
-    chk('공유: 카카오 feed 링크는 루트+쿼리(?ww=)·미리보기 이미지', share && share.objectType === 'feed' && share.content.link.webUrl === `https://gatherallaround.com/?ww=${WID}` && share.content.link.mobileWebUrl === share.content.link.webUrl && share.buttons[0].link.webUrl === share.content.link.webUrl && share.content.imageUrl.includes('icon-512'));
+    chk('공유: 카카오 feed 링크는 경로 형태(/ww/<id>)·미리보기 이미지', share && share.objectType === 'feed' && share.content.link.webUrl === `https://gatherallaround.com/ww/${WID}` && share.content.link.mobileWebUrl === share.content.link.webUrl && share.buttons[0].link.webUrl === share.content.link.webUrl && share.content.imageUrl.includes('icon-512'));
     await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item[data-more="copy"]');
     await p.evaluate(() => { window.__copied = null; navigator.clipboard.writeText = async (t) => { window.__copied = t; }; });
     await p.click('.sheet-item[data-more="copy"]'); await p.waitForFunction(() => window.__copied !== null);
-    chk('링크 복사도 루트+쿼리 형태', (await p.evaluate(() => window.__copied)) === `https://gatherallaround.com/?ww=${WID}`);
+    chk('링크 복사도 경로 형태(/ww/<id>)', (await p.evaluate(() => window.__copied)) === `https://gatherallaround.com/ww/${WID}`);
 
     // 6. 랭킹·카탈로그·요청·내 페이지 렌더
     await p.goto(`${BASE}/wappen/#/ranking`); await p.waitForSelector('.rank-row');
@@ -275,6 +275,19 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
         await pa.waitForSelector('.status-badge.status-approved');
         chk('기본 세트 불러오기 → 설치됨', (await pa.locator('.card-box .status-badge').first().innerText()) === '설치됨' && await pa.locator('[data-act="seed"]').count() === 0);
         await pa.close();
+    }
+    // 8. 모바일(터치): 홈 맨 위에서 아래로 당기면 새로고침 표시기가 돌고(.ptr.loading) 화면을 다시 그린다 — CDP 로 실제 터치 시퀀스 주입
+    if (VW < 600) {
+        await p.goto(`${BASE}/wappen/#/`); await p.waitForSelector('.card');
+        await p.evaluate(() => window.scrollTo(0, 0));
+        const cdp = await ctx.newCDPSession(p);
+        const seen = p.waitForFunction(() => { const el = document.querySelector('.ptr'); return !!el && el.classList.contains('loading'); }, null, { timeout: 5000 }).then(() => true).catch(() => false);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 180, y: 220 }] });
+        for (let y = 240; y <= 420; y += 30) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        chk('모바일: 당겨서 새로고침 — 표시기 동작 후 홈 다시 렌더', (await seen) && await p.waitForSelector('.card').then(() => true));
+        await p.waitForFunction(() => !document.querySelector('.ptr').classList.contains('loading'), null, { timeout: 5000 });
+        await cdp.detach();
     }
     chk('페이지 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
     await browser.close();

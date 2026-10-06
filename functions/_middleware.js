@@ -1,15 +1,16 @@
 // Cloudflare Pages middleware
 // ?news=<fileId> 요청에 대해 Drive에서 기사 제목을 가져와 OG 태그를 동적으로 주입.
 // 메신저 크롤러(KakaoTalk, Facebook 등)가 정적 HTML을 읽을 때 기사별 미리보기가 표시됨.
-// 와펜 꾸미기 공유 링크에는 작품·프로젝트별 OG 태그를 주입: 표준 형태는 루트 /?wp=<프로젝트 id> · /?ww=<작품 id>
-// (카카오톡 공유에서 검증된 루트+쿼리 — 루트 index.html 맨 앞 스크립트가 /wappen/#/… 로 넘긴다),
-// 예전 형태 /wappen/?p= · /wappen/?w= 도 계속 받는다. 해시 라우트는 크롤러가 못 보므로 전부 쿼리.
+// 와펜 꾸미기 공유 링크(표준은 경로형 /wp/<id>·/ww/<id> — functions/wp|ww/[id].js 가 처리). 여기서는 예전 쿼리형
+// 루트 /?wp=<프로젝트 id>·/?ww=<작품 id> 와 /wappen/?p=·?w= 를 받아, 사람(브라우저)은 HTTP 302 로 /wappen/#/… 에 바로 보내고
+// (JS 실행에 의존하지 않음 — 2026-10-06 카톡 인앱에서 포털에 멈추던 문제), 크롤러에게만 작품·프로젝트별 OG 태그를 주입한다.
+import { isCrawler } from '../wappen/share-page.js';
 
 // Drive API 키는 Cloudflare 환경변수(DRIVE_API_KEY)에서 읽는다.
 // 미설정 시 기존 하드코딩 값으로 폴백(하위호환). 설정 후 이 폴백 값은 콘솔에서 폐기/제한 권장.
 const DRIVE_API_KEY_FALLBACK = 'AIzaSyDk7iyY1XU0mepXOOqwY6h5YitbHHg6t40';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const WAPPEN_SHARE = 'https://gatherallaround.com/';   // og:url — 재공유돼도 같은 표준 형태 유지
+const WAPPEN_SHARE = 'https://gatherallaround.com';   // og:url — 재공유돼도 표준 형태(/wp/<id> · /ww/<id>) 유지
 
 function escapeAttr(s) {
     return String(s)
@@ -44,13 +45,13 @@ async function wappenOg(env, url) {
         if (!row || !row.preview_url) return null;
         const proj = row.wappen_projects && row.wappen_projects.status === 'active' ? row.wappen_projects.title : '';
         return { title: `${row.title} — ${row.author_name}님의 와펜 작품`, desc: `${proj ? proj + ' 프로젝트 · ' : ''}와펜을 붙여 꾸민 작품을 구경하고 반응을 남겨보세요`,
-            image: row.preview_url, w: row.preview_w, h: row.preview_h, url: `${WAPPEN_SHARE}?ww=${id}` };
+            image: row.preview_url, w: row.preview_w, h: row.preview_h, url: `${WAPPEN_SHARE}/ww/${id}` };
     }
     const id = p;
     const row = await get(`wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count,width_px,height_px&limit=1`);
     if (!row) return null;
     return { title: `${row.title} — 와펜 꾸미기 프로젝트`, desc: row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`,
-        image: row.thumb_url || row.base_image_url, w: null, h: null, url: `${WAPPEN_SHARE}?wp=${id}` };
+        image: row.thumb_url || row.base_image_url, w: null, h: null, url: `${WAPPEN_SHARE}/wp/${id}` };
 }
 
 export async function onRequest(context) {
@@ -58,7 +59,12 @@ export async function onRequest(context) {
     const DRIVE_API_KEY = (env && env.DRIVE_API_KEY) || DRIVE_API_KEY_FALLBACK;
     const url = new URL(request.url);
     const newsId = url.searchParams.get('news');
-    const wappenShare = !newsId && !!wappenShareIds(url);
+    const wappenIds = newsId ? null : wappenShareIds(url);
+    const wappenShare = !!wappenIds;
+    if (wappenShare && !isCrawler(request)) {
+        const target = wappenIds.w ? `/wappen/#/work/${wappenIds.w}` : `/wappen/#/project/${wappenIds.p}`;
+        return new Response(null, { status: 302, headers: { Location: new URL(target, request.url).toString(), 'Cache-Control': 'no-store' } });
+    }
 
     const response = await next();
 
