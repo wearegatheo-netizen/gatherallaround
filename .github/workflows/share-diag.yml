@@ -1,0 +1,31 @@
+# 와펜 공유 링크 진단 — 운영 서버가 각 공유 URL 형태에 무엇을 응답하는지(어느 HTML·리다이렉트·헤더) 외부에서 확인.
+# 개발 환경은 운영 도메인 접근이 막혀 있어 러너에서 본다. 수동 실행 전용, 개인정보 없음.
+name: wappen-share-diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: '프로젝트 또는 작품 uuid (없으면 더미)'
+        required: false
+        default: '33333333-3333-4333-8333-333333333333'
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 각 URL 형태의 응답 (상태·리다이렉트·캐시 헤더·제목·와펜 리다이렉트 스크립트 유무)
+        run: |
+          ID="${{ github.event.inputs.id }}"
+          for ua in "curl" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.9.5"; do
+            echo "########## UA: $ua"
+            for u in "https://gatherallaround.com/?wp=$ID" "https://gatherallaround.com/wappen/?p=$ID" "https://gatherallaround.com/wappen/" "https://gatherallaround.com/wappen" "https://gatherallaround.com/wp/$ID" "https://gatherallaround.com/wappen/app.js?v=5"; do
+              echo "== $u"
+              curl -sS -A "$ua" -D /tmp/h -o /tmp/b --max-time 30 "$u" || true
+              head -1 /tmp/h; grep -i "^location:\|^cache-control:\|^cf-cache-status:\|^content-type:\|^etag:" /tmp/h || true
+              echo "title: $(grep -o '<title>[^<]*</title>' /tmp/b | head -1)"
+              echo "wappen 리다이렉트 스크립트: $(grep -c "location.replace('/wappen/#/" /tmp/b) 곳 · og:url: $(grep -o '<meta property="og:url" content="[^"]*"' /tmp/b | head -1)"
+              echo "bytes: $(wc -c < /tmp/b)"; echo
+            done
+          done
