@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>와펜 꾸미기 | Gather all around</title>
+    <meta name="description" content="기본 이미지 위에 와펜을 붙여 나만의 포스터·SNS 이미지를 만들고, 공유하고, 반응을 모아보세요.">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta name="theme-color" content="#3366FF">
+    <!-- OG / SNS 공유 — functions/_middleware.js 가 ?w= / ?p= 요청에 대해 아래 태그를 치환한다 (속성 순서·형식 유지) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="와펜 꾸미기 | Gather all around">
+    <meta property="og:description" content="기본 이미지 위에 와펜을 붙여 나만의 포스터·SNS 이미지를 만들고 공유해보세요.">
+    <meta property="og:image" content="https://gatherallaround.com/icon.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://gatherallaround.com/wappen/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://gatherallaround.com/icon.jpg">
+    <!-- Pretendard -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="./style.css?v=1">
+    <!-- Supabase SDK (anon 읽기 전용) · Kakao SDK v1 (팝업 로그인) — 본 사이트와 동일 버전 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
+</head>
+<body>
+    <header class="wp-header">
+        <div class="wp-header-inner">
+            <a href="#/" class="wp-logo" aria-label="와펜 꾸미기 홈"><span class="wp-logo-mark">🧩</span><span>와펜 꾸미기</span></a>
+            <nav class="wp-nav" id="mainNav">
+                <a href="#/" data-nav="home">홈</a>
+                <a href="#/ranking" data-nav="ranking">랭킹</a>
+                <a href="#/items" data-nav="items">와펜</a>
+                <a href="#/new" data-nav="new">만들기</a>
+            </nav>
+            <div class="wp-header-right">
+                <button type="button" class="wp-icon-btn" id="themeBtn" aria-label="다크모드 전환">🌙</button>
+                <div id="authSlot"></div>
+            </div>
+        </div>
+    </header>
+    <main id="app" class="wp-container" aria-live="polite">
+        <div class="wp-loading">불러오는 중…</div>
+    </main>
+    <footer class="wp-footer">
+        <a href="/">Gather all around</a> · <a href="#/items">와펜 목록</a> · <a href="#/request">와펜 요청</a>
+    </footer>
+    <div id="auto-toast" role="status"></div>
+    <div id="modal-root"></div>
+    <noscript><div class="wp-container">와펜 꾸미기는 자바스크립트가 필요합니다.</div></noscript>
+    <script type="module" src="./app.js?v=1"></script>
+</body>
+</html>

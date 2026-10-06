@@ -3,7 +3,7 @@
 이 저장소에서 작업할 때 지켜야 할 규칙과 과거 실수에서 얻은 교훈을 기록합니다.
 
 ## 프로젝트 개요
-- `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 14,000줄)
+- `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 16,500줄)
 - 백엔드: Supabase (`profiles`, `reservations`, `schedules`, `schedule_attendees`, `performance_bookings`,
   공연 예매: `event_hosts`/`events`/`event_tickets`/`event_ticket_seats`(매수별 QR·좌석 체크인) + `event_seats` 뷰)
 - 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
@@ -47,7 +47,7 @@
   달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
 - 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search 단위, shows/host/band UI —
   Playwright는 scratchpad node_modules 필요, `ui-band.js`는 가짜 supabase 쿼리빌더로 밴드 관리자 화면 검증)
-- 개발 브랜치: `claude/confident-cannon-59bh3c`
+- 개발 브랜치: `claude/exciting-gauss-83p6k1`
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)
 
@@ -109,3 +109,22 @@
   `margin:0 calc(-1*var(--b-card-pad))`, 관리 팀은 `.admin` 파란 톤)가 되어 팀 경계를 소제목 구분선과 구별한다(팀 관리·현황표 카드 공통). 가입 신청 목록은 단순 구분선 리스트. 시드 표식 메모 "시트 이관"은 DB엔 두고 화면에서만 `_bandDisplayNote()`로 숨김.
   `.band-form-grid`는 `minmax(0,1fr)` 열 + `label{min-width:0}` — date/number 입력은 `appearance:none`으로 모바일 고유 폭 넘침 방지.
 - 민감정보(도어락 번호 등)는 관리자 UI에서만 노출, 공개 화면 금지.
+
+## 와펜 꾸미기 (`/wappen/`, 2026-10-06)
+- **별도 페이지** `wappen/`(index.html·style.css·app.js·editor.js·render.js·presets.js, ESM) — index.html 과 독립. 같은 카카오 앱·Supabase.
+  디자인 토큰·`.gaa-btn`·`.status-badge`·토스트는 `wappen/style.css` 에 복사본(index.html 과 동기화 대상). 다크모드 키 `gaa_theme` 공유.
+- **계정**: 전용 `wappen_users`(카카오 로그인 즉시 이용, 승인 없음). 관리자 = 카카오 ID `4883868250` 백스톱 + `is_admin`.
+  **세션**: `login {kakao_token}` 1회 kapi 검증 → 서버 발급 토큰 30일(DB 엔 sha256 해시, `wappen_sessions`) → `localStorage.wappen_session`.
+  인앱 브라우저 리다이렉트 복귀는 `sessionStorage.wappen_return` 마커로 자동 로그인.
+- **쓰기는 전부 `functions/wappen-api.js`**(service role, `{action, session}`; 우리 출처 아니면 403). 읽기는 anon(RLS `status='active'`) + RPC `wappen_ranking`.
+  `wappen_users/sessions/reactions/item_requests/reports` 는 anon 정책 없음. 작성자 표시명은 `author_name/author_avatar` 복제(뷰 join 없음, 닉네임 변경 시 서버가 함께 PATCH).
+  집계는 트리거(`reaction_count/reaction_counts`, `works_count`) — 클라 read-then-write 금지.
+- **업로드**: 바이트 프록시 없음. `upload_sign {kind, ext}` → 서명 URL(경로 `base|thumbs|previews|requests/<uid>/`, `items/` 는 관리자만) → 브라우저 PUT(`Content-Type` 필수).
+  저장 액션은 URL 접두를 재검증(event-api `posterOk` 방식). 버킷 `wappen` 공개·8MB·PNG/JPEG/WebP.
+- **사이즈 프리셋**은 `wappen/presets.js` 한 곳 — 브라우저와 Pages Function 이 같은 파일을 import. 인쇄(A1~A5·B4/B5 JIS, mm→300dpi px, 세로/가로)·SNS(px 고정).
+  **레이아웃** `{v:1, items:[{id,x,y,w,r,fx}]}` 비율 좌표(배열 순서 = z, ≤200개) — `render.js drawScene` 하나로 에디터·미리보기(1080px JPEG)·다운로드를 그린다.
+  다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
+- **공유**: 카카오톡이 해시를 버리므로 `/wappen/?w=<작품>`·`?p=<프로젝트>` 쿼리 → `functions/_middleware.js` 가 OG 주입(`?news=` 분기는 그대로), 페이지가 로드 시 해시 라우트로 치환.
+- 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
+- 테스트: `tests/wappen-api-unit.mjs`·`tests/middleware-unit.mjs`(node) · `tests/ui-wappen.js`(Playwright, 가짜 supabase/Kakao/API, `VIEWPORT=390x844 DARK=1 SHOT_DIR=` 옵션).
+  운영 절차·한도·주의는 `docs/WAPPEN-RUNBOOK.md`. 마이그레이션 `supabase/migrations/20261006_wappen.sql` 은 **master 머지 전에** SQL Editor 에서 실행.

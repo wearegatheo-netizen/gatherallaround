@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: GET diagnostics
         run: |
-          for path in send-email send-sms send-reminders music-search; do
+          for path in send-email send-sms send-reminders music-search wappen-api; do
             echo "== /$path"
             curl -sS --max-time 60 "https://gatherallaround.com/$path" || true
             echo; echo
