@@ -1032,29 +1032,50 @@ async function viewAdmin(r) {
 // 와펜 등록/수정 폼 (모달). onDone(item) 콜백.
 function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
     const v = { name: item?.name ?? prefill.name ?? '', category: item?.category ?? prefill.category ?? '', tags: (item?.tags ?? prefill.tags ?? []).join(', '), sort_order: item?.sort_order ?? 0 };
-    const m = openModal(`<h3>${item ? '와펜 수정' : '와펜 등록'}</h3>
+    const rq = prefill.request || null;   // 요청 승인 모드: 요청 요약을 보여주고 등록 = 승인
+    const m = openModal(`<h3>${rq ? '요청 승인 · 와펜 등록' : (item ? '와펜 수정' : '와펜 등록')}</h3>
+        ${rq ? `<div class="list-row" style="padding:0 0 12px"><div class="info"><b>${esc(rq.name)} <span class="status-badge sm status-pending">검토 중</span></b><small>${esc(rq.requester?.nickname || '')}${rq.description ? ` · ${esc(rq.description)}` : ''}</small>
+            <small>${rq.ref_image_url ? '요청자의 참고 이미지가 기본으로 선택돼요. 그대로 등록하거나 아래에서 다른 이미지로 바꾸세요.' : '참고 이미지가 없어요. 아래에서 와펜 이미지를 선택해주세요.'} 등록하면 요청이 <b>추가됨</b>으로 바뀌고 요청자에게 표시돼요.</small></div></div>` : ''}
         ${item ? `<div class="row" style="margin-bottom:10px"><img src="${esc(item.image_url)}" alt="" style="width:64px;height:64px;object-fit:contain;background:var(--wp-check);border-radius:8px"><span class="muted">${item.width_px}×${item.height_px}px</span></div>`
-            : `<label class="dropzone" id="itDrop"><input type="file" accept="image/png"><div id="itDropText">${icon('image')} PNG(투명 배경) 선택</div><div class="help">긴 변 2000px 로 자동 축소 · 알파 유지</div></label><div class="row" id="itPreview" style="margin-top:8px"></div>`}
+            : `<label class="dropzone" id="itDrop"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif"><div id="itDropText">${icon('image')} 이미지 선택 (투명 PNG 권장)</div><div class="help">PNG·JPG·WebP → PNG 로 저장 · 긴 변 2000px 자동 축소 · 투명 배경은 유지</div></label><div class="row" id="itPreview" style="margin-top:8px"></div>`}
         <label class="wp-label">이름</label><input class="wp-input" id="itName" maxlength="${LIMITS.itemName}" value="${esc(v.name)}">
         <label class="wp-label">카테고리</label><input class="wp-input" id="itCat" maxlength="${LIMITS.category}" list="catList" value="${esc(v.category)}" placeholder="예: 동물, 문자, 음악"><datalist id="catList">${state.categories.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
         <label class="wp-label">태그 (쉼표 구분, 최대 ${LIMITS.tags}개)</label><input class="wp-input" id="itTags" value="${esc(v.tags)}" placeholder="고양이, 검정, 귀여움">
         <label class="wp-label">정렬 순서 (작을수록 앞)</label><input class="wp-input" id="itSort" type="number" value="${v.sort_order}">
         <div class="form-result" id="itRes"></div>
-        <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="itOk">${item ? '저장' : '등록'}</button></div>`);
+        <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="itOk">${rq ? '승인하고 등록' : (item ? '저장' : '등록')}</button></div>`);
     let bitmap = null, dims = null;
-    if (!item) $('#itDrop input', m.el).addEventListener('change', async (e) => {
-        const f = e.target.files[0]; if (!f) return;
-        if (f.type !== 'image/png') { $('#itRes', m.el).textContent = 'PNG 파일만 등록할 수 있어요.'; $('#itRes', m.el).className = 'form-result err'; return; }
-        bitmap = await decodeFile(f); dims = { w: bitmap.naturalWidth || bitmap.width, h: bitmap.naturalHeight || bitmap.height };
-        $('#itDropText', m.el).innerHTML = `${icon('check')} ${esc(f.name)}`;
-        $('#itPreview', m.el).innerHTML = `<img src="${URL.createObjectURL(f)}" alt="" style="width:64px;height:64px;object-fit:contain;background:var(--wp-check);border-radius:8px"><span class="muted">${dims.w}×${dims.h}px</span>`;
-        if (!$('#itName', m.el).value) $('#itName', m.el).value = f.name.replace(/\.png$/i, '').slice(0, LIMITS.itemName);
-    });
+    const resEl = $('#itRes', m.el);
+    const showErr = (msg) => { resEl.textContent = msg; resEl.className = 'form-result err'; };
+    // 파일(File|Blob)을 디코드해 선택 상태로 — iOS 는 type 이 비어 오기도 하므로 MIME 대신 디코드 성공 여부로 판단
+    async function useSource(src, label) {
+        try {
+            bitmap = await decodeFile(src); dims = { w: bitmap.naturalWidth || bitmap.width, h: bitmap.naturalHeight || bitmap.height };
+        } catch (_) { bitmap = null; showErr('이미지를 읽지 못했어요. PNG·JPG·WebP 파일을 선택해주세요.'); return false; }
+        resEl.textContent = ''; resEl.className = 'form-result';
+        $('#itDropText', m.el).innerHTML = `${icon('check')} ${esc(label)}`;
+        $('#itPreview', m.el).innerHTML = `<img src="${URL.createObjectURL(src)}" alt="" style="width:64px;height:64px;object-fit:contain;background:var(--wp-check);border-radius:8px"><span class="muted">${dims.w}×${dims.h}px · PNG 로 저장</span>`;
+        return true;
+    }
+    if (!item) {
+        $('#itDrop input', m.el).addEventListener('change', async (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            if (f.type && !/^image\/(png|jpeg|webp|gif)$/.test(f.type)) return showErr('PNG·JPG·WebP 이미지만 등록할 수 있어요.');
+            if (await useSource(f, f.name) && !$('#itName', m.el).value) $('#itName', m.el).value = f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, LIMITS.itemName);
+        });
+        // 요청 승인: 요청자가 올린 참고 이미지를 기본 선택 (다른 파일을 고르면 교체)
+        if (prefill.imageUrl) {
+            resEl.textContent = '참고 이미지 불러오는 중…';
+            fetch(prefill.imageUrl, { mode: 'cors' }).then(r => r.ok ? r.blob() : Promise.reject(new Error(String(r.status))))
+                .then(b => useSource(b, '요청자의 참고 이미지'))
+                .catch(() => { resEl.textContent = ''; showErr('참고 이미지를 불러오지 못했어요. 파일을 직접 선택해주세요.'); });
+        }
+    }
     $('#itOk', m.el).addEventListener('click', async (e) => {
         const btn = e.currentTarget, res = $('#itRes', m.el); res.className = 'form-result'; res.textContent = '';
         const fields = { name: $('#itName', m.el).value.trim(), category: $('#itCat', m.el).value.trim() || '기본', tags: $('#itTags', m.el).value, sort_order: parseInt($('#itSort', m.el).value, 10) || 0 };
         if (!fields.name) { res.textContent = '이름을 입력해주세요.'; res.className = 'form-result err'; return; }
-        if (!item && !bitmap) { res.textContent = 'PNG 파일을 선택해주세요.'; res.className = 'form-result err'; return; }
+        if (!item && !bitmap) { res.textContent = '와펜 이미지를 선택해주세요.'; res.className = 'form-result err'; return; }
         btn.disabled = true;
         try {
             let out;
@@ -1066,7 +1087,7 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
                 out = await api('admin_item_create', { ...fields, image_url, width_px: fit.w, height_px: fit.h });
             }
             if (!out.ok) throw new Error(out.message);
-            await fetchItems(true); m.close(); showToast(item ? '수정했습니다.' : '와펜을 등록했습니다.'); onDone && onDone(out.item);
+            await fetchItems(true).catch(() => {}); m.close(); showToast(item ? '수정했습니다.' : '와펜을 등록했습니다.'); onDone && onDone(out.item);
         } catch (err) { res.textContent = err.message || '저장하지 못했습니다.'; res.className = 'form-result err'; btn.disabled = false; }
     });
 }
@@ -1104,7 +1125,7 @@ async function adminRequests(body, status = 'pending') {
         const b = e.target.closest('[data-st],[data-approve],[data-reject],[data-reopen]'); if (!b) return;
         if (b.dataset.st != null) return adminRequests(body, b.dataset.st);
         const req = out.requests.find(x => x.id === (b.dataset.approve || b.dataset.reject || b.dataset.reopen));
-        if (b.dataset.approve) itemFormModal({ prefill: { name: req.name } }, async (item) => { const o = await api('admin_request_resolve', { request_id: req.id, status: 'approved', item_id: item.id }); if (!o.ok) showToast(o.message); adminRequests(body, status); });
+        if (b.dataset.approve) itemFormModal({ prefill: { name: req.name, imageUrl: req.ref_image_url || null, request: req } }, async (item) => { const o = await api('admin_request_resolve', { request_id: req.id, status: 'approved', item_id: item.id }); if (!o.ok) showToast(o.message); adminRequests(body, status); });
         else if (b.dataset.reject) { const note = await promptModal({ title: '보류 사유 (요청자에게 표시)', max: 300, placeholder: '예: 저작권 문제로 추가할 수 없어요' }); if (note == null) return; const o = await api('admin_request_resolve', { request_id: req.id, status: 'rejected', admin_note: note }); if (o.ok) adminRequests(body, status); else showToast(o.message); }
         else if (b.dataset.reopen) { const o = await api('admin_request_resolve', { request_id: req.id, status: 'pending' }); if (o.ok) adminRequests(body, status); else showToast(o.message); }
     };

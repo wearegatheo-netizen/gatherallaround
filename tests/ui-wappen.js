@@ -229,6 +229,35 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.goto(`${BASE}/?p=${PID}`); await p.waitForURL(/\/wappen\/#\/project\//, { timeout: 15000 });
     chk('루트의 예전 ?p= 도 리다이렉트', true);
 
+    // 7. 관리자: 와펜 요청 승인 — 참고 이미지가 자동 선택되고 등록 → admin_item_create → admin_request_resolve(approved)
+    {
+        const RQ = '88888888-8888-4888-8888-888888888888', NEWIT = '99999999-9999-4999-8999-999999999999';
+        const FAKE_ADMIN = FAKE.replace('is_admin: false', 'is_admin: true').replace("default: return ok({});", `
+      case 'admin_overview': return ok({ pending_requests: 1, open_reports: 0, users: 2, items: 2 });
+      case 'admin_requests': return ok({ requests: window.__approved ? [] : [{ id: '${RQ}', user_id: '${UID}', name: '고양이', description: '검은 고양이', ref_image_url: '${BASE}/icon-192.png', status: 'pending', admin_note: null, item_id: null, created_at: new Date().toISOString(), requester: { nickname: '길동', avatar_url: null }, wappen_items: null }] });
+      case 'admin_item_create': return ok({ item: { id: '${NEWIT}', name: body.name, category: body.category, tags: body.tags, image_url: body.image_url, width_px: body.width_px, height_px: body.height_px, status: 'active' } });
+      case 'admin_request_resolve': window.__approved = body; return ok({ request: { id: body.request_id, status: body.status } });
+      default: return ok({});`);
+        const pa = await ctx.newPage();
+        pa.on('pageerror', (e) => errors.push('admin: ' + String(e)));
+        await pa.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, contentType: route.request().resourceType() === 'stylesheet' ? 'text/css' : 'application/javascript', body: '' }));
+        await pa.addInitScript(FAKE_ADMIN);
+        await pa.goto(`${BASE}/wappen/#/admin?tab=requests`);
+        await pa.waitForSelector('[data-approve]');
+        chk('관리자: 요청 목록에 승인 버튼', await pa.locator('[data-approve]').count() === 1);
+        await pa.click('[data-approve]');
+        await pa.waitForSelector('#itPreview img', { timeout: 15000 });
+        chk('승인 폼: 참고 이미지 자동 선택·이름 프리필', (await pa.inputValue('#itName')) === '고양이' && (await pa.locator('#itPreview .muted').innerText()).includes('PNG 로 저장'));
+        await pa.fill('#itCat', '동물');
+        await pa.click('#itOk');
+        await pa.waitForFunction(() => window.__approved, null, { timeout: 20000 });
+        const ac = await pa.evaluate(() => ({ create: window.__apiCalls.find(c => c.action === 'admin_item_create'), sign: window.__apiCalls.find(c => c.action === 'upload_sign'), approved: window.__approved }));
+        chk('승인: item PNG 서명 업로드 → admin_item_create(이름·카테고리·크기)', ac.sign && ac.sign.kind === 'item' && ac.sign.ext === 'png' && ac.create && ac.create.name === '고양이' && ac.create.category === '동물' && ac.create.width_px === 192 && ac.create.image_url.includes('/items/'));
+        chk('승인: admin_request_resolve(approved, item_id 연결)', ac.approved.request_id === RQ && ac.approved.status === 'approved' && ac.approved.item_id === NEWIT);
+        await pa.waitForFunction(() => !document.querySelector('[data-approve]'));
+        chk('승인 후 검토 중 목록에서 사라짐', true);
+        await pa.close();
+    }
     chk('페이지 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
     await browser.close();
     console.log(`\n${pass} passed, ${fail} failed`);
