@@ -2485,6 +2485,7 @@
             document.getElementById('notice_container').classList.remove('hidden');
             startInactivityWatcher();
             checkKakaoUserProfile();
+            _gatheoEntered = true;
             _authResolved = true;
             applyPendingRoute();
         }
@@ -2670,6 +2671,7 @@
             if (mypc) { mypc.classList.add('hidden'); mypc.innerHTML = ''; }
             if (mypa) mypa.textContent = '▼ 펼치기';
             stopInactivityWatcher();
+            _gatheoEntered = false;
             _authResolved = true;
             applyPendingRoute();
         }
@@ -3713,12 +3715,17 @@
                 if (supabaseClient) { try { await supabaseClient.auth.signOut(); } catch(e) {} }
                 return;
             }
-            // 이메일 세션 우선 체크
+            // 어느 화면으로 들어왔나 — 루트(포털)면 세션은 복구하되 화면은 포털에 둔다(자동 진입 안 함).
+            // 섹션 딥링크·새로고침(#gatheo/…, #band)이면 지금처럼 그 화면으로 바로 들어간다.
+            // (2026-10-06: 포털로 들어왔는데 직전 로그인 계정의 게더링/합주팀 화면이 바로 떠 버리던 문제.
+            //  포털에서 섹션 버튼을 누르면 showGatheoSection/showBandSection 이 복구된 세션으로 바로 진입한다.)
+            const target = String(_pendingRoute || 'portal').split('/')[0];
+            // 이메일(Supabase) 세션 — 게더링 이메일 회원·고정 합주팀 공용. 주인의 구역은 profiles.member_type 으로 판별
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session && session.user) {
                     if (recoveryMode) return; // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
-                    await checkEmailUserApproval(session.user);
+                    await checkEmailUserApproval(session.user, { target });
                     return;
                 }
             } catch (e) { console.warn('Supabase 세션 체크 실패:', e); }
@@ -3729,7 +3736,7 @@
                     const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', cachedKakaoId).maybeSingle();
                     if (data && data.status === 'approved') {
                         state.user = { nickname: data.name, kakaoId: cachedKakaoId, role: data.role || '일반' };
-                        loginUI(state.user.nickname);
+                        if (target === 'gatheo') loginUI(state.user.nickname); else _finishBoot();
                         return;
                     }
                     if (data && data.status === 'pending') { showPendingScreen(data.name || ''); return; }
@@ -3740,6 +3747,17 @@
             // 호스트 센터 로그인도 같은 카카오 SDK 토큰을 쓰므로, 토큰 존재 = 게더링 회원 진입 의사가 아니다.
             // (과거 checkSession()이 이 폴백을 하다가 "호스트 로그인 후 재방문 시 게더링 자동 진입" 버그를 만들었다.)
             // GatheO 자동 로그인은 명시적 게더링 로그인이 남긴 gaa_kakao_uid 캐시로만 판단한다.
+            _finishBoot(); // 세션 없음 — 포털(딥링크가 있으면 그 섹션) 표시
+        }
+
+        // 부팅 시 인증 판단이 끝났을 때 — 로딩 오버레이를 걷고, 딥링크가 있으면 그 섹션으로, 없으면 포털로.
+        // (loginUI/loginBandUI 로 바로 들어가는 경우엔 그쪽이 같은 일을 한다)
+        function _finishBoot() {
+            const ls = document.getElementById('portalLoadingScreen');
+            if (ls) { ls.classList.add('fade-out'); setTimeout(() => ls.remove(), 380); }
+            _authResolved = true;
+            if (_pendingRoute) applyPendingRoute();
+            else if (!window.__shareEntryMode) showPortal();
         }
 
         function navigate(dir) {
@@ -7023,6 +7041,7 @@
         let _navFromPop = false;       // popstate/복원 중에는 pushState 억제
         let _pendingRoute = null;      // 로드 시 hash로부터 복원할 섹션
         let _authResolved = false;     // login/logout UI가 한 번이라도 실행됐는지
+        let _gatheoEntered = false;    // 이번 로드에서 loginUI(게더링 데이터 로딩 포함)가 실행됐는지 — 세션만 조용히 복구한 상태와 구분
 
         // 모든 최상위 화면 컨테이너 — 화면 전환 시 이전 화면이 남는(누수) 버그 방지용 일괄 숨김
         const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','notice_container','band-news-page','performance-booking-page','pending-screen','shows-page','host-page'];
@@ -7102,7 +7121,7 @@
                 const page = segs[0];
                 if (page === 'gatheo') {
                     if (state.user) {
-                        _showGatheoMain();
+                        if (_gatheoEntered) _showGatheoMain(); else loginUI(state.user.nickname); // 세션만 복구된 상태면 데이터 로딩 포함 진입
                         let tab = _GATHEO_TABS.includes(segs[1]) ? segs[1] : null;
                         if (tab === 'admin' && !isAdminUser()) tab = 'reservation'; // 권한 없는 딥링크 방어
                         if (tab) {
@@ -8363,6 +8382,8 @@
         }
 
         function showGatheoSection() {
+            // 부팅 때 조용히 복구해 둔 게더링 세션이 있으면 로그인 폼 대신 바로 진입 (포털 → 게더링 버튼)
+            if (state.user) { _pushNav('gatheo'); loginUI(state.user.nickname); return; }
             _pushNav('gatheo');
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
@@ -8373,6 +8394,7 @@
         }
 
         function showBandSection() {
+            if (state.bandProfile) { _pushNav('band'); loginBandUI(state.bandProfile); return; } // 복구된 합주팀 세션 → 바로 진입
             _pushNav('band');
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
@@ -12724,14 +12746,18 @@
             }
         }
 
-        async function checkEmailUserApproval(user) {
+        async function checkEmailUserApproval(user, opts = {}) {
+            // opts.target: 부팅 복원 시 들어가려는 섹션('gatheo'|'band'|'portal'|공개 섹션). 세션 주인의 구역과 다르면
+            // 상태(state.user / state.bandProfile)만 복구하고 화면은 _finishBoot 가 정한다(포털 또는 딥링크 섹션).
+            // 로그인 폼에서 직접 호출될 때는 target 이 없으므로 항상 그 화면으로 들어간다.
+            const target = opts.target || null;
             const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
             if (error || !data) { alert('프로필 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'); return; }
 
             if (data.member_type === 'band') {
                 if (data.status === 'approved') {
                     state.bandProfile = data;
-                    loginBandUI(data);
+                    if (!target || target === 'band') loginBandUI(data); else _finishBoot();
                 } else if (data.status === 'rejected') {
                     alert('가입이 거절되었습니다. 관리자에게 문의해주세요.');
                     await supabaseClient.auth.signOut();
@@ -12743,7 +12769,7 @@
 
             if (data.status === 'approved') {
                 state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반', email: data.email };
-                loginUI(data.name);
+                if (!target || target === 'gatheo') loginUI(data.name); else _finishBoot();
             } else if (data.status === 'rejected') {
                 alert('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
                 await supabaseClient.auth.signOut();

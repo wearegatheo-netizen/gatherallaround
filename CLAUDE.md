@@ -17,6 +17,11 @@
   합치기 `_mergeMusicResults`(애플 먼저·정규화 키 중복 제거), 결과 없음·실패 시 입력값 그대로 등록하는 칩/줄.
   서버 함수는 우리 출처만(Sec-Fetch-Site/Origin/Referer), q≤60자, 1일 캐시(Deezer IP 쿼터 5초 50회 보호), 실패는 **500** JSON(502 는 Cloudflare 가 본문을 가림).
   상태는 `functions-diagnostics` 워크플로로 확인.
+- 부팅·세션 복원(`initSession`): 루트(포털)로 들어오면 저장된 세션(Supabase 이메일 = 게더링 회원/합주팀 공용, 카카오 캐시 `gaa_kakao_uid`)을
+  **상태만 복구하고 화면은 포털**에 둔다(2026-10-06, 직전 계정 화면이 바로 뜨던 문제). 포털의 [게더링]/[고정 합주팀] 버튼(`showGatheoSection`/`showBandSection`)이
+  복구된 세션이 있으면 로그인 폼 대신 `loginUI`/`loginBandUI` 로 바로 진입. 섹션 딥링크·새로고침(`#gatheo/…`, `#band`)은 종전처럼 바로 그 화면
+  (`checkEmailUserApproval(user, {target})`, 다른 구역·공개 섹션이면 `_finishBoot()`). `_gatheoEntered` 로 "세션만 복구" 와 "loginUI 실행(데이터 로딩)" 을 구분 —
+  라우터가 미진입 세션이면 `loginUI` 를 부른다. 명시적 로그아웃은 `gaa_portal_required` 로 다음 부팅에서 세션 해제.
 - 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송 — 예약번호·4시간 자동취소 안내 포함)
 - 고정 합주팀(밴드 계정, `profiles.member_type='band'`): 회차 모델은 내부운영 시트 "진행중인 고정팀"과 동일 —
   `band_start_date` + 28n = 시작일_n, 종료일_n = 시작일_n + 21, **입금일_n = 시작일_n − 14**(n≥1, 3주차 사용일 = 다음 시작일 2주 전; 등록은 시작일 당일).
