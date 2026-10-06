@@ -21,6 +21,51 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const app = $('#app');
+// 16px 단색 선 아이콘(24 viewBox, currentColor). 버튼·시트·탭에서 이모지 대신 쓴다 — 기기마다 모양이 같고 글자색을 따른다.
+const ICONS = {
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+    remix: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    edit: '<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+    trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+    flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+    eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    'eye-off': '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+    more: '<circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/><circle cx="5" cy="12" r="1.6" fill="currentColor"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    back: '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+    chevron: '<polyline points="9 18 15 12 9 6"/>',
+    'chevron-down': '<polyline points="6 9 12 15 18 9"/>',
+    'chevron-up': '<polyline points="18 15 12 9 6 15"/>',
+    save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+    undo: '<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
+    redo: '<polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>',
+    flip: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M9 7H5v10h4"/><path d="M15 7h4v10h-4" stroke-dasharray="2.5 2"/>',
+    'rotate-ccw': '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+    'rotate-cw': '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+    'layer-up': '<polyline points="7 10 12 5 17 10"/><line x1="12" y1="5" x2="12" y2="16"/><line x1="5" y1="20" x2="19" y2="20"/>',
+    'layer-down': '<polyline points="7 14 12 19 17 14"/><line x1="12" y1="19" x2="12" y2="8"/><line x1="5" y1="4" x2="19" y2="4"/>',
+    copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    check: '<polyline points="20 6 9 17 4 12"/>',
+    x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    brush: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>',
+    trophy: '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',
+    home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+    phone: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+    sliders: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+    inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    ban: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+};
+const icon = (name, cls = '') => `<svg class="ico${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 const num = (n) => Number(n || 0).toLocaleString('ko-KR');
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
 function timeAgo(iso) {
@@ -63,7 +108,7 @@ function openModal(html, { sheet = false, onClose } = {}) {
 }
 function confirmModal({ title, body = '', okLabel = '확인', danger = false, cancelLabel = '취소' }) {
     return new Promise((resolve) => {
-        const m = openModal(`<h3>${esc(title)}</h3>${body ? `<div class="muted" style="font-size:0.9rem">${body}</div>` : ''}
+        const m = openModal(`<h3>${esc(title)}</h3>${body ? `<p class="muted">${body}</p>` : ''}
             <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>${esc(cancelLabel)}</button>
             <button type="button" class="gaa-btn gaa-btn-sm ${danger ? 'gaa-btn-danger' : 'gaa-btn-primary'}" data-ok>${esc(okLabel)}</button></div>`, { onClose: () => resolve(false) });
         $('[data-ok]', m.el).addEventListener('click', () => { resolve(true); m.close(); });
@@ -167,7 +212,7 @@ function requireLogin(msg = '이 기능은 카카오 로그인 후 이용할 수
     return new Promise((resolve) => {
         let done = false;
         const m = openModal(`<h3>로그인이 필요해요</h3><p class="muted" style="margin:0 0 14px">${esc(msg)}<br>가입 절차 없이 카카오 로그인만 하면 바로 시작할 수 있어요.</p>
-            <div class="stack" style="align-items:center"><button type="button" class="kakao-btn lg" data-kakao>💬 카카오로 시작하기</button>
+            <div class="stack" style="align-items:center"><button type="button" class="kakao-btn lg" data-kakao>${icon('chat')} 카카오로 시작하기</button>
             <button type="button" class="gaa-btn gaa-btn-ghost gaa-btn-sm" data-close>나중에</button></div>`, { onClose: () => { if (!done) resolve(false); } });
         $('[data-kakao]', m.el).addEventListener('click', async () => { const ok = await kakaoLogin(); done = true; m.close(); resolve(ok); });
     });
@@ -177,7 +222,7 @@ function renderAuthSlot() {
     if (state.me) {
         slot.innerHTML = `<a class="wp-avatar-btn" href="#/me" title="내 페이지">${avatarHTML(state.me.nickname, state.me.avatar_url)}<span>${esc(state.me.nickname)}</span></a>`;
     } else {
-        slot.innerHTML = `<button type="button" class="kakao-btn" data-login>💬 로그인</button>`;
+        slot.innerHTML = `<button type="button" class="kakao-btn" data-login>${icon('chat')} 로그인</button>`;
         $('[data-login]', slot).addEventListener('click', () => kakaoLogin());
     }
     const adminLink = $('#mainNav a[data-nav="admin"]');
@@ -239,10 +284,15 @@ const navigate = (hash) => { if (location.hash === hash) render(); else location
 const replaceHash = (hash) => { history.replaceState(null, '', location.pathname + location.search + hash); };
 let cleanup = null;
 const setCleanup = (fn) => { cleanup = fn; };
+// 뷰 안에서 #app 에 거는 위임 리스너는 반드시 이걸로 — 다음 render() 때 자동 해제(누적 방지)
+let viewAbort = null;
+const onAppClick = (fn) => app.addEventListener('click', fn, { signal: viewAbort.signal });
 function setActiveNav(key) { $$('#mainNav a, #bottomNav a').forEach(a => a.classList.toggle('active', a.dataset.nav === key)); }
 
 async function render() {
     if (cleanup) { try { cleanup(); } catch (_) {} cleanup = null; }
+    if (viewAbort) viewAbort.abort();
+    viewAbort = new AbortController();
     document.body.classList.remove('editing');
     const r = parseHash();
     const top = r.segs[0] || 'home';
@@ -291,9 +341,9 @@ function workCardHTML(w, { showProject = true } = {}) {
 }
 function pagerHTML(page, hasMore, makeHash) {
     if (page === 0 && !hasMore) return '';
-    return `<div class="pager">${page > 0 ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="${makeHash(page - 1)}">‹ 이전</a>` : ''}
-        <span class="muted" style="align-self:center">${page + 1}페이지</span>
-        ${hasMore ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="${makeHash(page + 1)}">다음 ›</a>` : ''}</div>`;
+    return `<div class="pager">${page > 0 ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="${makeHash(page - 1)}">${icon('back')} 이전</a>` : ''}
+        <span class="muted">${page + 1}페이지</span>
+        ${hasMore ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="${makeHash(page + 1)}">다음 ${icon('chevron')}</a>` : ''}</div>`;
 }
 function sizeChipsHTML(group, size, makeHash) {
     const groups = ['', 'print', 'sns'].map(g => `<a class="chip ${(group || '') === g && !size ? 'active' : ''}" href="${makeHash({ group: g, size: '' })}">${g ? GROUPS[g] : '전체'}</a>`).join('');
@@ -306,10 +356,10 @@ async function copyText(text) {
 }
 function shareSheet({ title, text, url, imageUrl }) {
     const m = openModal(`<h3>공유하기</h3><div class="stack">
-        <button type="button" class="kakao-btn lg" style="max-width:none" data-s="kakao">💬 카카오톡으로 공유</button>
-        ${navigator.share ? '<button type="button" class="gaa-btn gaa-btn-secondary gaa-btn-block" data-s="native">📤 다른 앱으로 공유</button>' : ''}
-        <button type="button" class="gaa-btn gaa-btn-secondary gaa-btn-block" data-s="copy">🔗 링크 복사</button>
-        <div class="muted" style="word-break:break-all;font-size:0.78rem;text-align:center">${esc(url)}</div></div>`, { sheet: true });
+        <button type="button" class="kakao-btn lg" style="max-width:none" data-s="kakao">${icon('chat')} 카카오톡으로 공유</button>
+        ${navigator.share ? `<button type="button" class="gaa-btn gaa-btn-secondary gaa-btn-block" data-s="native">${icon('upload')} 다른 앱으로 공유</button>` : ''}
+        <button type="button" class="gaa-btn gaa-btn-secondary gaa-btn-block" data-s="copy">${icon('link')} 링크 복사</button>
+        <div class="url">${esc(url)}</div></div>`, { sheet: true });
     m.el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-s]'); if (!b) return;
         const s = b.dataset.s;
@@ -327,11 +377,21 @@ function shareSheet({ title, text, url, imageUrl }) {
         }
     });
 }
+// '⋯ 더보기' 하단 시트 — items: [{ key, label, icon, danger }]. 선택한 key 또는 null 을 돌려준다.
+function moreSheet(items, title = '') {
+    return new Promise((resolve) => {
+        let picked = null;
+        const m = openModal(`${title ? `<h3>${esc(title)}</h3>` : ''}<div class="sheet-list">${items.map(it =>
+            `<button type="button" class="sheet-item ${it.danger ? 'danger' : ''}" data-more="${esc(it.key)}">${icon(it.icon)}<span>${esc(it.label)}</span></button>`).join('')}</div>
+            <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>닫기</button></div>`, { sheet: true, onClose: () => resolve(picked) });
+        m.el.addEventListener('click', (e) => { const b = e.target.closest('[data-more]'); if (!b) return; picked = b.dataset.more; m.close(); });
+    });
+}
 async function reportModal(target_type, target_id) {
     if (!await requireLogin('신고는 로그인 후 가능합니다.')) return;
     const m = openModal(`<h3>신고하기</h3><label class="wp-label">사유</label>
         <select class="wp-select">${REPORT_REASONS.map(r => `<option value="${r.key}">${esc(r.label)}</option>`).join('')}</select>
-        <label class="wp-label" style="margin-top:10px">상세 (선택)</label><textarea class="wp-textarea" maxlength="${LIMITS.reportDetail}" placeholder="어떤 점이 문제인지 알려주세요"></textarea>
+        <label class="wp-label">상세 (선택)</label><textarea class="wp-textarea" maxlength="${LIMITS.reportDetail}" placeholder="어떤 점이 문제인지 알려주세요"></textarea>
         <div class="form-result" data-res></div>
         <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" data-ok>신고 접수</button></div>`);
     $('[data-ok]', m.el).addEventListener('click', async (ev) => {
@@ -341,9 +401,9 @@ async function reportModal(target_type, target_id) {
         else { const r = $('[data-res]', m.el); r.textContent = out.message || '접수에 실패했습니다.'; r.className = 'form-result err'; btn.disabled = false; }
     });
 }
-const loginGateHTML = (title, msg) => `<div class="card-box" style="text-align:center;padding:36px 20px"><div style="font-size:2rem;margin-bottom:10px">🧩</div>
-    <div style="font-weight:800;font-size:1.05rem;margin-bottom:6px">${esc(title)}</div><p class="muted" style="margin:0 0 18px">${esc(msg)}</p>
-    <button type="button" class="kakao-btn lg" data-act="login">💬 카카오로 시작하기</button></div>`;
+const loginGateHTML = (title, msg) => `<div class="card-box empty" style="padding:36px 20px"><div class="big">🧩</div>
+    <div class="gate-title">${esc(title)}</div><p class="muted" style="margin:0 0 18px">${esc(msg)}</p>
+    <button type="button" class="kakao-btn lg" data-act="login">${icon('chat')} 카카오로 시작하기</button></div>`;
 
 // ══════════════════════════════════════════════════════════════════
 // 홈 — 인기 작품 스트립 + 사이즈 필터·검색·정렬 + 프로젝트 그리드
@@ -355,12 +415,12 @@ async function viewHome(r) {
     const mk = (o) => hashQuery('/', { group: f.group, size: f.size, q: f.text, sort: f.sort === 'new' ? '' : f.sort, page: 0, ...o });
     app.innerHTML = `
         <section class="hero"><div><h1>와펜 붙여 나만의 작품 만들기</h1><p>기본 이미지를 올리고, 와펜을 붙이고, 인쇄·SNS 사이즈로 저장하세요. 카카오 로그인만 하면 바로 시작!</p></div>
-            <div class="hero-actions"><a class="gaa-btn gaa-btn-secondary" href="#/new">＋ 프로젝트 만들기</a><a class="gaa-btn gaa-btn-secondary" href="#/ranking">🏆 랭킹</a></div></section>
-        <div class="section-title"><h2 id="popTitle">🔥 이번 주 인기 작품</h2><a class="more" href="#/ranking">더 보기 ›</a></div>
+            <div class="hero-actions"><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/new">${icon('plus')} 프로젝트 만들기</a><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/ranking">${icon('trophy')} 랭킹</a></div></section>
+        <div class="section-title"><h2 id="popTitle">🔥 이번 주 인기 작품</h2><a class="more" href="#/ranking">더 보기 ${icon('chevron')}</a></div>
         <div class="strip" id="popStrip">${loadingHTML()}</div>
-        <div class="section-title"><h2>프로젝트</h2><a class="more" href="#/new">＋ 새 프로젝트</a></div>
+        <div class="section-title"><h2>프로젝트</h2><a class="more" href="#/new">${icon('plus')} 새 프로젝트</a></div>
         ${sizeChipsHTML(f.group, f.size, (o) => mk({ ...o, q: f.text }))}
-        <div class="filter-bar"><div class="search-box"><input id="homeSearch" placeholder="프로젝트 검색 (제목)" value="${esc(f.text)}" maxlength="40"></div>
+        <div class="filter-bar"><div class="search-box">${icon('search')}<input id="homeSearch" placeholder="프로젝트 검색 (제목)" value="${esc(f.text)}" maxlength="40"></div>
             <div class="seg"><button type="button" class="${f.sort === 'new' ? 'active' : ''}" data-sort="new">최신</button><button type="button" class="${f.sort === 'popular' ? 'active' : ''}" data-sort="popular">인기</button></div></div>
         <div id="projGrid">${loadingHTML()}</div>`;
 
@@ -411,28 +471,26 @@ async function viewProject(r) {
     const pr = presetOf(p.size_key); const dims = presetDims(p.size_key, p.orientation);
     const mine = state.me && state.me.id === p.owner_id; const admin = state.me && state.me.is_admin;
     const mk = (o) => hashQuery(`/project/${id}`, { sort: sort === 'popular' ? '' : sort, page: 0, ...o });
+    // 사이즈 메타: 배지(A4 세로)에 이미 이름·방향이 있으므로 치수만 덧붙인다
+    const mmText = pr && pr.group === 'print' ? (p.orientation === 'landscape' ? `${pr.mm[1]}×${pr.mm[0]}` : `${pr.mm[0]}×${pr.mm[1]}`) + 'mm · 300dpi ' : '';
     app.innerHTML = `
         <div class="detail-head">
             <div class="detail-img"><img src="${esc(p.base_image_url)}" alt="${esc(p.title)}"></div>
             <div class="detail-info">
-                <div class="row">${sizeBadge(p)}<span class="muted">${esc(presetLabel(p.size_key, p.orientation))}${pr && pr.group === 'print' ? ` · 300dpi ${dims.w}×${dims.h}px` : ''}</span></div>
+                <div class="meta-line">${sizeBadge(p)}<span>${mmText}${dims.w}×${dims.h}px</span></div>
                 <h1>${esc(p.title)}</h1>
-                <div class="author-line">${avatarHTML(p.author_name, p.author_avatar)}<span>${esc(p.author_name)}</span><span class="muted">· ${fmtDate(p.created_at)} · 작품 ${num(p.works_count)}개</span></div>
-                ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
-                <div class="gaa-btn-row" style="margin-top:6px">
-                    <a class="gaa-btn gaa-btn-primary" href="#/edit/${id}">🎨 꾸미기 시작</a>
-                    <button type="button" class="gaa-btn gaa-btn-secondary" data-act="share">📤 공유</button>
-                    <button type="button" class="gaa-btn gaa-btn-ghost" data-act="report">🚩 신고</button>
+                <div class="author-line">${avatarHTML(p.author_name, p.author_avatar, 'xs')}<b>${esc(p.author_name)}</b><span class="sep">·</span><span>${fmtDate(p.created_at)}</span><span class="sep">·</span><span>작품 ${num(p.works_count)}개</span></div>
+                ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
+                <div class="action-row">
+                    <a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">${icon('brush')} 꾸미기 시작</a>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')} 공유</button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
-                ${mine || admin ? `<div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-act="edit">✏️ 정보 수정</button>
-                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-act="hide">🙈 숨기기</button>
-                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-act="delete">삭제</button></div>` : ''}
             </div>
         </div>
         <div class="section-title"><h2>작품 ${num(p.works_count)}</h2>
-            <div class="seg"><a class="${sort === 'popular' ? 'active' : ''}" href="${mk({ sort: '' })}" style="padding:8px 12px;font-size:0.82rem;font-weight:600">인기</a><a class="${sort === 'new' ? 'active' : ''}" href="${mk({ sort: 'new' })}" style="padding:8px 12px;font-size:0.82rem;font-weight:600">최신</a></div></div>
+            <div class="seg"><a class="${sort === 'popular' ? 'active' : ''}" href="${mk({ sort: '' })}">인기</a><a class="${sort === 'new' ? 'active' : ''}" href="${mk({ sort: 'new' })}">최신</a></div></div>
         <div id="worksGrid">${loadingHTML()}</div>`;
-    $$('.seg a', app).forEach(a => { a.style.borderRadius = '0'; if (a.classList.contains('active')) { a.style.background = 'var(--wds-primary)'; a.style.color = '#fff'; } });
 
     (async () => {
         const grid = $('#worksGrid');
@@ -446,10 +504,21 @@ async function viewProject(r) {
         } catch (_) { grid.innerHTML = errorHTML(); }
     })();
 
-    app.addEventListener('click', async (e) => {
+    onAppClick(async (e) => {
         const b = e.target.closest('[data-act]'); if (!b) return;
-        const act = b.dataset.act;
+        let act = b.dataset.act;
+        if (act === 'more') {
+            // 부가 동작은 한 시트에 — 소유자/관리자: 정보 수정·숨기기·삭제, 모두: 링크 복사·신고
+            act = await moreSheet([
+                ...(mine || admin ? [{ key: 'edit', label: '정보 수정', icon: 'edit' }, { key: 'hide', label: '숨기기', icon: 'eye-off' }] : []),
+                { key: 'copy', label: '링크 복사', icon: 'link' },
+                ...(!mine ? [{ key: 'report', label: '신고', icon: 'flag' }] : []),
+                ...(mine || admin ? [{ key: 'delete', label: '프로젝트 삭제', icon: 'trash', danger: true }] : []),
+            ]);
+            if (!act) return;
+        }
         if (act === 'share') shareSheet({ title: `${p.title} · 와펜 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: `${SITE_URL}?p=${id}`, imageUrl: p.thumb_url || p.base_image_url });
+        if (act === 'copy') copyText(`${SITE_URL}?p=${id}`);
         if (act === 'report') reportModal('project', id);
         if (act === 'edit') {
             const title = await promptModal({ title: '제목 수정', value: p.title, max: LIMITS.title }); if (title == null) return;
@@ -478,20 +547,20 @@ async function viewNew() {
     if (!state.me) { app.innerHTML = loginGateHTML('프로젝트 만들기', '기본 이미지를 올리고 사이즈를 정하면 누구나 와펜을 붙여 꾸밀 수 있어요.'); return; }
     const s = { group: 'print', size: 'a4', orientation: 'portrait', file: null, bitmap: null, offset: 0.5 };
     app.innerHTML = `
-        <h1 style="font-size:1.3rem;font-weight:800;margin:4px 0 14px">새 프로젝트</h1>
-        <div class="card-box"><div class="wp-label">1. 사이즈</div>
+        <div class="page-head"><h1>새 프로젝트</h1></div>
+        <div class="card-box"><div class="wp-label head">1. 사이즈</div>
             <div class="seg" id="grpSeg">${Object.entries(GROUPS).map(([k, v]) => `<button type="button" class="${s.group === k ? 'active' : ''}" data-g="${k}">${v}</button>`).join('')}</div>
-            <div class="size-pick" id="sizePick" style="margin-top:10px"></div>
+            <div class="size-pick" id="sizePick"></div>
             <div id="orientRow" style="margin-top:10px"></div>
             <div class="help" id="sizeHelp"></div></div>
-        <div class="card-box"><div class="wp-label">2. 기본 이미지</div>
-            <label class="dropzone" id="drop"><input type="file" accept="image/png,image/jpeg,image/webp"><div>📷 이미지를 선택하거나 끌어다 놓으세요</div><div class="help">PNG · JPG · WebP, 긴 변 4096px 로 자동 축소 · 선택한 사이즈 비율로 잘립니다</div></label>
+        <div class="card-box"><div class="wp-label head">2. 기본 이미지</div>
+            <label class="dropzone" id="drop"><input type="file" accept="image/png,image/jpeg,image/webp"><div>${icon('image')} 이미지를 선택하거나 끌어다 놓으세요</div><div class="help">PNG · JPG · WebP, 긴 변 4096px 로 자동 축소 · 선택한 사이즈 비율로 잘립니다</div></label>
             <div class="crop-preview hidden" id="cropWrap"><canvas></canvas></div>
             <div id="offsetRow" class="hidden" style="margin-top:8px"><label class="wp-label">잘릴 위치</label><input type="range" id="offset" min="0" max="100" value="50" style="width:100%"></div>
             <div class="help" id="imgHelp"></div></div>
-        <div class="card-box"><div class="wp-label">3. 정보</div>
+        <div class="card-box"><div class="wp-label head">3. 정보</div>
             <label class="wp-label" for="pTitle">제목</label><input class="wp-input" id="pTitle" maxlength="${LIMITS.title}" placeholder="예: 여름 페스티벌 포스터">
-            <label class="wp-label" for="pDesc" style="margin-top:10px">설명 (선택)</label><textarea class="wp-textarea" id="pDesc" maxlength="${LIMITS.description}" placeholder="어떤 프로젝트인지, 어떻게 꾸미면 좋을지 알려주세요"></textarea></div>
+            <label class="wp-label" for="pDesc">설명 (선택)</label><textarea class="wp-textarea" id="pDesc" maxlength="${LIMITS.description}" placeholder="어떤 프로젝트인지, 어떻게 꾸미면 좋을지 알려주세요"></textarea></div>
         <div class="progress hidden" id="prog" style="margin-top:14px"><div></div></div>
         <div class="form-result" id="newResult"></div>
         <button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" id="createBtn" style="margin-top:4px">프로젝트 만들기</button>`;
@@ -583,22 +652,22 @@ async function viewEdit(r) {
     app.className = 'wp-container full';
     app.innerHTML = `<div class="ed-wrap">
         <div class="ed-topbar">
-            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" data-act="back">← 나가기</button>
-            <div class="title">${editing ? '✏️ ' : (work ? '🔁 ' : '')}${esc(project.title)} <span class="muted">· ${esc(presetLabel(project.size_key, project.orientation))}</span></div>
-            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-act="undo" title="되돌리기 (Ctrl+Z)" disabled>↶</button>
-            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-act="redo" title="다시 실행 (Ctrl+Y)" disabled>↷</button>
-            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" data-act="save">${editing ? '수정 저장' : '저장'}</button>
+            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" data-act="back">${icon('back')} 나가기</button>
+            <div class="title">${editing ? '수정 · ' : (work ? '리믹스 · ' : '')}${esc(project.title)} <span class="muted">· ${esc(presetLabel(project.size_key, project.orientation))}</span></div>
+            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary icon-only" data-act="undo" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled>${icon('undo')}</button>
+            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary icon-only" data-act="redo" title="다시 실행 (Ctrl+Y)" aria-label="다시 실행" disabled>${icon('redo')}</button>
+            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" data-act="save">${icon('save')} ${editing ? '수정 저장' : '저장'}</button>
         </div>
         <div class="ed-stage" id="edStage"><canvas class="ed-canvas" id="edCanvas"></canvas>
             <div class="ed-hint" id="edHint">${work ? '원작을 바탕으로 이어서 꾸며보세요' : '아래에서 와펜을 눌러 추가하세요'}</div>
             <div class="ed-tools hidden" id="edTools">
-                <button type="button" data-act="flip" title="좌우 반전">⇋</button><button type="button" data-act="rotl" title="-15°">↺</button><button type="button" data-act="rotr" title="+15°">↻</button>
-                <span class="sep"></span><button type="button" data-act="back1" title="뒤로 보내기">⬇</button><button type="button" data-act="fwd1" title="앞으로 가져오기">⬆</button>
-                <span class="sep"></span><button type="button" data-act="dup" title="복제">⧉</button><button type="button" data-act="del" title="삭제">🗑</button></div>
+                <button type="button" data-act="flip" title="좌우 반전" aria-label="좌우 반전">${icon('flip')}</button><button type="button" data-act="rotl" title="-15°" aria-label="왼쪽으로 15° 회전">${icon('rotate-ccw')}</button><button type="button" data-act="rotr" title="+15°" aria-label="오른쪽으로 15° 회전">${icon('rotate-cw')}</button>
+                <span class="sep"></span><button type="button" data-act="back1" title="뒤로 보내기" aria-label="뒤로 보내기">${icon('layer-down')}</button><button type="button" data-act="fwd1" title="앞으로 가져오기" aria-label="앞으로 가져오기">${icon('layer-up')}</button>
+                <span class="sep"></span><button type="button" data-act="dup" title="복제" aria-label="복제">${icon('copy')}</button><button type="button" data-act="del" title="삭제" aria-label="삭제">${icon('trash')}</button></div>
         </div>
         <div class="ed-drawer" id="edDrawer">
-            <div class="ed-drawer-head"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" data-act="toggle-drawer" id="drawerToggle">▾ 와펜 ${items.length}</button>
-                <div class="search-box"><input id="edSearch" placeholder="이름·태그 검색" maxlength="30"></div>
+            <div class="ed-drawer-head"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" data-act="toggle-drawer" id="drawerToggle">${icon('chevron-down')} 와펜 ${items.length}</button>
+                <div class="search-box">${icon('search')}<input id="edSearch" placeholder="이름·태그 검색" maxlength="30"></div>
                 <a class="gaa-btn gaa-btn-xs gaa-btn-ghost" href="#/request" target="_blank" rel="noopener">요청</a></div>
             <div class="ed-drawer-chips chips scroll" id="edChips"></div>
             <div class="ed-items" id="edItems"></div>
@@ -656,7 +725,7 @@ async function viewEdit(r) {
             navigate(`#/work/${out.work.id}`);
         } catch (err) { console.error(err); showToast(err.message || '저장하지 못했어요.'); saveBtn.disabled = false; saveBtn.textContent = editing ? '수정 저장' : '저장'; }
     }
-    app.addEventListener('click', async (e) => {
+    onAppClick(async (e) => {
         const b = e.target.closest('.ed-topbar [data-act], .ed-tools [data-act], #drawerToggle'); if (!b) return;
         const act = b.dataset.act;
         if (act === 'back') { if (dirty && !await confirmModal({ title: '저장하지 않은 변경이 있어요', body: '나가면 작업 내용이 사라집니다.', okLabel: '나가기', danger: true })) return; dirty = false; navigate(`#/project/${pid}`); }
@@ -665,7 +734,7 @@ async function viewEdit(r) {
         else if (act === 'flip') editor.flip(); else if (act === 'rotl') editor.rotateBy(-15); else if (act === 'rotr') editor.rotateBy(15);
         else if (act === 'back1') editor.backward(); else if (act === 'fwd1') editor.forward();
         else if (act === 'dup') editor.duplicate(); else if (act === 'del') editor.remove();
-        else if (act === 'toggle-drawer') { const d = $('#edDrawer'); d.classList.toggle('collapsed'); b.textContent = (d.classList.contains('collapsed') ? '▴' : '▾') + ` 와펜 ${items.length}`; requestAnimationFrame(() => editor.fit()); }
+        else if (act === 'toggle-drawer') { const d = $('#edDrawer'); d.classList.toggle('collapsed'); b.innerHTML = icon(d.classList.contains('collapsed') ? 'chevron-up' : 'chevron-down') + ` 와펜 ${items.length}`; requestAnimationFrame(() => editor.fit()); }
     });
     const onUnload = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', onUnload);
@@ -688,22 +757,21 @@ async function viewWork(r) {
         <div class="detail-head">
             <div class="detail-img"><img src="${esc(w.preview_url)}" alt="${esc(w.title)}"></div>
             <div class="detail-info">
-                ${p ? `<div class="row">${sizeBadge(p)}<a class="muted" href="#/project/${p.id}">📁 ${esc(p.title)} ›</a></div>` : ''}
+                ${p ? `<div class="meta-line">${sizeBadge(p)}<a href="#/project/${p.id}">${esc(p.title)} ${icon('chevron')}</a></div>` : ''}
                 <h1>${esc(w.title)}</h1>
-                <div class="author-line">${avatarHTML(w.author_name, w.author_avatar)}<span>${esc(w.author_name)}</span><span class="muted">· ${timeAgo(w.created_at)}</span>${w.remix_of ? `<a class="muted" href="#/work/${w.remix_of}">· 🔁 원작 보기</a>` : ''}</div>
+                <div class="author-line">${avatarHTML(w.author_name, w.author_avatar, 'xs')}<b>${esc(w.author_name)}</b><span class="sep">·</span><span>${timeAgo(w.created_at)}</span>
+                    <span class="sep">·</span><span>와펜 ${num((w.layout && w.layout.items || []).length)}개</span><span class="sep">·</span><span>반응 <span id="reactTotal">${num(w.reaction_count)}</span></span>
+                    ${w.remix_of ? `<span class="sep">·</span><a href="#/work/${w.remix_of}">원작 보기 ${icon('chevron')}</a>` : ''}</div>
                 <div class="reaction-bar" id="reactBar"></div>
-                <div class="gaa-btn-row" style="margin-top:6px">
-                    <button type="button" class="gaa-btn gaa-btn-primary" data-act="download">⬇ 다운로드</button>
-                    <button type="button" class="gaa-btn gaa-btn-secondary" data-act="share">📤 공유</button>
-                    ${p ? `<a class="gaa-btn gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}">🔁 이어 꾸미기</a>` : ''}
-                    <button type="button" class="gaa-btn gaa-btn-ghost" data-act="report">🚩 신고</button>
+                <div class="action-row">
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="download">${icon('download')} 다운로드</button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')} 공유</button>
+                    ${p ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}">${icon('remix')} 이어 꾸미기</a>` : ''}
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
-                ${mine || admin ? `<div class="gaa-btn-row">${p ? `<a class="gaa-btn gaa-btn-xs gaa-btn-secondary" href="#/edit/${p.id}?work=${id}">✏️ 수정</a>` : ''}
-                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-act="delete">삭제</button></div>` : ''}
-                <div class="muted" style="font-size:0.78rem">와펜 ${num((w.layout && w.layout.items || []).length)}개 · 총 반응 <span id="reactTotal">${num(w.reaction_count)}</span></div>
             </div>
         </div>
-        ${p ? `<div class="section-title"><h2>같은 프로젝트의 다른 작품</h2><a class="more" href="#/project/${p.id}">모두 보기 ›</a></div><div class="strip" id="moreStrip">${loadingHTML()}</div>` : ''}`;
+        ${p ? `<div class="section-title"><h2>같은 프로젝트의 다른 작품</h2><a class="more" href="#/project/${p.id}">모두 보기 ${icon('chevron')}</a></div><div class="strip" id="moreStrip">${loadingHTML()}</div>` : ''}`;
 
     function renderReactions() {
         $('#reactBar').innerHTML = REACTIONS.map(x => `<button type="button" class="reaction-btn ${mineKind === x.key ? 'active' : ''}" data-react="${x.key}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${x.emoji} <span class="lbl">${esc(x.label)}</span> <span class="n">${num(counts[x.key] || 0)}</span></button>`).join('');
@@ -730,10 +798,21 @@ async function viewWork(r) {
             if (strip.isConnected) strip.innerHTML = rows.length ? rows.map(x => workCardHTML(x, { showProject: false })).join('') : `<div class="empty" style="width:100%;padding:20px">아직 다른 작품이 없어요. <a href="#/edit/${p.id}">첫 번째로 꾸며보기</a></div>`; }
         catch (_) { strip.innerHTML = ''; }
     })();
-    app.addEventListener('click', async (e) => {
+    onAppClick(async (e) => {
         const b = e.target.closest('.detail-info [data-act]'); if (!b) return;
-        const act = b.dataset.act;
+        let act = b.dataset.act;
+        if (act === 'more') {
+            act = await moreSheet([
+                ...(p && (mine || admin) ? [{ key: 'edit', label: '작품 수정', icon: 'edit' }] : []),
+                { key: 'copy', label: '링크 복사', icon: 'link' },
+                ...(!mine ? [{ key: 'report', label: '신고', icon: 'flag' }] : []),
+                ...(mine || admin ? [{ key: 'delete', label: '작품 삭제', icon: 'trash', danger: true }] : []),
+            ]);
+            if (!act) return;
+        }
         if (act === 'share') shareSheet({ title: `${w.title} · 와펜 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: `${SITE_URL}?w=${id}`, imageUrl: w.preview_url });
+        if (act === 'copy') copyText(`${SITE_URL}?w=${id}`);
+        if (act === 'edit' && p) navigate(`#/edit/${p.id}?work=${id}`);
         if (act === 'report') reportModal('work', id);
         if (act === 'download') downloadSheet(w, p);
         if (act === 'delete') {
@@ -752,11 +831,11 @@ function downloadSheet(w, p) {
     const m = openModal(`<h3>다운로드</h3>
         <div class="muted" style="margin-bottom:10px">${esc(presetLabel(p.size_key, p.orientation, { withGroup: true }))}</div>
         <label class="wp-label">형식</label><div class="seg" id="dlFmt"><button type="button" class="active" data-f="png">PNG</button><button type="button" data-f="jpg">JPG (용량 작음)</button></div>
-        ${isPrint ? `<label class="wp-label" style="margin-top:10px">해상도</label><select class="wp-select" id="dlDpi">${sizes.map((s, i) => `<option value="${s.dpi}" ${i === 0 ? 'selected' : ''}>${s.dpi}dpi · ${s.w}×${s.h}px${i === 0 ? ' (인쇄 권장)' : ''}</option>`).join('')}</select>
+        ${isPrint ? `<label class="wp-label">해상도</label><select class="wp-select" id="dlDpi">${sizes.map((s, i) => `<option value="${s.dpi}" ${i === 0 ? 'selected' : ''}>${s.dpi}dpi · ${s.w}×${s.h}px${i === 0 ? ' (인쇄 권장)' : ''}</option>`).join('')}</select>
         <div class="help">기기 성능상 큰 캔버스를 만들 수 없으면 한 단계 낮은 해상도로 자동 저장돼요. 300dpi 는 PC 에서 가장 안정적이에요.</div>`
         : `<div class="help" style="margin-top:10px">${sizes[0].w}×${sizes[0].h}px 원본 크기로 저장돼요.</div>`}
         <div class="form-result" id="dlStatus"></div>
-        <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>닫기</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="dlGo">⬇ 저장</button></div>`, { sheet: true });
+        <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>닫기</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="dlGo">${icon('download')} 저장</button></div>`, { sheet: true });
     let fmt = 'png';
     $('#dlFmt', m.el).addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; fmt = b.dataset.f; $$('#dlFmt button', m.el).forEach(x => x.classList.toggle('active', x === b)); });
     const status = $('#dlStatus', m.el), go = $('#dlGo', m.el);
@@ -781,7 +860,7 @@ function downloadSheet(w, p) {
             status.textContent = `${out.w}×${out.h}px${out.dpi ? ` · ${out.dpi}dpi` : ''} 저장 완료`;
             if (isPrint && out.dpi < maxDpi) showToast(`이 기기 한계로 ${out.dpi}dpi 로 저장했어요. PC 에서는 더 높은 해상도로 저장할 수 있어요.`, 5000);
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                status.insertAdjacentHTML('afterend', `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary gaa-btn-block" id="dlShare" style="margin-top:8px">📱 사진 앱에 저장 / 공유</button>`);
+                status.insertAdjacentHTML('afterend', `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary gaa-btn-block" id="dlShare" style="margin-top:8px">${icon('phone')} 사진 앱에 저장 / 공유</button>`);
                 $('#dlShare', m.el).addEventListener('click', async () => { try { await navigator.share({ files: [file], title: w.title }); } catch (_) {} });
             }
         } catch (err) { console.error(err); status.textContent = err.message || '저장하지 못했어요.'; status.className = 'form-result err'; }
@@ -799,11 +878,10 @@ async function viewRanking(r) {
     if (size) group = presetOf(size).group;
     const mk = (o) => hashQuery('/ranking', { period: period === 'week' ? '' : period, group, size, ...o });
     app.className = 'wp-container narrow';
-    app.innerHTML = `<div class="section-title" style="margin-top:4px"><h2>🏆 랭킹</h2>
+    app.innerHTML = `<div class="page-head"><h1>랭킹</h1>
         <div class="seg"><a class="${period === 'week' ? 'active' : ''}" href="${mk({ period: '' })}">이번 주</a><a class="${period === 'all' ? 'active' : ''}" href="${mk({ period: 'all' })}">전체</a></div></div>
         ${sizeChipsHTML(group, size, mk)}
         <div id="rankList" style="margin-top:14px">${loadingHTML()}</div>`;
-    $$('.seg a', app).forEach(a => { a.style.cssText = 'padding:8px 12px;font-size:0.82rem;font-weight:600;' + (a.classList.contains('active') ? 'background:var(--wds-primary);color:#fff' : 'color:var(--wds-gray-600)'); });
     try {
         const rows = await fetchRanking(period, size || group || null, 50);
         const medal = ['🥇', '🥈', '🥉'];
@@ -825,12 +903,12 @@ async function viewItems(r) {
     const mk = (o) => hashQuery('/items', { cat, q: text, ...o });
     const t = text.toLowerCase();
     const list = items.filter(i => (!cat || i.category === cat) && (!t || i.name.toLowerCase().includes(t) || (i.tags || []).some(x => x.toLowerCase().includes(t))));
-    app.innerHTML = `<div class="section-title" style="margin-top:4px"><h2>🧩 와펜 ${num(items.length)}</h2><a class="gaa-btn gaa-btn-xs gaa-btn-secondary" href="#/request">＋ 와펜 요청</a></div>
+    app.innerHTML = `<div class="page-head"><h1>와펜 <span class="count">${num(items.length)}</span></h1><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/request">${icon('plus')} 와펜 요청</a></div>
         <div class="chips scroll">${['', ...state.categories].map(c => `<a class="chip ${cat === c ? 'active' : ''}" href="${mk({ cat: c })}">${c ? esc(c) : '전체'}</a>`).join('')}</div>
-        <div class="filter-bar"><div class="search-box"><input id="itemSearch" placeholder="이름·태그 검색" value="${esc(text)}" maxlength="30"></div></div>
+        <div class="filter-bar"><div class="search-box">${icon('search')}<input id="itemSearch" placeholder="이름·태그 검색" value="${esc(text)}" maxlength="30"></div></div>
         ${list.length ? `<div class="item-grid">${list.map(i => `<div class="item-card"><div class="img"><img src="${esc(i.image_url)}" alt="${esc(i.name)}" loading="lazy"></div><b>${esc(i.name)}</b><small>${esc(i.category)}</small><div>${(i.tags || []).slice(0, 3).map(x => `<span class="tag">#${esc(x)}</span>`).join('')}</div></div>`).join('')}</div>`
             : emptyHTML('🧩', items.length ? '검색 결과가 없어요.' : '아직 등록된 와펜이 없어요.', '<a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/request">원하는 와펜 요청하기</a>')}
-        <div class="card-box" style="margin-top:22px;text-align:center"><b>원하는 와펜이 없나요?</b><p class="muted" style="margin:6px 0 12px">이름과 설명(참고 이미지)을 보내주시면 검토 후 추가해드려요.</p><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/request">와펜 요청하기</a></div>`;
+        <div class="card-box" style="margin-top:22px;text-align:center"><b>원하는 와펜이 없나요?</b><p class="muted" style="margin:6px 0 12px">이름과 설명(참고 이미지)을 보내주시면 검토 후 추가해드려요.</p><a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/request">${icon('send')} 와펜 요청하기</a></div>`;
     $('#itemSearch').addEventListener('input', debounce((e) => navigate(mk({ q: e.target.value.trim() })), 350));
     const inp = $('#itemSearch'); if (text) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
 }
@@ -847,16 +925,16 @@ function requestRowHTML(x) {
 async function viewRequest() {
     app.className = 'wp-container narrow';
     if (!state.me) { app.innerHTML = loginGateHTML('와펜 요청', '원하는 와펜을 알려주시면 관리자가 검토 후 추가해드려요.'); return; }
-    app.innerHTML = `<h1 style="font-size:1.3rem;font-weight:800;margin:4px 0 14px">와펜 추가 요청</h1>
+    app.innerHTML = `<div class="page-head"><h1>와펜 추가 요청</h1></div>
         <div class="card-box"><label class="wp-label" for="rqName">와펜 이름</label><input class="wp-input" id="rqName" maxlength="${LIMITS.itemName}" placeholder="예: 검은 고양이, 번개 모양">
-            <label class="wp-label" for="rqDesc" style="margin-top:10px">설명 (선택)</label><textarea class="wp-textarea" id="rqDesc" maxlength="${LIMITS.requestDesc}" placeholder="어떤 느낌·색·스타일인지 알려주세요"></textarea>
-            <label class="wp-label" style="margin-top:10px">참고 이미지 (선택)</label>
-            <label class="dropzone" id="rqDrop"><input type="file" accept="image/png,image/jpeg,image/webp"><div id="rqDropText">📷 참고 이미지 선택</div></label>
+            <label class="wp-label" for="rqDesc">설명 (선택)</label><textarea class="wp-textarea" id="rqDesc" maxlength="${LIMITS.requestDesc}" placeholder="어떤 느낌·색·스타일인지 알려주세요"></textarea>
+            <label class="wp-label">참고 이미지 (선택)</label>
+            <label class="dropzone" id="rqDrop"><input type="file" accept="image/png,image/jpeg,image/webp"><div id="rqDropText">${icon('image')} 참고 이미지 선택</div></label>
             <div class="form-result" id="rqResult"></div>
-            <button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" id="rqBtn">요청 보내기</button></div>
+            <button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" id="rqBtn">${icon('send')} 요청 보내기</button></div>
         <div class="section-title"><h2>내 요청</h2></div><div class="card-box" id="rqList">${loadingHTML()}</div>`;
     let file = null;
-    $('#rqDrop input').addEventListener('change', (e) => { file = e.target.files[0] || null; $('#rqDropText').textContent = file ? `📎 ${file.name}` : '📷 참고 이미지 선택'; });
+    $('#rqDrop input').addEventListener('change', (e) => { file = e.target.files[0] || null; $('#rqDropText').innerHTML = file ? `${icon('check')} ${esc(file.name)}` : `${icon('image')} 참고 이미지 선택`; });
     async function loadMine() {
         const out = await api('my_requests');
         $('#rqList').innerHTML = out.ok ? (out.requests.length ? `<div class="list">${out.requests.map(requestRowHTML).join('')}</div>` : '<div class="empty" style="padding:20px">아직 보낸 요청이 없어요.</div>') : errorHTML(out.message);
@@ -872,7 +950,7 @@ async function viewRequest() {
             if (file) { res.textContent = '참고 이미지 업로드 중…'; const bm = await decodeFile(file); const fit = await fitImage(bm, { maxEdge: 1600, mime: 'image/jpeg', quality: 0.85 }); ref_image_url = await uploadBlob('request_ref', fit.blob, 'jpg'); }
             const out = await api('request_create', { name, description, ref_image_url });
             if (!out.ok) throw new Error(out.message);
-            showToast('요청을 보냈어요. 검토 후 추가해드릴게요!'); $('#rqName').value = ''; $('#rqDesc').value = ''; file = null; $('#rqDropText').textContent = '📷 참고 이미지 선택'; res.textContent = '';
+            showToast('요청을 보냈어요. 검토 후 추가해드릴게요!'); $('#rqName').value = ''; $('#rqDesc').value = ''; file = null; $('#rqDropText').innerHTML = `${icon('image')} 참고 이미지 선택`; res.textContent = '';
             loadMine();
         } catch (err) { res.textContent = err.message || '요청을 보내지 못했어요.'; res.className = 'form-result err'; }
         btn.disabled = false;
@@ -887,9 +965,8 @@ async function viewMe(r) {
     if (!state.me) { app.innerHTML = loginGateHTML('내 페이지', '내 작품과 프로젝트, 요청 내역을 한곳에서 관리해요.'); return; }
     const tab = ['works', 'projects', 'requests'].includes(r.params.get('tab')) ? r.params.get('tab') : 'works';
     const me = state.me;
-    app.innerHTML = `<div class="card-box"><div class="row between">
-            <div class="row">${avatarHTML(me.nickname, me.avatar_url, 'lg')}<div><b style="font-size:1.05rem">${esc(me.nickname)}</b> <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" data-act="nick">✏️</button>${me.is_admin ? ' <span class="status-badge sm status-info">관리자</span>' : ''}<div class="muted">가입 ${fmtDate(me.created_at)}</div></div></div>
-            <div class="gaa-btn-row">${me.is_admin ? '<a class="gaa-btn gaa-btn-xs gaa-btn-secondary" href="#/admin">관리자</a>' : ''}<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-act="logout">로그아웃</button></div></div></div>
+    app.innerHTML = `<div class="page-head"><h1>내 페이지</h1><div class="gaa-btn-row">${me.is_admin ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/admin">${icon('sliders')} 관리자</a>` : ''}<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="logout">${icon('logout')} 로그아웃</button></div></div>
+        <div class="card-box"><div class="row">${avatarHTML(me.nickname, me.avatar_url, 'lg')}<div style="min-width:0"><div class="profile-name">${esc(me.nickname)}<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost icon-only" data-act="nick" title="닉네임 변경" aria-label="닉네임 변경">${icon('edit')}</button>${me.is_admin ? '<span class="status-badge sm status-info">관리자</span>' : ''}</div><div class="muted">가입 ${fmtDate(me.created_at)}</div></div></div></div>
         <div class="tabs" style="margin-top:16px">${[['works', '내 작품'], ['projects', '내 프로젝트'], ['requests', '내 요청']].map(([k, v]) => `<button type="button" class="${tab === k ? 'active' : ''}" data-tab="${k}">${v}</button>`).join('')}</div>
         <div id="meBody">${loadingHTML()}</div>`;
     $$('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => navigate(hashQuery('/me', { tab: b.dataset.tab === 'works' ? '' : b.dataset.tab }))));
@@ -913,7 +990,7 @@ async function viewMe(r) {
     } else {
         body.innerHTML = out.requests.length ? `<div class="card-box"><div class="list">${out.requests.map(requestRowHTML).join('')}</div></div>` : emptyHTML('🧩', '보낸 와펜 요청이 없어요.', '<a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/request">와펜 요청하기</a>');
     }
-    app.addEventListener('click', async (e) => {
+    onAppClick(async (e) => {
         const b = e.target.closest('[data-act],[data-del-work],[data-del-proj],[data-toggle-proj]'); if (!b) return;
         if (b.dataset.act === 'logout') { if (await confirmModal({ title: '로그아웃 할까요?', okLabel: '로그아웃' })) logout(); }
         else if (b.dataset.act === 'nick') {
@@ -940,8 +1017,8 @@ async function viewAdmin(r) {
     if (!state.me.is_admin) { app.innerHTML = emptyHTML('🔒', '관리자만 접근할 수 있어요.', '<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/">홈으로</a>'); return; }
     const tab = ['items', 'requests', 'reports', 'users'].includes(r.params.get('tab')) ? r.params.get('tab') : 'items';
     const ov = await api('admin_overview');
-    app.innerHTML = `<div class="stat-grid">${ov.ok ? `<div class="stat"><b>${num(ov.pending_requests)}</b><small>대기 중 요청</small></div><div class="stat"><b>${num(ov.open_reports)}</b><small>미처리 신고</small></div><div class="stat"><b>${num(ov.items)}</b><small>공개 와펜</small></div><div class="stat"><b>${num(ov.users)}</b><small>사용자</small></div>` : ''}</div>
-        <div class="tabs" style="margin-top:16px">${[['items', '🧩 와펜'], ['requests', `📮 요청${ov.ok && ov.pending_requests ? ` (${ov.pending_requests})` : ''}`], ['reports', `🚩 신고${ov.ok && ov.open_reports ? ` (${ov.open_reports})` : ''}`], ['users', '👤 사용자']].map(([k, v]) => `<button type="button" class="${tab === k ? 'active' : ''}" data-tab="${k}">${v}</button>`).join('')}</div>
+    app.innerHTML = `<div class="page-head"><h1>관리자</h1></div><div class="stat-grid">${ov.ok ? `<div class="stat"><b>${num(ov.pending_requests)}</b><small>대기 중 요청</small></div><div class="stat"><b>${num(ov.open_reports)}</b><small>미처리 신고</small></div><div class="stat"><b>${num(ov.items)}</b><small>공개 와펜</small></div><div class="stat"><b>${num(ov.users)}</b><small>사용자</small></div>` : ''}</div>
+        <div class="tabs" style="margin-top:16px">${[['items', '와펜'], ['requests', `요청${ov.ok && ov.pending_requests ? ` (${ov.pending_requests})` : ''}`], ['reports', `신고${ov.ok && ov.open_reports ? ` (${ov.open_reports})` : ''}`], ['users', '사용자']].map(([k, v]) => `<button type="button" class="${tab === k ? 'active' : ''}" data-tab="${k}">${v}</button>`).join('')}</div>
         <div id="adminBody">${loadingHTML()}</div>`;
     $$('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => navigate(hashQuery('/admin', { tab: b.dataset.tab === 'items' ? '' : b.dataset.tab }))));
     const body = $('#adminBody');
@@ -953,11 +1030,11 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
     const v = { name: item?.name ?? prefill.name ?? '', category: item?.category ?? prefill.category ?? '', tags: (item?.tags ?? prefill.tags ?? []).join(', '), sort_order: item?.sort_order ?? 0 };
     const m = openModal(`<h3>${item ? '와펜 수정' : '와펜 등록'}</h3>
         ${item ? `<div class="row" style="margin-bottom:10px"><img src="${esc(item.image_url)}" alt="" style="width:64px;height:64px;object-fit:contain;background:var(--wp-check);border-radius:8px"><span class="muted">${item.width_px}×${item.height_px}px</span></div>`
-            : `<label class="dropzone" id="itDrop"><input type="file" accept="image/png"><div id="itDropText">🧩 PNG(투명 배경) 선택</div><div class="help">긴 변 2000px 로 자동 축소 · 알파 유지</div></label><div class="row" id="itPreview" style="margin-top:8px"></div>`}
-        <label class="wp-label" style="margin-top:10px">이름</label><input class="wp-input" id="itName" maxlength="${LIMITS.itemName}" value="${esc(v.name)}">
-        <label class="wp-label" style="margin-top:10px">카테고리</label><input class="wp-input" id="itCat" maxlength="${LIMITS.category}" list="catList" value="${esc(v.category)}" placeholder="예: 동물, 문자, 음악"><datalist id="catList">${state.categories.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
-        <label class="wp-label" style="margin-top:10px">태그 (쉼표 구분, 최대 ${LIMITS.tags}개)</label><input class="wp-input" id="itTags" value="${esc(v.tags)}" placeholder="고양이, 검정, 귀여움">
-        <label class="wp-label" style="margin-top:10px">정렬 순서 (작을수록 앞)</label><input class="wp-input" id="itSort" type="number" value="${v.sort_order}">
+            : `<label class="dropzone" id="itDrop"><input type="file" accept="image/png"><div id="itDropText">${icon('image')} PNG(투명 배경) 선택</div><div class="help">긴 변 2000px 로 자동 축소 · 알파 유지</div></label><div class="row" id="itPreview" style="margin-top:8px"></div>`}
+        <label class="wp-label">이름</label><input class="wp-input" id="itName" maxlength="${LIMITS.itemName}" value="${esc(v.name)}">
+        <label class="wp-label">카테고리</label><input class="wp-input" id="itCat" maxlength="${LIMITS.category}" list="catList" value="${esc(v.category)}" placeholder="예: 동물, 문자, 음악"><datalist id="catList">${state.categories.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+        <label class="wp-label">태그 (쉼표 구분, 최대 ${LIMITS.tags}개)</label><input class="wp-input" id="itTags" value="${esc(v.tags)}" placeholder="고양이, 검정, 귀여움">
+        <label class="wp-label">정렬 순서 (작을수록 앞)</label><input class="wp-input" id="itSort" type="number" value="${v.sort_order}">
         <div class="form-result" id="itRes"></div>
         <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="itOk">${item ? '저장' : '등록'}</button></div>`);
     let bitmap = null, dims = null;
@@ -965,7 +1042,7 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
         const f = e.target.files[0]; if (!f) return;
         if (f.type !== 'image/png') { $('#itRes', m.el).textContent = 'PNG 파일만 등록할 수 있어요.'; $('#itRes', m.el).className = 'form-result err'; return; }
         bitmap = await decodeFile(f); dims = { w: bitmap.naturalWidth || bitmap.width, h: bitmap.naturalHeight || bitmap.height };
-        $('#itDropText', m.el).textContent = `📎 ${f.name}`;
+        $('#itDropText', m.el).innerHTML = `${icon('check')} ${esc(f.name)}`;
         $('#itPreview', m.el).innerHTML = `<img src="${URL.createObjectURL(f)}" alt="" style="width:64px;height:64px;object-fit:contain;background:var(--wp-check);border-radius:8px"><span class="muted">${dims.w}×${dims.h}px</span>`;
         if (!$('#itName', m.el).value) $('#itName', m.el).value = f.name.replace(/\.png$/i, '').slice(0, LIMITS.itemName);
     });
@@ -993,7 +1070,7 @@ async function adminItems(body) {
     const out = await api('admin_items');
     if (!out.ok) { body.innerHTML = errorHTML(out.message); return; }
     const byCat = {}; for (const it of out.items) (byCat[it.category] = byCat[it.category] || []).push(it);
-    body.innerHTML = `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">＋ 와펜 등록</button></div>
+    body.innerHTML = `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
         ${out.items.length ? Object.entries(byCat).map(([c, list]) => `<div class="card-box"><b>${esc(c)} <span class="muted">${list.length}</span></b><div class="list">${list.map(i => `<div class="list-row">
             <img class="thumb contain" src="${esc(i.image_url)}" alt=""><div class="info"><b>${esc(i.name)} ${i.status === 'hidden' ? '<span class="status-badge sm status-neutral">숨김</span>' : ''}</b><small>${i.width_px}×${i.height_px}px · 순서 ${i.sort_order} · ${(i.tags || []).map(t => '#' + esc(t)).join(' ')}</small></div>
             <div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-edit="${i.id}">수정</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-hide="${i.id}" data-status="${i.status}">${i.status === 'hidden' ? '공개' : '숨김'}</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-del="${i.id}">삭제</button></div></div>`).join('')}</div></div>`).join('')
@@ -1052,7 +1129,7 @@ async function adminReports(body, status = 'open') {
     };
 }
 async function adminUsers(body, qtext = '') {
-    body.innerHTML = `<div class="filter-bar" style="margin-top:0"><div class="search-box"><input id="uq" placeholder="닉네임 또는 카카오 ID" value="${esc(qtext)}" maxlength="40"></div><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" id="uGo">검색</button></div><div id="uList">${loadingHTML()}</div>`;
+    body.innerHTML = `<div class="filter-bar" style="margin-top:0"><div class="search-box">${icon('search')}<input id="uq" placeholder="닉네임 또는 카카오 ID" value="${esc(qtext)}" maxlength="40"></div><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" id="uGo">검색</button></div><div id="uList">${loadingHTML()}</div>`;
     const go = () => adminUsers(body, $('#uq', body).value.trim());
     $('#uGo', body).addEventListener('click', go); $('#uq', body).addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
     const out = await api('admin_users', { q: qtext });

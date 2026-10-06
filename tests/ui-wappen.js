@@ -111,6 +111,18 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     if (VW <= 640) chk('하단 탭바: 만들기 활성', (await p.locator('#bottomNav a[data-nav="new"]').getAttribute('class') || '').includes('active'));
     await shot(p, 'new');
 
+    // 1c. 프로젝트 상세 — 메타 중복 없음·주 동작 한 줄·⋯ 시트
+    await p.goto(`${BASE}/wappen/#/project/${PID}`); await p.waitForSelector('.action-row');
+    const metaText = await p.locator('.detail-info .meta-line').innerText();
+    chk('프로젝트: 사이즈 메타에 이름은 배지 한 번만', (metaText.match(/인스타그램 정방형/g) || []).length === 1 && metaText.includes('1080×1080px'));
+    const projBtnHeights = await p.$$eval('.action-row .gaa-btn', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
+    chk('프로젝트: 주 동작 버튼 3개·높이 38px', projBtnHeights.length === 3 && projBtnHeights.every(h => Math.abs(h - 38) <= 1), projBtnHeights.join(','));
+    await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item');
+    const projSheet = await p.$$eval('.sheet-item', els => els.map(e => e.dataset.more));
+    chk('프로젝트: ⋯ 시트(소유자) = 정보 수정·숨기기·링크 복사·삭제', projSheet.join() === 'edit,hide,copy,delete');
+    await p.keyboard.press('Escape'); await p.waitForSelector('.modal-backdrop', { state: 'detached' });
+    await shot(p, 'project');
+
     // 2. 에디터
     await p.goto(`${BASE}/wappen/#/edit/${PID}`);
     await p.waitForSelector('#edCanvas');
@@ -165,6 +177,16 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('작품: 반응 → react API·활성 표시', (await p.locator('.reaction-btn[data-react="fire"]').getAttribute('class')).includes('active'));
 
     // 4. 다운로드 (실제 캔버스 렌더)
+    const workBtnHeights = await p.$$eval('.action-row .gaa-btn', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
+    chk('작품: 주 동작 버튼 4개(다운로드·공유·이어 꾸미기·⋯) 높이 38px', workBtnHeights.length === 4 && workBtnHeights.every(h => Math.abs(h - 38) <= 1), workBtnHeights.join(','));
+    const actionRowTop = await p.$$eval('.action-row .gaa-btn', els => new Set(els.map(e => Math.round(e.getBoundingClientRect().top))).size);
+    chk('작품: 주 동작이 한 줄', actionRowTop === 1);
+    await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item');
+    const workSheet = await p.$$eval('.sheet-item', els => els.map(e => e.dataset.more));
+    chk('작품: ⋯ 시트(작성자) = 작품 수정·링크 복사·삭제', workSheet.join() === 'edit,copy,delete', workSheet.join());
+    await p.keyboard.press('Escape'); await p.waitForSelector('.modal-backdrop', { state: 'detached' });
+    const emojiBtns = await p.$$eval('.gaa-btn', els => els.map(e => e.textContent.trim()).filter(t => /\p{Extended_Pictographic}/u.test(t)));
+    chk('일관성: 버튼 텍스트에 이모지 없음', emojiBtns.length === 0, emojiBtns.join(' | '));
     await p.click('[data-act="download"]');
     await p.waitForSelector('#dlGo');
     await p.click('#dlGo');
