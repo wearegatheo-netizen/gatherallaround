@@ -7,3 +7,8 @@
 # vendor 라이브러리도 버전을 파일명에 박아 불변 캐시 (예: qrcode.v1.4.4.js)
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 와펜 기본 세트 이미지 — 캔버스(crossOrigin=anonymous)에 그리므로 www·pages.dev 등 다른 출처에서도 CORS 허용. 재생성 가능하므로 7일 캐시.
+/wappen/seed/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=604800

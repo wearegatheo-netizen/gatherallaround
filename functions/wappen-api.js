@@ -15,6 +15,11 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (기존 /event-api 등과 공유)
 
 import { presetOf, isValidSize, REACTION_KEYS, REPORT_REASONS, LAYOUT, LIMITS } from '../wappen/presets.js';
+import { SEED_ITEMS, SEED_VERSION } from '../wappen/seed/manifest.js';
+
+// 기본 와펜 세트 — 저장소의 정적 파일(wappen/seed/*.png, tools/wappen-seed 가 생성한 원본 그림)을 그대로 가리킨다.
+// 스토리지 복사 없이 행만 넣으므로 서브리퀘스트 2번이면 끝. 같은 이미지 URL 이 이미 있으면 건너뛴다(여러 번 눌러도 중복 없음).
+const SEED_BASE = 'https://gatherallaround.com/wappen/seed/';
 
 const ADMIN_KAKAO_ID = '4883868250'; // index.html ADMIN_ID / event-api ADMIN_KAKAO_ID 와 동일 — 관리자 백스톱
 const SESSION_DAYS = 30;
@@ -522,6 +527,28 @@ export async function onRequest(context) {
                 countRows(env, 'wappen_items?status=eq.active&select=id'),
             ]);
             return json({ ok: true, pending_requests: pending, open_reports: open, users, items });
+        }
+
+        if (action === 'admin_seed_status') {
+            const r = await sbFetch(env, `wappen_items?select=image_url&image_url=like.${encodeURIComponent(SEED_BASE + '*')}`);
+            if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
+            const have = new Set((await r.json()).map(x => x.image_url));
+            const missing = SEED_ITEMS.filter(it => !have.has(SEED_BASE + it.file)).length;
+            return json({ ok: true, version: SEED_VERSION, total: SEED_ITEMS.length, installed: SEED_ITEMS.length - missing, missing });
+        }
+
+        if (action === 'admin_seed_items') {
+            const r0 = await sbFetch(env, `wappen_items?select=image_url&image_url=like.${encodeURIComponent(SEED_BASE + '*')}`);
+            if (!r0.ok) return fail(500, 'db', '기존 와펜을 확인하지 못했습니다.', { detail: await sbDetail(r0) });
+            const have = new Set((await r0.json()).map(x => x.image_url));
+            const rows = SEED_ITEMS.map((it, i) => ({ it, i })).filter(({ it }) => !have.has(SEED_BASE + it.file)).map(({ it, i }) => ({
+                name: it.name, category: it.category, tags: it.tags, image_url: SEED_BASE + it.file,
+                width_px: it.w, height_px: it.h, sort_order: i, created_by: me.id,
+            }));
+            if (!rows.length) return json({ ok: true, added: 0, skipped: SEED_ITEMS.length, total: SEED_ITEMS.length });
+            const r = await sbFetch(env, 'wappen_items', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(rows) });
+            if (!r.ok) return fail(500, 'db', '기본 와펜을 등록하지 못했습니다.', { detail: await sbDetail(r) });
+            return json({ ok: true, added: rows.length, skipped: SEED_ITEMS.length - rows.length, total: SEED_ITEMS.length });
         }
 
         if (action === 'admin_items') {

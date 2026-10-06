@@ -137,6 +137,10 @@
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
   와펜 등록 폼(`itemFormModal`)은 PNG·JPG·WebP 를 받아 **클라이언트에서 PNG 로 변환**(투명 유지, MIME 대신 디코드 성공으로 판정 — iOS 는 type 이 비기도 함).
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.
+- **기본 와펜 세트**(66개, 6 카테고리): `tools/wappen-seed/designs.mjs` 에서 코드로 그린 원본 SVG(CC0) → `build.mjs`(Playwright 렌더) + `finish.py`(여백 자르기·256색 팔레트) →
+  `wappen/seed/*.png` + `manifest.js`(생성 파일, 서버·클라 공용 import). 관리자 와펜 탭 [기본 와펜 세트 불러오기] → `admin_seed_items`: `image_url` 이
+  `https://gatherallaround.com/wappen/seed/<file>` 인 행만 삽입(스토리지 복사 없음, 이미 있으면 건너뜀). `_headers` 가 `/wappen/seed/*` 에 CORS `*`(캔버스 오염 방지).
+  한글 글자 와펜은 저장소 꾸불림체 TTF 를 빌드 때 가짜 URL(`http://seed.local/`)로 서빙해 렌더. 새 와펜은 designs.mjs 에 `add()` 한 줄 → 빌드 → 커밋.
 - **크기 체계(2026-10-06 통일)**: 글자는 `--fs-h1 1.25 / h2 1.02 / body 0.92 / sm 0.84 / xs 0.76rem` 5단계만(예외: hero 제목·탭 라벨·메달·빈 상태 아이콘·서랍 라벨).
   버튼은 `gaa-btn` md 44px = 폼 제출 `-block`·로그인만 / `-sm` 38px = 페이지 안 모든 액션 줄·모달 액션·CTA / `-xs` 32px = 리스트 행·에디터 상단바.
   아이콘은 `icon(name)`(app.js, 16px 단색 SVG·currentColor)만 — 버튼 텍스트에 이모지 금지(감정표현 5종·빈 상태 장식·로고만 예외, UI 테스트가 검사).

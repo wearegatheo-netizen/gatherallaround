@@ -2,6 +2,7 @@
 // 실행: node tests/wappen-api-unit.mjs
 import { onRequest } from '../functions/wappen-api.js';
 import { presetDims, presetLabel, isValidSize, exportSizes, PRESETS } from '../wappen/presets.js';
+import { SEED_ITEMS } from '../wappen/seed/manifest.js';
 
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
@@ -344,6 +345,24 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
     ['wappen_projects?id=in.', { body: [{ id: PID, title: 'p', thumb_url: null, base_image_url: 'bi', status: 'active', owner_id: OTHER }] }]]);
   ({ status, out } = await jrun({ action: 'admin_reports', session: S }));
   chk('admin_reports: 대상 요약 첨부', status === 200 && out.reports[0].target.image === 'pv' && out.reports[1].target.image === 'bi' && out.reports[1].target.author_id === OTHER);
+}
+// ── 10b. 기본 와펜 세트
+{
+  const SEED_BASE = 'https://gatherallaround.com/wappen/seed/';
+  mockFetch([SESSION_OK()]);
+  chk('일반 사용자 admin_seed_items → 403', (await jrun({ action: 'admin_seed_items', session: S })).status === 403);
+  let inserted;
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&image_url=like.', { body: [{ image_url: SEED_BASE + SEED_ITEMS[0].file }, { image_url: SEED_BASE + SEED_ITEMS[1].file }] }],
+    ['wappen_items', { method: 'POST', body: (rec) => { inserted = rec.json; return []; } }]]);
+  let { status, out } = await jrun({ action: 'admin_seed_status', session: S });
+  chk('admin_seed_status: 설치 2·미설치 N-2', status === 200 && out.total === SEED_ITEMS.length && out.installed === 2 && out.missing === SEED_ITEMS.length - 2);
+  ({ status, out } = await jrun({ action: 'admin_seed_items', session: S }));
+  chk('admin_seed_items: 없는 것만 한 번에 insert', status === 200 && out.added === SEED_ITEMS.length - 2 && out.skipped === 2 && Array.isArray(inserted) && inserted.length === SEED_ITEMS.length - 2);
+  chk('seed 행: 정적 URL·크기·태그·작성자', inserted.every(r => r.image_url.startsWith(SEED_BASE) && r.width_px > 0 && r.height_px > 0 && Array.isArray(r.tags) && r.created_by === ADM && r.name && r.category)
+    && !inserted.some(r => r.image_url.endsWith(SEED_ITEMS[0].file)));
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=image_url&image_url=like.', { body: SEED_ITEMS.map(it => ({ image_url: SEED_BASE + it.file })) }]]);
+  ({ status, out } = await jrun({ action: 'admin_seed_items', session: S }));
+  chk('모두 설치됨 → insert 없이 added 0', status === 200 && out.added === 0 && !calls.some(c => c.method === 'POST' && c.url.endsWith('/wappen_items')));
 }
 // ── 11. 기타
 {

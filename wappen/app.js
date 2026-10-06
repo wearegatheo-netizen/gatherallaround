@@ -1092,19 +1092,29 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
     });
 }
 async function adminItems(body) {
-    const out = await api('admin_items');
+    const [out, seed] = await Promise.all([api('admin_items'), api('admin_seed_status')]);
     if (!out.ok) { body.innerHTML = errorHTML(out.message); return; }
+    const seedCard = seed.ok ? `<div class="card-box" style="margin-bottom:12px"><div class="row between">
+            <div><b>기본 와펜 세트</b> <span class="status-badge sm ${seed.missing ? 'status-pending' : 'status-approved'}">${seed.missing ? `${num(seed.missing)}개 미설치` : '설치됨'}</span>
+                <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 도형·동물·음악·음식·글자·캐릭터 — 직접 그린 원본(저작권 문제 없음). 설치된 것은 건너뛰어요.</div></div>
+            ${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}</div></div>` : '';
     const byCat = {}; for (const it of out.items) (byCat[it.category] = byCat[it.category] || []).push(it);
-    body.innerHTML = `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
+    body.innerHTML = seedCard + `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
         ${out.items.length ? Object.entries(byCat).map(([c, list]) => `<div class="card-box"><b>${esc(c)} <span class="muted">${list.length}</span></b><div class="list">${list.map(i => `<div class="list-row">
             <img class="thumb contain" src="${esc(i.image_url)}" alt=""><div class="info"><b>${esc(i.name)} ${i.status === 'hidden' ? '<span class="status-badge sm status-neutral">숨김</span>' : ''}</b><small>${i.width_px}×${i.height_px}px · 순서 ${i.sort_order} · ${(i.tags || []).map(t => '#' + esc(t)).join(' ')}</small></div>
             <div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-edit="${i.id}">수정</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-hide="${i.id}" data-status="${i.status}">${i.status === 'hidden' ? '공개' : '숨김'}</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-del="${i.id}">삭제</button></div></div>`).join('')}</div></div>`).join('')
             : emptyHTML('🧩', '등록된 와펜이 없어요. 첫 와펜을 등록해주세요.')}`;
     const refresh = () => adminItems(body);
     body.onclick = async (e) => {
-        const b = e.target.closest('[data-act="new-item"],[data-edit],[data-hide],[data-del]'); if (!b) return;
+        const b = e.target.closest('[data-act="new-item"],[data-act="seed"],[data-edit],[data-hide],[data-del]'); if (!b) return;
         const item = out.items.find(i => i.id === (b.dataset.edit || b.dataset.hide || b.dataset.del));
         if (b.dataset.act === 'new-item') itemFormModal({}, refresh);
+        else if (b.dataset.act === 'seed') {
+            b.disabled = true;
+            const o = await api('admin_seed_items');
+            if (o.ok) { showToast(o.added ? `기본 와펜 ${num(o.added)}개를 등록했어요.` : '이미 모두 설치되어 있어요.'); await fetchItems(true).catch(() => {}); refresh(); }
+            else { showToast(o.message || '등록하지 못했습니다.'); b.disabled = false; }
+        }
         else if (b.dataset.edit) itemFormModal({ item }, refresh);
         else if (b.dataset.hide) { const o = await api('admin_item_update', { item_id: item.id, status: b.dataset.status === 'hidden' ? 'active' : 'hidden' }); if (o.ok) { await fetchItems(true); refresh(); } else showToast(o.message); }
         else if (b.dataset.del) {

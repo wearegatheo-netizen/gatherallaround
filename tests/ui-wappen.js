@@ -237,6 +237,9 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
       case 'admin_requests': return ok({ requests: window.__approved ? [] : [{ id: '${RQ}', user_id: '${UID}', name: '고양이', description: '검은 고양이', ref_image_url: '${BASE}/icon-192.png', status: 'pending', admin_note: null, item_id: null, created_at: new Date().toISOString(), requester: { nickname: '길동', avatar_url: null }, wappen_items: null }] });
       case 'admin_item_create': return ok({ item: { id: '${NEWIT}', name: body.name, category: body.category, tags: body.tags, image_url: body.image_url, width_px: body.width_px, height_px: body.height_px, status: 'active' } });
       case 'admin_request_resolve': window.__approved = body; return ok({ request: { id: body.request_id, status: body.status } });
+      case 'admin_items': return ok({ items: [] });
+      case 'admin_seed_status': return ok({ version: 1, total: 66, installed: window.__seeded ? 66 : 0, missing: window.__seeded ? 0 : 66 });
+      case 'admin_seed_items': window.__seeded = true; return ok({ added: 66, skipped: 0, total: 66 });
       default: return ok({});`);
         const pa = await ctx.newPage();
         pa.on('pageerror', (e) => errors.push('admin: ' + String(e)));
@@ -256,6 +259,13 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
         chk('승인: admin_request_resolve(approved, item_id 연결)', ac.approved.request_id === RQ && ac.approved.status === 'approved' && ac.approved.item_id === NEWIT);
         await pa.waitForFunction(() => !document.querySelector('[data-approve]'));
         chk('승인 후 검토 중 목록에서 사라짐', true);
+        // 기본 와펜 세트 카드 → 불러오기 → admin_seed_items → 설치됨 배지
+        await pa.goto(`${BASE}/wappen/#/admin`); await pa.waitForSelector('[data-act="seed"]');
+        chk('관리자 와펜 탭: 기본 세트 카드(66개 미설치)', (await pa.locator('[data-act="seed"]').innerText()).includes('66개 불러오기'));
+        await pa.click('[data-act="seed"]');
+        await pa.waitForFunction(() => window.__apiCalls.some(c => c.action === 'admin_seed_items'));
+        await pa.waitForSelector('.status-badge.status-approved');
+        chk('기본 세트 불러오기 → 설치됨', (await pa.locator('.card-box .status-badge').first().innerText()) === '설치됨' && await pa.locator('[data-act="seed"]').count() === 0);
         await pa.close();
     }
     chk('페이지 오류 없음', errors.length === 0, errors.slice(0, 3).join(' | '));
