@@ -3,6 +3,7 @@
 # 알고리즘(의존: numpy·PIL): 배경은 부드러운 그라데이션, 패치는 자수 질감 → 국소 그라데이션 평균이 임계보다 큰 곳 = 전경
 #   → 닫힘(7px)·구멍 메움 → 연결 성분 → 중심 좌표를 행·열 묶음으로 격자 배정(너무 길쭉하면 가장 잘록한 줄에서 둘로 분리)
 #   → 셀마다 성분 합집합을 알파로(1px 팽창 + 0.8px 블러), 256색 팔레트(디더)로 저장.
+#   시트가 이미 투명 배경(RGBA, 투명 비율 20% 이상)이면 질감 대신 알파 채널(>128)을 마스크로 쓰고, 컷아웃 알파도 원본 알파를 그대로 쓴다(부드러운 테두리 유지).
 import json, os, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -51,12 +52,21 @@ def _split_waist(c):
 def cut_sheet(sheet, out_dir, src_dir=None):
     """시트 하나를 잘라 out_dir 에 저장, manifest 항목 목록을 돌려준다"""
     src = os.path.join(src_dir or os.path.join(HERE, 'raster'), sheet['src'])
-    im = Image.open(src).convert('RGB'); a = np.asarray(im).astype(np.float32)
-    g = np.abs(np.diff(a, axis=1, prepend=a[:, :1])).sum(2) + np.abs(np.diff(a, axis=0, prepend=a[:1])).sum(2)
-    mask = Image.fromarray(((_boxmean(g, 4) > sheet.get('threshold', 18)) * 255).astype(np.uint8))
-    mask = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))
-    inv = Image.eval(mask, lambda v: 255 - v); ImageDraw.floodfill(inv, (0, 0), 128)
-    mk = (np.asarray(mask) > 0) | (np.asarray(inv) == 255)          # 바깥과 안 이어진 배경 = 구멍 → 전경
+    src_im = Image.open(src)
+    src_alpha = None
+    if src_im.mode in ('RGBA', 'LA', 'P'):
+        al = np.asarray(src_im.convert('RGBA'))[:, :, 3]
+        if (al < 10).mean() >= 0.2: src_alpha = al                      # 진짜 투명 배경 시트
+    im = src_im.convert('RGB')
+    if src_alpha is not None:
+        mk = src_alpha > 128
+    else:
+        a = np.asarray(im).astype(np.float32)
+        g = np.abs(np.diff(a, axis=1, prepend=a[:, :1])).sum(2) + np.abs(np.diff(a, axis=0, prepend=a[:1])).sum(2)
+        mask = Image.fromarray(((_boxmean(g, 4) > sheet.get('threshold', 18)) * 255).astype(np.uint8))
+        mask = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.MinFilter(7))
+        inv = Image.eval(mask, lambda v: 255 - v); ImageDraw.floodfill(inv, (0, 0), 128)
+        mk = (np.asarray(mask) > 0) | (np.asarray(inv) == 255)      # 바깥과 안 이어진 배경 = 구멍 → 전경
     comps = [c for c in _components(mk) if c['area'] >= sheet.get('min_area', 600)]
     rows, cols = sheet['rows'], sheet['cols']
     med_h = float(np.median([c['bbox'][3] - c['bbox'][1] for c in comps]))
@@ -78,7 +88,11 @@ def cut_sheet(sheet, out_dir, src_dir=None):
         for c in group: sel |= c['sel']
         yy, xx = np.nonzero(sel); pad = 3
         x0, y0, x1, y1 = max(0, xx.min() - pad), max(0, yy.min() - pad), min(im.width, xx.max() + pad + 1), min(im.height, yy.max() + pad + 1)
-        alpha = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+        if src_alpha is not None:   # 원본 알파를 그대로(셀에 속한 성분 밖은 0)
+            keep = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))
+            alpha = Image.fromarray(np.where(np.asarray(keep) > 0, src_alpha[y0:y1, x0:x1], 0).astype(np.uint8))
+        else:
+            alpha = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
         rgba = im.crop((x0, y0, x1, y1)).convert('RGBA'); rgba.putalpha(alpha)
         fn = meta['key'] + '.png'
         pal = rgba.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.FLOYDSTEINBERG)

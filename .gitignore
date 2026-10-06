@@ -73,3 +73,4 @@ skills-lock.json
 
 # Playwright UI 테스트 스크린샷 출력 (tests/ui-band.js SHOT_DIR)
 ui-shots/
+__pycache__/

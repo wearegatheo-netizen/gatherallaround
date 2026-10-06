@@ -4,7 +4,7 @@
 - 벡터 세트(옵트인): `tools/wappen-seed/designs.mjs` 에서 **코드로 그린 원본 그림** (외부 아이콘·이모지·사진 사용 없음, CC0). 다시 쓰려면 `build.mjs` 를 돌리면 렌더·목록 포함까지 된다.
   DB 에 남은 이전 세트 행은 관리자 와펜 탭 [이전 세트 N개 삭제](`admin_seed_prune`: seed 경로지만 현재 목록에 없는 행, 작품에 쓰인 것은 숨김)로 정리.
 - 래스터 세트(`manifest.js` 의 `kind: "raster"`, 키 `p-…`): `tools/wappen-seed/raster/` 의 시트 이미지(2026-10-07 운영자가 제공한 자수 패치 30개)를
-  `raster.py` 가 자동으로 잘라낸 것(질감 기반 배경 제거, 원본 해상도 유지 ≈ 150~290px). 권리는 제공자에게 있으며 메타는 `raster.json`.
+  `raster.py` 가 자동으로 잘라낸 것(투명 배경 시트는 알파 채널 그대로, 아니면 질감 기반 배경 제거; 원본 해상도 유지). 두 번째 시트(2026-10-07b, 키 `p2-…`) 6개 포함 36개. 권리는 제공자에게 있으며 메타는 `raster.json`.
   래스터만 다시 자르려면(Playwright 불필요): `python3 -I tools/wappen-seed/finish.py --reuse wappen/seed [미리보기.png] --no-vector`. 새 시트는 `raster.json` 에 시트·격자·항목을 추가.
 
 - 재생성: `NODE_PATH=<scratchpad>/node_modules node tools/wappen-seed/build.mjs --raw <임시폴더> --sheet <미리보기.png>`

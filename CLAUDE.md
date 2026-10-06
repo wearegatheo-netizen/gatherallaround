@@ -157,6 +157,7 @@
   한글 글자 와펜은 저장소 꾸불림체 TTF 를 빌드 때 가짜 URL(`http://seed.local/`)로 서빙해 렌더. 새 와펜은 designs.mjs 에 `add()` 한 줄 → 빌드 → 커밋.
   **래스터 세트**(2026-10-07, `kind:'raster'`, 키 `p-…`, SEED_VERSION 2): 운영자가 준 자수 패치 시트(`tools/wappen-seed/raster/*.png`, 격자 5×6)를 `raster.py` 가
   질감(국소 그라데이션) 마스크 → 닫힘·구멍 메움 → 연결 성분 → 행·열 묶음 배정(길쭉하면 잘록한 줄에서 분리) → 셀별 알파로 잘라 원본 해상도 그대로 저장(numpy·PIL 만).
+  시트가 투명 배경 RGBA(투명 20% 이상)면 질감 대신 **알파 채널을 마스크·컷아웃 알파로 그대로** 쓴다(두 시트 모두 해당, 2026-10-07 두 번째 시트 6개 = 키 `p2-…`, 총 36개).
   메타는 `raster.json`(시트·rows/cols·threshold·항목 순서 = 읽기 순). `finish.py` 가 벡터 뒤에 합쳐 manifest 를 쓰고, `finish.py --reuse wappen/seed --no-vector` 는 벡터 없이 래스터만 다시 자른다.
   시트 한 장 추가 = raster.json 에 sheets 항목 + 이미지 커밋 → `--reuse` 실행 → 관리자 [불러오기]. 유닛 테스트는 래스터를 100~1024px·≤160KB 로 따로 검사.
   **app.js 를 고치면 `wappen/index.html` 의 `app.js?v=N` 을 반드시 올릴 것**(안 올리면 폰이 예전 코드를 씀 — 2026-10-06 두 번 누락).
