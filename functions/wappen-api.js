@@ -65,6 +65,8 @@ function sbFetch(env, pathQuery, opts = {}) {
 const sbDetail = async (r) => (await r.text().catch(() => '')).slice(0, 300);
 
 const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+const DUP_PROJECT = '같은 이름의 프로젝트가 이미 있어요. 다른 이름을 입력해주세요.';
+const DUP_WORK = '이 프로젝트에 같은 이름의 작품이 이미 있어요. 다른 이름을 입력해주세요.';
 const str = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 const intIn = (v, lo, hi) => { const n = Number(v); return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
 const nowIso = () => new Date().toISOString();
@@ -188,6 +190,38 @@ async function itemsExist(env, ids) {
         if (chunk.some(id => !found.has(id))) return false;
     }
     return true;
+}
+
+// 제목 중복 판정 키 — 앞뒤 공백·연속 공백·대소문자 무시 (DB 유일 인덱스 wappen_title_key() 와 같은 규칙)
+const titleKey = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+// ilike 후보 패턴: 와일드카드 이스케이프(\ % _), * 는 PostgREST 가 % 로 바꾸므로 한 글자 와일드카드 _ 로(상위집합), 공백은 % 로(연속 공백 차이 흡수)
+const ilikePattern = (s) => titleKey(s).replace(/[\\%_]/g, m => '\\' + m).replace(/\*/g, '_').replace(/ /g, '%');
+// 같은 이름이 이미 있는지 — ilike 로 후보를 좁힌 뒤 titleKey 로 정확 비교. extra: 추가 필터(예: &project_id=eq.…), exclude: 자기 자신 id
+async function titleTaken(env, table, title, { extra = '', exclude = null } = {}) {
+    const r = await sbFetch(env, `${table}?select=id,title&title=ilike.${encodeURIComponent(ilikePattern(title))}${extra}&limit=50`);
+    if (!r.ok) throw new Error(`${table} title lookup failed: ` + r.status + ' ' + await sbDetail(r));
+    const key = titleKey(title);
+    return (await r.json()).some(x => x.id !== exclude && titleKey(x.title) === key);
+}
+// 기본 제목이 겹치면 "이름 (2)", "이름 (3)" … 비어 있는 번호를 붙인다 (한 번의 ilike 'base%' 조회로 계산)
+async function uniqueTitle(env, table, base, { extra = '', exclude = null } = {}) {
+    const r = await sbFetch(env, `${table}?select=id,title&title=ilike.${encodeURIComponent(ilikePattern(base) + '%')}${extra}&limit=500`);
+    if (!r.ok) throw new Error(`${table} title lookup failed: ` + r.status + ' ' + await sbDetail(r));
+    const taken = new Set((await r.json()).filter(x => x.id !== exclude).map(x => titleKey(x.title)));
+    if (!taken.has(titleKey(base))) return base;
+    for (let n = 2; n < 1000; n++) { const cand = `${base.slice(0, LIMITS.title - String(n).length - 3)} (${n})`; if (!taken.has(titleKey(cand))) return cand; }
+    return `${base.slice(0, LIMITS.title - 7)} ${Date.now() % 1e6}`;
+}
+// 작품 레이아웃이 참조하는 와펜 id 들 — or=(layout.cs.{…},…) 로 한 요청에 30개씩 (단일 항목 JSON 엔 쉼표·괄호가 없어 or 파서에 안전)
+async function usedItemIds(env, ids) {
+    const used = new Set(), want = new Set(ids);
+    for (let i = 0; i < ids.length; i += 30) {
+        const or = ids.slice(i, i + 30).map(id => `layout.cs.${JSON.stringify({ items: [{ id }] })}`).join(',');
+        const r = await sbFetch(env, `wappen_works?select=layout&or=(${encodeURIComponent(or)})&limit=5000`);
+        if (!r.ok) throw new Error('works lookup failed: ' + r.status + ' ' + await sbDetail(r));
+        for (const w of await r.json()) for (const it of (w.layout && w.layout.items) || []) if (want.has(it.id)) used.add(it.id);
+    }
+    return used;
 }
 
 async function getOne(env, table, id, select = '*') {
@@ -355,12 +389,14 @@ export async function onRequest(context) {
             if (body.thumb_url && !storageUrlOk(env, body.thumb_url, `thumbs/${me.id}/`)) return fail(400, 'bad_image', '썸네일 URL 이 올바르지 않습니다.');
             const n = await countRows(env, `wappen_projects?owner_id=eq.${me.id}&created_at=gte.${agoIso(DAY)}&select=id`);
             if (n >= LIMITS.perDay.projects) return fail(429, 'rate_limited', `프로젝트는 하루 ${LIMITS.perDay.projects}개까지 만들 수 있습니다.`);
+            if (await titleTaken(env, 'wappen_projects', title)) return fail(409, 'dup_title', DUP_PROJECT);
             const row = {
                 owner_id: me.id, author_name: me.nickname, author_avatar: me.avatar_url || null,
                 title, description, size_key, size_group: presetOf(size_key).group, orientation, width_px, height_px,
                 base_image_url: body.base_image_url, thumb_url: body.thumb_url || null,
             };
             const r = await sbFetch(env, 'wappen_projects', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row) });
+            if (r.status === 409) return fail(409, 'dup_title', DUP_PROJECT);   // DB 유일 인덱스(동시 요청)
             if (!r.ok) return fail(500, 'db', '프로젝트를 저장하지 못했습니다.', { detail: await sbDetail(r) });
             return json({ ok: true, project: (await r.json())[0] });
         }
@@ -378,10 +414,15 @@ export async function onRequest(context) {
                 return json({ ok: true });
             }
             const patch = { updated_at: nowIso() };
-            if (body.title != null) { const t = str(body.title, LIMITS.title); if (!t) return fail(400, 'bad_title', '제목을 입력해주세요.'); patch.title = t; }
+            if (body.title != null) {
+                const t = str(body.title, LIMITS.title); if (!t) return fail(400, 'bad_title', '제목을 입력해주세요.');
+                if (titleKey(t) !== titleKey(p.title) && await titleTaken(env, 'wappen_projects', t, { exclude: p.id })) return fail(409, 'dup_title', DUP_PROJECT);
+                patch.title = t;
+            }
             if (body.description != null) patch.description = str(body.description, LIMITS.description) || null;
             if (body.status != null) { if (!['active', 'hidden'].includes(body.status)) return fail(400, 'bad_status', '상태 값이 올바르지 않습니다.'); patch.status = body.status; }
             const r = await sbFetch(env, `wappen_projects?id=eq.${p.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch) });
+            if (r.status === 409) return fail(409, 'dup_title', DUP_PROJECT);
             if (!r.ok) return fail(500, 'db', '저장하지 못했습니다.', { detail: await sbDetail(r) });
             return json({ ok: true, project: (await r.json())[0] });
         }
@@ -396,17 +437,26 @@ export async function onRequest(context) {
             if (v.error) return fail(400, 'bad_layout', v.error);
             if (v.layout.items.length && !(await itemsExist(env, v.layout.items.map(i => i.id)))) return fail(400, 'bad_layout', '존재하지 않는 와펜이 포함되어 있습니다.');
             if (!storageUrlOk(env, body.preview_url, `previews/${me.id}/`)) return fail(400, 'bad_image', '미리보기 이미지를 먼저 업로드해주세요.');
-            const title = str(body.title, LIMITS.title) || str(project.title, LIMITS.title) || '내 작품';
-            const preview_w = intIn(body.preview_w, 1, 12000), preview_h = intIn(body.preview_h, 1, 12000);
-            const common = { title, layout: v.layout, preview_url: body.preview_url, preview_w, preview_h, updated_at: nowIso() };
-
-            if (body.work_id != null) {
-                if (!isUuid(body.work_id)) return fail(400, 'bad_id', '작품 id 가 올바르지 않습니다.');
-                const w = await getOne(env, 'wappen_works', body.work_id, 'id,author_id,project_id');
+            if (body.work_id != null && !isUuid(body.work_id)) return fail(400, 'bad_id', '작품 id 가 올바르지 않습니다.');
+            const editId = body.work_id != null ? String(body.work_id).toLowerCase() : null;
+            let w = null;
+            if (editId) {
+                w = await getOne(env, 'wappen_works', editId, 'id,author_id,project_id');
                 if (!w) return fail(404, 'not_found', '작품을 찾을 수 없습니다.');
                 if (w.author_id !== me.id && !isAdmin) return fail(403, 'forbidden', '본인 작품만 수정할 수 있습니다.');
                 if (w.project_id !== project.id) return fail(400, 'bad_project', '작품의 프로젝트가 일치하지 않습니다.');
+            }
+            // 같은 프로젝트 안에서 작품 이름 중복 방지: 직접 정한 제목이 겹치면 거절, 비워 보낸 기본 제목(프로젝트명)은 "이름 (2)" 식으로 번호를 붙인다
+            const titleScope = { extra: `&project_id=eq.${project.id}`, exclude: editId };
+            let title = str(body.title, LIMITS.title);
+            if (title) { if (await titleTaken(env, 'wappen_works', title, titleScope)) return fail(409, 'dup_title', DUP_WORK); }
+            else title = await uniqueTitle(env, 'wappen_works', str(project.title, LIMITS.title) || '내 작품', titleScope);
+            const preview_w = intIn(body.preview_w, 1, 12000), preview_h = intIn(body.preview_h, 1, 12000);
+            const common = { title, layout: v.layout, preview_url: body.preview_url, preview_w, preview_h, updated_at: nowIso() };
+
+            if (w) {
                 const r = await sbFetch(env, `wappen_works?id=eq.${w.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(common) });
+                if (r.status === 409) return fail(409, 'dup_title', DUP_WORK);
                 if (!r.ok) return fail(500, 'db', '저장하지 못했습니다.', { detail: await sbDetail(r) });
                 return json({ ok: true, work: (await r.json())[0] });
             }
@@ -597,6 +647,32 @@ export async function onRequest(context) {
             const r = await sbFetch(env, `wappen_items?id=eq.${body.item_id}`, { method: 'DELETE' });
             if (!r.ok) return fail(500, 'db', '삭제하지 못했습니다.', { detail: await sbDetail(r) });
             return json({ ok: true, hidden: false });
+        }
+
+        // 여러 와펜 한 번에 — 선택한 id 목록 또는 분류 전체. 작품에 쓰인 것은 숨김, 나머지는 삭제 (단건 admin_item_delete 와 같은 규칙)
+        if (action === 'admin_items_delete') {
+            let ids;
+            const category = body.category != null ? str(body.category, LIMITS.category) : '';
+            if (category) {
+                const r = await sbFetch(env, `wappen_items?category=eq.${encodeURIComponent(category)}&select=id&limit=1000`);
+                if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
+                ids = (await r.json()).map(x => x.id);
+            } else {
+                ids = Array.isArray(body.item_ids) ? [...new Set(body.item_ids.map(x => String(x || '').toLowerCase()))] : [];
+                if (!ids.length || ids.length > 500 || !ids.every(isUuid)) return fail(400, 'bad_ids', '삭제할 와펜을 선택해주세요. (한 번에 500개까지)');
+            }
+            if (!ids.length) return json({ ok: true, deleted: 0, hidden: 0, used_ids: [] });
+            const used = await usedItemIds(env, ids);
+            const toHide = ids.filter(id => used.has(id)), toDel = ids.filter(id => !used.has(id));
+            for (let i = 0; i < toHide.length; i += 50) {
+                const r = await sbFetch(env, `wappen_items?id=in.(${toHide.slice(i, i + 50).join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'hidden' }) });
+                if (!r.ok) return fail(500, 'db', '처리하지 못했습니다.', { detail: await sbDetail(r) });
+            }
+            for (let i = 0; i < toDel.length; i += 50) {
+                const r = await sbFetch(env, `wappen_items?id=in.(${toDel.slice(i, i + 50).join(',')})`, { method: 'DELETE' });
+                if (!r.ok) return fail(500, 'db', '삭제하지 못했습니다.', { detail: await sbDetail(r) });
+            }
+            return json({ ok: true, deleted: toDel.length, hidden: toHide.length, used_ids: toHide });
         }
 
         if (action === 'admin_requests') {

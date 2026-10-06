@@ -138,6 +138,13 @@
   루트 `index.html` `<head>` 맨 앞 인라인 스크립트(`wp/ww/p/w` UUID 검사 → `location.replace`)는 정적 폴백용으로 남겨 둔다. `og:url` 은 항상 경로형.
   운영 응답 확인은 `share-diag` 워크플로(Actions, 수동: curl·카톡 인앱·스크랩 UA 별 상태/Location/og:url). 카톡 카드를 눌러도 여전히 포털이면 코드 밖 원인 —
   카카오 디벨로퍼스 [내 애플리케이션 → 플랫폼 → Web 사이트 도메인]에 `https://gatherallaround.com`(www·http 변형 아님)이 있는지 확인.
+- **이름 중복 방지(2026-10-07)**: 프로젝트 제목은 전체에서, 작품 제목은 같은 프로젝트 안에서 유일 — 키는 `titleKey()`(앞뒤·연속 공백, 대소문자 무시).
+  서버가 저장 전 `titleTaken()`(ilike 후보 → 정확 비교)로 검사해 **409 `dup_title`**, 비워 보낸 작품 기본 제목(프로젝트명)은 `uniqueTitle()` 이 "이름 (2)" 번호를 붙인다.
+  클라는 프로젝트 생성 전 anon 사전 확인(`projectTitleTaken`, 공개 행만 보임), 작품 저장 프롬프트 기본값은 `suggestWorkTitle()` 로 비어 있는 번호 제안.
+  선택 마이그레이션 `20261007_wappen_unique_titles.sql`(기존 중복 정리 후 `wappen_title_key()` 유일 인덱스) 적용 시 동시 요청까지 차단 — PostgREST 409 를 서버가 `dup_title` 로 변환.
+- **관리자 와펜 일괄 관리**: 와펜 탭에 검색(이름·분류·태그)·분류 칩·행 체크박스(분류 전체 선택) → 하단 `.bulk-bar` [선택 삭제], 분류 머리줄 [분류 전체 삭제].
+  서버 `admin_items_delete {item_ids≤500 | category}` — 작품 레이아웃이 참조하는 와펜은 숨김, 나머지 삭제(단건과 같은 규칙). 사용 여부는 `usedItemIds()` 가
+  `or=(layout.cs.{"items":[{"id":…}]},…)` 로 30개씩 한 요청(단일 항목 JSON 엔 쉼표가 없어 or 파서에 안전) — 와펜 수만큼 count 를 돌리지 말 것(Workers 서브리퀘스트 한도).
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
   와펜 등록 폼(`itemFormModal`)은 PNG·JPG·WebP 를 받아 **클라이언트에서 PNG 로 변환**(투명 유지, MIME 대신 디코드 성공으로 판정 — iOS 는 type 이 비기도 함).
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.
@@ -151,6 +158,7 @@
   아이콘은 `icon(name)`(app.js, 16px 단색 SVG·currentColor)만 — 버튼 텍스트에 이모지 금지(감정표현 5종·빈 상태 장식·로고만 예외, UI 테스트가 검사).
   상세 페이지 주 동작은 `.action-row`(sm 버튼 균등 분할 + 끝에 `icon-only` ⋯) 한 줄, 부가 동작(수정·숨기기·삭제·링크 복사·신고)은 `moreSheet()` 하단 시트.
   페이지 제목은 `.page-head`, 섹션은 `.section-title`(h2 + `.more`), 세그먼트 `.seg`(36px, `<a>`/`<button>` 공통), 인라인 `font-size` 금지.
+  카드·순위·목록 썸네일(`.card-thumb`·`.rank-thumb`·`.list-row .thumb`)은 **contain + 여백**(10px/3px) — 꽉 채워 자르지 않는다(2026-10-07 요청).
   뷰 안에서 `#app` 에 거는 위임 리스너는 `onAppClick()`(render 마다 AbortController 로 해제 — 직접 `app.addEventListener` 하면 다음 화면에서도 살아남아 중복 동작).
 - **라이브 갱신**: 뷰가 `setLive(fn)` 으로 "조용히 다시 그리는 함수"를 등록(서명 `sigOf()` 비교로 바뀐 때만 DOM 교체, 로딩 깜빡임 없음), `render()` 가 해제.
   `initLive()` 가 탭 복귀(visibilitychange/pageshow/focus)·25초 폴링·Supabase Realtime(`wappen_works/projects/items` postgres_changes, 발행 등록은

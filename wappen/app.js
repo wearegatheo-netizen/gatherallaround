@@ -119,11 +119,12 @@ function confirmModal({ title, body = '', okLabel = '확인', danger = false, ca
         $('[data-ok]', m.el).addEventListener('click', () => { resolve(true); m.close(); });
     });
 }
-function promptModal({ title, label = '', value = '', max = 60, placeholder = '', okLabel = '확인', multiline = false }) {
+function promptModal({ title, label = '', value = '', max = 60, placeholder = '', okLabel = '확인', multiline = false, hint = '' }) {
     return new Promise((resolve) => {
         let result = null;
         const m = openModal(`<h3>${esc(title)}</h3>${label ? `<label class="wp-label">${esc(label)}</label>` : ''}
             ${multiline ? `<textarea class="wp-textarea" maxlength="${max}" placeholder="${esc(placeholder)}">${esc(value)}</textarea>` : `<input class="wp-input" maxlength="${max}" value="${esc(value)}" placeholder="${esc(placeholder)}">`}
+            ${hint ? `<div class="muted" style="margin-top:6px">${esc(hint)}</div>` : ''}
             <div class="modal-actions"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button>
             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-ok>${esc(okLabel)}</button></div>`, { onClose: () => resolve(result) });
         const input = $(multiline ? 'textarea' : 'input', m.el);
@@ -166,6 +167,23 @@ async function api(action, payload = {}) {
     return out;
 }
 function clearSession() { state.session = null; state.me = null; try { localStorage.removeItem(SESSION_KEY); } catch (_) {} }
+// 제목 중복 사전 확인 — anon 은 공개(active) 행만 보이므로 빠른 안내용이고, 최종 판정은 서버(dup_title 409)
+const titleKey = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+const ilikeEsc = (s) => titleKey(s).replace(/[\\%_]/g, m => '\\' + m);
+async function projectTitleTaken(title) {
+    try { const { data } = await sb.from('wappen_projects').select('id,title').ilike('title', ilikeEsc(title)).limit(50); return (data || []).some(p => titleKey(p.title) === titleKey(title)); }
+    catch (_) { return false; }
+}
+// 같은 프로젝트에 같은 이름의 작품이 있으면 "이름 (2)" 식으로 비어 있는 번호를 붙여 제안
+async function suggestWorkTitle(projectId, base, excludeId) {
+    try {
+        const { data } = await sb.from('wappen_works').select('id,title').eq('project_id', projectId).ilike('title', ilikeEsc(base) + '%').limit(300);
+        const taken = new Set((data || []).filter(w => w.id !== excludeId).map(w => titleKey(w.title)));
+        if (!taken.has(titleKey(base))) return base;
+        for (let n = 2; n < 500; n++) { const c = `${base.slice(0, LIMITS.title - String(n).length - 3)} (${n})`; if (!taken.has(titleKey(c))) return c; }
+    } catch (_) {}
+    return base;
+}
 function initKakao() { try { if (window.Kakao && !Kakao.isInitialized()) Kakao.init(KAKAO_KEY); } catch (e) { console.error('Kakao init', e); } }
 async function loginWithToken(token) {
     const out = await api('login', { kakao_token: token });
@@ -690,6 +708,7 @@ async function viewNew() {
         const showErr = (m) => { res.textContent = m; res.className = 'form-result err'; };
         const title = $('#pTitle').value.trim(), description = $('#pDesc').value.trim();
         if (!title) return showErr('제목을 입력해주세요.');
+        if (await projectTitleTaken(title)) return showErr('같은 이름의 프로젝트가 이미 있어요. 다른 이름을 입력해주세요.');
         if (!s.bitmap) return showErr('기본 이미지를 선택해주세요.');
         if (!isValidSize(s.size, s.orientation)) return showErr('사이즈를 선택해주세요.');
         btn.disabled = true; const prog = $('#prog'), bar = $('div', prog); prog.classList.remove('hidden');
@@ -793,7 +812,8 @@ async function viewEdit(r) {
     async function save() {
         if (!await requireLogin('작품을 저장하려면 로그인이 필요해요.')) return;
         if (!editor.items.length && !await confirmModal({ title: '와펜이 하나도 없어요', body: '그래도 저장할까요?', okLabel: '저장' })) return;
-        const title = await promptModal({ title: editing ? '작품 제목' : '작품 제목을 정해주세요', value: (work && work.title) || project.title, max: LIMITS.title, okLabel: editing ? '수정 저장' : '저장' });
+        const suggested = editing ? work.title : await suggestWorkTitle(pid, (work && work.title) || project.title, null);
+        const title = await promptModal({ title: editing ? '작품 제목' : '작품 제목을 정해주세요', value: suggested, max: LIMITS.title, okLabel: editing ? '수정 저장' : '저장', hint: '같은 프로젝트 안에서는 작품 이름이 겹칠 수 없어요.' });
         if (title == null) return;
         const saveBtn = $('[data-act="save"]', app); saveBtn.disabled = true; saveBtn.textContent = '저장 중…';
         try {
@@ -1196,26 +1216,65 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
         } catch (err) { res.textContent = err.message || '저장하지 못했습니다.'; res.className = 'form-result err'; btn.disabled = false; }
     });
 }
-async function adminItems(body) {
+async function adminItems(body, ui = { q: '', cat: '' }) {
     const [out, seed] = await Promise.all([api('admin_items'), api('admin_seed_status')]);
     if (!out.ok) { body.innerHTML = errorHTML(out.message); return; }
     const seedCard = seed.ok ? `<div class="card-box" style="margin-bottom:12px"><div class="row between">
             <div><b>기본 와펜 세트</b> <span class="status-badge sm ${seed.missing ? 'status-pending' : 'status-approved'}">${seed.missing ? `${num(seed.missing)}개 미설치` : '설치됨'}</span>
-                <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 도형·동물·음악·음식·글자·캐릭터 — 직접 그린 원본(저작권 문제 없음). 설치된 것은 건너뛰어요.</div></div>
+                <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 도형·동물·음악·음식·글자·캐릭터·과일 — 직접 그린 원본(저작권 문제 없음). 설치된 것은 건너뛰어요.</div></div>
             ${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}</div></div>`
         : `<div class="card-box" style="margin-bottom:12px"><div class="row between"><div><b>기본 와펜 세트</b> <span class="status-badge sm status-rejected">상태 확인 실패</span>
             <div class="muted" style="margin-top:4px">${esc(seed.message || '')}${seed.error === 'unknown_action' ? ' — 서버 배포가 아직 반영되지 않았어요. 잠시 후 다시 시도해주세요.' : ''}</div></div>
             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="seed-retry">${icon('remix')} 다시 확인</button></div></div>`;
-    const byCat = {}; for (const it of out.items) (byCat[it.category] = byCat[it.category] || []).push(it);
-    body.innerHTML = seedCard + `<div class="row between" style="margin-bottom:10px"><span class="muted">총 ${num(out.items.length)}개 (숨김 ${num(out.items.filter(i => i.status === 'hidden').length)})</span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
-        ${out.items.length ? Object.entries(byCat).map(([c, list]) => `<div class="card-box"><b>${esc(c)} <span class="muted">${list.length}</span></b><div class="list">${list.map(i => `<div class="list-row">
+    // 검색(이름·분류·태그)·분류 칩·체크박스 선택 → 선택 삭제 / 분류 전체 삭제. 선택 상태는 이 렌더 안에서만 유지(새로 불러오면 초기화).
+    const items = out.items, cats = [...new Set(items.map(i => i.category))], sel = new Set();
+    let q = (ui.q || '').trim().toLowerCase(), cat = ui.cat && cats.includes(ui.cat) ? ui.cat : '';
+    const match = (i) => (!cat || i.category === cat) && (!q || [i.name, i.category, ...(i.tags || [])].some(s => String(s).toLowerCase().includes(q)));
+    body.innerHTML = seedCard + `<div class="row between" style="margin-bottom:10px"><span class="muted" data-count></span><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="new-item">${icon('plus')} 와펜 등록</button></div>
+        ${items.length ? `<div class="admin-tools"><input type="search" class="wp-input" id="itSearch" placeholder="이름·분류·태그 검색" value="${esc(ui.q || '')}" autocomplete="off">
+            <div class="chips scroll">${[['', '전체'], ...cats.map(c => [c, c])].map(([k, v]) => `<button type="button" class="chip sm ${cat === k ? 'active' : ''}" data-cat="${esc(k)}">${esc(v)}</button>`).join('')}</div></div>` : ''}
+        <div data-list></div>
+        <div class="bulk-bar hidden" data-bulk><b data-bulk-count></b><div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="sel-clear">선택 해제</button><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" data-act="sel-delete">${icon('trash')} 선택 삭제</button></div></div>`;
+    const listEl = $('[data-list]', body), countEl = $('[data-count]', body), bulk = $('[data-bulk]', body);
+    const renderList = () => {
+        const shown = items.filter(match), byCat = {};
+        for (const it of shown) (byCat[it.category] = byCat[it.category] || []).push(it);
+        countEl.textContent = `총 ${num(items.length)}개${shown.length !== items.length ? ` · 검색 ${num(shown.length)}개` : ''} (숨김 ${num(items.filter(i => i.status === 'hidden').length)})`;
+        listEl.innerHTML = !items.length ? emptyHTML('🧩', '등록된 와펜이 없어요. 첫 와펜을 등록해주세요.') : !shown.length ? emptyHTML('🔍', '검색 결과가 없어요.')
+            : Object.entries(byCat).map(([c, list]) => { const total = items.filter(i => i.category === c).length, all = list.every(i => sel.has(i.id)); return `<div class="card-box"><div class="group-head">
+                <label class="wp-check"><input type="checkbox" data-selcat="${esc(c)}" ${all ? 'checked' : ''} aria-label="${esc(c)} 전체 선택"><b>${esc(c)} <span class="muted">${list.length}${list.length !== total ? `/${total}` : ''}</span></b></label>
+                <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-delcat="${esc(c)}">${icon('trash')} 분류 전체 삭제 (${total})</button></div>
+            <div class="list">${list.map(i => `<div class="list-row ${sel.has(i.id) ? 'selected' : ''}"><label class="wp-check"><input type="checkbox" data-sel="${i.id}" ${sel.has(i.id) ? 'checked' : ''} aria-label="선택"></label>
             <img class="thumb contain" src="${esc(i.image_url)}" alt=""><div class="info"><b>${esc(i.name)} ${i.status === 'hidden' ? '<span class="status-badge sm status-neutral">숨김</span>' : ''}</b><small>${i.width_px}×${i.height_px}px · 순서 ${i.sort_order} · ${(i.tags || []).map(t => '#' + esc(t)).join(' ')}</small></div>
-            <div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-edit="${i.id}">수정</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-hide="${i.id}" data-status="${i.status}">${i.status === 'hidden' ? '공개' : '숨김'}</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-del="${i.id}">삭제</button></div></div>`).join('')}</div></div>`).join('')
-            : emptyHTML('🧩', '등록된 와펜이 없어요. 첫 와펜을 등록해주세요.')}`;
-    const refresh = () => adminItems(body);
+            <div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-edit="${i.id}">수정</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-hide="${i.id}" data-status="${i.status}">${i.status === 'hidden' ? '공개' : '숨김'}</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" data-del="${i.id}">삭제</button></div></div>`).join('')}</div></div>`; }).join('');
+        bulk.classList.toggle('hidden', !sel.size);
+        $('[data-bulk-count]', body).textContent = `${num(sel.size)}개 선택`;
+    };
+    renderList();
+    const refresh = () => adminItems(body, { q: ($('#itSearch', body) || {}).value || '', cat });
+    const BULK_BODY = '작품에 사용 중인 와펜은 삭제 대신 숨김 처리되고, 나머지는 바로 삭제돼요. 되돌릴 수 없습니다.';
+    const bulkDelete = async (payload, title) => {
+        if (!await confirmModal({ title, body: BULK_BODY, okLabel: '삭제', danger: true })) return;
+        const o = await api('admin_items_delete', payload);
+        if (!o.ok) return showToast(o.message || '삭제하지 못했습니다.');
+        showToast(`${num(o.deleted || 0)}개 삭제${o.hidden ? ` · ${num(o.hidden)}개는 작품에 사용 중이라 숨김 처리` : ''}`);
+        await fetchItems(true).catch(() => {}); refresh();
+    };
+    const search = $('#itSearch', body);
+    if (search) search.addEventListener('input', debounce((e) => { q = e.target.value.trim().toLowerCase(); renderList(); }, 150));
+    body.onchange = (e) => {   // 체크박스 (onclick/onchange 할당 — refresh 로 다시 그려도 리스너가 쌓이지 않음)
+        const c = e.target.closest('[data-sel],[data-selcat]'); if (!c) return;
+        if (c.dataset.sel) { if (c.checked) sel.add(c.dataset.sel); else sel.delete(c.dataset.sel); }
+        else for (const i of items.filter(x => x.category === c.dataset.selcat && match(x))) { if (c.checked) sel.add(i.id); else sel.delete(i.id); }
+        renderList();
+    };
     body.onclick = async (e) => {
-        const b = e.target.closest('[data-act="new-item"],[data-act="seed"],[data-act="seed-retry"],[data-edit],[data-hide],[data-del]'); if (!b) return;
-        const item = out.items.find(i => i.id === (b.dataset.edit || b.dataset.hide || b.dataset.del));
+        const b = e.target.closest('[data-act],[data-edit],[data-hide],[data-del],[data-cat],[data-delcat]'); if (!b) return;
+        if (b.dataset.cat != null) { cat = b.dataset.cat; $$('.chip', body).forEach(ch => ch.classList.toggle('active', ch.dataset.cat === cat)); renderList(); return; }
+        if (b.dataset.delcat) { const c = b.dataset.delcat; return bulkDelete({ category: c }, `'${c}' 분류 와펜 ${num(items.filter(i => i.category === c).length)}개를 모두 삭제할까요?`); }
+        if (b.dataset.act === 'sel-clear') { sel.clear(); renderList(); return; }
+        if (b.dataset.act === 'sel-delete') return bulkDelete({ item_ids: [...sel] }, `선택한 와펜 ${num(sel.size)}개를 삭제할까요?`);
+        const item = items.find(i => i.id === (b.dataset.edit || b.dataset.hide || b.dataset.del));
         if (b.dataset.act === 'new-item') itemFormModal({}, refresh);
         else if (b.dataset.act === 'seed-retry') refresh();
         else if (b.dataset.act === 'seed') {

@@ -190,12 +190,22 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
 {
   let inserted;
   const base = PUB(`base/${UID}/x.jpg`);
-  const routes = [SESSION_OK(), count('wappen_projects?owner_id=eq.', 3),
+  const TITLE_Q = 'wappen_projects?select=id,title&title=ilike.';
+  const routes = [SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [{ id: OTHER, title: '여름 포스터 2' }] }],
     ['wappen_projects', { method: 'POST', body: (rec) => { inserted = rec.json; return [{ id: PID, ...rec.json }]; } }]];
   mockFetch(routes);
   const ok = { action: 'project_create', session: S, title: ' 여름 포스터 ', size_key: 'a4', orientation: 'landscape', width_px: 3508, height_px: 2480, base_image_url: base };
   let { status, out } = await jrun(ok);
   chk('project_create 200·size_group·작성자 복제', status === 200 && inserted.size_group === 'print' && inserted.author_name === '길동' && inserted.title === '여름 포스터' && inserted.orientation === 'landscape');
+  chk('제목 중복 조회: ilike 패턴(공백→%)·후보가 정확히 같지 않으면 통과', calls.some(c => c.url.includes(TITLE_Q + encodeURIComponent('여름%포스터') + '&limit=50')));
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [{ id: OTHER, title: '여름  포스터' }] }]]);
+  ({ status, out } = await jrun(ok));
+  chk('같은 이름(공백·대소문자 무시) 프로젝트 → 409 dup_title, 저장 없음', status === 409 && out.error === 'dup_title' && !calls.some(c => c.method === 'POST' && c.url.endsWith('wappen_projects')));
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [] }], ['wappen_projects', { method: 'POST', status: 409, body: { code: '23505' } }]]);
+  chk('DB 유일 인덱스 위반(동시 요청) → 409 dup_title', (await jrun(ok)).out.error === 'dup_title');
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [{ id: OTHER, title: '100% 할인_이벤트' }] }]]);
+  await jrun({ ...ok, title: '100% 할인_이벤트' });
+  chk('ilike 와일드카드 이스케이프(% _)', calls.some(c => decodeURIComponent(c.url).includes('title=ilike.100\\%%할인\\_이벤트')));
   chk('잘못된 사이즈 → 400', (await jrun({ ...ok, size_key: 'a9' })).out.error === 'bad_size');
   chk('SNS 가로 → 400', (await jrun({ ...ok, size_key: 'ig_square' })).out.error === 'bad_size');
   chk('다른 사용자 폴더 이미지 → 400', (await jrun({ ...ok, base_image_url: PUB(`base/${OTHER}/x.jpg`) })).out.error === 'bad_image');
@@ -211,6 +221,12 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['wappen_projects?id=eq.', { method: 'PATCH', body: (rec) => [{ ...PROJ, ...rec.json }] }]]);
   ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, status: 'hidden' }));
   chk('소유자 숨김 → hidden', status === 200 && out.project.status === 'hidden');
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['wappen_projects?select=id,title&title=ilike.', { body: [{ id: OTHER, title: 'New' }] }]]);
+  ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, title: 'new' }));
+  chk('제목 변경이 다른 프로젝트와 겹치면 409 dup_title', status === 409 && out.error === 'dup_title');
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['wappen_projects?id=eq.', { method: 'PATCH', body: (rec) => [{ ...PROJ, ...rec.json }] }]]);
+  ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, title: ' P ' }));
+  chk('자기 제목과 같은 키(대소문자·공백만 다름)면 조회 없이 저장', status === 200 && out.project.title === 'P' && !calls.some(c => c.url.includes('title=ilike.')));
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], count('wappen_works?project_id=eq.', 2)]);
   chk('타인 작품 있는 프로젝트 삭제 → 409', (await jrun({ action: 'project_delete', session: S, project_id: PID })).out.error === 'has_works');
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], count('wappen_works?project_id=eq.', 0), ['wappen_projects?id=eq.', { method: 'DELETE', body: [] }]]);
@@ -226,12 +242,24 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
     ['wappen_projects?id=eq.', { body: [PROJ] }],
     ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }],
     count('wappen_works?author_id=eq.', 0),
+    ['wappen_works?select=id,title&title=ilike.', { body: [] }],
     ['wappen_works', { method: 'POST', body: (rec) => { inserted = rec.json; return [{ id: WID, ...rec.json }]; } }],
   ];
   mockFetch(routes());
   const ok = { action: 'work_save', session: S, project_id: PID, title: '', layout, preview_url: preview, preview_w: 1080, preview_h: 1527 };
   let { status, out } = await jrun(ok);
   chk('work_save 200·제목 기본값=프로젝트명', status === 200 && out.work.id === WID && inserted.title === '프로젓');
+  chk('기본 제목 중복 조회는 같은 프로젝트 안(project_id)·ilike "이름%"', calls.some(c => c.url.includes('wappen_works?select=id,title&title=ilike.' + encodeURIComponent('프로젓%') + '&project_id=eq.' + PID)));
+  mockFetch([['wappen_works?select=id,title&title=ilike.', { body: [{ id: OTHER, title: '프로젓' }, { id: OTHER, title: '프로젓 (2)' }, { id: OTHER, title: '프로젓 x' }] }], ...routes()]);
+  await jrun(ok);
+  chk('기본 제목이 겹치면 비어 있는 번호 "프로젓 (3)"', inserted.title === '프로젓 (3)');
+  mockFetch([['wappen_works?select=id,title&title=ilike.', { body: [{ id: OTHER, title: '내 작품 ' }] }], ...routes()]);
+  ({ status, out } = await jrun({ ...ok, title: '내 작품' }));
+  chk('직접 정한 제목이 같은 프로젝트의 다른 작품과 겹치면 409 dup_title', status === 409 && out.error === 'dup_title' && !calls.some(c => c.method === 'POST'));
+  mockFetch([['wappen_works?select=id,title&title=ilike.', { body: [{ id: WID, title: '내 작품' }] }], ...routes(),
+    ['wappen_works?id=eq.', { method: 'GET', body: [{ id: WID, author_id: UID, project_id: PID }] }], ['wappen_works?id=eq.', { method: 'PATCH', body: (rec) => [{ id: WID, ...rec.json }] }]]);
+  ({ status, out } = await jrun({ ...ok, title: '내 작품', work_id: WID }));
+  chk('수정 저장: 자기 자신의 제목은 중복으로 보지 않음', status === 200 && out.work.title === '내 작품');
   chk('레이아웃 정규화: 알 수 없는 키 제거·반올림·fx bool·r 기본 0', JSON.stringify(inserted.layout.items[0]) === JSON.stringify({ id: IT1, x: 0.5, y: 0.5, w: 0.25, r: 15.12346, fx: true })
     && inserted.layout.items[1].r === 0 && inserted.layout.items[1].fx === false);
   chk('작성자 복제·remix_of null', inserted.author_name === '길동' && inserted.remix_of === null && inserted.author_id === UID);
@@ -253,15 +281,15 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
 
   // 수정
   let patched;
-  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { body: [PROJ] }], ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }],
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { body: [PROJ] }], ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }], ['wappen_works?select=id,title&title=ilike.', { body: [] }],
     ['wappen_works?id=eq.', { method: 'GET', body: [{ id: WID, author_id: UID, project_id: PID }] }],
     ['wappen_works?id=eq.', { method: 'PATCH', body: (rec) => { patched = rec.json; return [{ id: WID, ...rec.json }]; } }]]);
   ({ status, out } = await jrun({ ...ok, work_id: WID, title: '수정됨' }));
   chk('본인 작품 수정 → PATCH', status === 200 && patched.title === '수정됨' && !('author_id' in patched));
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { body: [PROJ] }], ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }],
     ['wappen_works?id=eq.', { method: 'GET', body: [{ id: WID, author_id: OTHER, project_id: PID }] }]]);
-  chk('타인 작품 수정 → 403', (await jrun({ ...ok, work_id: WID })).status === 403);
-  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { body: [PROJ] }], ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }], count('wappen_works?author_id=eq.', 100)]);
+  chk('타인 작품 수정 → 403 (제목 조회 전에 소유권 확인)', (await jrun({ ...ok, work_id: WID })).status === 403 && !calls.some(c => c.url.includes('title=ilike.')));
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { body: [PROJ] }], ['wappen_items?id=in.', { body: [{ id: IT1 }, { id: IT2 }] }], ['wappen_works?select=id,title&title=ilike.', { body: [] }], count('wappen_works?author_id=eq.', 100)]);
   chk('하루 100개 한도 → 429', (await jrun(ok)).status === 429);
 
   mockFetch([SESSION_OK(), ['wappen_works?id=eq.', { method: 'GET', body: [{ id: WID, author_id: OTHER }] }]]);
@@ -323,6 +351,26 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 0), ['wappen_items?id=eq.', { method: 'DELETE', body: [] }]]);
   ({ status, out } = await jrun({ action: 'admin_item_delete', session: S, item_id: IT1 }));
   chk('미사용 와펜은 삭제', status === 200 && out.hidden === false);
+
+  // 일괄 삭제 — 선택 id / 분류 전체. 작품이 참조하는 것은 숨김, 나머지 삭제
+  mockFetch([SESSION_OK()]);
+  chk('admin_items_delete: 일반 사용자 403', (await jrun({ action: 'admin_items_delete', session: S, item_ids: [IT1] })).status === 403);
+  const USED_Q = 'wappen_works?select=layout&or=(';
+  mockFetch([SESSION_OK(ADMIN), [USED_Q, { body: [{ layout: { v: 1, items: [{ id: IT1, x: 0.5 }, { id: OTHER }] } }] }],
+    ['wappen_items?id=in.(', { method: 'PATCH', body: [] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_items_delete', session: S, item_ids: [IT1, IT2.toUpperCase(), IT1] }));
+  chk('선택 삭제: 사용 중(IT1) 숨김·미사용(IT2) 삭제·중복 id 제거', status === 200 && out.deleted === 1 && out.hidden === 1 && out.used_ids.join() === IT1
+    && calls.some(c => c.method === 'PATCH' && c.url.includes(`id=in.(${IT1})`) && c.json.status === 'hidden') && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT2})`)));
+  chk('사용 여부는 or=(layout.cs.{…},…) 한 요청', calls.filter(c => c.url.includes(USED_Q)).length === 1
+    && decodeURIComponent(calls.find(c => c.url.includes(USED_Q)).url).includes(`or=(layout.cs.{"items":[{"id":"${IT1}"}]},layout.cs.{"items":[{"id":"${IT2}"}]})`));
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?category=eq.', { body: [{ id: IT1 }, { id: IT2 }] }], [USED_Q, { body: [] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_items_delete', session: S, category: '과일' }));
+  chk('분류 전체 삭제: 분류로 id 조회 → 미사용 전부 삭제', status === 200 && out.deleted === 2 && out.hidden === 0
+    && calls.some(c => c.url.includes('wappen_items?category=eq.' + encodeURIComponent('과일'))) && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT1},${IT2})`)));
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?category=eq.', { body: [] }]]);
+  chk('빈 분류 → 0건', (await jrun({ action: 'admin_items_delete', session: S, category: '없음' })).out.deleted === 0);
+  mockFetch([SESSION_OK(ADMIN)]);
+  chk('id 없음/잘못됨 → 400', (await jrun({ action: 'admin_items_delete', session: S, item_ids: [] })).status === 400 && (await jrun({ action: 'admin_items_delete', session: S, item_ids: ['x'] })).out.error === 'bad_ids');
 
   mockFetch([SESSION_OK(ADMIN), ['wappen_works?id=eq.', { method: 'PATCH', body: (rec) => [{ id: WID, ...rec.json }] }]]);
   ({ status, out } = await jrun({ action: 'admin_set_hidden', session: S, target_type: 'work', target_id: WID, hidden: true }));

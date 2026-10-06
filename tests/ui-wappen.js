@@ -114,6 +114,13 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('새 프로젝트: A3 가로 → 4961×3508px 안내', (await p.locator('#sizeHelp').innerText()).includes('4961×3508px'));
     const dz = await p.locator('#drop').boundingBox();
     chk('새 프로젝트: 업로드 영역이 블록(폭 ≥ 200px)', dz && dz.width > 200 && dz.height > 60);
+    // 제목 중복: 공개 프로젝트와 같은 이름(공백·대소문자 무시)이면 이미지 고르기 전에 안내, 다른 이름이면 다음 검사로
+    await p.fill('#pTitle', ' 테스트  프로젝트 '); await p.click('#createBtn');
+    await p.waitForFunction(() => (document.querySelector('.form-result') || {}).textContent.includes('같은 이름'));
+    chk('새 프로젝트: 같은 이름 사전 안내(anon ilike 조회)·업로드 없음', await p.evaluate(() => !window.__apiCalls.some(c => c.action === 'upload_sign') && window.__sbCalls.some(c => c.table === 'wappen_projects' && c.filters.some(f => f[0] === '~title'))));
+    await p.fill('#pTitle', '새 프로젝트'); await p.click('#createBtn');
+    await p.waitForFunction(() => (document.querySelector('.form-result') || {}).textContent.includes('기본 이미지'));
+    chk('새 프로젝트: 다른 이름이면 다음 검사(이미지)로 진행', true);
     const bottomNavVisible = await p.locator('#bottomNav').isVisible();
     chk(`하단 탭바: ${VW < 640 ? '모바일에서 표시' : '데스크톱에서 숨김'}`, bottomNavVisible === (VW <= 640));
     if (VW <= 640) chk('하단 탭바: 만들기 활성', (await p.locator('#bottomNav a[data-nav="new"]').getAttribute('class') || '').includes('active'));
@@ -165,10 +172,12 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.waitForFunction(() => document.querySelectorAll('.ed-item').length === 1);
     chk('에디터: 서랍 검색', (await p.locator('.ed-item span').innerText()) === '고양이');
 
-    // 3. 저장 → 작품 페이지
+    // 3. 저장 → 작품 페이지 (같은 프로젝트에 프로젝트명과 같은 작품이 있으면 기본값에 "(2)" 를 붙여 제안)
+    await p.evaluate(() => window.TABLES.wappen_works.push({ ...window.TABLES.wappen_works[0], id: '44444444-4444-4444-8444-444444444499', title: '테스트 프로젝트' }));
     await p.click('.ed-topbar [data-act="save"]');
     await p.waitForSelector('.modal input');
-    chk('저장: 제목 모달 기본값=프로젝트명', (await p.inputValue('.modal input')) === '테스트 프로젝트');
+    chk('저장: 제목 모달 기본값=프로젝트명, 겹치면 "(2)" 제안', (await p.inputValue('.modal input')) === '테스트 프로젝트 (2)' && (await p.locator('.modal .muted').innerText()).includes('겹칠 수 없어요'));
+    await p.evaluate(() => window.TABLES.wappen_works.pop());
     await p.fill('.modal input', '첫 작품');
     await p.click('.modal [data-ok]');
     await p.waitForFunction(() => location.hash === `#/work/${'44444444-4444-4444-8444-444444444444'}`, null, { timeout: 15000 });
@@ -245,7 +254,8 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
       case 'admin_requests': return ok({ requests: window.__approved ? [] : [{ id: '${RQ}', user_id: '${UID}', name: '고양이', description: '검은 고양이', ref_image_url: '${BASE}/icon-192.png', status: 'pending', admin_note: null, item_id: null, created_at: new Date().toISOString(), requester: { nickname: '길동', avatar_url: null }, wappen_items: null }] });
       case 'admin_item_create': return ok({ item: { id: '${NEWIT}', name: body.name, category: body.category, tags: body.tags, image_url: body.image_url, width_px: body.width_px, height_px: body.height_px, status: 'active' } });
       case 'admin_request_resolve': window.__approved = body; return ok({ request: { id: body.request_id, status: body.status } });
-      case 'admin_items': return ok({ items: [] });
+      case 'admin_items': return ok({ items: ${JSON.stringify(ITEMS)} });
+      case 'admin_items_delete': window.__bulk = body; return ok({ deleted: body.category ? 1 : (body.item_ids || []).length, hidden: 0, used_ids: [] });
       case 'admin_seed_status': return ok({ version: 1, total: 66, installed: window.__seeded ? 66 : 0, missing: window.__seeded ? 0 : 66 });
       case 'admin_seed_items': window.__seeded = true; return ok({ added: 66, skipped: 0, total: 66 });
       default: return ok({});`);
@@ -274,6 +284,28 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
         await pa.waitForFunction(() => window.__apiCalls.some(c => c.action === 'admin_seed_items'));
         await pa.waitForSelector('.status-badge.status-approved');
         chk('기본 세트 불러오기 → 설치됨', (await pa.locator('.card-box .status-badge').first().innerText()) === '설치됨' && await pa.locator('[data-act="seed"]').count() === 0);
+        // 와펜 목록: 검색·분류 칩·체크박스 선택 삭제·분류 전체 삭제
+        await pa.goto(`${BASE}/wappen/#/admin`); await pa.waitForSelector('#itSearch');
+        chk('관리자 와펜: 2개·분류 칩(전체·기호·동물)', await pa.locator('[data-sel]').count() === 2 && (await pa.$$eval('.admin-tools .chip', els => els.map(e => e.textContent.trim()))).join() === '전체,기호,동물');
+        await pa.fill('#itSearch', '귀여'); await pa.waitForFunction(() => document.querySelectorAll('[data-sel]').length === 1);
+        chk('관리자 와펜: 태그 검색 → 고양이 1개·건수 표시', (await pa.locator('[data-list] .info b').innerText()).includes('고양이') && (await pa.locator('[data-count]').innerText()).includes('검색 1개'));
+        await pa.fill('#itSearch', ''); await pa.waitForFunction(() => document.querySelectorAll('[data-sel]').length === 2);
+        await pa.click('.admin-tools .chip[data-cat="기호"]'); await pa.waitForFunction(() => document.querySelectorAll('[data-sel]').length === 1);
+        chk('관리자 와펜: 분류 칩 → 기호만', (await pa.locator('[data-list] .info b').innerText()).includes('별'));
+        await pa.click('.admin-tools .chip[data-cat=""]'); await pa.waitForFunction(() => document.querySelectorAll('[data-sel]').length === 2);
+        chk('관리자 와펜: 선택 전엔 일괄 바 숨김', !(await pa.locator('[data-bulk]').isVisible()));
+        await pa.check(`[data-sel="${IT2}"]`); await pa.waitForSelector('[data-bulk]:not(.hidden)');
+        chk('관리자 와펜: 1개 선택 → 일괄 바·행 강조', (await pa.locator('[data-bulk-count]').innerText()) === '1개 선택' && await pa.locator('.list-row.selected').count() === 1);
+        await pa.check('[data-selcat="기호"]'); await pa.waitForFunction(() => document.querySelector('[data-bulk-count]').textContent === '2개 선택');
+        await pa.click('[data-act="sel-delete"]'); await pa.waitForSelector('.modal [data-ok]');
+        chk('관리자 와펜: 선택 삭제 확인 모달(2개)', (await pa.locator('.modal h3').innerText()).includes('2개'));
+        await pa.click('.modal [data-ok]'); await pa.waitForFunction(() => window.__bulk);
+        chk('관리자 와펜: admin_items_delete(item_ids 2개)', await pa.evaluate(() => window.__bulk.item_ids && window.__bulk.item_ids.length === 2 && !window.__bulk.category));
+        await pa.waitForSelector('[data-delcat="동물"]');
+        await pa.click('[data-delcat="동물"]'); await pa.waitForSelector('.modal [data-ok]');
+        chk('관리자 와펜: 분류 전체 삭제 확인 모달', (await pa.locator('.modal h3').innerText()).includes("'동물' 분류"));
+        await pa.click('.modal [data-ok]'); await pa.waitForFunction(() => window.__bulk && window.__bulk.category === '동물');
+        chk('관리자 와펜: admin_items_delete(category)', true);
         await pa.close();
     }
     // 8. 모바일(터치): 홈 맨 위에서 아래로 당기면 새로고침 표시기가 돌고(.ptr.loading) 화면을 다시 그린다 — CDP 로 실제 터치 시퀀스 주입

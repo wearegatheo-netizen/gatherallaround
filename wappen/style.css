@@ -151,8 +151,9 @@ body.dark .status-info { background: #172554; color: #93C5FD; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
 .card { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 14px; overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; }
 .card:hover { transform: translateY(-2px); box-shadow: var(--wds-shadow-lg); }
-.card-thumb { position: relative; background: var(--wds-gray-100); aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.card-thumb img { width: 100%; height: 100%; object-fit: contain; }
+/* 카드 미리보기는 꽉 채우지 않고 여백(10px)을 두고 전체가 보이게 — 세로·가로 프로젝트 모두 잘리지 않음 (2026-10-07) */
+.card-thumb { position: relative; background: var(--wds-gray-100); aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 10px; box-sizing: border-box; }
+.card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .card-thumb .badge-tl { position: absolute; left: 8px; top: 8px; }
 .card-thumb .badge-br { position: absolute; right: 8px; bottom: 8px; }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -238,7 +239,7 @@ body.dark .status-info { background: #172554; color: #93C5FD; }
 .rank-row:hover { border-color: var(--wds-primary); }
 .rank-no { width: 36px; text-align: center; font-weight: 800; font-size: var(--fs-body); color: var(--wds-gray-600); flex: none; }
 .rank-no.top { font-size: 1.4rem; }
-.rank-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--wds-gray-100); flex: none; }
+.rank-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: contain; padding: 3px; box-sizing: border-box; background: var(--wds-gray-100); flex: none; }
 .rank-info { flex: 1; min-width: 0; }
 .rank-info b { display: block; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-score { font-weight: 800; color: var(--wds-primary); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
@@ -290,11 +291,23 @@ body.editing .wp-footer { display: none; }
 .list-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--wds-gray-200); }
 .list-row:first-child { padding-top: 4px; }
 .list-row:last-child { border-bottom: none; padding-bottom: 4px; }
-.list-row .thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--wp-check); flex: none; display: flex; align-items: center; justify-content: center; }
+.list-row .thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: contain; padding: 3px; box-sizing: border-box; background: var(--wp-check); flex: none; display: flex; align-items: center; justify-content: center; }
 .list-row .thumb.contain { object-fit: contain; }
 .list-row .info { flex: 1; min-width: 0; }
 .list-row .info b { display: block; font-size: var(--fs-sm); }
 .list-row .info small { color: var(--wds-gray-600); font-size: var(--fs-xs); display: block; line-height: 1.5; }
+/* 관리자 와펜 탭 — 검색·분류 칩·체크박스 선택·하단 일괄 삭제 바 */
+.admin-tools { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.wp-check { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--wds-gray-700); cursor: pointer; min-height: 32px; }
+.wp-check input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--wds-primary); flex: none; cursor: pointer; }
+.wp-check b { font-size: var(--fs-body); color: var(--wds-black); }
+.list-row > .wp-check { flex: none; }
+.list-row.selected { background: var(--wds-primary-light); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.bulk-bar { position: sticky; bottom: calc(var(--wp-safe-bottom) + 10px); z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 10px 14px; background: var(--wds-white); border: 1px solid var(--wds-gray-300); border-radius: 12px; box-shadow: var(--wds-shadow-lg); }
+.bulk-bar b { font-size: var(--fs-sm); }
+@media (max-width: 640px) { .bulk-bar { bottom: calc(56px + var(--wp-safe-bottom) + 10px); } }
 .list-row .gaa-btn-row { flex: none; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
 .stat { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 12px; padding: 12px 14px; }
