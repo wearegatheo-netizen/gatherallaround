@@ -183,7 +183,7 @@ const FAKE_SB = `
   const ins = await p.evaluate(() => window.__sbCalls.filter(c => c.table === 'band_payments' && c.op === 'insert').pop());
   chk('입금 저장: band_payments insert(team·5차·금액)', !!ins && ins.payload.team_id === VANDOR && ins.payload.cycle_no === 5 && ins.payload.amount === 250000 && ins.payload.paid_at === '2026-09-26', JSON.stringify(ins && ins.payload));
   const after = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
-  chk('저장 후 재렌더: 벤더 "5차 납부 완료" 칩', after.includes('5차 납부 완료'));
+  chk('저장 후 재렌더: 벤더 "5차 납부 완료" 칩 + 요약에 "6차 입금일 10/18"', after.includes('5차 납부 완료') && after.includes('납부 완료 · 6차 입금일 <strong>10/18</strong>'), after.match(/납부 완료 · [^<]*<strong>[^<]*/)?.[0]);
 
   // ── 3. 계약 정보 저장
   await p.evaluate((id) => toggleBandBox('bc-form-' + id), ANAHA);
@@ -199,6 +199,7 @@ const FAKE_SB = `
   const cards = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
   chk('현황표(카드): 진행중 2팀·대기 1팀·히스토리 1팀, 관리자 팀 제외', cards.includes('진행중인 고정팀 <span class="band-muted">2팀') && cards.includes('대기팀 <span class="band-muted">1팀') && cards.includes('히스토리 <span class="band-muted">1팀') && !cards.includes('게더링'));
   chk('현황표(카드): 벤더 회차 스트립(등록 ✓ 5/17 … 5차 ✓ 9/26)', cards.includes('등록 ✓ 5/17') && cards.includes('1차 ✓ 6/8') && cards.includes('4차 ✓ 8/30') && cards.includes('5차 ✓ 9/26'));
+  chk('현황표(카드): 5차 선납한 벤더도 다음 입금일 칩 "6차 입금일 10/18" 표시', cards.includes('6차 입금일 10/18'), cards.match(/6차[^<]*/)?.[0]);
   chk('현황표(카드): 아나하 1차 입금일 9/29 칩', cards.includes('1차 입금일 9/29'));
   chk('현황표(카드): 진행중 팀 2개가 헤더 띠 블록으로 구분', await p.evaluate(() => document.querySelectorAll('#bandAdminView .band-team-card.block > .band-card-top').length === 2));
   chk('현황표: 히스토리 실사용 — 납부 행 없으면 기간/28일 반올림 "4회 (26/04/12 ~ 26/08/09)"(시트와 동일)', cards.includes('4회 (26/04/12 ~ 26/08/09)'));
@@ -210,6 +211,7 @@ const FAKE_SB = `
   chk('현황표(표): 시트와 같은 3행(입금/시작일/종료일) × 회차 열', table.includes('>입금<') && table.includes('>시작일<') && table.includes('>종료일<') && table.includes('12차 추가'));
   chk('현황표(표): 벤더 시작일 열 26/06/14·종료일 26/06/07·등록 입금 26/05/17 (26/05/07)', table.includes('>26/06/14<') && table.includes('>26/06/07<') && table.includes('26/05/17 (26/05/07)'));
   chk('현황표(표): 아나하 1차 입금 셀 "입금일 26/09/29"', table.includes('입금일 26/09/29'));
+  chk('현황표(표): 벤더 6차 입금 셀 "입금일 26/10/18"(5차 선납 뒤 첫 미납 회차)', table.includes('>입금일 26/10/18<') || table.includes('입금일 26/10/18'), table.match(/입금일 26\/10\/18[^<]*/)?.[0]);
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-roster-table-light.png'), fullPage: true });
   const [dl] = await Promise.all([p.waitForEvent('download'), p.evaluate(() => downloadBandRosterCsv())]);
   const csvPath = await dl.path();
