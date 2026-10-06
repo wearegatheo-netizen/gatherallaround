@@ -152,6 +152,10 @@
   `wappen/seed/*.png` + `manifest.js`(생성 파일, 서버·클라 공용 import). 관리자 와펜 탭 [기본 와펜 세트 불러오기] → `admin_seed_items`: `image_url` 이
   `https://gatherallaround.com/wappen/seed/<file>` 인 행만 삽입(스토리지 복사 없음, 이미 있으면 건너뜀). `_headers` 가 `/wappen/seed/*` 에 CORS `*`(캔버스 오염 방지).
   한글 글자 와펜은 저장소 꾸불림체 TTF 를 빌드 때 가짜 URL(`http://seed.local/`)로 서빙해 렌더. 새 와펜은 designs.mjs 에 `add()` 한 줄 → 빌드 → 커밋.
+  **래스터 세트**(2026-10-07, `kind:'raster'`, 키 `p-…`, SEED_VERSION 2): 운영자가 준 자수 패치 시트(`tools/wappen-seed/raster/*.png`, 격자 5×6)를 `raster.py` 가
+  질감(국소 그라데이션) 마스크 → 닫힘·구멍 메움 → 연결 성분 → 행·열 묶음 배정(길쭉하면 잘록한 줄에서 분리) → 셀별 알파로 잘라 원본 해상도 그대로 저장(numpy·PIL 만).
+  메타는 `raster.json`(시트·rows/cols·threshold·항목 순서 = 읽기 순). `finish.py` 가 벡터 뒤에 합쳐 manifest 를 쓰고, `finish.py --reuse wappen/seed` 는 벡터 재렌더 없이 래스터만 다시 자른다.
+  시트 한 장 추가 = raster.json 에 sheets 항목 + 이미지 커밋 → `--reuse` 실행 → 관리자 [불러오기]. 유닛 테스트는 래스터를 100~1024px·≤160KB 로 따로 검사.
   **app.js 를 고치면 `wappen/index.html` 의 `app.js?v=N` 을 반드시 올릴 것**(안 올리면 폰이 예전 코드를 씀 — 2026-10-06 두 번 누락).
 - **크기 체계(2026-10-06 통일)**: 글자는 `--fs-h1 1.25 / h2 1.02 / body 0.92 / sm 0.84 / xs 0.76rem` 5단계만(예외: hero 제목·탭 라벨·메달·빈 상태 아이콘·서랍 라벨).
   버튼은 `gaa-btn` md 44px = 폼 제출 `-block`·로그인만 / `-sm` 38px = 페이지 안 모든 액션 줄·모달 액션·CTA / `-xs` 32px = 리스트 행·에디터 상단바.

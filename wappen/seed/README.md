@@ -1,7 +1,10 @@
 # 기본 와펜 세트
 
-이 폴더의 PNG 는 전부 `tools/wappen-seed/designs.mjs` 에서 **코드로 그린 원본 그림**입니다 (외부 아이콘·이모지·사진 사용 없음).
-저작권: CC0 — 누구나 자유롭게 사용·수정·배포할 수 있습니다. 한글 글자 와펜은 사이트와 같은 꾸불림체(우아한형제들, 상업적 사용 무료)로 렌더링했습니다.
+이 폴더의 PNG 는 두 종류입니다.
+- 벡터 세트: `tools/wappen-seed/designs.mjs` 에서 **코드로 그린 원본 그림** (외부 아이콘·이모지·사진 사용 없음). 저작권 CC0. 한글 글자 와펜은 사이트와 같은 꾸불림체(우아한형제들, 상업적 사용 무료)로 렌더링.
+- 래스터 세트(`manifest.js` 의 `kind: "raster"`, 키 `p-…`): `tools/wappen-seed/raster/` 의 시트 이미지(2026-10-07 운영자가 제공한 자수 패치 30개)를
+  `raster.py` 가 자동으로 잘라낸 것(질감 기반 배경 제거, 원본 해상도 유지 ≈ 150~290px). 권리는 제공자에게 있으며 메타는 `raster.json`.
+  래스터만 다시 자르려면(Playwright 불필요): `python3 -I tools/wappen-seed/finish.py --reuse wappen/seed [미리보기.png]`. 새 시트는 `raster.json` 에 시트·격자·항목을 추가.
 
 - 재생성: `NODE_PATH=<scratchpad>/node_modules node tools/wappen-seed/build.mjs --raw <임시폴더> --sheet <미리보기.png>`
   (Chromium 으로 SVG → 투명 PNG → `finish.py` 가 여백 자르기·256색 팔레트 최적화·`manifest.js` 생성)

@@ -1,6 +1,7 @@
-// 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs 가 생성한다. 직접 수정하지 말 것.
-// 모든 그림은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0). 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 1;
+// 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
+// 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
+// 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
+export const SEED_VERSION = 2;
 export const SEED_ITEMS = [
     {"key": "star", "name": "별", "category": "도형·기호", "tags": ["반짝", "노랑", "밤"], "file": "star.png", "w": 862, "h": 821},
     {"key": "heart", "name": "하트", "category": "도형·기호", "tags": ["사랑", "핑크", "러브"], "file": "heart.png", "w": 824, "h": 721},
@@ -86,4 +87,34 @@ export const SEED_ITEMS = [
     {"key": "fruit-cherry", "name": "체리", "category": "과일", "tags": ["빨강", "과일", "입체"], "file": "fruit-cherry.png", "w": 668, "h": 785},
     {"key": "fruit-watermelon", "name": "수박 조각", "category": "과일", "tags": ["빨강", "여름", "입체"], "file": "fruit-watermelon.png", "w": 862, "h": 453},
     {"key": "fruit-lemon", "name": "레몬", "category": "과일", "tags": ["노랑", "과일", "입체"], "file": "fruit-lemon.png", "w": 822, "h": 678},
+    {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 243, "h": 217, "kind": "raster"},
+    {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 249, "h": 238, "kind": "raster"},
+    {"key": "p-what-the-hell", "name": "what the hell 별", "category": "글자", "tags": ["별", "what the hell", "영문", "자수"], "file": "p-what-the-hell.png", "w": 208, "h": 237, "kind": "raster"},
+    {"key": "p-checker-star", "name": "체커 별", "category": "도형·기호", "tags": ["별", "체크", "흑백", "자수"], "file": "p-checker-star.png", "w": 219, "h": 214, "kind": "raster"},
+    {"key": "p-pink-guitar", "name": "핑크 기타", "category": "음악", "tags": ["기타", "일렉", "핑크", "밴드", "자수"], "file": "p-pink-guitar.png", "w": 237, "h": 268, "kind": "raster"},
+    {"key": "p-pink-bolt", "name": "핑크 번개", "category": "도형·기호", "tags": ["번개", "핑크", "자수"], "file": "p-pink-bolt.png", "w": 159, "h": 215, "kind": "raster"},
+    {"key": "p-pork-bowl", "name": "네기시오 부타동", "category": "음식", "tags": ["덮밥", "돈부리", "일식", "자수"], "file": "p-pork-bowl.png", "w": 263, "h": 209, "kind": "raster"},
+    {"key": "p-orange-daisy", "name": "주황 데이지", "category": "캐릭터·자연", "tags": ["꽃", "데이지", "주황", "자수"], "file": "p-orange-daisy.png", "w": 180, "h": 213, "kind": "raster"},
+    {"key": "p-get-lucky", "name": "GET LUCKY!", "category": "글자", "tags": ["get lucky", "행운", "영문", "자수"], "file": "p-get-lucky.png", "w": 229, "h": 188, "kind": "raster"},
+    {"key": "p-blue-butterfly", "name": "파랑 나비", "category": "동물", "tags": ["나비", "파랑", "자수"], "file": "p-blue-butterfly.png", "w": 258, "h": 194, "kind": "raster"},
+    {"key": "p-addiction", "name": "Addiction", "category": "글자", "tags": ["addiction", "하트", "영문", "자수"], "file": "p-addiction.png", "w": 289, "h": 171, "kind": "raster"},
+    {"key": "p-three-stars", "name": "별 세 개", "category": "도형·기호", "tags": ["별", "반짝", "흰색", "자수"], "file": "p-three-stars.png", "w": 160, "h": 176, "kind": "raster"},
+    {"key": "p-marigold", "name": "메리골드", "category": "캐릭터·자연", "tags": ["꽃", "메리골드", "주황", "자수"], "file": "p-marigold.png", "w": 198, "h": 186, "kind": "raster"},
+    {"key": "p-moon-star", "name": "초승달과 별", "category": "캐릭터·자연", "tags": ["달", "별", "밤", "자수"], "file": "p-moon-star.png", "w": 185, "h": 182, "kind": "raster"},
+    {"key": "p-stand-up", "name": "stand up!", "category": "글자", "tags": ["stand up", "영문", "자수"], "file": "p-stand-up.png", "w": 204, "h": 187, "kind": "raster"},
+    {"key": "p-vinyl", "name": "LP 레코드", "category": "음악", "tags": ["LP", "레코드", "음반", "자수"], "file": "p-vinyl.png", "w": 218, "h": 188, "kind": "raster"},
+    {"key": "p-wing-heart", "name": "날개 하트", "category": "도형·기호", "tags": ["하트", "별", "핑크", "자수"], "file": "p-wing-heart.png", "w": 258, "h": 158, "kind": "raster"},
+    {"key": "p-flame", "name": "불꽃", "category": "도형·기호", "tags": ["불", "화염", "빨강", "자수"], "file": "p-flame.png", "w": 180, "h": 200, "kind": "raster"},
+    {"key": "p-burst", "name": "펑 폭발", "category": "도형·기호", "tags": ["폭발", "번쩍", "파랑", "자수"], "file": "p-burst.png", "w": 214, "h": 174, "kind": "raster"},
+    {"key": "p-loud-hot-crazy", "name": "LOUD! HOT! CRAZY!", "category": "글자", "tags": ["loud", "hot", "crazy", "영문", "자수"], "file": "p-loud-hot-crazy.png", "w": 235, "h": 188, "kind": "raster"},
+    {"key": "p-bandage-heart", "name": "반창고 하트", "category": "도형·기호", "tags": ["하트", "반창고", "체크", "자수"], "file": "p-bandage-heart.png", "w": 208, "h": 177, "kind": "raster"},
+    {"key": "p-sunset", "name": "석양", "category": "캐릭터·자연", "tags": ["노을", "바다", "해", "자수"], "file": "p-sunset.png", "w": 242, "h": 165, "kind": "raster"},
+    {"key": "p-mountain", "name": "산과 해", "category": "캐릭터·자연", "tags": ["산", "해", "자연", "자수"], "file": "p-mountain.png", "w": 263, "h": 154, "kind": "raster"},
+    {"key": "p-dolphin", "name": "돌고래", "category": "동물", "tags": ["돌고래", "바다", "파랑", "자수"], "file": "p-dolphin.png", "w": 221, "h": 182, "kind": "raster"},
+    {"key": "p-pink-flower", "name": "분홍 꽃", "category": "캐릭터·자연", "tags": ["꽃", "분홍", "자수"], "file": "p-pink-flower.png", "w": 173, "h": 166, "kind": "raster"},
+    {"key": "p-zebra-star", "name": "얼룩 별", "category": "도형·기호", "tags": ["별", "줄무늬", "흑백", "자수"], "file": "p-zebra-star.png", "w": 188, "h": 177, "kind": "raster"},
+    {"key": "p-saturn", "name": "토성", "category": "캐릭터·자연", "tags": ["토성", "행성", "우주", "자수"], "file": "p-saturn.png", "w": 229, "h": 153, "kind": "raster"},
+    {"key": "p-black-cat", "name": "검은 고양이", "category": "동물", "tags": ["고양이", "검정", "자수"], "file": "p-black-cat.png", "w": 191, "h": 161, "kind": "raster"},
+    {"key": "p-dice", "name": "빨간 주사위", "category": "도형·기호", "tags": ["주사위", "빨강", "게임", "자수"], "file": "p-dice.png", "w": 202, "h": 164, "kind": "raster"},
+    {"key": "p-music-note", "name": "핑크 음표", "category": "음악", "tags": ["음표", "음악", "핑크", "자수"], "file": "p-music-note.png", "w": 141, "h": 169, "kind": "raster"},
 ];

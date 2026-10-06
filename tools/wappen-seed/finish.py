@@ -1,13 +1,27 @@
-# 기본 와펜 세트 마무리: 투명 여백 자르기 → PNG 최적화 → manifest.js → (선택) 미리보기 시트
+# 기본 와펜 세트 마무리: 투명 여백 자르기 → PNG 최적화 → (raster.json 의 래스터 시트 잘라 합치기) → manifest.js → (선택) 미리보기 시트
 # 실행은 build.mjs 가 한다: python3 -I finish.py <rawDir> <outDir> [sheetPng]
+# 벡터를 다시 렌더하지 않고(Playwright 없이) 래스터만 다시 자르고 manifest 를 재생성하려면: python3 -I finish.py --reuse <outDir> [sheetPng]
+#   (--reuse: 기존 manifest.js 의 벡터 항목·PNG 를 그대로 둔다)
 import json, os, sys
 from PIL import Image, ImageDraw, ImageFont
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I 모드는 스크립트 폴더를 sys.path 에 안 넣는다
+from raster import cut_sheets
 
 raw_dir, out_dir = sys.argv[1], sys.argv[2]
 sheet = sys.argv[3] if len(sys.argv) > 3 else ''
-meta = json.load(open(os.path.join(raw_dir, 'meta.json'), encoding='utf-8'))
+HERE = os.path.dirname(os.path.abspath(__file__))
 PAD = 8
 items = []
+if raw_dir == '--reuse':
+    # 생성 파일(manifest.js)의 벡터 항목을 그대로 읽는다 — 한 줄에 JSON 하나인 고정 형식
+    for line in open(os.path.join(out_dir, 'manifest.js'), encoding='utf-8'):
+        line = line.strip()
+        if line.startswith('{') and line.endswith(','):
+            it = json.loads(line[:-1])
+            if it.get('kind') != 'raster': items.append(it)
+    meta = []
+else:
+    meta = json.load(open(os.path.join(raw_dir, 'meta.json'), encoding='utf-8'))
 for m in meta:
     im = Image.open(os.path.join(raw_dir, m['key'] + '.png')).convert('RGBA')
     bbox = im.getchannel('A').getbbox()
@@ -22,12 +36,19 @@ for m in meta:
     pal.save(os.path.join(out_dir, fn), 'PNG', optimize=True)
     items.append({**m, 'file': fn, 'w': im.width, 'h': im.height})
 
-lines = ["// 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs 가 생성한다. 직접 수정하지 말 것.",
-         "// 모든 그림은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0). 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.",
-         "export const SEED_VERSION = 1;",
+# 래스터 시트(자수 패치 등, raster.json) — 잘라서 같은 폴더에 저장하고 kind:'raster' 로 표시
+raster_cfg = os.path.join(HERE, 'raster.json')
+if os.path.exists(raster_cfg):
+    items += cut_sheets(raster_cfg, out_dir)
+
+lines = ["// 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.",
+         "// 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.",
+         "// 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.",
+         "export const SEED_VERSION = 2;",
          "export const SEED_ITEMS = ["]
 for it in items:
-    lines.append("    " + json.dumps({k: it[k] for k in ('key', 'name', 'category', 'tags', 'file', 'w', 'h')}, ensure_ascii=False) + ",")
+    keys = ('key', 'name', 'category', 'tags', 'file', 'w', 'h') + (('kind',) if it.get('kind') else ())
+    lines.append("    " + json.dumps({k: it[k] for k in keys}, ensure_ascii=False) + ",")
 lines.append("];")
 open(os.path.join(out_dir, 'manifest.js'), 'w', encoding='utf-8').write("\n".join(lines) + "\n")
 total = sum(os.path.getsize(os.path.join(out_dir, it['file'])) for it in items)
