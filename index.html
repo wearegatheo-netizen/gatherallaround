@@ -1655,6 +1655,10 @@
     </style>
 </head>
 <body class="portal-view">
+    <!-- 부팅 로딩 스크린 — JS 가 돌기 전 첫 페인트부터 화면을 덮는다(포털이 먼저 보였다가 가려지는 깜빡임 방지).
+         저장된 다크 모드도 여기서 즉시 적용(라이트→다크 전환 깜빡임 방지). 걷는 시점은 hideBootOverlay()(최소 노출·글꼴 준비 보장). -->
+    <script>try{if(localStorage.getItem('gaa_theme')==='dark')document.body.classList.add('dark');}catch(e){}window.__bootT0=Date.now();</script>
+    <div id="portalLoadingScreen" data-boot="1" aria-hidden="true"><div class="portal-loading-text"><span class="pll" style="animation-delay:0.00s">G</span><span class="pll" style="animation-delay:0.06s">a</span><span class="pll" style="animation-delay:0.11s">t</span><span class="pll" style="animation-delay:0.17s">h</span><span class="pll" style="animation-delay:0.22s">e</span><span class="pll" style="animation-delay:0.28s">r</span><span class="pll-space"> </span><span class="pll" style="animation-delay:0.39s">a</span><span class="pll" style="animation-delay:0.44s">l</span><span class="pll" style="animation-delay:0.49s">l</span><span class="pll-space"> </span><span class="pll" style="animation-delay:0.60s">a</span><span class="pll" style="animation-delay:0.66s">r</span><span class="pll" style="animation-delay:0.71s">o</span><span class="pll" style="animation-delay:0.77s">u</span><span class="pll" style="animation-delay:0.82s">n</span><span class="pll" style="animation-delay:0.88s">d</span></div></div>
 
     <div id="auto-toast"></div>
 
@@ -2453,8 +2457,7 @@
         function loginUI(nickname) {
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 GatheO 화면 노출 차단
             if (location.search) history.replaceState({}, '', location.pathname);
-            const _ils = document.getElementById('portalLoadingScreen');
-            if (_ils) { _ils.classList.add('fade-out'); setTimeout(()=>_ils.remove(), 380); }
+            hideBootOverlay();
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
             _hideAllScreens();
@@ -2655,7 +2658,7 @@
         }
 
         function logoutUI() {
-            document.getElementById('portalLoadingScreen')?.remove();
+            hideBootOverlay();
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 포털 재노출 차단
             _hideAllScreens();
             document.getElementById('portal-page').classList.remove('hidden');
@@ -3554,38 +3557,35 @@
             render();
         }
 
+        // ── 부팅 로딩 스크린 걷기 ──────────────────────────────────────────
+        const BOOT_MIN_MS = 900;   // 첫 페인트(__bootT0) 후 최소 노출
+        const BOOT_MAX_MS = 1800;  // 인증 판단이 늦어도 이 시점엔 걷는다
+        let _bootHiding = false;
+        function hideBootOverlay() {
+            const el = document.getElementById('portalLoadingScreen');
+            if (!el || el.dataset.boot !== '1' || _bootHiding) return; // 섹션 진입용 showPortalLoading() 오버레이는 건드리지 않는다
+            _bootHiding = true;
+            const wait = Math.max(0, BOOT_MIN_MS - (Date.now() - (window.__bootT0 || 0)));
+            // 로딩 글꼴(라틴)과 포털 버튼 한글 글꼴이 준비된 뒤 걷는다 — 걷힌 직후 글꼴이 바뀌는 것 방지, 상한 500ms
+            const fontReady = (document.fonts && document.fonts.load)
+                ? Promise.race([
+                      Promise.all([document.fonts.load('1em KkuBulLim', 'Gather all around'), document.fonts.load('1em KkuBulLim', '게더링 커뮤니티 고정 합주팀 공간 대관')]).catch(() => {}),
+                      new Promise(r => setTimeout(r, 500)),
+                  ])
+                : Promise.resolve();
+            Promise.all([fontReady, new Promise(r => setTimeout(r, wait))]).then(() => {
+                el.classList.add('fade-out');
+                setTimeout(() => el.remove(), 380);
+            });
+        }
+
         function initApp() {
             console.log("App 초기화 시작...");
-            // 인증 체크 동안 포털 화면 플래시 방지 — 애니메이션 로딩 오버레이
-            (function() {
-                const text = 'Gather all around';
-                const letters = text.split('').map((c, i) =>
-                    c === ' ' ? `<span class="pll-space"> </span>`
-                              : `<span class="pll" style="animation-delay:${(i*0.055).toFixed(2)}s">${c}</span>`
-                ).join('');
-                const el = document.createElement('div');
-                el.id = 'portalLoadingScreen';
-                el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
-                document.body.appendChild(el);
-                // 로딩 화면(라틴)뿐 아니라 그 직후 노출되는 포털 버튼 한글(critical 청크)까지
-                // 준비된 뒤에 카운트다운을 시작한다. 안 그러면 오버레이가 걷힌 다음
-                // 버튼 글꼴이 눈앞에서 바뀐다. 느린 회선을 위해 상한 500ms.
-                const fontReady = (document.fonts && document.fonts.load)
-                    ? Promise.race([
-                          Promise.all([
-                              document.fonts.load('1em KkuBulLim', text),
-                              document.fonts.load('1em KkuBulLim', '게더링 커뮤니티 고정 합주팀 공간 대관')
-                          ]).catch(() => {}),
-                          new Promise(r => setTimeout(r, 500))
-                      ])
-                    : Promise.resolve();
-                // 최대 600ms — 인증이 더 빠르면 loginUI/logoutUI에서 먼저 제거
-                fontReady.then(() => setTimeout(() => {
-                    if (!el.parentNode) return;
-                    el.classList.add('fade-out');
-                    setTimeout(() => el.remove(), 380);
-                }, 600));
-            })();
+            // 부팅 로딩 스크린은 <body> 머리에 정적으로 있다(첫 페인트부터 덮음). 여기서는 걷는 규칙만:
+            //  · 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen 등)이 hideBootOverlay() 를 부른다 —
+            //    단 첫 페인트 후 최소 BOOT_MIN_MS 는 보여준다(너무 빨리 걷히면 번쩍임으로 보인다).
+            //  · 어느 경로도 부르지 못하면(인증 지연·오류) BOOT_MAX_MS 에 걷는다.
+            setTimeout(hideBootOverlay, BOOT_MAX_MS);
             initServiceWorker();
             initInstallBanner();
 
@@ -3646,6 +3646,7 @@
                 showBandNewsSection().then(() => {
                     openBandNewsItem(_newsId, '');
                 });
+                hideBootOverlay();
                 return;
             }
             // 공동호스트 초대 링크 (?hostjoin=토큰) — 카카오톡 공유는 URL의 해시(#)를
@@ -3655,6 +3656,7 @@
             if (_hostJoin && /^[A-HJ-NP-Z2-9]{6}$/i.test(_hostJoin)) {
                 history.replaceState({}, '', location.pathname);
                 showHostSection(['join', _hostJoin.toUpperCase()]);
+                hideBootOverlay();
                 return;
             }
             // 공연 공동 관리팀 초대 링크 (?eventjoin=코드)
@@ -3662,6 +3664,7 @@
             if (_eventJoin && /^[A-HJ-NP-Z2-9]{6}$/i.test(_eventJoin)) {
                 history.replaceState({}, '', location.pathname);
                 showHostSection(['eventjoin', _eventJoin.toUpperCase()]);
+                hideBootOverlay();
                 return;
             }
             const _isShareEntry = _sp.get('ct') && _sp.get('cr');
@@ -3690,6 +3693,7 @@
                     }
                     window.__shareEntryMode = false;
                 });
+                hideBootOverlay();
                 return; // initSession 호출 안 함 — 공유 결과/테스트 목록만 표시
             }
 
@@ -3720,6 +3724,7 @@
                 if (sessionStorage.getItem('gaa_return_host')) {
                     sessionStorage.removeItem('gaa_return_host');
                     showHostSection();
+                    hideBootOverlay();
                     return;
                 }
             } catch (e) {}
@@ -3729,6 +3734,7 @@
                 try { localStorage.removeItem('gaa_portal_required'); } catch(e) {}
                 try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
                 if (supabaseClient) { try { await supabaseClient.auth.signOut(); } catch(e) {} }
+                _finishBoot(); // 포털(딥링크가 있으면 그 섹션)
                 return;
             }
             // 어느 화면으로 들어왔나 — 루트(포털)면 세션은 복구하되 화면은 포털에 둔다(자동 진입 안 함).
@@ -3740,7 +3746,7 @@
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session && session.user) {
-                    if (recoveryMode) return; // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
+                    if (recoveryMode) { hideBootOverlay(); return; } // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
                     await checkEmailUserApproval(session.user, { target });
                     return;
                 }
@@ -3769,8 +3775,7 @@
         // 부팅 시 인증 판단이 끝났을 때 — 로딩 오버레이를 걷고, 딥링크가 있으면 그 섹션으로, 없으면 포털로.
         // (loginUI/loginBandUI 로 바로 들어가는 경우엔 그쪽이 같은 일을 한다)
         function _finishBoot() {
-            const ls = document.getElementById('portalLoadingScreen');
-            if (ls) { ls.classList.add('fade-out'); setTimeout(() => ls.remove(), 380); }
+            hideBootOverlay();
             _authResolved = true;
             if (_pendingRoute) applyPendingRoute();
             else if (!window.__shareEntryMode) showPortal();
@@ -12672,7 +12677,7 @@
         }
 
         function showPendingScreen(name) {
-            document.getElementById('portalLoadingScreen')?.remove();
+            hideBootOverlay();
             document.getElementById('portal-page').classList.add('hidden');
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('landing-page-band').classList.add('hidden');
