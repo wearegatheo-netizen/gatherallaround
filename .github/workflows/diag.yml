@@ -53,3 +53,16 @@ jobs:
               --data-urlencode "q=잔나비" --data-urlencode "type=$t" --data-urlencode "limit=6" "https://gatherallaround.com/music-search")
             echo "type=$t -> $(echo "$out" | jq -c '{ok, sources, results:[.results[] | (.title // .name) + " / " + (.artist // "") + " [" + .source + "]"]}' 2>/dev/null || echo "$out" | head -c 300)"
           done
+      - name: 공연 공유 링크 /show/<id> — 크롤러 OG(포스터)·사람용 셸 확인
+        # 공개 공연 1건의 id 를 anon REST 로 얻어(공개 정보만) 공유 경로를 크롤러 UA·브라우저 UA 로 호출해 본다.
+        run: |
+          PAGE=$(curl -sS --max-time 60 https://gatherallaround.com/)
+          URL=$(echo "$PAGE" | grep -o "https://[a-z]*\.supabase\.co" | head -1)
+          KEY=$(echo "$PAGE" | grep -o "const SUPABASE_KEY = '[^']*'" | sed "s/.*'\(.*\)'/\1/")
+          ID=$(curl -sS --max-time 30 "$URL/rest/v1/events?select=id,title,poster_url&status=eq.published&order=starts_at.desc&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" | jq -r '.[0].id // empty')
+          if [ -z "$ID" ]; then echo "공개 공연 없음 — 잘못된 id 처리만 확인"; curl -sS -o /dev/null -w "invalid id -> HTTP %{http_code} Location=%{redirect_url}\n" "https://gatherallaround.com/show/not-a-uuid"; exit 0; fi
+          echo "== 크롤러 UA (kakaotalk-scrap) /show/$ID"
+          curl -sS --max-time 30 -A "facebookexternalhit/1.1;kakaotalk-scrap/1.0;" "https://gatherallaround.com/show/$ID" | grep -o '<meta property="og:[a-z:]*" content="[^"]*">\|<title>[^<]*</title>' | head -8
+          echo "== 브라우저 UA /show/$ID (셸: base·replaceState·OG 주입 여부)"
+          curl -sS --max-time 30 -A "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1" -o /tmp/shell -w "HTTP %{http_code}\n" "https://gatherallaround.com/show/$ID"
+          grep -c 'id="portal-page"' /tmp/shell | sed 's/^/portal shell: /'; grep -o '<base href="/">' /tmp/shell | head -1; grep -o "history.replaceState([^)]*)" /tmp/shell | head -1; grep -o '<meta property="og:image" content="[^"]*">' /tmp/shell | head -1
