@@ -143,6 +143,10 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.waitForSelector('#edCanvas');
     await p.waitForFunction(() => window.wappen && window.wappen.editor && document.querySelectorAll('.ed-item').length === 2);
     chk('에디터: 와펜 서랍 2개·편집 모드 body.editing', await p.evaluate(() => document.body.classList.contains('editing')));
+    // 서랍 타일 높이 통일: 길쭉한(8×64) 이미지를 넣어도 타일이 커지지 않고 정사각 유지
+    await p.evaluate((src) => new Promise((res) => { const img = document.querySelector('.ed-item img'); img.onload = () => res(); img.onerror = () => res(); img.src = src; }), 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAABACAYAAAAnBDaKAAAAJElEQVR4nGP8z8DwnwEPYMInOapgVMGoglEFowpGFYwqGIkKAIPTAn4HIYXhAAAAAElFTkSuQmCC');
+    const tileBoxes = await p.$$eval('.ed-item', els => els.map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+    chk('에디터: 서랍 타일 높이 동일(길쭉한 와펜도 정사각 타일 안에)', tileBoxes.length === 2 && tileBoxes[0][1] === tileBoxes[1][1] && Math.abs(tileBoxes[0][0] - tileBoxes[0][1]) <= 1, JSON.stringify(tileBoxes));
     chk('에디터: 하단 탭바 숨김', !(await p.locator('#bottomNav').isVisible()));
     await p.click('.ed-item:first-child');
     await p.waitForFunction(() => window.wappen.editor.items.length === 1);

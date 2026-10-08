@@ -276,9 +276,10 @@ body.editing .wp-footer { display: none; }
 .ed-drawer-head .search-box input { height: var(--h-xs); font-size: var(--fs-sm); }
 .ed-drawer-chips { padding: 0 10px 6px; flex: none; }
 .ed-items { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; padding: 4px 10px 12px; align-content: start; }
-.ed-item { border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 6px; position: relative; }
+/* 서랍 타일: 높이는 항상 정사각(폭 기준) — 이미지는 절대 배치로 타일 안에 contain(길쭉한 와펜도 타일을 키우지 않음, 2026-10-08) */
+.ed-item { border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); aspect-ratio: 1/1; display: block; cursor: pointer; padding: 0; position: relative; overflow: hidden; min-height: 0; }
 .ed-item:hover { border-color: var(--wds-primary); }
-.ed-item img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.ed-item img { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 24px); object-fit: contain; pointer-events: none; }
 .ed-item span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.62rem; text-align: center; background: rgba(255,255,255,0.85); color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 0 0 9px 9px; }
 /* 에디터 서랍 탭(와펜/레이어) + 레이어 패널 */
 .ed-drawer-head .seg.sm { height: 30px; }
@@ -313,8 +314,8 @@ body.editing .wp-footer { display: none; }
 /* ── 와펜 카탈로그 ─────────────────────────────────── */
 .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
 .item-card { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 12px; padding: 8px; text-align: center; }
-.item-card .img { background: var(--wp-check); border-radius: 8px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
-.item-card .img img { max-width: 90%; max-height: 90%; object-fit: contain; }
+.item-card .img { background: var(--wp-check); border-radius: 8px; aspect-ratio: 1/1; position: relative; overflow: hidden; margin-bottom: 6px; }
+.item-card .img img { position: absolute; inset: 5%; width: 90%; height: 90%; object-fit: contain; }
 .item-card b { display: block; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-card small { color: var(--wds-gray-500); font-size: var(--fs-xs); }
 .tag { display: inline-block; font-size: 0.7rem; color: var(--wds-gray-600); background: var(--wds-gray-100); border-radius: 6px; padding: 1px 6px; margin: 2px 2px 0 0; }
