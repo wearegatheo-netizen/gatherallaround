@@ -816,7 +816,7 @@ async function viewEdit(r) {
             <img class="thumb" src="${esc(meta ? meta.image_url : '')}" alt=""><div class="info"><b>#${i + 1} ${esc(meta ? meta.name : '와펜')}</b><small>${Math.round(it.x * dims.w)}, ${Math.round(it.y * dims.h)}px · 폭 ${Math.round(it.w * dims.w)}px${it.r ? ` · ${it.r}°` : ''}${it.fx ? ' · 반전' : ''}</small></div></div>`).join('')
             : '<div class="empty" style="padding:18px">아직 붙인 와펜이 없어요. [와펜] 탭에서 추가해보세요.</div>';
         const t = targets(), one = t.length === 1 ? editor.items[t[0]] : null;
-        $('[data-lcount]').textContent = lsel.size ? `${lsel.size}개 선택` : (editor.sel >= 0 ? '캔버스 선택 1개' : '선택 없음');
+        $('[data-lcount]').textContent = lsel.size ? `${lsel.size}개 선택` : '';   // 체크한 개수만 (없으면 비움)
         const allBtn = $('[data-lact="all"]'); allBtn.textContent = n && lsel.size === n ? '선택 해제' : '전체 선택'; allBtn.disabled = !n;
         $$('[data-nudge]', layersEl).forEach(b => { b.disabled = !t.length; });
         tools.classList.toggle('hidden', !(editor.sel >= 0 || lsel.size));

@@ -179,11 +179,11 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await shot(p, 'layers');
     const rows = await p.$$eval('.ed-layer-row .info b', els => els.map(e => e.textContent.trim()));
     chk('레이어: 2줄, 위가 나중에 붙인 것(#2 고양이 → #1 별)·와펜 탭 숨김', rows.length === 2 && rows[0].startsWith('#2 고양이') && rows[1].startsWith('#1 별') && !(await p.locator('#edItems').isVisible()) && (await p.locator('#edLayerCount').innerText()) === '2');
-    chk('레이어: 선택 전엔 캔버스 선택(고양이)에 적용 안내', (await p.locator('[data-lcount]').innerText()).includes('캔버스'));
+    chk('레이어: 체크 전엔 선택 수 표시 없음', (await p.locator('[data-lcount]').innerText()) === '');
     await p.click('[data-lact="all"]');
     chk('레이어: [전체 선택] 버튼 → 2개 선택·버튼은 [선택 해제]로', (await p.locator('[data-lcount]').innerText()) === '2개 선택' && (await p.locator('[data-lact="all"]').innerText()) === '선택 해제');
     await p.click('[data-lact="all"]');
-    chk('레이어: [선택 해제] → 선택 없음', (await p.locator('[data-lcount]').innerText()).includes('캔버스') || (await p.locator('[data-lcount]').innerText()) === '선택 없음');
+    chk('레이어: [선택 해제] → 선택 수 표시 없음', (await p.locator('[data-lcount]').innerText()) === '');
     await p.evaluate(() => window.wappen.editor.select(-1));
     chk('레이어: 순서/삭제 전용 버튼 없음(캔버스 도구 막대가 담당)·선택 없으면 도구 막대 숨김', await p.locator('[data-lact="front"], [data-lact="delete"]').count() === 0 && !(await p.locator('#edTools').isVisible()));
     await p.check('[data-lsel="1"]');   // 고양이 체크
