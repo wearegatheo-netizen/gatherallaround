@@ -431,5 +431,94 @@ add('fruit-lemon', '레몬', FR, ['노랑', '과일', '입체'],
     leaf(540, 225, 120, 46, -15)
     + vol(`M 120 520 C 120 300 330 250 500 250 C 670 250 880 300 880 520 C 880 740 670 790 500 790 C 330 790 120 740 120 520 Z`, '#F9D71C', { gl: [320, 420, 80, 40, -20, .5], sh: [620, 700, 360, 170] }));
 
+
+// ══════════════════════════════════════════════════════════════════
+// 자수 질감 세트(2026-10-08) — 등록된 자수 패치 사진(키 p-/p2-)과 어울리도록: 실 결(평행선 패턴 광택) + 새틴 테두리(굵은 테두리 위
+// 밝음/어두움 교대 점선 = 올 느낌) + 아래 그림자. 키 `e-…`. 미리보기: node tools/wappen-seed/preview.mjs --only e-…
+// ══════════════════════════════════════════════════════════════════
+const E = { red: '#E2353F', pink: '#F6A5BF', yellow: '#F8C83C', blue: '#2F5BD6', navy: '#1F2A5C', green: '#3C9D4E', lgreen: '#7BC96F',
+    orange: '#F28C28', black: '#1A1A1A', cream: '#F4EBDD', white: '#FAF7F2', purple: '#7B55C9', sky: '#6FB7F5', gray: '#8E8E93', dgray: '#4A4A4F' };
+let eid = 0;
+// 실 결: angle 방향 평행선, 밝은 줄/어두운 줄 교대 → 새틴 스티치 광택
+export const threads = (angle = 45, light = .20, dark = .13, pitch = 7) => {
+    const id = 'th' + (++eid);
+    return { id, def: `<pattern id="${id}" width="${pitch}" height="${pitch}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})"><rect width="${pitch}" height="${pitch / 2}" fill="#fff" fill-opacity="${light}"/><rect y="${pitch / 2}" width="${pitch}" height="${pitch / 2}" fill="#000" fill-opacity="${dark}"/></pattern>` };
+};
+// 자수 조각: 채움 + 실 결 + (선택) 테두리 = 진한 굵은 선 위에 밝음/어두움 교대 짧은 점선(올)
+export const emb = (d, fill, { angle = 45, border = E.black, bw = 28, light, dark, puff = .26 } = {}) => {
+    const t = threads(angle, light, dark), cid = 'ec' + (++eid), fid = 'ef' + (++eid);
+    // 안쪽 그늘(테두리 안쪽을 흐리게 어둡게) → 도톰한 자수 볼륨감
+    let out = `<defs>${t.def}<clipPath id="${cid}"><path d="${d}"/></clipPath><filter id="${fid}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="12"/></filter></defs>`
+        + `<path d="${d}" fill="${fill}"/><path d="${d}" fill="url(#${t.id})"/>`
+        + (puff ? `<g clip-path="url(#${cid})"><path d="${d}" fill="none" stroke="#000" stroke-opacity="${puff}" stroke-width="${bw * 2.2}" filter="url(#${fid})"/></g>` : '');
+    if (border) out += `<path d="${d}" fill="none" stroke="${border}" stroke-width="${bw}" stroke-linejoin="round" stroke-linecap="round"/>`
+        + `<path d="${d}" fill="none" stroke="#fff" stroke-opacity=".30" stroke-width="${bw * .6}" stroke-dasharray="4 5" stroke-linejoin="round"/>`
+        + `<path d="${d}" fill="none" stroke="#000" stroke-opacity=".28" stroke-width="${bw * .6}" stroke-dasharray="4 5" stroke-dashoffset="4.5" stroke-linejoin="round"/>`;
+    return out;
+};
+// 자수 글자: 굵은 산세리프 + 외곽선 + 실 결
+export const embText = (x, y, str, size, fill, { angle = 0, border = E.black, bw = 14, extra = '' } = {}) => {
+    const t = threads(angle, .18, .12, 5);
+    const f = `font-family="'Inter','Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="${size}" text-anchor="middle" ${extra}`;
+    return `<defs>${t.def}</defs><text x="${x}" y="${y}" ${f} fill="${fill}" stroke="${border}" stroke-width="${bw}" stroke-linejoin="round" paint-order="stroke">${str}</text><text x="${x}" y="${y}" ${f} fill="url(#${t.id})">${str}</text>`;
+};
+// 전체를 그림자 그룹으로
+const embWrap = (inner) => `<defs><filter id="esh" x="-25%" y="-25%" width="150%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="11" flood-color="#000" flood-opacity=".30"/></filter></defs><g filter="url(#esh)">${inner}</g>`;
+const annulus = (cx, cy, R, r, a0, a1) => {   // 각도 deg, 시계 방향
+    const p = (rad, a) => [cx + rad * Math.cos(a * Math.PI / 180), cy + rad * Math.sin(a * Math.PI / 180)];
+    const [x0, y0] = p(R, a0), [x1, y1] = p(R, a1), [x2, y2] = p(r, a1), [x3, y3] = p(r, a0), big = Math.abs(a1 - a0) > 180 ? 1 : 0;
+    return `M ${x0} ${y0} A ${R} ${R} 0 ${big} 1 ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 ${big} 0 ${x3} ${y3} Z`;
+};
+
+add('e-headphones', '헤드폰', '음악', ['헤드폰', '음악', '파랑', '자수'], embWrap(
+    emb(annulus(500, 600, 330, 250, 190, 350), E.navy, { angle: 0 })
+    + emb(rrect(140, 540, 180, 260, 60), E.navy, { angle: 90 }) + emb(rrect(680, 540, 180, 260, 60), E.navy, { angle: 90 })
+    + emb(rrect(185, 585, 90, 170, 40), E.blue, { angle: 60, bw: 14 }) + emb(rrect(725, 585, 90, 170, 40), E.blue, { angle: 60, bw: 14 })
+    + `<path d="M 280 470 Q 500 300 720 470" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="18" stroke-linecap="round"/>`));
+
+add('e-mic', '마이크', '음악', ['마이크', '노래', '보컬', '자수'], embWrap(
+    emb(`M 420 470 L 580 470 L 545 880 Q 500 905 455 880 Z`, E.dgray, { angle: 80 })
+    + emb(rrect(395, 440, 210, 70, 30), E.yellow, { angle: 0, bw: 18 })
+    + emb(circle(500, 300, 200), E.gray, { angle: 45, light: .3, dark: .2, bw: 26 })
+    + (() => { const t2 = threads(-45, .22, .22, 9); return `<defs>${t2.def}</defs><circle cx="500" cy="300" r="186" fill="url(#${t2.id})"/>`; })()
+    + shine(430, 230, 46, 26, -30, .35)));
+
+add('e-strawberry', '딸기', '과일', ['딸기', '빨강', '과일', '자수'], embWrap(
+    emb(`M 500 330 C 690 330 820 460 790 640 C 760 810 620 920 500 935 C 380 920 240 810 210 640 C 180 460 310 330 500 330 Z`, E.red, { angle: 70 })
+    + [[400, 500], [520, 470], [610, 560], [430, 640], [560, 700], [330, 600], [500, 800], [660, 680], [380, 760], [620, 820]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="14" ry="22" fill="${E.cream}" stroke="#B2242C" stroke-width="5"/>`).join('')
+    + emb(`M 500 330 L 560 240 L 600 340 L 700 300 L 640 390 L 760 420 L 630 470 L 500 410 L 370 470 L 240 420 L 360 390 L 300 300 L 400 340 L 440 240 Z`, E.green, { angle: 20, bw: 22 })
+    + emb(rrect(470, 180, 60, 120, 30), E.lgreen, { angle: 90, bw: 16 })));
+
+add('e-rainbow-cloud', '무지개 구름', '캐릭터·자연', ['무지개', '구름', '하늘', '자수'], embWrap(
+    emb(annulus(500, 640, 400, 320, 200, 340), E.red, { angle: 0, bw: 24 })
+    + emb(annulus(500, 640, 320, 240, 200, 340), E.yellow, { angle: 0, bw: 24 })
+    + emb(annulus(500, 640, 240, 160, 200, 340), E.sky, { angle: 0, bw: 24 })
+    + emb(`M 120 700 a 90 90 0 0 1 60 -150 a 110 110 0 0 1 210 -40 a 100 100 0 0 1 120 70 a 90 90 0 0 1 10 160 Z`, E.white, { angle: 30, light: .1, dark: .1 })
+    + emb(`M 540 700 a 80 80 0 0 1 50 -130 a 100 100 0 0 1 190 -30 a 90 90 0 0 1 110 60 a 80 80 0 0 1 0 140 Z`, E.white, { angle: 30, light: .1, dark: .1 })));
+
+add('e-rocket', '로켓', '캐릭터·자연', ['로켓', '우주', '발사', '자수'], embWrap(
+    emb(`M 500 110 C 640 230 690 470 660 720 L 340 720 C 310 470 360 230 500 110 Z`, E.white, { angle: 85, light: .08, dark: .12 })
+    + emb(`M 500 110 C 580 180 620 260 640 350 L 360 350 C 380 260 420 180 500 110 Z`, E.red, { angle: 85, bw: 22 })
+    + emb(`M 340 560 L 200 760 L 340 720 Z`, E.red, { angle: 30, bw: 22 }) + emb(`M 660 560 L 800 760 L 660 720 Z`, E.red, { angle: 30, bw: 22 })
+    + emb(circle(500, 470, 80), E.sky, { angle: 45, bw: 22 }) + shine(470, 440, 24, 14, -30, .55)
+    + emb(`M 400 740 L 600 740 L 560 900 L 500 950 L 440 900 Z`, E.orange, { angle: 90, bw: 20 })
+    + emb(`M 450 740 L 550 740 L 520 850 L 500 880 L 480 850 Z`, E.yellow, { angle: 90, bw: 12 })));
+
+add('e-eightball', '8볼', '도형·기호', ['당구', '8', '검정', '자수'], embWrap(
+    emb(circle(500, 500, 400), E.black, { angle: 45, light: .16, dark: .1 })
+    + emb(circle(500, 480, 190), E.white, { angle: 30, light: .06, dark: .08, bw: 20 })
+    + embText(500, 560, '8', 250, E.black, { bw: 6, border: E.black })
+    + shine(330, 300, 70, 36, -35, .22)));
+
+add('e-clover', '네잎클로버', '캐릭터·자연', ['클로버', '행운', '초록', '자수'], embWrap(
+    [[500, 320, 0], [680, 500, 90], [500, 680, 180], [320, 500, 270]].map(([x, y, r]) => `<g transform="rotate(${r} 500 500)">${emb(heart(500, 310, 330), E.green, { angle: r + 45, bw: 22 })}</g>`).join('')
+    + emb(`M 520 640 C 560 760 600 820 640 900 L 590 920 C 550 840 520 780 480 660 Z`, E.lgreen, { angle: 60, bw: 18 })
+    + emb(circle(500, 500, 46), E.lgreen, { angle: 0, bw: 14 })));
+
+add('e-rockon', 'ROCK ON!', '글자', ['rock', '록', '영문', '자수'], embWrap(
+    `<g transform="rotate(-8 500 500)">` + emb(rrect(110, 300, 780, 400, 60), E.black, { angle: 45, light: .14, dark: .08 })
+    + emb(`M 560 330 L 470 500 L 540 500 L 450 660 L 600 450 L 530 450 Z`, E.yellow, { angle: 60, bw: 14 })
+    + embText(500, 480, 'ROCK', 150, E.yellow, { bw: 10, extra: 'letter-spacing="6"' }) + embText(500, 640, 'ON!', 150, E.white, { bw: 10, extra: 'letter-spacing="6"' }) + '</g>'));
+
 export const DESIGNS = D;
 export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연', '과일'];

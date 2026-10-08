@@ -161,6 +161,9 @@
   `wappen/seed/*.png` + `manifest.js`(생성 파일, 서버·클라 공용 import). 관리자 와펜 탭 [기본 와펜 세트 불러오기] → `admin_seed_items`: `image_url` 이
   `https://gatherallaround.com/wappen/seed/<file>` 인 행만 삽입(스토리지 복사 없음, 이미 있으면 건너뜀). `_headers` 가 `/wappen/seed/*` 에 CORS `*`(캔버스 오염 방지).
   한글 글자 와펜은 저장소 꾸불림체 TTF 를 빌드 때 가짜 URL(`http://seed.local/`)로 서빙해 렌더. 새 와펜은 designs.mjs 에 `add()` 한 줄 → 빌드 → 커밋.
+  **자수 질감 벡터(2026-10-08, 키 `e-…`)**: `emb(d, fill, {angle, border, bw, puff})` = 채움 + 실 결 패턴(`threads`) + 안쪽 그늘(볼륨) + 새틴 테두리(굵은 선 위 밝음/어두움 교대 점선),
+  `embText()` 글자, `embWrap()` 그림자. 검토용 렌더는 `preview.mjs --only k1,k2 --out <dir> --sheet <png>`(+`sheet.py`) — wappen/seed·manifest 는 안 건드림.
+  승인된 것만 세트에 넣으려면 build.mjs 가 아니라 선택 렌더 → finish.py 병합이 필요(아직 없음; 전체 build.mjs 는 벡터 84개를 전부 되살리니 쓰지 말 것).
   **래스터 세트**(2026-10-07, `kind:'raster'`, 키 `p-…`, SEED_VERSION 2): 운영자가 준 자수 패치 시트(`tools/wappen-seed/raster/*.png`, 격자 5×6)를 `raster.py` 가
   질감(국소 그라데이션) 마스크 → 닫힘·구멍 메움 → 연결 성분 → 행·열 묶음 배정(길쭉하면 잘록한 줄에서 분리) → 셀별 알파로 잘라 원본 해상도 그대로 저장(numpy·PIL 만).
   시트가 투명 배경 RGBA(투명 20% 이상)면 질감 대신 **알파 채널을 마스크·컷아웃 알파로 그대로** 쓴다(두 시트 모두 해당, 2026-10-07 두 번째 시트 6개 = 키 `p2-…`, 총 36개).
