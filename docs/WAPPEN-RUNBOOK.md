@@ -25,7 +25,9 @@
    - 작품 페이지 [공유 → 카카오톡] 카드를 탭해 작품 화면으로 들어가는지, [링크 복사]로 얻은 `https://gatherallaround.com/ww/<id>` 를 카톡에 붙여
      미리보기(제목·이미지)가 뜨는지 확인. 공유 링크는 **경로형**(`/wp/<id>`·`/ww/<id>`, Pages Function 이 사람은 302·크롤러는 OG HTML) — 예전 쿼리형도 미들웨어가 같은 규칙으로 받는다.
      외부에서 응답을 보려면 Actions 의 `wappen-share-diagnostics` 를 실제 id 로 수동 실행(카톡 인앱 UA 는 `/wp|ww/` 에서 `200` + `<base href="/wappen/">` + 그 작품 제목, 스크랩 UA 는 og:url·og:image 가 그 작품으로 나와야 정상).
-     그래도 카톡 카드가 포털로만 가면 카카오 디벨로퍼스 [플랫폼 → Web 사이트 도메인]에 `https://gatherallaround.com` 이 정확히 등록돼 있는지 확인.
+     카톡 카드가 **`gatherallaround.pages.dev` 포털 루트**로 열리면(2026-10-08 실측) 카카오가 링크 도메인을 등록된 첫 도메인으로 바꾼 것 —
+     카카오 디벨로퍼스 [내 애플리케이션 → 앱 설정 → 플랫폼 → Web → 사이트 도메인]에 `https://gatherallaround.com`(https, www 없이) 을 추가하고 가능하면 맨 위로.
+     등록 뒤 새로 공유한 카드로 확인(예전 카드는 링크가 이미 바뀌어 있을 수 있음). 루트 사이트의 카톡 공유(`?ct=`·`?hostjoin=`)도 같이 고쳐진다.
 
 6. (선택) **라이브 갱신**: `supabase/migrations/20261007_wappen_realtime.sql` 을 SQL Editor 에서 실행하면 다른 사람이 올린 프로젝트·작품·반응이
    열려 있는 화면에 몇 초 안에 반영된다(Realtime 구독). 실행하지 않아도 탭으로 돌아오거나 25초마다 목록을 조용히 다시 읽어 갱신된다.
