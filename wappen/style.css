@@ -111,7 +111,7 @@ body.dark .gaa-btn-ghost-danger:hover { background: #3a1414; }
 .gaa-btn-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 /* 페이지 주 동작 줄 — 버튼이 폭을 균등 분할, 끝의 ⋯ 는 정사각 */
 .action-row { display: flex; gap: 8px; align-items: center; }
-.action-row .gaa-btn { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; overflow: hidden; }
+.action-row .gaa-btn { flex: 1 1 auto; min-width: 0; padding-left: 8px; padding-right: 8px; overflow: hidden; }   /* basis auto: 긴 라벨이 더 넓게 — 폭이 모자랄 때만 줄임표 */
 .action-row .gaa-btn > svg.ico { flex: none; }
 .action-row .gaa-btn > .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .action-row .gaa-btn.icon-only { flex: none; }
@@ -229,7 +229,7 @@ body.dark .status-info { background: #172554; color: #93C5FD; }
 .author-line b { color: var(--wds-black); font-weight: 700; }
 .author-line .sep { color: var(--wds-gray-400); }
 .desc { white-space: pre-wrap; word-break: break-word; font-size: var(--fs-body); color: var(--wds-gray-800); margin: 0; }
-.reaction-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.reaction-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
 .reaction-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; height: var(--h-ctl); padding: 0 10px; border-radius: 999px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); cursor: pointer; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; transition: transform 0.1s; }
 .reaction-btn .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .reaction-btn .n { flex: none; }
