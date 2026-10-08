@@ -27,7 +27,7 @@ export class WappenEditor {
         this.onChange = onChange || (() => {});
         this.onSelect = onSelect || (() => {});
         this.scale = 1; this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-        this.pointers = new Map(); this.mode = null; this.g = null; this._before = null;
+        this.pointers = new Map(); this.mode = null; this.g = null; this._before = null; this._batch = null;
         this.raf = 0; this.destroyed = false;
 
         this._onDown = (e) => this.pointerDown(e);
@@ -259,6 +259,49 @@ export class WappenEditor {
     }
     flip() { if (this.sel < 0) return; const it = this.items[this.sel]; this.mutate(() => { it.fx = !it.fx; }); }
     rotateBy(deg) { if (this.sel < 0) return; const it = this.items[this.sel]; this.mutate(() => { it.r = this.snapAngle(it.r + deg, true); }); }
+    // ── 레이어 패널용 다중 편집 API (indices = 항목 인덱스 배열) ──────────
+    // 순서 변경: 선택 항목들의 상대 순서를 유지한 채 맨 앞(front)/한 칸 앞(forward)/한 칸 뒤(backward)/맨 뒤(back). 움직인 항목들의 새 인덱스를 돌려준다.
+    reorder(indices, where) {
+        const set = new Set(indices.filter(i => i >= 0 && i < this.items.length));
+        if (!set.size) return [];
+        const selObj = this.sel >= 0 ? this.items[this.sel] : null;
+        const picked = this.items.filter((_, i) => set.has(i));
+        this.mutate(() => {
+            if (where === 'front' || where === 'back') {
+                const rest = this.items.filter((_, i) => !set.has(i));
+                this.items = where === 'front' ? rest.concat(picked) : picked.concat(rest);
+            } else if (where === 'forward') {
+                for (let i = this.items.length - 2; i >= 0; i--) if (set.has(i) && !set.has(i + 1)) { [this.items[i], this.items[i + 1]] = [this.items[i + 1], this.items[i]]; set.delete(i); set.add(i + 1); }
+            } else if (where === 'backward') {
+                for (let i = 1; i < this.items.length; i++) if (set.has(i) && !set.has(i - 1)) { [this.items[i], this.items[i - 1]] = [this.items[i - 1], this.items[i]]; set.delete(i); set.add(i - 1); }
+            }
+        });
+        this.sel = selObj ? this.items.indexOf(selObj) : -1;
+        this.requestRender();
+        return picked.map(o => this.items.indexOf(o));
+    }
+    // 세부 이동 — dx·dy 는 비율 단위(캔버스 폭·높이 대비). beginBatch() 중이면 이력을 쌓지 않고 endBatch() 때 한 번만 쌓는다(누르고 있는 동안 반복 이동용).
+    moveBy(indices, dx, dy) {
+        const list = [...new Set(indices)].map(i => this.items[i]).filter(Boolean);
+        if (!list.length) return;
+        const apply = () => { for (const it of list) { it.x = clamp(it.x + dx, LAYOUT.pos[0], LAYOUT.pos[1]); it.y = clamp(it.y + dy, LAYOUT.pos[0], LAYOUT.pos[1]); } };
+        if (this._batch) { apply(); this.requestRender(); } else this.mutate(apply);
+    }
+    beginBatch() { if (!this._batch) this._batch = clone(this.items); }
+    endBatch() { const b = this._batch; this._batch = null; if (b && JSON.stringify(b) !== JSON.stringify(this.items)) this.pushHistory(b); this.requestRender(); }
+    setPos(i, x, y) {   // 비율 단위. null 이면 그 축은 그대로
+        const it = this.items[i]; if (!it) return;
+        this.mutate(() => { if (x != null && Number.isFinite(x)) it.x = clamp(x, LAYOUT.pos[0], LAYOUT.pos[1]); if (y != null && Number.isFinite(y)) it.y = clamp(y, LAYOUT.pos[0], LAYOUT.pos[1]); });
+    }
+    removeMany(indices) {
+        const set = new Set(indices.filter(i => i >= 0 && i < this.items.length)); if (!set.size) return;
+        const selObj = this.sel >= 0 && !set.has(this.sel) ? this.items[this.sel] : null;
+        this.mutate(() => { this.items = this.items.filter((_, i) => !set.has(i)); });
+        const prev = this.sel; this.sel = selObj ? this.items.indexOf(selObj) : -1;
+        if (prev !== this.sel) this.onSelect(this.selected);
+        this.requestRender();
+    }
+
     forward() { if (this.sel < 0 || this.sel >= this.items.length - 1) return; this.mutate(() => { const [it] = this.items.splice(this.sel, 1); this.items.splice(this.sel + 1, 0, it); }); this.select(this.sel + 1); }
     backward() { if (this.sel <= 0) return; this.mutate(() => { const [it] = this.items.splice(this.sel, 1); this.items.splice(this.sel - 1, 0, it); }); this.select(this.sel - 1); }
     clear() { if (!this.items.length) return; this.mutate(() => { this.items.length = 0; }); this.select(-1); }

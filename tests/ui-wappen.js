@@ -172,6 +172,32 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.waitForFunction(() => document.querySelectorAll('.ed-item').length === 1);
     chk('에디터: 서랍 검색', (await p.locator('.ed-item span').innerText()) === '고양이');
 
+    // 2b. 레이어 패널 — 붙인 순서 목록(위가 앞), 체크 다중 선택 → 순서 이동·삭제, 세부 이동(d-pad px 단위·X/Y 입력)
+    await p.fill('#edSearch', ''); await p.waitForFunction(() => document.querySelectorAll('.ed-item').length === 2);
+    await p.click('.ed-item:nth-child(2)'); await p.waitForFunction(() => window.wappen.editor.items.length === 2);
+    await p.click('#edTabs [data-tab="layers"]'); await p.waitForSelector('#edLayers:not(.hidden)');
+    await shot(p, 'layers');
+    const rows = await p.$$eval('.ed-layer-row .info b', els => els.map(e => e.textContent.trim()));
+    chk('레이어: 2줄, 위가 나중에 붙인 것(#2 고양이 → #1 별)·와펜 탭 숨김', rows.length === 2 && rows[0].startsWith('#2 고양이') && rows[1].startsWith('#1 별') && !(await p.locator('#edItems').isVisible()) && (await p.locator('#edLayerCount').innerText()) === '2');
+    chk('레이어: 선택 전엔 캔버스 선택(고양이)에 적용 안내', (await p.locator('[data-lcount]').innerText()).includes('캔버스'));
+    await p.check('[data-lsel="1"]');   // 고양이 체크
+    chk('레이어: 체크 → 1개 선택', (await p.locator('[data-lcount]').innerText()) === '1개 선택');
+    await p.click('[data-lact="back"]');
+    chk('레이어: 맨 뒤로 → 고양이가 index 0', await p.evaluate(() => window.wappen.editor.items[0].id === '66666666-6666-4666-8666-666666666666' && window.wappen.editor.items.length === 2));
+    await p.click('[data-lact="forward"]');
+    chk('레이어: 한 칸 앞으로 → 고양이가 index 1 (선택 유지)', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666') && await p.locator('[data-lsel="1"]').isChecked());
+    await p.click('[data-lact="backward"]');
+    const x0 = await p.evaluate(() => window.wappen.editor.items[0].x);
+    await p.click('#edStep [data-step="10"]');
+    await p.dispatchEvent('[data-nudge="1,0"]', 'pointerdown'); await p.dispatchEvent('[data-nudge="1,0"]', 'pointerup');
+    chk('레이어: 10px 오른쪽 세부 이동(한 번)', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x) - (x0 + 10 / 1080)) < 1e-6);
+    await p.fill('#edX', '600'); await p.dispatchEvent('#edX', 'change');
+    chk('레이어: X 입력 600px → 위치 반영', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x * 1080) - 600) < 0.6);
+    chk('레이어: 이동 뒤 undo 가능', !(await p.locator('[data-act="undo"]').isDisabled()));
+    await p.click('[data-lact="delete"]');
+    chk('레이어: 선택 삭제 → 별 1개만 남음', await p.evaluate(() => window.wappen.editor.items.length === 1 && window.wappen.editor.items[0].id === '55555555-5555-4555-8555-555555555555'));
+    await p.click('#edTabs [data-tab="items"]'); await p.waitForSelector('#edItems:not(.hidden)');
+
     // 3. 저장 → 작품 페이지 (같은 프로젝트에 프로젝트명과 같은 작품이 있으면 기본값에 "(2)" 를 붙여 제안)
     await p.evaluate(() => window.TABLES.wappen_works.push({ ...window.TABLES.wappen_works[0], id: '44444444-4444-4444-8444-444444444499', title: '테스트 프로젝트' }));
     await p.click('.ed-topbar [data-act="save"]');

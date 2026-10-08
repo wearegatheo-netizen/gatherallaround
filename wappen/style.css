@@ -272,6 +272,34 @@ body.editing .wp-footer { display: none; }
 .ed-item:hover { border-color: var(--wds-primary); }
 .ed-item img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
 .ed-item span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.62rem; text-align: center; background: rgba(255,255,255,0.85); color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 0 0 9px 9px; }
+/* 에디터 서랍 탭(와펜/레이어) + 레이어 패널 */
+.ed-drawer-head .seg.sm { height: 30px; }
+.seg.sm > * { padding: 0 10px; font-size: var(--fs-xs); gap: 4px; }
+.seg.sm > * svg.ico { width: 14px; height: 14px; }
+.ed-layers { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ed-layer-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 10px 4px; flex-wrap: wrap; }
+.ed-layer-tools .wp-check { min-height: 32px; }
+.ed-nudge { display: flex; align-items: center; gap: 12px; padding: 2px 10px 8px; flex-wrap: wrap; border-bottom: 1px solid var(--wds-gray-200); flex: none; }
+.ed-dpad { display: grid; grid-template-columns: repeat(3, 32px); grid-template-rows: repeat(2, 32px); gap: 2px; }
+.ed-dpad button { border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-gray-700); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ed-dpad button:active { background: var(--wds-primary-light); border-color: var(--wds-primary); }
+.ed-dpad button:disabled { opacity: 0.4; cursor: default; }
+.ed-dpad [data-nudge="0,-1"] { grid-column: 2; grid-row: 1; }
+.ed-dpad [data-nudge="-1,0"] { grid-column: 1; grid-row: 2; }
+.ed-dpad [data-nudge="0,1"] { grid-column: 2; grid-row: 2; }
+.ed-dpad [data-nudge="1,0"] { grid-column: 3; grid-row: 2; }
+.ed-xy { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--wds-gray-600); }
+.ed-xy label { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.ed-xy input.wp-input { width: 76px; height: var(--h-xs); padding: 0 8px; font-size: var(--fs-sm); }
+.ed-layer-list { flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
+.ed-layer-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 10px; cursor: pointer; }
+.ed-layer-row:hover { background: var(--wds-gray-100); }
+.ed-layer-row.active { background: var(--wds-primary-light); }
+.ed-layer-row .wp-check { min-height: 0; }
+.ed-layer-row .thumb { width: 36px; height: 36px; object-fit: contain; background: var(--wp-check); border-radius: 6px; padding: 2px; box-sizing: border-box; flex: none; }
+.ed-layer-row .info { flex: 1; min-width: 0; }
+.ed-layer-row .info b { display: block; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-layer-row .info small { font-size: var(--fs-xs); color: var(--wds-gray-600); }
 .ed-hint { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(17,17,17,0.75); color: #fff; font-size: var(--fs-xs); padding: 6px 12px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
 
 /* ── 와펜 카탈로그 ─────────────────────────────────── */
