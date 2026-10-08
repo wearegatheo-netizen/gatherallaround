@@ -520,5 +520,34 @@ add('e-rockon', 'ROCK ON!', '글자', ['rock', '록', '영문', '자수'], embWr
     + emb(`M 560 330 L 470 500 L 540 500 L 450 660 L 600 450 L 530 450 Z`, E.yellow, { angle: 60, bw: 14 })
     + embText(500, 480, 'ROCK', 150, E.yellow, { bw: 10, extra: 'letter-spacing="6"' }) + embText(500, 640, 'ON!', 150, E.white, { bw: 10, extra: 'letter-spacing="6"' }) + '</g>'));
 
+
+// ── 자수 시뮬레이션용 부품 정의(2026-10-08): 그림이 아니라 "부품 목록"(실루엣 경로 + 색 + 실 방향). preview.mjs --masks 가 부품별 마스크 PNG 를
+//    렌더하고 embroider.py 가 실 한 올씩 그려 사진 같은 자수 와펜 PNG 를 만든다. z 순서 = 배열 순서. border: 메로우 테두리 색.
+export const EMB_PARTS = [];
+const eadd = (key, name, category, tags, border, parts) => EMB_PARTS.push({ key, name, category, tags, border, parts });
+const SEEDS = [[400, 500], [520, 470], [610, 560], [430, 640], [560, 700], [330, 600], [500, 800], [660, 680], [380, 760], [620, 820]];
+eadd('r-strawberry', '딸기', '과일', ['딸기', '빨강', '과일', '자수'], '#1A1A1A', [
+    { d: `M 500 330 C 690 330 820 460 790 640 C 760 810 620 920 500 935 C 380 920 240 810 210 640 C 180 460 310 330 500 330 Z`, fill: '#E2353F', angle: 70 },
+    ...SEEDS.map(([x, y]) => ({ d: ellipse(x, y, 15, 24), fill: '#F7E9C0', angle: 90, outline: false })),
+    { d: `M 500 330 L 560 240 L 600 340 L 700 300 L 640 390 L 760 420 L 630 470 L 500 410 L 370 470 L 240 420 L 360 390 L 300 300 L 400 340 L 440 240 Z`, fill: '#3C9D4E', angle: 20 },
+    { d: rrect(470, 180, 60, 120, 30), fill: '#7BC96F', angle: 90 },
+]);
+eadd('r-eightball', '8볼', '도형·기호', ['당구', '8', '검정', '자수'], '#1A1A1A', [
+    { d: circle(500, 500, 400), fill: '#1C1C1E', angle: 45 },
+    { d: circle(500, 480, 190), fill: '#F4EEE2', angle: 30 },
+    { text: '8', x: 500, y: 560, size: 250, fill: '#1A1A1A', angle: 0 },
+]);
+eadd('r-headphones', '헤드폰', '음악', ['헤드폰', '음악', '파랑', '자수'], '#1A1A1A', [
+    { d: (() => { const p = (R, a) => [500 + R * Math.cos(a * Math.PI / 180), 600 + R * Math.sin(a * Math.PI / 180)]; const [x0, y0] = p(330, 190), [x1, y1] = p(330, 350), [x2, y2] = p(250, 350), [x3, y3] = p(250, 190); return `M ${x0} ${y0} A 330 330 0 0 1 ${x1} ${y1} L ${x2} ${y2} A 250 250 0 0 0 ${x3} ${y3} Z`; })(), fill: '#1F2A5C', angle: 0 },
+    { d: rrect(140, 540, 180, 260, 60), fill: '#1F2A5C', angle: 90 }, { d: rrect(680, 540, 180, 260, 60), fill: '#1F2A5C', angle: 90 },
+    { d: rrect(185, 585, 90, 170, 40), fill: '#2F5BD6', angle: 60 }, { d: rrect(725, 585, 90, 170, 40), fill: '#2F5BD6', angle: 60 },
+]);
+eadd('r-rockon', 'ROCK ON!', '글자', ['rock', '록', '영문', '자수'], '#1A1A1A', [
+    { d: rrect(110, 300, 780, 400, 60), fill: '#1C1C1E', angle: 45, rot: -8 },
+    { d: `M 560 330 L 470 500 L 540 500 L 450 660 L 600 450 L 530 450 Z`, fill: '#F8C83C', angle: 60, rot: -8 },
+    { text: 'ROCK', x: 500, y: 480, size: 150, fill: '#F8C83C', angle: 0, rot: -8, ls: 6 },
+    { text: 'ON!', x: 500, y: 640, size: 150, fill: '#FAF7F2', angle: 0, rot: -8, ls: 6 },
+]);
+
 export const DESIGNS = D;
 export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연', '과일'];
