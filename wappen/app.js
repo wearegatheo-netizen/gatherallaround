@@ -587,7 +587,7 @@ async function viewProject(r) {
                 ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
                 <div class="action-row">
                     <a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">${icon('brush')}<span class="lbl">꾸미기 시작</span></a>
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')}<span class="lbl">공유</span></button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share" title="공유" aria-label="공유">${icon('share')}<span class="lbl">공유</span></button>
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
             </div>
@@ -952,8 +952,8 @@ async function viewWork(r) {
                 <div class="reaction-bar" id="reactBar"></div>
                 <div class="action-row">
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="download">${icon('download')}<span class="lbl">다운로드</span></button>
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')}<span class="lbl">공유</span></button>
-                    ${p ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}">${icon('remix')}<span class="lbl">이어 꾸미기</span></a>` : ''}
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share" title="공유" aria-label="공유">${icon('share')}<span class="lbl">공유</span></button>
+                    ${p ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}" title="이어 꾸미기" aria-label="이어 꾸미기">${icon('remix')}<span class="lbl">이어 꾸미기</span></a>` : ''}
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
             </div>

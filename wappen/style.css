@@ -110,8 +110,12 @@ body.dark .gaa-btn-ghost-danger:hover { background: #3a1414; }
 .gaa-btn[hidden] { display: none; }
 .gaa-btn-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 /* 페이지 주 동작 줄 — 버튼이 폭을 균등 분할, 끝의 ⋯ 는 정사각 */
-.action-row { display: flex; gap: 8px; align-items: center; }
-.action-row .gaa-btn { flex: 1 1 auto; min-width: 0; padding-left: 8px; padding-right: 8px; overflow: hidden; }   /* basis auto: 긴 라벨이 더 넓게 — 폭이 모자랄 때만 줄임표 */
+/* 주 동작 줄: 버튼은 라벨 길이만큼은 반드시 확보(min-width: max-content) — 폭이 모자라면 글자를 자르지 않고 다음 줄로 내린다 */
+.action-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.action-row .gaa-btn { flex: 1 1 auto; min-width: max-content; padding-left: 8px; padding-right: 8px; gap: 4px; }
+/* 상세 정보 열이 좁으면(≤340px) 보조 버튼은 아이콘만 남겨 한 줄 유지(title/aria-label 로 뜻 유지) — 컨테이너 쿼리 미지원 브라우저는 위 줄바꿈 폴백 */
+.detail-info { container-type: inline-size; }
+@container (max-width: 340px) { .action-row .gaa-btn:not(.gaa-btn-primary) > .lbl { display: none; } .action-row .gaa-btn:not(.gaa-btn-primary) { gap: 0; } }
 .action-row .gaa-btn > svg.ico { flex: none; }
 .action-row .gaa-btn > .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .action-row .gaa-btn.icon-only { flex: none; }
