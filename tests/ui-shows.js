@@ -75,7 +75,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   }, { EV1, EV2, EV3, F7: FUTURE(7), F14: FUTURE(14), PAST });
 
   // ── 1. 포털 버튼 → 목록
-  await p.click('button.portal-btn:has-text("공연 예매")');
+  await p.click('button.portal-tile:has-text("공연 예매")');
   await p.waitForTimeout(400);
   let s = await p.evaluate(() => ({
     pageShown: !document.getElementById('shows-page').classList.contains('hidden'),

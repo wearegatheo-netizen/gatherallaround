@@ -228,8 +228,8 @@
         #portal-page {
             width: 100%;
             max-width: 480px;
-            text-align: center;
-            padding: 60px 40px 50px;
+            text-align: left;
+            padding: 18px 18px 20px;
             background: var(--wds-white);
             border-radius: var(--wds-radius-l);
             box-shadow: var(--wds-shadow-lg);
@@ -422,30 +422,58 @@
         .qr-frame { background: #fff; border-radius: 12px; padding: 12px; width: 196px; height: 196px; margin: 14px auto; display: flex; align-items: center; justify-content: center; box-sizing: content-box; }
         .qr-frame svg { width: 100%; height: 100%; display: block; }
         .host-card { border: 1px solid var(--wds-gray-300); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: var(--wds-white); }
-        #portal-page h1 { font-size: 2.2rem; margin-bottom: 10px; letter-spacing: -1px; font-family: 'KkuBulLim', sans-serif; }
-        #portal-page .portal-sub { color: var(--wds-gray-700); margin-bottom: 36px; font-size: 1.05rem; }
-        .portal-btn {
-            display: flex; align-items: center; justify-content: center;
-            text-align: center;
-            width: 83%; margin-left: auto; margin-right: auto; padding: 18px 40px;
-            border: 2px solid var(--wds-gray-300);
-            border-radius: var(--wds-radius-m);
-            background: var(--wds-white);
-            cursor: pointer; font-family: inherit;
-            font-size: 1.05rem; font-weight: 700;
-            color: var(--wds-black);
-            transition: border-color 0.15s, background 0.15s, transform 0.1s;
-            margin-bottom: 12px;
-        }
-        .portal-btn:hover { border-color: var(--wds-primary); background: var(--wds-primary-light); transform: translateY(-1px); }
-        .portal-btn.portal-btn-primary { background: var(--wds-primary); border-color: var(--wds-primary); color: #fff; }
-        .portal-btn.portal-btn-primary:hover { background: var(--wds-primary-hover); border-color: var(--wds-primary-hover); }
-        .portal-btn.portal-btn-disabled { opacity: 0.45; cursor: not-allowed; }
-        .portal-btn.portal-btn-disabled:hover { border-color: var(--wds-gray-300); background: var(--wds-white); transform: none; }
-        .portal-btn-icon { display:inline-block; width:4px; height:32px; margin-right:14px; background:currentColor; border-radius:2px; flex-shrink:0; }
-        .portal-btn-text { display: flex; flex-direction: column; align-items: center; }
-        .portal-btn-title { font-size: 1.05rem; font-weight: 700; line-height: 1.2; font-family: 'KkuBulLim', sans-serif; white-space: nowrap; }
-        .portal-btn-desc { font-size: 0.78rem; font-weight: 400; opacity: 0.72; margin-top: 2px; }
+        /* ── 포털(2026-10-08 개편) — 라이트/다크 색은 변수로, 아이콘 배경은 포털 안에서만 쓰는 옅은 색 ── */
+        #portal-page { --p-tint-blue: #EBF0FF; --p-tint-mint: #E6F6EF; --p-tint-peach: #FFF0E6; --p-tint-lav: #F1ECFF; --p-ink-mint: #1E8A5A; --p-ink-peach: #C2591B; --p-ink-lav: #6B4FD8; }
+        body.dark #portal-page { --p-tint-blue: #1F2747; --p-tint-mint: #17302A; --p-tint-peach: #3A2A1F; --p-tint-lav: #2A2440; --p-ink-mint: #5ED4A0; --p-ink-peach: #F0A070; --p-ink-lav: #B4A2FF; }
+        .portal-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .portal-top .theme-toggle-btn { margin-right: 0; }
+        .portal-brand { font-family: 'KkuBulLim', sans-serif; font-size: 1.45rem; letter-spacing: -0.5px; line-height: 1; color: var(--wds-black); }
+        .portal-tagline { margin: 10px 0 2px; font-size: 1.18rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.3; color: var(--wds-black); }
+        #portal-page .portal-sub { margin: 0 0 14px; font-size: 0.86rem; color: var(--wds-gray-600); }
+        .portal-hero { position: relative; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; margin-bottom: 14px; background: var(--wds-gray-100); }
+        .portal-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.9s ease; }
+        .portal-hero-img.on { opacity: 1; }
+        .portal-hero-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 14px 12px; background: linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0)); color: #fff; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+        .portal-hero-cap b { font-family: 'KkuBulLim', sans-serif; font-weight: 400; font-size: 1rem; display: block; margin-bottom: 2px; }
+        .portal-hero-dots { display: flex; gap: 4px; align-items: center; flex: none; padding-bottom: 3px; }
+        .portal-hero-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.45); display: block; transition: width 0.3s; }
+        .portal-hero-dots i.on { background: #fff; width: 14px; border-radius: 3px; }
+        .portal-sec { font-size: 0.74rem; font-weight: 800; color: var(--wds-gray-500); letter-spacing: 0.06em; margin: 16px 0 8px; display: flex; align-items: center; justify-content: space-between; }
+        .portal-sec-lab { display: inline-flex; align-items: center; gap: 6px; }
+        .portal-sec-lab::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--wds-primary); }
+        .portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .portal-tile { text-align: left; border: 1px solid var(--wds-gray-300); background: var(--wds-white); border-radius: 14px; padding: 14px 13px 13px; display: flex; flex-direction: column; gap: 9px; min-height: 112px; font-family: inherit; color: var(--wds-black); cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+        .portal-tile:hover { border-color: var(--wds-primary); transform: translateY(-1px); }
+        .portal-tile .ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--p-tint-blue); color: var(--wds-primary); }
+        .portal-tile .ico svg { width: 20px; height: 20px; }
+        .portal-tile .ico-peach { background: var(--p-tint-peach); color: var(--p-ink-peach); }
+        .portal-tile .ico-mint { background: var(--p-tint-mint); color: var(--p-ink-mint); }
+        .portal-tile .ico-lav { background: var(--p-tint-lav); color: var(--p-ink-lav); }
+        .portal-tile .tt { font-family: 'KkuBulLim', sans-serif; font-size: 1.02rem; line-height: 1.2; }
+        .portal-tile .td { font-size: 0.74rem; color: var(--wds-gray-600); line-height: 1.35; margin-top: -5px; }
+        .portal-tile-primary { background: var(--wds-primary); border-color: var(--wds-primary); color: #fff; }
+        .portal-tile-primary:hover { background: var(--wds-primary-hover); border-color: var(--wds-primary-hover); }
+        .portal-tile-primary .td { color: rgba(255,255,255,0.8); }
+        .portal-tile-primary .ico { background: rgba(255,255,255,0.18); color: #fff; }
+        .portal-member { margin-top: 18px; background: var(--wds-gray-100); border: 1px dashed var(--wds-gray-400); border-radius: 14px; padding: 12px; }
+        .portal-member-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+        .portal-member-head .lock { width: 30px; height: 30px; border-radius: 9px; background: var(--wds-white); border: 1px solid var(--wds-gray-300); display: flex; align-items: center; justify-content: center; color: var(--wds-gray-700); flex: none; }
+        .portal-member-head .lock svg { width: 16px; height: 16px; }
+        .portal-member-head b { display: block; font-size: 0.86rem; color: var(--wds-gray-900); }
+        .portal-member-head small { display: block; font-size: 0.72rem; color: var(--wds-gray-600); margin-top: 2px; line-height: 1.4; }
+        .portal-mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .portal-mbtn { border: 1px solid var(--wds-gray-300); background: var(--wds-white); border-radius: 12px; padding: 11px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--wds-black); font-family: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s; }
+        .portal-mbtn:hover { border-color: var(--wds-primary); }
+        .portal-mbtn > span:first-child { flex: 1; min-width: 0; display: block; }
+        .portal-mbtn .tt { font-family: 'KkuBulLim', sans-serif; font-size: 0.95rem; display: block; }
+        .portal-mbtn .td { display: block; font-size: 0.7rem; color: var(--wds-gray-600); margin-top: 2px; }
+        .portal-mbtn .arrow { color: var(--wds-gray-400); font-size: 1rem; }
+        .portal-foot { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--wds-gray-300); font-size: 0.74rem; color: var(--wds-gray-600); line-height: 1.7; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+        .portal-foot b { color: var(--wds-gray-800); font-weight: 700; }
+        .portal-foot-links { display: flex; gap: 8px; align-items: center; }
+        .portal-pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-gray-800); font: inherit; font-size: 0.76rem; font-weight: 700; padding: 6px 11px; border-radius: 999px; text-decoration: none; line-height: 1; cursor: pointer; }
+        .portal-pill:hover { border-color: var(--wds-primary); color: var(--wds-primary); }
+        .portal-pill svg { width: 14px; height: 14px; }
         .portal-back-btn {
             display: inline-flex; align-items: center; gap: 5px;
             background: none; border: none; cursor: pointer;
@@ -1204,10 +1232,11 @@
             #landing-page { padding: 36px 20px; margin: auto 0; }
             #landing-page h1 { font-size: 1.7rem; font-family: 'KkuBulLim', sans-serif; }
             #landing-page p { font-size: 0.9rem; margin-bottom: 24px; }
-            #portal-page { padding: 36px 20px; margin: auto 0; }
-            #portal-page h1 { font-size: 1.7rem; }
-            #portal-page .portal-sub { font-size: 0.9rem; margin-bottom: 24px; }
-            .portal-btn { padding: 14px 16px; font-size: 0.95rem; }
+            #portal-page { padding: 16px 14px 18px; margin: auto 0; }
+            .portal-tagline { font-size: 1.1rem; }
+            .portal-mbtn { padding: 10px; }
+            .portal-mbtn .tt { font-size: 0.9rem; white-space: nowrap; }
+            .portal-mbtn .arrow { display: none; }
             #landing-page-band { padding: 36px 20px; margin: auto 0; }
             #landing-page-band h1 { font-size: 1.7rem; }
             #landing-page-band p { font-size: 0.9rem; margin-bottom: 24px; }
@@ -1687,48 +1716,59 @@
     </div>
 
     <!-- Portal Selection Page -->
+    <!-- 포털 — 2026-10-08 개편: 워드마크·태그라인·공간 사진(대관 페이지 사진 자동 전환)·손님용 타일 2×2·멤버 전용 패널·바닥 연락처.
+         타일/패널 버튼은 포털 전용 컴포넌트(.portal-tile/.portal-mbtn) — 공용 gaa-btn 의 의도적 예외. 히어로 사진은 initPortalHero() 가 채운다. -->
     <div id="portal-page">
-        <button type="button" id="themeToggleBtnPortal" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환" style="position:absolute;top:20px;right:20px">🌙</button>
-        <h1>Gather all around</h1>
-        <p class="portal-sub">게더올어라운드 이용 시스템</p>
+        <div class="portal-top">
+            <div class="portal-brand">Gather all around</div>
+            <button type="button" id="themeToggleBtnPortal" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
+        </div>
+        <p class="portal-tagline">밴드를 위한 아늑한 공간</p>
+        <p class="portal-sub">신촌역 5분 · 합주 · 공연 · 모임 · 대관</p>
 
-        <button type="button" class="portal-btn portal-btn-primary" onclick="showCommunitySection()">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">게·어·드 커뮤니티</span>
-                <span class="portal-btn-desc">모임 신청 및 안내 등</span>
-            </span>
-        </button>
-        <button type="button" class="portal-btn portal-btn-primary" onclick="showGatheoSection()">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">게더링 (GatheO)</span>
-                <span class="portal-btn-desc">게더링 멤버들을 위한 공간</span>
-            </span>
-        </button>
-        <button type="button" class="portal-btn portal-btn-primary" onclick="showBandSection()">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">고정 합주팀</span>
-                <span class="portal-btn-desc">요일 고정팀들을 위한 공간</span>
-            </span>
-        </button>
-        <button type="button" class="portal-btn portal-btn-primary" onclick="showShowsSection()">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">공연 예매</span>
-                <span class="portal-btn-desc">밴드 공연 티켓 예매</span>
-            </span>
-        </button>
-        <button type="button" class="portal-btn portal-btn-primary" onclick="showPerformanceBookingSection()">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">공간 대관</span>
-                <span class="portal-btn-desc">소규모 공연을 위한 예약 페이지</span>
-            </span>
-        </button>
-        <!-- 와펜 꾸미기는 별도 페이지(/wappen/) — 같은 카카오 앱·Supabase 를 쓰되 index.html 과 독립 -->
-        <button type="button" class="portal-btn portal-btn-primary" onclick="location.href='/wappen/'">
-            <span class="portal-btn-text">
-                <span class="portal-btn-title">와펜 꾸미기</span>
-                <span class="portal-btn-desc">와펜 붙여 포스터·SNS 이미지 만들기</span>
-            </span>
-        </button>
+        <div class="portal-hero" id="portalHero" aria-hidden="true">
+            <div class="portal-hero-cap"><div><b>신촌 프리미엄 밴드 스튜디오</b>합주실 · 소공연 · 모임</div><span class="portal-hero-dots" id="portalHeroDots"></span></div>
+        </div>
+
+        <div class="portal-sec"><span class="portal-sec-lab">누구나 이용</span></div>
+        <div class="portal-grid">
+            <button type="button" class="portal-tile portal-tile-primary" onclick="showCommunitySection()">
+                <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 14.5c2.8 0 5 2 5 5"/></svg></span>
+                <span class="tt">게·어·드 커뮤니티</span><span class="td">모임 신청과 안내</span>
+            </button>
+            <button type="button" class="portal-tile" onclick="showPerformanceBookingSection()">
+                <span class="ico ico-peach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg></span>
+                <span class="tt">공간 대관</span><span class="td">소규모 공연·합주 공간 예약</span>
+            </button>
+            <button type="button" class="portal-tile" onclick="showShowsSection()">
+                <span class="ico ico-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg></span>
+                <span class="tt">공연 예매</span><span class="td">밴드 공연 티켓 예매</span>
+            </button>
+            <!-- 와펜 꾸미기는 별도 페이지(/wappen/) — 같은 카카오 앱·Supabase 를 쓰되 index.html 과 독립 -->
+            <button type="button" class="portal-tile" onclick="location.href='/wappen/'">
+                <span class="ico ico-lav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9L3.5 9.2l5.9-.9z"/></svg></span>
+                <span class="tt">와펜 꾸미기</span><span class="td">와펜 붙여 포스터·SNS 이미지</span>
+            </button>
+        </div>
+
+        <div class="portal-member">
+            <div class="portal-member-head">
+                <span class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+                <span><b>멤버 전용</b><small>승인된 멤버·고정팀만 로그인 후 이용</small></span>
+            </div>
+            <div class="portal-mgrid">
+                <button type="button" class="portal-mbtn" onclick="showGatheoSection()"><span><span class="tt">게더링 (GatheO)</span><span class="td">멤버 예약·일정</span></span><span class="arrow">›</span></button>
+                <button type="button" class="portal-mbtn" onclick="showBandSection()"><span><span class="tt">고정 합주팀</span><span class="td">요일 고정팀 공간</span></span><span class="arrow">›</span></button>
+            </div>
+        </div>
+
+        <div class="portal-foot">
+            <div><b>게더 올 어라운드</b><br>신촌역 5분 · 프리미엄 밴드 스튜디오</div>
+            <div class="portal-foot-links">
+                <a id="portalInstaBtn" class="portal-pill" href="#" target="_blank" rel="noopener" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>인스타그램</a>
+                <button type="button" class="portal-pill" onclick="copyPortalPhone()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.7a2 2 0 0 1 1.9 2z"/></svg>전화 문의</button>
+            </div>
+        </div>
     </div>
 
     <!-- 밴드씬 뉴스 -->
@@ -3557,6 +3597,51 @@
             render();
         }
 
+        // ── 포털 히어로·연락처 ─────────────────────────────────────────────
+        // 공간 대관 페이지에 등록된 사진(PERF_SPACE_PHOTOS)을 그대로 돌려 보여준다 — 단, 원본(0.7~3.6MB)은 첫 화면에 너무 무거워
+        // 저장소의 경량본 img/portal/<파일명>.webp(가로 960px) 를 쓴다. 사진을 추가하면 같은 이름의 webp 도 함께 넣을 것(tools/make-portal-hero.js).
+        // 다음 장은 넘어가기 직전에 한 장만 내려받고, 포털이 안 보이거나 탭이 숨겨지면 멈춘다.
+        const PORTAL_HERO_MS = 4000;
+        const PORTAL_PHONE = '010-5109-1042';
+        const PORTAL_INSTAGRAM_URL = ''; // 비어 있으면 버튼을 숨긴다
+        let _portalHero = null;
+        function portalHeroUrls() {
+            const list = typeof PERF_SPACE_PHOTOS !== 'undefined' && Array.isArray(PERF_SPACE_PHOTOS) ? PERF_SPACE_PHOTOS : [];
+            return list.map(u => `/img/portal/${String(u).split('/').pop().replace(/\.(jpe?g|png|webp)$/i, '')}.webp`);
+        }
+        function initPortalHero() {
+            const box = document.getElementById('portalHero');
+            if (!box || _portalHero) return;
+            const insta = document.getElementById('portalInstaBtn');
+            if (insta && PORTAL_INSTAGRAM_URL) { insta.href = PORTAL_INSTAGRAM_URL; insta.style.display = ''; }
+            const urls = portalHeroUrls();
+            if (!urls.length) { box.style.display = 'none'; return; }
+            const dots = document.getElementById('portalHeroDots');
+            if (dots) dots.innerHTML = urls.map((_, i) => `<i${i === 0 ? ' class="on"' : ''}></i>`).join('');
+            const layers = [0, 1].map(() => { const im = document.createElement('img'); im.alt = ''; im.className = 'portal-hero-img'; im.decoding = 'async'; box.prepend(im); return im; });
+            layers[0].fetchPriority = 'high';
+            layers[0].onerror = () => { box.style.display = 'none'; };
+            layers[0].src = urls[0]; layers[0].classList.add('on');
+            _portalHero = { urls, idx: 0, layer: 0, timer: null };
+            if (urls.length < 2) return;
+            _portalHero.timer = setInterval(() => {
+                const portal = document.getElementById('portal-page');
+                if (document.hidden || !portal || portal.classList.contains('hidden')) return;
+                const h = _portalHero, next = (h.idx + 1) % h.urls.length, nl = 1 - h.layer, im = layers[nl];
+                const show = () => {
+                    layers[h.layer].classList.remove('on'); im.classList.add('on');
+                    if (dots) { if (dots.children[h.idx]) dots.children[h.idx].classList.remove('on'); if (dots.children[next]) dots.children[next].classList.add('on'); }
+                    h.idx = next; h.layer = nl;
+                };
+                if (im.dataset.src === h.urls[next] && im.complete && im.naturalWidth) { show(); return; }
+                im.onload = show; im.onerror = () => {}; im.dataset.src = h.urls[next]; im.src = h.urls[next];
+            }, PORTAL_HERO_MS);
+        }
+        async function copyPortalPhone() {
+            try { await navigator.clipboard.writeText(PORTAL_PHONE); showToast(`전화번호가 복사되었습니다 · ${PORTAL_PHONE}`); }
+            catch (_) { prompt('전화번호를 복사하세요', PORTAL_PHONE); }
+        }
+
         // ── 부팅 로딩 스크린 걷기 ──────────────────────────────────────────
         const BOOT_MIN_MS = 900;   // 첫 페인트(__bootT0) 후 최소 노출
         const BOOT_MAX_MS = 1800;  // 인증 판단이 늦어도 이 시점엔 걷는다
@@ -3588,6 +3673,7 @@
             setTimeout(hideBootOverlay, BOOT_MAX_MS);
             initServiceWorker();
             initInstallBanner();
+            initPortalHero();
 
             // Supabase 안전한 초기화
             try {
