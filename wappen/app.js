@@ -772,23 +772,20 @@ async function viewEdit(r) {
             <div class="ed-hint" id="edHint">${work ? '원작을 바탕으로 이어서 꾸며보세요' : '아래에서 와펜을 눌러 추가하세요'}</div>
             <div class="ed-tools hidden" id="edTools">
                 <button type="button" data-act="flip" title="좌우 반전" aria-label="좌우 반전">${icon('flip')}</button><button type="button" data-act="rotl" title="-15°" aria-label="왼쪽으로 15° 회전">${icon('rotate-ccw')}</button><button type="button" data-act="rotr" title="+15°" aria-label="오른쪽으로 15° 회전">${icon('rotate-cw')}</button>
-                <span class="sep"></span><button type="button" data-act="back1" title="뒤로 보내기" aria-label="뒤로 보내기">${icon('layer-down')}</button><button type="button" data-act="fwd1" title="앞으로 가져오기" aria-label="앞으로 가져오기">${icon('layer-up')}</button>
+                <span class="sep"></span><button type="button" data-act="toback" title="맨 아래로 이동" aria-label="맨 아래로 이동">${icon('chevrons-down')}</button><button type="button" data-act="back1" title="한 칸 아래로" aria-label="한 칸 아래로">${icon('layer-down')}</button><button type="button" data-act="fwd1" title="한 칸 위로" aria-label="한 칸 위로">${icon('layer-up')}</button><button type="button" data-act="tofront" title="맨 위로 이동" aria-label="맨 위로 이동">${icon('chevrons-up')}</button>
                 <span class="sep"></span><button type="button" data-act="dup" title="복제" aria-label="복제">${icon('copy')}</button><button type="button" data-act="del" title="삭제" aria-label="삭제">${icon('trash')}</button></div>
         </div>
         <div class="ed-drawer" id="edDrawer">
             <div class="ed-drawer-head"><div class="seg sm" id="edTabs"><button type="button" data-tab="items" class="active">${icon('grid')} 와펜 ${items.length}</button><button type="button" data-tab="layers">${icon('layers')} 레이어 <span id="edLayerCount">0</span></button></div>
                 <div class="search-box">${icon('search')}<input id="edSearch" placeholder="이름·태그 검색" maxlength="30"></div>
+                <div class="ed-layer-sel hidden" id="edLayerSel"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-lact="all">전체 선택</button><span class="muted" data-lcount>선택 없음</span></div>
                 <a class="gaa-btn gaa-btn-xs gaa-btn-ghost" href="#/request" target="_blank" rel="noopener" id="edRequestLink">요청</a>
                 <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost icon-only" data-act="toggle-drawer" id="drawerToggle" title="서랍 접기/펴기" aria-label="서랍 접기/펴기">${icon('chevron-down')}</button></div>
             <div class="ed-drawer-chips chips scroll" id="edChips"></div>
             <div class="ed-items" id="edItems"></div>
             <div class="ed-layers hidden" id="edLayers">
-                <div class="ed-layer-tools">
-                    <div class="ed-layer-sel"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" data-lact="all">전체 선택</button><span class="muted" data-lcount>선택 없음</span></div>
-                    <div class="ed-nudge" title="선택한 와펜 세부 이동 — 한 번 누를 때 화면 1·10·50px 만큼(프로젝트 px 로 표시), 누르고 있으면 반복">
-                        <div class="seg sm" id="edStep"><button type="button" data-i="0" data-step="1">1px</button><button type="button" data-i="1" data-step="10" class="active">10px</button><button type="button" data-i="2" data-step="50">50px</button></div>
-                        <div class="ed-dpad"><button type="button" data-nudge="0,-1" title="위로" aria-label="위로">${icon('arrow-up')}</button><button type="button" data-nudge="0,1" title="아래로" aria-label="아래로">${icon('arrow-down')}</button><button type="button" data-nudge="-1,0" title="왼쪽" aria-label="왼쪽">${icon('arrow-left')}</button><button type="button" data-nudge="1,0" title="오른쪽" aria-label="오른쪽">${icon('arrow-right')}</button></div></div></div>
-                <div class="ed-xy"><label>X <input type="number" class="wp-input" id="edX" step="1" inputmode="numeric"></label><label>Y <input type="number" class="wp-input" id="edY" step="1" inputmode="numeric"></label><span>px · 중심 좌표</span><span class="muted ed-xy-hint">순서 이동·반전·회전·삭제는 캔버스 아래 도구 막대로 (체크한 와펜 모두에 적용)</span></div>
+                <div class="ed-nudge"><label title="중심 X (px)">X <input type="number" class="wp-input" id="edX" step="1" inputmode="numeric"></label><label title="중심 Y (px)">Y <input type="number" class="wp-input" id="edY" step="1" inputmode="numeric"></label>
+                    <div class="ed-dpad" title="선택한 와펜 이동 — 누르고 있으면 반복"><button type="button" data-nudge="0,-1" title="위로" aria-label="위로">${icon('arrow-up')}</button><button type="button" data-nudge="0,1" title="아래로" aria-label="아래로">${icon('arrow-down')}</button><button type="button" data-nudge="-1,0" title="왼쪽" aria-label="왼쪽">${icon('arrow-left')}</button><button type="button" data-nudge="1,0" title="오른쪽" aria-label="오른쪽">${icon('arrow-right')}</button></div></div>
                 <div class="ed-layer-list" id="edLayerList"></div>
             </div>
         </div></div>`;
@@ -796,7 +793,7 @@ async function viewEdit(r) {
     const canvas = $('#edCanvas'), tools = $('#edTools'), hint = $('#edHint');
     const undoBtn = $('[data-act="undo"]', app), redoBtn = $('[data-act="redo"]', app);
     let dirty = false;
-    let lsel = new Set(), stepIdx = 1, tab = 'items';   // 레이어 패널 체크 선택·이동 단계·서랍 탭
+    let lsel = new Set(), tab = 'items';   // 레이어 패널 체크 선택·서랍 탭
     const editor = new WappenEditor(canvas, {
         W: dims.w, H: dims.h, base, layout: work ? work.layout : null, itemsById: state.itemsById,
         onChange: () => { dirty = true; undoBtn.disabled = !editor.canUndo; redoBtn.disabled = !editor.canRedo; hint.classList.toggle('hidden', editor.items.length > 0); renderLayers(); },
@@ -807,9 +804,8 @@ async function viewEdit(r) {
 
     // ── 레이어 패널: 붙인 순서 목록(위가 앞, #n = 붙인 순서) · 체크 다중 선택 → 순서 이동/삭제 · 세부 이동(d-pad·X/Y px)
     const drawer = $('#edDrawer'), layersEl = $('#edLayers'), layerList = $('#edLayerList'), xIn = $('#edX'), yIn = $('#edY');
-    // 이동 단계: 화면 1·10·50px 에 해당하는 프로젝트 px (A4 300dpi 를 폰에서 보면 화면 1px ≈ 프로젝트 7px — 프로젝트 1px 는 눈에 안 보인다)
-    const stepPx = () => { const unit = Math.max(1, Math.round(1 / (editor.scale || 1))); return [unit, unit * 10, unit * 50]; };
-    const stepNow = () => stepPx()[stepIdx];
+    // 이동 단계 = 화면 10px 에 해당하는 프로젝트 px (A4 300dpi 를 폰에서 보면 화면 1px ≈ 프로젝트 7px — 프로젝트 px 고정값은 캔버스마다 체감이 달라진다)
+    const stepNow = () => Math.max(1, Math.round(1 / (editor.scale || 1))) * 10;
     const targets = () => lsel.size ? [...lsel].sort((a, b) => a - b) : (editor.sel >= 0 ? [editor.sel] : []);   // 체크 선택이 없으면 캔버스 선택에 적용
     function renderLayers() {
         const n = editor.items.length; $('#edLayerCount').textContent = n;
@@ -820,19 +816,19 @@ async function viewEdit(r) {
             <img class="thumb" src="${esc(meta ? meta.image_url : '')}" alt=""><div class="info"><b>#${i + 1} ${esc(meta ? meta.name : '와펜')}</b><small>${Math.round(it.x * dims.w)}, ${Math.round(it.y * dims.h)}px · 폭 ${Math.round(it.w * dims.w)}px${it.r ? ` · ${it.r}°` : ''}${it.fx ? ' · 반전' : ''}</small></div></div>`).join('')
             : '<div class="empty" style="padding:18px">아직 붙인 와펜이 없어요. [와펜] 탭에서 추가해보세요.</div>';
         const t = targets(), one = t.length === 1 ? editor.items[t[0]] : null;
-        $('[data-lcount]', layersEl).textContent = lsel.size ? `${lsel.size}개 선택` : (editor.sel >= 0 ? '캔버스에서 선택한 1개' : '선택 없음');
-        const allBtn = $('[data-lact="all"]', layersEl); allBtn.textContent = n && lsel.size === n ? '선택 해제' : '전체 선택'; allBtn.disabled = !n;
+        $('[data-lcount]').textContent = lsel.size ? `${lsel.size}개 선택` : (editor.sel >= 0 ? '캔버스 선택 1개' : '선택 없음');
+        const allBtn = $('[data-lact="all"]'); allBtn.textContent = n && lsel.size === n ? '선택 해제' : '전체 선택'; allBtn.disabled = !n;
         $$('[data-nudge]', layersEl).forEach(b => { b.disabled = !t.length; });
         tools.classList.toggle('hidden', !(editor.sel >= 0 || lsel.size));
         xIn.disabled = yIn.disabled = !one;
         xIn.value = one ? Math.round(one.x * dims.w) : ''; yIn.value = one ? Math.round(one.y * dims.h) : '';
-        const sp = stepPx(); $$('#edStep [data-i]').forEach((b, i) => { b.dataset.step = sp[i]; b.textContent = `${num(sp[i])}px`; b.classList.toggle('active', i === stepIdx); });
     }
     function showTab(next) {
         tab = next;
         $$('#edTabs [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
         $('#edChips').classList.toggle('hidden', tab !== 'items'); $('#edItems').classList.toggle('hidden', tab !== 'items');
         $('.ed-drawer-head .search-box', drawer).classList.toggle('hidden', tab !== 'items'); $('#edRequestLink').classList.toggle('hidden', tab !== 'items');
+        $('#edLayerSel').classList.toggle('hidden', tab !== 'layers');
         layersEl.classList.toggle('hidden', tab !== 'layers');
         if (drawer.classList.contains('collapsed')) { drawer.classList.remove('collapsed'); $('#drawerToggle').innerHTML = icon('chevron-down'); requestAnimationFrame(() => editor.fit()); }
         renderLayers();
@@ -843,9 +839,11 @@ async function viewEdit(r) {
         if (c.matches('[data-lsel]')) { const i = +c.dataset.lsel; if (c.checked) lsel.add(i); else lsel.delete(i); renderLayers(); }
         else if (c === xIn || c === yIn) { const t = targets(); if (t.length === 1) editor.setPos(t[0], xIn.value === '' ? null : +xIn.value / dims.w, yIn.value === '' ? null : +yIn.value / dims.h); }
     });
+    $('#edLayerSel').addEventListener('click', (e) => {
+        if (!e.target.closest('[data-lact="all"]')) return;
+        const n = editor.items.length; lsel = n && lsel.size === n ? new Set() : new Set(editor.items.map((_, i) => i)); renderLayers();
+    });
     layersEl.addEventListener('click', (e) => {
-        if (e.target.closest('[data-lact="all"]')) { const n = editor.items.length; lsel = n && lsel.size === n ? new Set() : new Set(editor.items.map((_, i) => i)); renderLayers(); return; }
-        const st = e.target.closest('[data-step]'); if (st) { stepIdx = +st.dataset.i; $$('#edStep [data-step]').forEach(b => b.classList.toggle('active', b === st)); return; }
         const row = e.target.closest('.ed-layer-row'); if (row && !e.target.closest('.wp-check')) editor.select(+row.dataset.li);
     });
     // d-pad: 누르면 1회, 누르고 있으면 반복(실행 취소는 한 번에)
@@ -912,7 +910,9 @@ async function viewEdit(r) {
         else if (act === 'undo') editor.undo(); else if (act === 'redo') editor.redo();
         else if (act === 'flip') editor.applyTo(targets(), (it) => { it.fx = !it.fx; });
         else if (act === 'rotl' || act === 'rotr') editor.applyTo(targets(), (it) => { it.r = editor.snapAngle(it.r + (act === 'rotl' ? -15 : 15), true); });
-        else if (act === 'back1' || act === 'fwd1') { const moved = editor.reorder(targets(), act === 'back1' ? 'backward' : 'forward'); if (lsel.size) lsel = new Set(moved); renderLayers(); }
+        else if (act === 'back1' || act === 'fwd1' || act === 'toback' || act === 'tofront') {
+            const moved = editor.reorder(targets(), { back1: 'backward', fwd1: 'forward', toback: 'back', tofront: 'front' }[act]); if (lsel.size) lsel = new Set(moved); renderLayers();
+        }
         else if (act === 'dup') { if (editor.sel < 0 && lsel.size === 1) editor.select([...lsel][0]); editor.duplicate(); }
         else if (act === 'del') { editor.removeMany(targets()); lsel.clear(); renderLayers(); }
         else if (act === 'toggle-drawer') { const d = $('#edDrawer'); d.classList.toggle('collapsed'); b.innerHTML = icon(d.classList.contains('collapsed') ? 'chevron-up' : 'chevron-down'); requestAnimationFrame(() => editor.fit()); }

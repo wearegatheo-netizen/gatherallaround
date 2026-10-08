@@ -192,11 +192,15 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('레이어: 도구 막대 [뒤로] → 체크한 고양이가 index 0', await p.evaluate(() => window.wappen.editor.items[0].id === '66666666-6666-4666-8666-666666666666' && window.wappen.editor.items.length === 2));
     await p.click('.ed-tools [data-act="fwd1"]');
     chk('레이어: 도구 막대 [앞으로] → 고양이가 index 1 (체크 유지)', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666') && await p.locator('[data-lsel="1"]').isChecked());
+    await p.click('.ed-tools [data-act="toback"]');
+    chk('레이어: 도구 막대 [맨 아래로] → 고양이가 index 0', await p.evaluate(() => window.wappen.editor.items[0].id === '66666666-6666-4666-8666-666666666666'));
+    await p.click('.ed-tools [data-act="tofront"]');
+    chk('레이어: 도구 막대 [맨 위로] → 고양이가 index 1', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666'));
     await p.click('.ed-tools [data-act="back1"]');
     const x0 = await p.evaluate(() => window.wappen.editor.items[0].x);
-    await p.click('#edStep [data-i="1"]');
-    const stepPx = +(await p.getAttribute('#edStep [data-i="1"]', 'data-step'));
-    chk('레이어: 이동 단계는 화면 10px 에 해당하는 프로젝트 px(배율 반영)', stepPx === Math.max(1, Math.round(1 / await p.evaluate(() => window.wappen.editor.scale))) * 10, String(stepPx));
+    const stepPx = Math.max(1, Math.round(1 / await p.evaluate(() => window.wappen.editor.scale))) * 10;
+    chk('레이어: 단계 칩·설명글 없음, X/Y 와 화살표가 한 줄', await p.locator('#edStep, .ed-xy-hint').count() === 0 && (await p.$$eval('#edX, #edY, [data-nudge]', els => new Set(els.map(e => Math.round(e.getBoundingClientRect().top))).size)) === 1);
+    chk('레이어: [전체 선택]이 서랍 머리(탭 옆)에', await p.evaluate(() => !!document.querySelector('.ed-drawer-head [data-lact="all"]')));
     if (VW < 600) await p.tap('[data-nudge="1,0"]'); else await p.click('[data-nudge="1,0"]');   // 실제 입력(터치/마우스)으로
     chk('레이어: 오른쪽 세부 이동(한 번) = 단계만큼', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x) - (x0 + stepPx / 1080)) < 1e-6, String(await p.evaluate(() => window.wappen.editor.items[0].x)));
     await p.fill('#edX', '600'); await p.dispatchEvent('#edX', 'change');
@@ -221,6 +225,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('저장: payload 레이아웃 v1·좌표 범위·세션 포함', save && save.layout.v === 1 && save.layout.items.length === 1 && save.layout.items[0].fx === true && save.layout.items[0].x > 0.55 && save.layout.items[0].x <= 1.5 && save.title === '첫 작품' && save.project_id === PID && save.preview_url.startsWith(SB + '/previews/') && typeof save.session === 'string');
     await p.waitForSelector('.reaction-bar .reaction-btn');
     chk('작품: 반응 버튼 5종', await p.locator('.reaction-btn').count() === 5);
+    if (VW < 600) chk('작품(모바일): 반응 버튼 5개가 한 줄', (await p.$$eval('.reaction-btn', els => new Set(els.map(e => Math.round(e.getBoundingClientRect().top))).size)) === 1);
     chk('작품: 편집 모드 해제', !(await p.evaluate(() => document.body.classList.contains('editing'))));
     await p.click('.reaction-btn[data-react="fire"]');
     await p.waitForFunction(() => window.__apiCalls.some(c => c.action === 'react' && c.kind === 'fire'));
