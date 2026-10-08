@@ -287,6 +287,8 @@ export class WappenEditor {
         const apply = () => { for (const it of list) { it.x = clamp(it.x + dx, LAYOUT.pos[0], LAYOUT.pos[1]); it.y = clamp(it.y + dy, LAYOUT.pos[0], LAYOUT.pos[1]); } };
         if (this._batch) { apply(); this.requestRender(); } else this.mutate(apply);
     }
+    // 여러 항목에 같은 변경(반전·회전 등)을 한 번의 이력으로
+    applyTo(indices, fn) { const list = [...new Set(indices)].map(i => this.items[i]).filter(Boolean); if (!list.length) return; this.mutate(() => list.forEach(fn)); }
     beginBatch() { if (!this._batch) this._batch = clone(this.items); }
     endBatch() { const b = this._batch; this._batch = null; if (b && JSON.stringify(b) !== JSON.stringify(this.items)) this.pushHistory(b); this.requestRender(); }
     setPos(i, x, y) {   // 비율 단위. null 이면 그 축은 그대로

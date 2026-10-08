@@ -180,13 +180,19 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     const rows = await p.$$eval('.ed-layer-row .info b', els => els.map(e => e.textContent.trim()));
     chk('레이어: 2줄, 위가 나중에 붙인 것(#2 고양이 → #1 별)·와펜 탭 숨김', rows.length === 2 && rows[0].startsWith('#2 고양이') && rows[1].startsWith('#1 별') && !(await p.locator('#edItems').isVisible()) && (await p.locator('#edLayerCount').innerText()) === '2');
     chk('레이어: 선택 전엔 캔버스 선택(고양이)에 적용 안내', (await p.locator('[data-lcount]').innerText()).includes('캔버스'));
+    await p.click('[data-lact="all"]');
+    chk('레이어: [전체 선택] 버튼 → 2개 선택·버튼은 [선택 해제]로', (await p.locator('[data-lcount]').innerText()) === '2개 선택' && (await p.locator('[data-lact="all"]').innerText()) === '선택 해제');
+    await p.click('[data-lact="all"]');
+    chk('레이어: [선택 해제] → 선택 없음', (await p.locator('[data-lcount]').innerText()).includes('캔버스') || (await p.locator('[data-lcount]').innerText()) === '선택 없음');
+    await p.evaluate(() => window.wappen.editor.select(-1));
+    chk('레이어: 순서/삭제 전용 버튼 없음(캔버스 도구 막대가 담당)·선택 없으면 도구 막대 숨김', await p.locator('[data-lact="front"], [data-lact="delete"]').count() === 0 && !(await p.locator('#edTools').isVisible()));
     await p.check('[data-lsel="1"]');   // 고양이 체크
-    chk('레이어: 체크 → 1개 선택', (await p.locator('[data-lcount]').innerText()) === '1개 선택');
-    await p.click('[data-lact="back"]');
-    chk('레이어: 맨 뒤로 → 고양이가 index 0', await p.evaluate(() => window.wappen.editor.items[0].id === '66666666-6666-4666-8666-666666666666' && window.wappen.editor.items.length === 2));
-    await p.click('[data-lact="forward"]');
-    chk('레이어: 한 칸 앞으로 → 고양이가 index 1 (선택 유지)', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666') && await p.locator('[data-lsel="1"]').isChecked());
-    await p.click('[data-lact="backward"]');
+    chk('레이어: 체크 → 1개 선택·캔버스 도구 막대 표시', (await p.locator('[data-lcount]').innerText()) === '1개 선택' && await p.locator('#edTools').isVisible());
+    await p.click('.ed-tools [data-act="back1"]');
+    chk('레이어: 도구 막대 [뒤로] → 체크한 고양이가 index 0', await p.evaluate(() => window.wappen.editor.items[0].id === '66666666-6666-4666-8666-666666666666' && window.wappen.editor.items.length === 2));
+    await p.click('.ed-tools [data-act="fwd1"]');
+    chk('레이어: 도구 막대 [앞으로] → 고양이가 index 1 (체크 유지)', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666') && await p.locator('[data-lsel="1"]').isChecked());
+    await p.click('.ed-tools [data-act="back1"]');
     const x0 = await p.evaluate(() => window.wappen.editor.items[0].x);
     await p.click('#edStep [data-i="1"]');
     const stepPx = +(await p.getAttribute('#edStep [data-i="1"]', 'data-step'));
@@ -196,8 +202,8 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.fill('#edX', '600'); await p.dispatchEvent('#edX', 'change');
     chk('레이어: X 입력 600px → 위치 반영', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x * 1080) - 600) < 0.6);
     chk('레이어: 이동 뒤 undo 가능', !(await p.locator('[data-act="undo"]').isDisabled()));
-    await p.click('[data-lact="delete"]');
-    chk('레이어: 선택 삭제 → 별 1개만 남음', await p.evaluate(() => window.wappen.editor.items.length === 1 && window.wappen.editor.items[0].id === '55555555-5555-4555-8555-555555555555'));
+    await p.click('.ed-tools [data-act="del"]');
+    chk('레이어: 도구 막대 [삭제] → 체크한 고양이 삭제, 별 1개만 남음', await p.evaluate(() => window.wappen.editor.items.length === 1 && window.wappen.editor.items[0].id === '55555555-5555-4555-8555-555555555555'));
     await p.click('#edTabs [data-tab="items"]'); await p.waitForSelector('#edItems:not(.hidden)');
 
     // 3. 저장 → 작품 페이지 (같은 프로젝트에 프로젝트명과 같은 작품이 있으면 기본값에 "(2)" 를 붙여 제안)

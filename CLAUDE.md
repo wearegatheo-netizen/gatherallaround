@@ -131,9 +131,11 @@
   **레이아웃** `{v:1, items:[{id,x,y,w,r,fx}]}` 비율 좌표(배열 순서 = z, ≤200개) — `render.js drawScene` 하나로 에디터·미리보기(1080px JPEG)·다운로드를 그린다.
   다운로드는 300→200→150→100dpi 폴백(`probeCanvas` 로 기기 한계 감지).
   **에디터 레이어 패널(2026-10-08)**: 서랍 머리의 `.seg` 탭 [와펜 N]/[레이어 N] — 붙인 순서 목록(위가 앞, `#n` = 붙인 순서, 위치·폭·각도 요약),
-  행 클릭 = 캔버스 선택, 체크박스 다중 선택(전체 선택) → 맨 앞/한 칸 앞/한 칸 뒤/맨 뒤(`editor.reorder(indices, where)` 상대 순서 유지, 새 인덱스 반환)·삭제(`removeMany`).
-  세부 이동: d-pad(1/10/50px, 프로젝트 px 기준, 누르고 있으면 60ms 반복 — `beginBatch()/endBatch()` 로 실행 취소는 한 번에)·X/Y 입력(`setPos`, 중심 px).
-  체크 선택이 없으면 캔버스에서 선택한 항목에 적용. 패널 갱신은 `onChange/onSelect` → `renderLayers()`(레이어 탭일 때만 그림).
+  행 클릭 = 캔버스 선택, 체크박스 다중 선택([전체 선택]/[선택 해제] 버튼). 순서 이동·반전·회전·삭제 버튼은 패널에 두지 않고(중복, 2026-10-08 요청)
+  **캔버스 아래 도구 막대가 `targets()`(체크 선택 있으면 그 전체, 없으면 캔버스 선택)에 적용**: `editor.reorder(indices, 'forward'|'backward')`(상대 순서 유지, 새 인덱스 반환)·
+  `applyTo(indices, fn)`(반전·회전)·`removeMany`. 체크 선택이 있으면 캔버스 선택이 없어도 도구 막대를 보인다.
+  세부 이동: d-pad(화면 1/10/50px 에 해당하는 프로젝트 px 를 칩에 표시, 누르고 있으면 60ms 반복 — `beginBatch()/endBatch()` 로 실행 취소는 한 번에)·X/Y 입력(`setPos`, 중심 px).
+  패널 갱신은 `onChange/onSelect` → `renderLayers()`(레이어 탭일 때만 그림).
 - **공유 링크는 경로형** `https://gatherallaround.com/wp/<프로젝트>`·`/ww/<작품>`(`shareUrl()`) — Pages Function `functions/wp/[id].js`·`ww/[id].js`
   (본체 `wappen/share-page.js`)가 **사람(브라우저 UA)에겐 와펜 셸을 그 URL 에서 바로 200 으로** 낸다(`appShellHTML`: `env.ASSETS.fetch('/wappen/')` + `<base href="/wappen/">` 주입
   + `injectOg`; `app.js boot()` 가 경로 `/wp|ww/<id>` 를 `/wappen/#/project|work/<id>` 로 `replaceState`). 리다이렉트·해시·쿼리가 전혀 없어 인앱 브라우저가 깎을 것이 없다.
