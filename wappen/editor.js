@@ -205,7 +205,7 @@ export class WappenEditor {
         if (mod && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); this.redo(); return; }
         if (this.sel < 0) return;
         if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.remove(); return; }
-        const step = (e.shiftKey ? 10 : 1) / this.W;
+        const step = (e.shiftKey ? 10 : 1) / this.scale / this.W;   // 화면 1px(Shift: 10px) 단위 — 프로젝트 px 1 은 큰 캔버스에선 보이지 않는다
         const it = this.items[this.sel];
         const nudge = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step * this.W / this.H], ArrowDown: [0, step * this.W / this.H] }[e.key];
         if (!nudge) return;

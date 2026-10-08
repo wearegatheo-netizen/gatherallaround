@@ -188,9 +188,11 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('레이어: 한 칸 앞으로 → 고양이가 index 1 (선택 유지)', await p.evaluate(() => window.wappen.editor.items[1].id === '66666666-6666-4666-8666-666666666666') && await p.locator('[data-lsel="1"]').isChecked());
     await p.click('[data-lact="backward"]');
     const x0 = await p.evaluate(() => window.wappen.editor.items[0].x);
-    await p.click('#edStep [data-step="10"]');
-    await p.dispatchEvent('[data-nudge="1,0"]', 'pointerdown'); await p.dispatchEvent('[data-nudge="1,0"]', 'pointerup');
-    chk('레이어: 10px 오른쪽 세부 이동(한 번)', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x) - (x0 + 10 / 1080)) < 1e-6);
+    await p.click('#edStep [data-i="1"]');
+    const stepPx = +(await p.getAttribute('#edStep [data-i="1"]', 'data-step'));
+    chk('레이어: 이동 단계는 화면 10px 에 해당하는 프로젝트 px(배율 반영)', stepPx === Math.max(1, Math.round(1 / await p.evaluate(() => window.wappen.editor.scale))) * 10, String(stepPx));
+    if (VW < 600) await p.tap('[data-nudge="1,0"]'); else await p.click('[data-nudge="1,0"]');   // 실제 입력(터치/마우스)으로
+    chk('레이어: 오른쪽 세부 이동(한 번) = 단계만큼', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x) - (x0 + stepPx / 1080)) < 1e-6, String(await p.evaluate(() => window.wappen.editor.items[0].x)));
     await p.fill('#edX', '600'); await p.dispatchEvent('#edX', 'change');
     chk('레이어: X 입력 600px → 위치 반영', Math.abs(await p.evaluate(() => window.wappen.editor.items[0].x * 1080) - 600) < 0.6);
     chk('레이어: 이동 뒤 undo 가능', !(await p.locator('[data-act="undo"]').isDisabled()));

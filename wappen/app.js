@@ -792,7 +792,7 @@ async function viewEdit(r) {
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary icon-only" data-lact="back" title="맨 뒤로" aria-label="맨 뒤로">${icon('chevrons-down')}</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger icon-only" data-lact="delete" title="선택 삭제" aria-label="선택 삭제">${icon('trash')}</button></div></div>
                 <div class="ed-nudge">
-                    <div class="seg sm" id="edStep"><button type="button" data-step="1" class="active">1px</button><button type="button" data-step="10">10px</button><button type="button" data-step="50">50px</button></div>
+                    <div class="seg sm" id="edStep" title="한 번 누를 때 이동량(프로젝트 px) — 화면에서 1·10·50px 만큼"><button type="button" data-i="0" data-step="1">1px</button><button type="button" data-i="1" data-step="10" class="active">10px</button><button type="button" data-i="2" data-step="50">50px</button></div>
                     <div class="ed-dpad"><button type="button" data-nudge="0,-1" title="위로" aria-label="위로">${icon('arrow-up')}</button><button type="button" data-nudge="0,1" title="아래로" aria-label="아래로">${icon('arrow-down')}</button><button type="button" data-nudge="-1,0" title="왼쪽" aria-label="왼쪽">${icon('arrow-left')}</button><button type="button" data-nudge="1,0" title="오른쪽" aria-label="오른쪽">${icon('arrow-right')}</button></div>
                     <div class="ed-xy"><label>X <input type="number" class="wp-input" id="edX" step="1" inputmode="numeric"></label><label>Y <input type="number" class="wp-input" id="edY" step="1" inputmode="numeric"></label><span>px · 중심</span></div></div>
                 <div class="ed-layer-list" id="edLayerList"></div>
@@ -812,7 +812,10 @@ async function viewEdit(r) {
 
     // ── 레이어 패널: 붙인 순서 목록(위가 앞, #n = 붙인 순서) · 체크 다중 선택 → 순서 이동/삭제 · 세부 이동(d-pad·X/Y px)
     const drawer = $('#edDrawer'), layersEl = $('#edLayers'), layerList = $('#edLayerList'), xIn = $('#edX'), yIn = $('#edY');
-    let lsel = new Set(), step = 1, tab = 'items';
+    let lsel = new Set(), stepIdx = 1, tab = 'items';
+    // 이동 단계: 화면 1·10·50px 에 해당하는 프로젝트 px (A4 300dpi 를 폰에서 보면 화면 1px ≈ 프로젝트 7px — 프로젝트 1px 는 눈에 안 보인다)
+    const stepPx = () => { const unit = Math.max(1, Math.round(1 / (editor.scale || 1))); return [unit, unit * 10, unit * 50]; };
+    const stepNow = () => stepPx()[stepIdx];
     const targets = () => lsel.size ? [...lsel].sort((a, b) => a - b) : (editor.sel >= 0 ? [editor.sel] : []);   // 체크 선택이 없으면 캔버스 선택에 적용
     function renderLayers() {
         const n = editor.items.length; $('#edLayerCount').textContent = n;
@@ -828,6 +831,7 @@ async function viewEdit(r) {
         $$('[data-lact],[data-nudge]', layersEl).forEach(b => { b.disabled = !t.length; });
         xIn.disabled = yIn.disabled = !one;
         xIn.value = one ? Math.round(one.x * dims.w) : ''; yIn.value = one ? Math.round(one.y * dims.h) : '';
+        const sp = stepPx(); $$('#edStep [data-i]').forEach((b, i) => { b.dataset.step = sp[i]; b.textContent = `${num(sp[i])}px`; b.classList.toggle('active', i === stepIdx); });
     }
     function showTab(next) {
         tab = next;
@@ -853,7 +857,7 @@ async function viewEdit(r) {
             if (lsel.size) lsel = new Set(moved);
             renderLayers(); return;
         }
-        const st = e.target.closest('[data-step]'); if (st) { step = +st.dataset.step; $$('#edStep [data-step]').forEach(b => b.classList.toggle('active', b === st)); return; }
+        const st = e.target.closest('[data-step]'); if (st) { stepIdx = +st.dataset.i; $$('#edStep [data-step]').forEach(b => b.classList.toggle('active', b === st)); return; }
         const row = e.target.closest('.ed-layer-row'); if (row && !e.target.closest('.wp-check')) editor.select(+row.dataset.li);
     });
     // d-pad: 누르면 1회, 누르고 있으면 반복(실행 취소는 한 번에)
@@ -863,7 +867,7 @@ async function viewEdit(r) {
         const b = e.target.closest('[data-nudge]'); if (!b || b.disabled) return;
         e.preventDefault();
         const [sx, sy] = b.dataset.nudge.split(',').map(Number);
-        const once = () => { const t = targets(); if (!t.length) return stopHold(); editor.moveBy(t, sx * step / dims.w, sy * step / dims.h); const one = t.length === 1 ? editor.items[t[0]] : null; if (one) { xIn.value = Math.round(one.x * dims.w); yIn.value = Math.round(one.y * dims.h); } };
+        const once = () => { const t = targets(); if (!t.length) return stopHold(); const step = stepNow(); editor.moveBy(t, sx * step / dims.w, sy * step / dims.h); const one = t.length === 1 ? editor.items[t[0]] : null; if (one) { xIn.value = Math.round(one.x * dims.w); yIn.value = Math.round(one.y * dims.h); } };
         stopHold(); editor.beginBatch(); once();
         holdT = setTimeout(() => { holdI = setInterval(once, 60); }, 350);
     });
