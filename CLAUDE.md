@@ -140,7 +140,7 @@
   운영 응답 확인은 `share-diag` 워크플로(Actions, 수동: curl·카톡 인앱·스크랩 UA 별 상태/Location/og:url).
   **원인 확정(2026-10-08 실측)**: 카톡 카드를 누르면 `gatherallaround.pages.dev` 루트(포털)가 열렸다 = 카카오가 공유 링크 도메인이 [플랫폼 → Web 사이트 도메인]
   등록값과 정확히(https·www 포함) 일치하지 않으면 **등록된 첫 번째 도메인 루트로 바꿔 연다**. 코드로는 못 막는다 — 카카오 디벨로퍼스에서
-  `https://gatherallaround.com` 을 사이트 도메인에(가능하면 첫 번째로) 등록하면 끝. 서버 쪽(/wp·/ww 셸·302·OG)은 `share-diag` 로 매번 정상이었다.
+  `https://gatherallaround.com` 을 사이트 도메인에(가능하면 첫 번째로) 등록하면 끝 — **2026-10-08 등록 후 해결 확인**. 서버 쪽(/wp·/ww 셸·302·OG)은 `share-diag` 로 매번 정상이었다.
 - **이름 중복 방지(2026-10-07)**: 프로젝트 제목은 전체에서, 작품 제목은 같은 프로젝트 안에서 유일 — 키는 `titleKey()`(앞뒤·연속 공백, 대소문자 무시).
   서버가 저장 전 `titleTaken()`(ilike 후보 → 정확 비교)로 검사해 **409 `dup_title`**, 비워 보낸 작품 기본 제목(프로젝트명)은 `uniqueTitle()` 이 "이름 (2)" 번호를 붙인다.
   클라는 프로젝트 생성 전 anon 사전 확인(`projectTitleTaken`, 공개 행만 보임), 작품 저장 프롬프트 기본값은 `suggestWorkTitle()` 로 비어 있는 번호 제안.
