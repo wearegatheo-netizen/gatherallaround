@@ -2496,6 +2496,8 @@
 
         function loginUI(nickname) {
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 GatheO 화면 노출 차단
+            // 로그아웃 표식 해제 — 로그아웃 뒤 새로고침 없이 다시 로그인하면 표식이 남아 다음 새로고침 때 세션을 지우던 버그(2026-10-08)
+            try { localStorage.removeItem('gaa_portal_required'); } catch(e) {}
             if (location.search) history.replaceState({}, '', location.pathname);
             hideBootOverlay();
             document.body.classList.add('portal-view');
@@ -3603,7 +3605,7 @@
         // 다음 장은 넘어가기 직전에 한 장만 내려받고, 포털이 안 보이거나 탭이 숨겨지면 멈춘다.
         const PORTAL_HERO_MS = 4000;
         const PORTAL_PHONE = '010-5109-1042';
-        const PORTAL_INSTAGRAM_URL = ''; // 비어 있으면 버튼을 숨긴다
+        const PORTAL_INSTAGRAM_URL = 'https://www.instagram.com/gatherallaround'; // 비어 있으면 버튼을 숨긴다
         let _portalHero = null;
         function portalHeroUrls() {
             const list = typeof PERF_SPACE_PHOTOS !== 'undefined' && Array.isArray(PERF_SPACE_PHOTOS) ? PERF_SPACE_PHOTOS : [];
@@ -11514,6 +11516,7 @@
         }
 
         function loginBandUI(profile) {
+            try { localStorage.removeItem('gaa_portal_required'); } catch(e) {} // 게더링 로그아웃 표식이 남아 있으면 합주팀 세션도 다음 부팅에서 지워진다
             // fullwidth-view: 본문 좌우 패딩 없이 페이지 배경을 화면 끝까지 (공연 예매·대관과 동일)
             document.body.classList.add('portal-view', 'fullwidth-view');
             _hideAllScreens();
