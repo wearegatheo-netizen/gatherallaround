@@ -586,8 +586,8 @@ async function viewProject(r) {
                 <div class="author-line">${avatarHTML(p.author_name, p.author_avatar, 'xs')}<b>${esc(p.author_name)}</b><span class="sep">·</span><span>${fmtDate(p.created_at)}</span><span class="sep">·</span><span>작품 ${num(p.works_count)}개</span></div>
                 ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
                 <div class="action-row">
-                    <a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">${icon('brush')} 꾸미기 시작</a>
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')} 공유</button>
+                    <a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">${icon('brush')}<span class="lbl">꾸미기 시작</span></a>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')}<span class="lbl">공유</span></button>
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
             </div>
@@ -793,7 +793,7 @@ async function viewEdit(r) {
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger icon-only" data-lact="delete" title="선택 삭제" aria-label="선택 삭제">${icon('trash')}</button></div></div>
                 <div class="ed-nudge">
                     <div class="seg sm" id="edStep"><button type="button" data-step="1" class="active">1px</button><button type="button" data-step="10">10px</button><button type="button" data-step="50">50px</button></div>
-                    <div class="ed-dpad"><button type="button" data-nudge="0,-1" title="위로" aria-label="위로">${icon('arrow-up')}</button><button type="button" data-nudge="-1,0" title="왼쪽" aria-label="왼쪽">${icon('arrow-left')}</button><button type="button" data-nudge="0,1" title="아래로" aria-label="아래로">${icon('arrow-down')}</button><button type="button" data-nudge="1,0" title="오른쪽" aria-label="오른쪽">${icon('arrow-right')}</button></div>
+                    <div class="ed-dpad"><button type="button" data-nudge="0,-1" title="위로" aria-label="위로">${icon('arrow-up')}</button><button type="button" data-nudge="0,1" title="아래로" aria-label="아래로">${icon('arrow-down')}</button><button type="button" data-nudge="-1,0" title="왼쪽" aria-label="왼쪽">${icon('arrow-left')}</button><button type="button" data-nudge="1,0" title="오른쪽" aria-label="오른쪽">${icon('arrow-right')}</button></div>
                     <div class="ed-xy"><label>X <input type="number" class="wp-input" id="edX" step="1" inputmode="numeric"></label><label>Y <input type="number" class="wp-input" id="edY" step="1" inputmode="numeric"></label><span>px · 중심</span></div></div>
                 <div class="ed-layer-list" id="edLayerList"></div>
             </div>
@@ -951,9 +951,9 @@ async function viewWork(r) {
                     ${w.remix_of ? `<span class="sep">·</span><a href="#/work/${w.remix_of}">원작 보기 ${icon('chevron')}</a>` : ''}</div>
                 <div class="reaction-bar" id="reactBar"></div>
                 <div class="action-row">
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="download">${icon('download')} 다운로드</button>
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')} 공유</button>
-                    ${p ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}">${icon('remix')} 이어 꾸미기</a>` : ''}
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="download">${icon('download')}<span class="lbl">다운로드</span></button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share">${icon('share')}<span class="lbl">공유</span></button>
+                    ${p ? `<a class="gaa-btn gaa-btn-sm gaa-btn-secondary" href="#/edit/${p.id}?remix=${id}">${icon('remix')}<span class="lbl">이어 꾸미기</span></a>` : ''}
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary icon-only" data-act="more" aria-label="더보기" title="더보기">${icon('more')}</button>
                 </div>
             </div>
