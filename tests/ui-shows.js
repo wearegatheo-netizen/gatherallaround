@@ -150,6 +150,18 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('상세: 지도 영역 + 카카오맵 링크 + 주소', s.mapDiv && s.mapLink.includes('37.5559') && s.addr, s.mapLink.slice(0, 60));
   s = await p.evaluate(() => document.getElementById('shows-container').textContent.includes('2층 초록 문으로 입장'));
   chk('상세: 장소 상세설명 둘째 줄 표시', s === true);
+  // 공유 버튼 — 경로형 /show/<id> 를 복사(navigator.share 없음 → 클립보드 폴백), 카톡 미리보기용 OG 는 서버 함수가 넣는다
+  s = await p.evaluate(async (EV1) => {
+    const btn = document.getElementById('showShareBtn');
+    let copied = null;
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { copied = t; } }, configurable: true });
+    btn.click();
+    await new Promise(r => setTimeout(r, 120));
+    const toast = document.body.textContent.includes('공연 링크가 복사되었습니다');
+    return { has: !!btn && btn.classList.contains('gaa-btn-sm') && /공유/.test(btn.textContent), copied, toast };
+  }, EV1);
+  chk('상세: [공유] 버튼 → /show/<id> 링크 복사 + 토스트', s.has && s.copied === `${new URL(p.url()).origin}/show/${EV1}` && s.toast, JSON.stringify(s));
   await p.goBack();
   await p.waitForTimeout(300);
   s = await p.evaluate(() => ({ hash: location.hash, list: document.querySelectorAll('#shows-container .show-card').length }));

@@ -12,6 +12,9 @@
             var ww = sp.get('ww') || sp.get('w'), wp = sp.get('wp') || sp.get('p');
             if (re.test(ww || '')) location.replace('/wappen/#/work/' + ww.toLowerCase());
             else if (re.test(wp || '')) location.replace('/wappen/#/project/' + wp.toLowerCase());
+            // 공연 예매 공유 링크 /show/<id> (functions/show/[id].js 가 OG 와 함께 이 셸을 내준다) — 함수가 못 돈 정적 폴백에서도 상세로 라우팅
+            var sm = location.pathname.match(/^\/show\/([0-9a-f-]{36})\/?$/i);
+            if (sm && re.test(sm[1]) && !location.hash) history.replaceState({ page: 'shows/' + sm[1].toLowerCase() }, '', '/#shows/' + sm[1].toLowerCase());
         } catch (e) {}
     })();
     </script>
@@ -2349,7 +2352,7 @@
     <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
     <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
-    <script src="vendor/qrcode-generator/qrcode.v1.4.4.js"></script>
+    <script src="/vendor/qrcode-generator/qrcode.v1.4.4.js"></script>
     <script>
         // 전역 에러 핸들러 추가 (디버깅용)
         window.onerror = function(msg, url, lineNo, columnNo, error) {
@@ -14636,6 +14639,25 @@
             el.innerHTML = `<div class="show-grid">${list.map(_showCardHTML).join('')}</div>`;
         }
 
+        // 공연 상세 공유 — 경로형 /show/<id> 를 공유한다. 카카오톡 등은 #해시를 버리고 크롤러가 해시 뒤를 못 보므로,
+        // 서버 함수(functions/show/[id].js)가 이 경로에서 포스터·제목·일시를 OG 로 넣어 미리보기에 뜨게 하고 사람은 상세로 라우팅한다.
+        async function shareShow(id) {
+            const ev = (_showsState.event && _showsState.event.id === id) ? _showsState.event : (_showsState.events || []).find(e => e.id === id);
+            const url = `${location.origin}/show/${id}`;
+            const title = ev ? ev.title : '공연 예매';
+            const text = ev ? [_showDateStr(ev.starts_at), ev.venue].filter(Boolean).join(' · ') : '';
+            if (navigator.share) {
+                try { await navigator.share({ title, text, url }); return; }
+                catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('공연 링크가 복사되었습니다.');
+            } catch (_) {
+                prompt('아래 링크를 복사하세요', url);
+            }
+        }
+
         async function renderShowDetail(id) {
             const c = document.getElementById('shows-container');
             let ev = _showsState.events.find(e => e.id === id) || null;
@@ -14682,7 +14704,10 @@
                 ? `https://map.kakao.com/link/map/${encodeURIComponent(ev.venue)},${ev.venue_lat},${ev.venue_lng}` : '';
             const snsUrl = hostProf && hostProf.sns ? (/^https?:\/\//i.test(hostProf.sns) ? hostProf.sns : 'https://' + hostProf.sns) : '';
             let html = `
-                <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="margin-bottom:14px" onclick="showShowsSection()">← 공연 목록</button>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                    <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="showShowsSection()">← 공연 목록</button>
+                    <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="margin-left:auto" id="showShareBtn" onclick="shareShow('${ev.id}')">🔗 공유</button>
+                </div>
                 ${ev.poster_url ? `<img class="show-poster-lg" src="${escapeHtml(ev.poster_url)}" alt="공연 포스터">` : ''}
                 <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
                     ${_dday(ev.starts_at) ? _showChip(_dday(ev.starts_at), 'var(--wds-primary)', '#fff') : ''}
