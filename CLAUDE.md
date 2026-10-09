@@ -25,13 +25,15 @@
   복구된 세션이 있으면 로그인 폼 대신 `loginUI`/`loginBandUI` 로 바로 진입. 섹션 딥링크·새로고침(`#gatheo/…`, `#band`)은 종전처럼 바로 그 화면
   (`checkEmailUserApproval(user, {target})`, 다른 구역·공개 섹션이면 `_finishBoot()`). `_gatheoEntered` 로 "세션만 복구" 와 "loginUI 실행(데이터 로딩)" 을 구분 —
   라우터가 미진입 세션이면 `loginUI` 를 부른다. 명시적 로그아웃은 `gaa_portal_required` 로 다음 부팅에서 세션 해제.
-- **포털(2026-10-08 개편)**: 워드마크·태그라인("밴드를 위한 아늑한 공간")·공간 사진 히어로·「누구나 이용」 타일 2×2(커뮤니티=파란 강조·공간 대관·공연 예매·와펜)·
-  「멤버 전용」 점선 패널(게더링·고정 합주팀, 글 좌측 정렬)·바닥 연락처(인스타그램 `PORTAL_INSTAGRAM_URL` 비면 숨김, [전화 문의]=`copyPortalPhone()` 번호 복사+토스트).
+- **포털(2026-10-08 개편, 10-09 포토 마스트헤드)**: 카드 맨 위를 공간 사진이 꽉 채우고(4:3, `#portal-page` 패딩만큼 음수 마진 — 모바일 16/14px 과 짝) 그 위에
+  흰 워드마크(`.portal-brand` 1.3rem)·유리 모드 버튼(`.portal-hero-toggle`, SVG 달/해를 `body.dark` 로 전환 — `applyTheme` 가 이 버튼 textContent 를 건드리면 안 됨),
+  아래쪽에 헤드라인 "밴드를 위한 아늑한 공간"(`.portal-hero-cap b` 1.45rem/모바일 1.35rem)+한 줄 설명, 점은 사진 바닥 가운데. 별도 상단 줄·태그라인 줄·분리선 없음
+  (레퍼런스: 당근·토스식 얇은 바 vs 호텔·스튜디오식 포토 마스트헤드 중 후자 채택, 시안 A~G 거쳐 F). 그 아래 「누구나 이용」 타일 2×2(커뮤니티=파란 강조·공간 대관·공연 예매·와펜)·
+  「멤버 전용」 점선 패널(게더링·고정 합주팀, 글 좌측 정렬)·바닥 연락처(인스타그램 `PORTAL_INSTAGRAM_URL` 비면 숨김, [전화 문의]=`copyPortalPhone()` 번호 복사+토스트, 실선 구분·회색 알약).
   타일/패널 버튼(`.portal-tile`/`.portal-mbtn`/`.portal-pill`)은 포털 전용 컴포넌트로 gaa-btn 의 의도적 예외. 히어로는 `initPortalHero()` 가 `PERF_SPACE_PHOTOS` 와
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
-  다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 대관 사진을 추가하면 webp 도 같이 넣을 것.
-  히어로 클릭 = 공간 대관(`role=button`, Enter/Space). 상단 줄은 워드마크(1.85rem, `line-height:32px` + `top:1.5px` 로 꾸불림체 잉크 중심을 모드 버튼과 일치)
-  아래 실선 분리선 — 버튼 아래 16px / 태그라인 글자 위 16px 로 맞춘 값(2026-10-09, Playwright 가 잉크 메트릭으로 검사). 바닥 구분선도 같은 실선, 연락처 알약은 회색 채움.
+  다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 사진이 없거나 실패하면 숨기지 않고 `.noimg` 어두운 배경(워드마크·버튼·헤드라인은 남아야 함). 대관 사진을 추가하면 webp 도 같이 넣을 것.
+  히어로 클릭 = 공간 대관(`role=button`, Enter/Space — `event.target===this` 로 버튼에서 올라온 키는 무시, 버튼은 click/keydown 전파 차단).
 - 부팅 로딩 스크린(`#portalLoadingScreen[data-boot]`)은 `<body>` 머리에 **정적**으로 있고 바로 앞 인라인 스크립트가 저장된 다크 모드(`gaa_theme`)를
   body 에 즉시 적용(2026-10-08, 포털이 먼저 보였다 가려지는·라이트→다크 깜빡임 제거). 걷기는 `hideBootOverlay()` 한 곳 — 첫 페인트(`__bootT0`) 후
   최소 `BOOT_MIN_MS`(0.9s) 노출 + 글꼴 준비(≤0.5s) 뒤 페이드, 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen/공유·초대 진입)이 부르고
