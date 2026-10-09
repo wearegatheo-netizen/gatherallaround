@@ -1753,7 +1753,7 @@
                 <span class="tt">공연 예매</span><span class="td">밴드 공연 티켓 예매</span>
             </button>
             <!-- 와펜 꾸미기는 별도 페이지(/wappen/) — 같은 카카오 앱·Supabase 를 쓰되 index.html 과 독립 -->
-            <button type="button" class="portal-tile" onclick="location.href='/wappen/'">
+            <button type="button" class="portal-tile" onclick="goWappen()">
                 <span class="ico ico-lav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9L3.5 9.2l5.9-.9z"/></svg></span>
                 <span class="tt">와펜 꾸미기</span><span class="td">와펜 붙여 포스터·SNS 이미지</span>
             </button>
@@ -7412,6 +7412,7 @@
 
         function showPerformanceBookingSection() {
             _pushNav('perf');
+            showSectionLoadingFromPortal(); // 포털(사진·타일)에서 들어올 때만
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             _hideAllScreens();
@@ -8478,7 +8479,9 @@
             document.getElementById('band-news-list').classList.remove('hidden');
         }
 
-        function showPortalLoading() {
+        // 섹션 진입용 글자 로딩 오버레이(부팅용 #portalLoadingScreen[data-boot] 와 같은 모양, data-boot 없음).
+        // opts.hold: 자동으로 걷지 않음 — 다른 페이지(와펜)로 떠날 때 새 문서가 뜰 때까지 덮어 둔다(bfcache 로 돌아오면 pageshow 가 치운다).
+        function showPortalLoading(opts = {}) {
             return new Promise(resolve => {
                 document.getElementById('portalLoadingScreen')?.remove();
                 const text = 'Gather all around';
@@ -8491,16 +8494,36 @@
                 el.id = 'portalLoadingScreen';
                 el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
                 document.body.appendChild(el);
+                if (opts.hold) return;
                 setTimeout(() => {
                     el.classList.add('fade-out');
                     setTimeout(() => { el.remove(); resolve(); }, 380);
                 }, 950);
             });
         }
+        // 포털 → 섹션 전환 로딩(2026-10-09): 포털이 보이는 상태에서 섹션으로 들어갈 때만 띄운다 — 뒤로가기(popstate)·섹션 안 이동·
+        // 부팅 딥링크(부팅 오버레이가 아직 덮고 있음)에는 띄우지 않는다. 반드시 _hideAllScreens() 보다 먼저 부를 것(포털 표시 여부로 판단).
+        function showSectionLoadingFromPortal() {
+            const portal = document.getElementById('portal-page');
+            const cur = document.getElementById('portalLoadingScreen');
+            if (!portal || portal.classList.contains('hidden')) return Promise.resolve();
+            if (cur && cur.dataset.boot === '1' && !cur.classList.contains('fade-out')) return Promise.resolve();
+            return showPortalLoading();
+        }
+        // 와펜(별도 페이지)으로 — 새 문서가 뜰 때까지 오버레이를 덮어 두고 이동
+        function goWappen() {
+            showPortalLoading({ hold: true });
+            location.href = '/wappen/';
+        }
+        // 뒤로가기로 이 문서가 bfcache 에서 복원되면(와펜에서 복귀) 남아 있던 섹션 오버레이를 치운다(부팅 오버레이는 해당 없음)
+        window.addEventListener('pageshow', (e) => {
+            if (!e.persisted) return;
+            document.querySelectorAll('#portalLoadingScreen:not([data-boot])').forEach(el => el.remove());
+        });
 
         function showGatheoSection() {
             // 부팅 때 조용히 복구해 둔 게더링 세션이 있으면 로그인 폼 대신 바로 진입 (포털 → 게더링 버튼)
-            if (state.user) { _pushNav('gatheo'); loginUI(state.user.nickname); return; }
+            if (state.user) { _pushNav('gatheo'); showSectionLoadingFromPortal(); loginUI(state.user.nickname); return; } // 로그인 폼 경로와 같이 로딩 화면
             _pushNav('gatheo');
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
@@ -8511,7 +8534,7 @@
         }
 
         function showBandSection() {
-            if (state.bandProfile) { _pushNav('band'); loginBandUI(state.bandProfile); return; } // 복구된 합주팀 세션 → 바로 진입
+            if (state.bandProfile) { _pushNav('band'); showSectionLoadingFromPortal(); loginBandUI(state.bandProfile); return; } // 복구된 합주팀 세션 → 바로 진입(로딩 화면 포함)
             _pushNav('band');
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
@@ -14587,6 +14610,7 @@
         function showShowsSection(sub) {
             const subArr = Array.isArray(sub) ? sub : [];
             _pushNav('shows' + (subArr.length ? '/' + subArr.join('/') : ''));
+            showSectionLoadingFromPortal(); // 포털에서 들어올 때만(뒤로가기·목록↔상세 이동엔 없음)
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
             _hideAllScreens();

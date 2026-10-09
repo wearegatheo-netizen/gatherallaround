@@ -37,7 +37,11 @@
 - 부팅 로딩 스크린(`#portalLoadingScreen[data-boot]`)은 `<body>` 머리에 **정적**으로 있고 바로 앞 인라인 스크립트가 저장된 다크 모드(`gaa_theme`)를
   body 에 즉시 적용(2026-10-08, 포털이 먼저 보였다 가려지는·라이트→다크 깜빡임 제거). 걷기는 `hideBootOverlay()` 한 곳 — 첫 페인트(`__bootT0`) 후
   최소 `BOOT_MIN_MS`(0.9s) 노출 + 글꼴 준비(≤0.5s) 뒤 페이드, 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen/공유·초대 진입)이 부르고
-  어디서도 안 부르면 `BOOT_MAX_MS`(1.8s) 폴백. 섹션 진입용 `showPortalLoading()` 오버레이(같은 id, data-boot 없음)는 별개.
+  어디서도 안 부르면 `BOOT_MAX_MS`(1.8s) 폴백. 섹션 진입용 `showPortalLoading()` 오버레이(같은 id, data-boot 없음)는 별개 —
+  **포털 → 섹션 전환은 모두 로딩 화면**(2026-10-09): 공연 예매·공간 대관·멤버(세션 복구 직접 진입)는 `showSectionLoadingFromPortal()`
+  (포털이 보일 때만, 부팅 오버레이가 덮고 있으면 생략 → 뒤로가기·목록↔상세 이동·부팅 딥링크엔 안 뜸; `_hideAllScreens()` 보다 먼저 호출),
+  커뮤니티·로그인 폼 경로는 종전대로 `showPortalLoading()` 무조건, 와펜 타일은 `goWappen()` = `showPortalLoading({hold:true})`(자동으로 안 걷힘) 뒤 이동,
+  bfcache 복귀는 `pageshow(persisted)` 가 섹션 오버레이를 치운다.
 - 문자: `functions/send-sms.js` (솔라피, 공간 대관 접수 확인 자동 발송 — 예약번호·4시간 자동취소 안내 포함)
 - 고정 합주팀(밴드 계정, `profiles.member_type='band'`): 회차 모델은 내부운영 시트 "진행중인 고정팀"과 동일 —
   `band_start_date` + 28n = 시작일_n, 종료일_n = 시작일_n + 21, **입금일_n = 시작일_n − 14**(n≥1, 3주차 사용일 = 다음 시작일 2주 전; 등록은 시작일 당일).
