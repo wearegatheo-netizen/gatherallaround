@@ -30,6 +30,8 @@
   타일/패널 버튼(`.portal-tile`/`.portal-mbtn`/`.portal-pill`)은 포털 전용 컴포넌트로 gaa-btn 의 의도적 예외. 히어로는 `initPortalHero()` 가 `PERF_SPACE_PHOTOS` 와
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
   다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 대관 사진을 추가하면 webp 도 같이 넣을 것.
+  히어로 클릭 = 공간 대관(`role=button`, Enter/Space). 상단 줄은 워드마크(1.85rem, `line-height:32px` + `top:1.5px` 로 꾸불림체 잉크 중심을 모드 버튼과 일치)
+  아래 실선 분리선 — 버튼 아래 16px / 태그라인 글자 위 16px 로 맞춘 값(2026-10-09, Playwright 가 잉크 메트릭으로 검사). 바닥 구분선도 같은 실선, 연락처 알약은 회색 채움.
 - 부팅 로딩 스크린(`#portalLoadingScreen[data-boot]`)은 `<body>` 머리에 **정적**으로 있고 바로 앞 인라인 스크립트가 저장된 다크 모드(`gaa_theme`)를
   body 에 즉시 적용(2026-10-08, 포털이 먼저 보였다 가려지는·라이트→다크 깜빡임 제거). 걷기는 `hideBootOverlay()` 한 곳 — 첫 페인트(`__bootT0`) 후
   최소 `BOOT_MIN_MS`(0.9s) 노출 + 글꼴 준비(≤0.5s) 뒤 페이드, 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen/공유·초대 진입)이 부르고
