@@ -430,7 +430,8 @@
         .portal-brand { font-family: 'KkuBulLim', sans-serif; font-size: 1.45rem; letter-spacing: -0.5px; line-height: 1; color: var(--wds-black); }
         .portal-tagline { margin: 10px 0 2px; font-size: 1.18rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.3; color: var(--wds-black); }
         #portal-page .portal-sub { margin: 0 0 14px; font-size: 0.86rem; color: var(--wds-gray-600); }
-        .portal-hero { position: relative; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; margin-bottom: 14px; background: var(--wds-gray-100); }
+        .portal-hero { position: relative; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; margin-bottom: 14px; background: var(--wds-gray-100); cursor: pointer; outline: none; }
+        .portal-hero:focus-visible { box-shadow: 0 0 0 3px var(--wds-primary-light), 0 0 0 4px var(--wds-primary); }
         .portal-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.9s ease; }
         .portal-hero-img.on { opacity: 1; }
         .portal-hero-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 14px 12px; background: linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0)); color: #fff; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
@@ -1726,7 +1727,8 @@
         <p class="portal-tagline">밴드를 위한 아늑한 공간</p>
         <p class="portal-sub">신촌역 5분 · 합주 · 공연 · 모임 · 대관</p>
 
-        <div class="portal-hero" id="portalHero" aria-hidden="true">
+        <!-- 사진을 누르면 공간 대관 페이지로 (2026-10-09 요청) — 키보드도 Enter/Space 로 동작 -->
+        <div class="portal-hero" id="portalHero" role="button" tabindex="0" aria-label="공간 사진 — 공간 대관 페이지로 이동" onclick="showPerformanceBookingSection()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPerformanceBookingSection();}">
             <div class="portal-hero-cap"><div><b>신촌 프리미엄 밴드 스튜디오</b>합주실 · 소공연 · 모임</div><span class="portal-hero-dots" id="portalHeroDots"></span></div>
         </div>
 
