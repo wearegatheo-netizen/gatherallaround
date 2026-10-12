@@ -1,7 +1,7 @@
 // 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
 // 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
 // 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 export const SEED_ITEMS = [
     {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 235, "h": 209, "kind": "raster"},
     {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 242, "h": 230, "kind": "raster"},
@@ -39,4 +39,30 @@ export const SEED_ITEMS = [
     {"key": "p2-bolt-flame", "name": "번개 불꽃", "category": "도형·기호", "tags": ["불", "번개", "빨강", "자수"], "file": "p2-bolt-flame.png", "w": 356, "h": 446, "kind": "raster"},
     {"key": "p2-purple-planet", "name": "보라 행성", "category": "캐릭터·자연", "tags": ["행성", "토성", "우주", "보라", "자수"], "file": "p2-purple-planet.png", "w": 376, "h": 319, "kind": "raster"},
     {"key": "p2-wave", "name": "파도", "category": "캐릭터·자연", "tags": ["파도", "바다", "파랑", "자수"], "file": "p2-wave.png", "w": 409, "h": 353, "kind": "raster"},
+    {"key": "p3-rainbow", "name": "무지개 구름", "category": "캐릭터·자연", "tags": ["무지개", "구름", "별", "자수"], "file": "p3-rainbow.png", "w": 722, "h": 496, "kind": "raster"},
+    {"key": "p3-watermelon", "name": "수박 조각", "category": "과일", "tags": ["수박", "여름", "빨강", "자수"], "file": "p3-watermelon.png", "w": 568, "h": 580, "kind": "raster"},
+    {"key": "p3-smile-bolt", "name": "스마일 번개", "category": "도형·기호", "tags": ["번개", "스마일", "노랑", "반짝", "자수"], "file": "p3-smile-bolt.png", "w": 459, "h": 656, "kind": "raster"},
+    {"key": "p3-cool-cat", "name": "선글라스 고양이", "category": "동물", "tags": ["고양이", "선글라스", "주황", "자수"], "file": "p3-cool-cat.png", "w": 589, "h": 536, "kind": "raster"},
+    {"key": "p3-ufo", "name": "UFO", "category": "캐릭터·자연", "tags": ["UFO", "우주", "외계", "보라", "반짝", "자수"], "file": "p3-ufo.png", "w": 584, "h": 628, "kind": "raster"},
+    {"key": "p3-palm-island", "name": "야자수 섬", "category": "캐릭터·자연", "tags": ["야자수", "섬", "노을", "바다", "여름", "자수"], "file": "p3-palm-island.png", "w": 578, "h": 616, "kind": "raster"},
+    {"key": "p4-avocado", "name": "아보카도", "category": "과일", "tags": ["아보카도", "초록", "스마일", "자수"], "file": "p4-avocado.png", "w": 276, "h": 349, "kind": "raster"},
+    {"key": "p4-rocket", "name": "로켓", "category": "캐릭터·자연", "tags": ["로켓", "우주", "별", "파랑", "자수"], "file": "p4-rocket.png", "w": 326, "h": 340, "kind": "raster"},
+    {"key": "p4-cactus", "name": "선인장", "category": "캐릭터·자연", "tags": ["선인장", "화분", "꽃", "초록", "자수"], "file": "p4-cactus.png", "w": 303, "h": 341, "kind": "raster"},
+    {"key": "p4-cupcake", "name": "컵케이크", "category": "음식", "tags": ["컵케이크", "체리", "디저트", "핑크", "자수"], "file": "p4-cupcake.png", "w": 261, "h": 351, "kind": "raster"},
+    {"key": "p4-pizza", "name": "피자 조각", "category": "음식", "tags": ["피자", "치즈", "페퍼로니", "자수"], "file": "p4-pizza.png", "w": 314, "h": 347, "kind": "raster"},
+    {"key": "p4-donut", "name": "도넛", "category": "음식", "tags": ["도넛", "핑크", "스프링클", "디저트", "자수"], "file": "p4-donut.png", "w": 321, "h": 323, "kind": "raster"},
+    {"key": "p4-unicorn", "name": "유니콘", "category": "캐릭터·자연", "tags": ["유니콘", "무지개", "별", "자수"], "file": "p4-unicorn.png", "w": 319, "h": 328, "kind": "raster"},
+    {"key": "p4-dino", "name": "공룡", "category": "동물", "tags": ["공룡", "티라노", "초록", "자수"], "file": "p4-dino.png", "w": 310, "h": 327, "kind": "raster"},
+    {"key": "p4-crab", "name": "꽃게", "category": "동물", "tags": ["게", "꽃게", "빨강", "바다", "자수"], "file": "p4-crab.png", "w": 345, "h": 281, "kind": "raster"},
+    {"key": "p4-bee", "name": "꿀벌", "category": "동물", "tags": ["꿀벌", "벌", "노랑", "자수"], "file": "p4-bee.png", "w": 256, "h": 240, "kind": "raster"},
+    {"key": "p4-mushroom", "name": "버섯", "category": "캐릭터·자연", "tags": ["버섯", "빨강", "물방울", "자수"], "file": "p4-mushroom.png", "w": 308, "h": 309, "kind": "raster"},
+    {"key": "p4-sleepy-moon", "name": "잠자는 달", "category": "캐릭터·자연", "tags": ["달", "초승달", "별", "밤", "자수"], "file": "p4-sleepy-moon.png", "w": 294, "h": 316, "kind": "raster"},
+    {"key": "p4-ice-cream", "name": "아이스크림", "category": "음식", "tags": ["아이스크림", "콘", "디저트", "자수"], "file": "p4-ice-cream.png", "w": 178, "h": 346, "kind": "raster"},
+    {"key": "p4-music-notes", "name": "음표 두 개", "category": "음악", "tags": ["음표", "음악", "파랑", "핑크", "자수"], "file": "p4-music-notes.png", "w": 308, "h": 293, "kind": "raster"},
+    {"key": "p4-basketball", "name": "농구공", "category": "도형·기호", "tags": ["농구", "공", "주황", "스포츠", "자수"], "file": "p4-basketball.png", "w": 306, "h": 309, "kind": "raster"},
+    {"key": "p4-dog", "name": "강아지", "category": "동물", "tags": ["강아지", "개", "갈색", "자수"], "file": "p4-dog.png", "w": 353, "h": 268, "kind": "raster"},
+    {"key": "p4-soda", "name": "소다 캔", "category": "음식", "tags": ["소다", "음료", "캔", "반짝", "자수"], "file": "p4-soda.png", "w": 289, "h": 317, "kind": "raster"},
+    {"key": "p4-purple-butterfly", "name": "보라 나비", "category": "동물", "tags": ["나비", "보라", "노랑", "자수"], "file": "p4-purple-butterfly.png", "w": 370, "h": 274, "kind": "raster"},
+    {"key": "p4-anchor", "name": "닻", "category": "도형·기호", "tags": ["닻", "바다", "파랑", "마린", "자수"], "file": "p4-anchor.png", "w": 267, "h": 330, "kind": "raster"},
+    {"key": "p4-heart-glasses", "name": "하트 선글라스", "category": "도형·기호", "tags": ["선글라스", "하트", "빨강", "반짝", "자수"], "file": "p4-heart-glasses.png", "w": 363, "h": 168, "kind": "raster"},
 ];
