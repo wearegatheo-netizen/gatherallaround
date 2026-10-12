@@ -119,7 +119,7 @@
   `.band-form-grid`는 `minmax(0,1fr)` 열 + `label{min-width:0}` — date/number 입력은 `appearance:none`으로 모바일 고유 폭 넘침 방지.
 - 민감정보(도어락 번호 등)는 관리자 UI에서만 노출, 공개 화면 금지.
 
-## 와펜 꾸미기 (`/wappen/`, 2026-10-06)
+## 포스터 꾸미기 (`/wappen/`, 2026-10-06 — 서비스명은 2026-10-12 「와펜 꾸미기」→「포스터 꾸미기」로 변경, URL 경로·코드 식별자(wappen)는 그대로)
 - **별도 페이지** `wappen/`(index.html·style.css·app.js·editor.js·render.js·presets.js, ESM) — index.html 과 독립. 같은 카카오 앱·Supabase.
   디자인 토큰·`.gaa-btn`·`.status-badge`·토스트는 `wappen/style.css` 에 복사본(index.html 과 동기화 대상). 다크모드 키 `gaa_theme` 공유.
 - **계정**: 전용 `wappen_users`(카카오 로그인 즉시 이용, 승인 없음). 관리자 = 카카오 ID `4883868250` 백스톱 + `is_admin`.

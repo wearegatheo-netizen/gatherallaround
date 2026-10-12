@@ -1,4 +1,4 @@
-// 와펜 꾸미기 — 앱 본체 (ESM). 라우터·뷰·API 클라이언트·인증·공유·다운로드.
+// 포스터 꾸미기 — 앱 본체 (ESM). 라우터·뷰·API 클라이언트·인증·공유·다운로드.
 // 읽기는 anon supabase-js(공개 테이블·RPC), 쓰기는 전부 /wappen-api (세션 토큰).
 // 사용자 입력은 esc() 를 거쳐 innerHTML 에 넣고, 이벤트는 data-act 위임으로 처리한다(인라인 onclick 금지).
 import { PRESETS, GROUPS, presetOf, presetDims, presetLabel, exportSizes, isValidSize, REACTIONS, REPORT_REASONS, LIMITS, LAYOUT } from './presets.js';
@@ -626,7 +626,7 @@ async function viewProject(r) {
             ]);
             if (!act) return;
         }
-        if (act === 'share') shareSheet({ title: `${p.title} · 와펜 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: shareUrl('project', id), imageUrl: p.thumb_url || p.base_image_url });
+        if (act === 'share') shareSheet({ title: `${p.title} · 포스터 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: shareUrl('project', id), imageUrl: p.thumb_url || p.base_image_url });
         if (act === 'copy') copyText(shareUrl('project', id));
         if (act === 'report') reportModal('project', id);
         if (act === 'edit') {
@@ -1007,7 +1007,7 @@ async function viewWork(r) {
             ]);
             if (!act) return;
         }
-        if (act === 'share') shareSheet({ title: `${w.title} · 와펜 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: shareUrl('work', id), imageUrl: w.preview_url });
+        if (act === 'share') shareSheet({ title: `${w.title} · 포스터 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: shareUrl('work', id), imageUrl: w.preview_url });
         if (act === 'copy') copyText(shareUrl('work', id));
         if (act === 'edit' && p) navigate(`#/edit/${p.id}?work=${id}`);
         if (act === 'report') reportModal('work', id);

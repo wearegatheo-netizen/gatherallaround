@@ -1,4 +1,4 @@
-// 와펜 꾸미기 UI 테스트 (Playwright) — 가짜 supabase·Kakao·/wappen-api 로 홈 → 에디터 → 저장 → 작품 페이지 → 다운로드 흐름 검증.
+// 포스터 꾸미기 UI 테스트 (Playwright) — 가짜 supabase·Kakao·/wappen-api 로 홈 → 에디터 → 저장 → 작품 페이지 → 다운로드 흐름 검증.
 // 실행: python3 -m http.server 8765 &  →  NODE_PATH=<scratchpad>/node_modules node tests/ui-wappen.js
 //   (Playwright 는 저장소에 없음 — 스크래치패드 node_modules 필요, Chromium 은 /opt/pw-browsers/chromium)
 const { chromium } = require('playwright');

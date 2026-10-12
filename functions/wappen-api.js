@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: /wappen-api
-// 와펜 꾸미기(/wappen/)의 유일한 쓰기 경로 (service role).
+// 포스터 꾸미기(/wappen/)의 유일한 쓰기 경로 (service role).
 // 클라이언트(anon)는 공개 프로젝트·작품·와펜 읽기와 wappen_ranking RPC 만 가능 — RLS가 나머지를 전면 차단하므로
 // 로그인·업로드 서명·프로젝트/작품 저장·반응·신고·요청·관리자 작업은 전부 이 함수를 거친다.
 //

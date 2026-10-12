@@ -36,14 +36,14 @@ export async function shareOg(env, kind, id) {
     }
     const row = await fetchRow(env, `wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count&limit=1`);
     if (!row) return null;
-    return { title: `${row.title} — 와펜 꾸미기 프로젝트`, desc: row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`,
+    return { title: `${row.title} — 포스터 꾸미기 프로젝트`, desc: row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`,
         image: row.thumb_url || row.base_image_url || DEFAULT_IMAGE, w: null, h: null, url };
 }
 
 // HTML(와펜 셸·루트 포털)의 <title>·og:*·twitter:image 를 작품/프로젝트 값으로 치환 — 미들웨어와 공유 함수가 공용 (속성 순서·형식은 wappen/index.html 과 동일해야 함)
 export function injectOg(html, og) {
     html = html
-        .replace(/<title>[^<]*<\/title>/i, `<title>${esc(og.title)} | 와펜 꾸미기</title>`)
+        .replace(/<title>[^<]*<\/title>/i, `<title>${esc(og.title)} | 포스터 꾸미기</title>`)
         .replace(/<meta name="description" content="[^"]*">/i, `<meta name="description" content="${esc(og.desc)}">`)
         .replace(/<meta property="og:title" content="[^"]*">/i, `<meta property="og:title" content="${esc(og.title)}">`)
         .replace(/<meta property="og:description" content="[^"]*">/i, `<meta property="og:description" content="${esc(og.desc)}">`)
@@ -69,7 +69,7 @@ export async function appShellHTML(context, og) {
     const r = await env.ASSETS.fetch(new Request(new URL('/wappen/', request.url).toString(), { headers: { accept: 'text/html' } }));
     if (!r || !r.ok) return null;
     let html = await r.text();
-    if (!/<title>와펜 꾸미기/.test(html)) return null;              // 폴백(포털 HTML 등)이 오면 쓰지 않는다
+    if (!/<title>포스터 꾸미기/.test(html)) return null;              // 폴백(포털 HTML 등)이 오면 쓰지 않는다
     if (!/<base\s/i.test(html)) html = html.replace(/<head>/i, '<head>\n    <base href="/wappen/">');
     return og ? injectOg(html, og) : html;
 }
@@ -79,7 +79,7 @@ export function appHash(kind, id) { return `/wappen/#/${kind === 'work' ? 'work'
 
 export function sharePageHTML(kind, id, og) {
     const target = appHash(kind, id), url = SITE + sharePath(kind, id);
-    const title = og ? og.title : '와펜 꾸미기 | Gather all around';
+    const title = og ? og.title : '포스터 꾸미기 | Gather all around';
     const desc = og ? og.desc : '기본 이미지 위에 와펜을 붙여 나만의 포스터·SNS 이미지를 만들고 공유해보세요.';
     const image = og ? og.image : DEFAULT_IMAGE;
     const dims = og && og.w && og.h ? `<meta property="og:image:width" content="${og.w}"><meta property="og:image:height" content="${og.h}">` : (og ? '' : '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">');
@@ -88,7 +88,7 @@ export function sharePageHTML(kind, id, og) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(title)} | 와펜 꾸미기</title>
+<title>${esc(title)} | 포스터 꾸미기</title>
 <meta name="description" content="${esc(desc)}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${esc(title)}">
@@ -102,7 +102,7 @@ ${dims}
 <script>location.replace(${JSON.stringify(target)});</script>
 <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;background:#F4F5F8;color:#111;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:24px}a{display:inline-block;margin-top:14px;padding:12px 20px;border-radius:10px;background:#3366FF;color:#fff;text-decoration:none;font-weight:700}</style>
 </head>
-<body><div><p>와펜 꾸미기로 이동 중…</p><a href="${esc(target)}">바로 가기</a></div></body>
+<body><div><p>포스터 꾸미기로 이동 중…</p><a href="${esc(target)}">바로 가기</a></div></body>
 </html>`;
 }
 

@@ -37,7 +37,7 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   mockFetch([['wappen_works?id=eq.' + WID, { body: [WORK] }]]);
   const r = await run(`/wappen/?w=${WID}`);
   const html = await r.text();
-  chk('작품 OG: title 치환', html.includes('<title>첫 작품 — 길동님의 와펜 작품 | 와펜 꾸미기</title>'));
+  chk('작품 OG: title 치환', html.includes('<title>첫 작품 — 길동님의 와펜 작품 | 포스터 꾸미기</title>'));
   chk('작품 OG: og:title·description(프로젝트명 이스케이프)', html.includes('<meta property="og:title" content="첫 작품 — 길동님의 와펜 작품">') && html.includes('여름 &lt;포스터&gt; 프로젝트 · '));
   chk('작품 OG: og:image·크기·url(표준 루트 형태)', html.includes(`<meta property="og:image" content="${WORK.preview_url}">`) && html.includes('<meta property="og:image:width" content="1080">') && html.includes('<meta property="og:image:height" content="1350">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/ww/${WID}">`));
   chk('작품 OG: twitter:image 치환·no-store', html.includes(`<meta name="twitter:image" content="${WORK.preview_url}">`) && r.headers.get('cache-control') === 'no-store');
@@ -47,13 +47,13 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
 { // ?p= 프로젝트 (썸네일 없으면 기본 이미지, 크기 태그 제거)
   mockFetch([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 포스터', author_name: '길동', description: null, thumb_url: null, base_image_url: 'https://sb.test/b.jpg', works_count: 3 }] }]]);
   const html = await (await run(`/wappen/?p=${PID}`)).text();
-  chk('프로젝트 OG: title·설명 기본 문구', html.includes('<meta property="og:title" content="A4 포스터 — 와펜 꾸미기 프로젝트">') && html.includes('작품 3개'));
+  chk('프로젝트 OG: title·설명 기본 문구', html.includes('<meta property="og:title" content="A4 포스터 — 포스터 꾸미기 프로젝트">') && html.includes('작품 3개'));
   chk('프로젝트 OG: 이미지 폴백·og:image:width 제거', html.includes('<meta property="og:image" content="https://sb.test/b.jpg">') && !html.includes('og:image:width'));
 }
 { // 루트 ?wp= / ?ww= (카카오톡 공유 표준 형태) — 루트 index.html 메타에 주입
   mockFetch([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 포스터', author_name: '길동', description: '설명', thumb_url: 'https://sb.test/t.jpg', base_image_url: 'https://sb.test/b.jpg', works_count: 1 }] }]]);
   const html = await (await run(`/?wp=${PID}`, { html: ROOT })).text();
-  chk('루트 ?wp=: title·og:title·og:image(썸네일)·og:url', html.includes('<title>A4 포스터 — 와펜 꾸미기 프로젝트 | 와펜 꾸미기</title>') && html.includes('<meta property="og:title" content="A4 포스터 — 와펜 꾸미기 프로젝트">')
+  chk('루트 ?wp=: title·og:title·og:image(썸네일)·og:url', html.includes('<title>A4 포스터 — 포스터 꾸미기 프로젝트 | 포스터 꾸미기</title>') && html.includes('<meta property="og:title" content="A4 포스터 — 포스터 꾸미기 프로젝트">')
     && html.includes('<meta property="og:image" content="https://sb.test/t.jpg">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`) && html.includes('<body>portal</body>'));
   chk('루트 ?wp=: service role 조회 1회·active 필터', calls.length === 1 && calls[0].url.includes('wappen_projects?id=eq.') && calls[0].url.includes('status=eq.active'));
   mockFetch([['wappen_works?id=eq.' + WID, { body: [WORK] }]]);

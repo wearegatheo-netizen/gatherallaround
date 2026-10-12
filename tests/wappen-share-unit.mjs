@@ -22,7 +22,7 @@ const ENV_A = { ...ENV, ASSETS };
   mock([['wappen_projects?id=eq.' + PID, { body: [{ title: 'A4 <포스터>', author_name: '길동', description: null, thumb_url: 'https://sb.test/t.jpg', base_image_url: 'https://sb.test/b.jpg', works_count: 2 }] }]]);
   const r = await run(wp, '/wp/' + PID, PID); const html = await r.text();
   chk('200 HTML·no-store', r.status === 200 && r.headers.get('content-type').includes('text/html') && r.headers.get('cache-control') === 'no-store');
-  chk('OG: title(이스케이프)·image(썸네일)·url(/wp/)', html.includes('<meta property="og:title" content="A4 &lt;포스터&gt; — 와펜 꾸미기 프로젝트">') && html.includes('<meta property="og:image" content="https://sb.test/t.jpg">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`));
+  chk('OG: title(이스케이프)·image(썸네일)·url(/wp/)', html.includes('<meta property="og:title" content="A4 &lt;포스터&gt; — 포스터 꾸미기 프로젝트">') && html.includes('<meta property="og:image" content="https://sb.test/t.jpg">') && html.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`));
   chk('즉시 이동: script location.replace + meta refresh + 링크', html.includes(`location.replace("/wappen/#/project/${PID}")`) && html.includes(`content="0;url=/wappen/#/project/${PID}"`) && html.includes(`href="/wappen/#/project/${PID}"`));
   chk('service role 로 active 행 1건 조회', calls.length === 1 && calls[0].headers.apikey === 'sk' && calls[0].url.includes('status=eq.active'));
 }
@@ -34,7 +34,7 @@ const ENV_A = { ...ENV, ASSETS };
 { // 없는 행·env 없음 → 기본 OG 지만 이동은 그대로
   mock([['wappen_works', { body: [] }]]);
   const html = await (await run(ww, '/ww/' + WID, WID)).text();
-  chk('숨김/없는 작품 → 기본 OG + 이동', html.includes('와펜 꾸미기 | Gather all around') && html.includes(`location.replace("/wappen/#/work/${WID}")`));
+  chk('숨김/없는 작품 → 기본 OG + 이동', html.includes('포스터 꾸미기 | Gather all around') && html.includes(`location.replace("/wappen/#/work/${WID}")`));
   mock([]);
   const html2 = await (await run(wp, '/wp/' + PID, PID, {})).text();
   chk('env 없음 → 조회 없이 기본 OG + 이동', calls.length === 0 && html2.includes(`location.replace("/wappen/#/project/${PID}")`));
@@ -52,7 +52,7 @@ const ENV_A = { ...ENV, ASSETS };
   const shell = await r.text();
   chk('카톡 인앱 브라우저 UA → 200 와펜 셸(리다이렉트 없음)·no-store', r.status === 200 && r.headers.get('content-type').includes('text/html') && r.headers.get('cache-control') === 'no-store' && shell.includes('id="app"') && shell.includes('./app.js?v='));
   chk('셸에 <base href="/wappen/"> 가 <head> 바로 뒤에 — 상대 자산이 /wappen/ 기준', /<head>\s*<base href="\/wappen\/">/.test(shell) && (shell.match(/<base /g) || []).length === 1);
-  chk('셸의 OG·제목이 그 프로젝트로 치환', shell.includes('<title>A4 포스터 — 와펜 꾸미기 프로젝트 | 와펜 꾸미기</title>') && shell.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`) && shell.includes('<meta property="og:image" content="https://sb.test/t.jpg">'));
+  chk('셸의 OG·제목이 그 프로젝트로 치환', shell.includes('<title>A4 포스터 — 포스터 꾸미기 프로젝트 | 포스터 꾸미기</title>') && shell.includes(`<meta property="og:url" content="https://gatherallaround.com/wp/${PID}">`) && shell.includes('<meta property="og:image" content="https://sb.test/t.jpg">'));
   mock([['wappen_projects?id=eq.' + PID, { status: 500, body: {} }]]);
   chk('DB 실패여도 셸은 그대로(기본 OG)', (await (await run(wp, '/wp/' + PID, PID, ENV_A, KAKAO_UA)).text()).includes('<base href="/wappen/">'));
   mock([]);

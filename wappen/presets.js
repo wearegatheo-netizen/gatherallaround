@@ -1,4 +1,4 @@
-// 와펜 꾸미기 — 사이즈 프리셋·공용 상수 (ESM)
+// 포스터 꾸미기 — 사이즈 프리셋·공용 상수 (ESM)
 // 브라우저(wappen/app.js, editor.js)와 Cloudflare 함수(functions/wappen-api.js)가 같은 파일을 import 한다.
 // → 사이즈 목록·검증 규칙·반응 종류가 한 곳에만 존재. DOM/전역 의존 금지(순수 모듈).
 

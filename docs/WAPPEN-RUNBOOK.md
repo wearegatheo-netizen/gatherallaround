@@ -1,4 +1,4 @@
-# 와펜 꾸미기 (/wappen/) 운영 런북
+# 포스터 꾸미기 (/wappen/) 운영 런북
 
 누구나 카카오 로그인 후 기본 이미지(프로젝트) 위에 와펜(PNG)을 붙여 작품을 만들고, 다운로드·공유·반응·랭킹을 이용하는 공개 서비스.
 코드: `wappen/`(페이지) · `functions/wappen-api.js`(쓰기 API) · `functions/_middleware.js`(공유 OG) · `supabase/migrations/20261006_wappen.sql`(DB).
