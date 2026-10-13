@@ -1573,10 +1573,24 @@
         .cm-sec { padding:22px 0 0; }
         .cm-sec h2 { margin:0 0 10px; font-size:1rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-desc { font-size:0.92rem; line-height:1.75; color:var(--wds-gray-800); white-space:pre-wrap; word-break:keep-all; }
-        .cm-desc.clamp { max-height:9.6em; overflow:hidden; position:relative; }
-        .cm-desc.clamp::after { content:''; position:absolute; left:0; right:0; bottom:0; height:3em; background:linear-gradient(to bottom, transparent, var(--cm-bg, #fcfcfc)); }
-        .cm-more { display:inline-flex; align-items:center; gap:4px; margin-top:4px; background:none; border:0; color:var(--wds-gray-700); font-size:0.84rem; font-weight:700; padding:6px 0; cursor:pointer; font-family:inherit; }
-        .cm-more svg { width:14px; height:14px; }
+        /* 참여 신청 시트(2026-10-13): 아래 고정 [참여 신청하기] → 바닥에서 올라오는 시트(데스크톱은 가운데 모달). 본문엔 신청서를 두지 않는다 */
+        .cm-sheet-wrap { position:fixed; inset:0; z-index:10001; }
+        .cm-sheet-bg { position:absolute; inset:0; background:rgba(0,0,0,0.45); opacity:0; transition:opacity .2s; }
+        .cm-sheet { position:absolute; left:0; right:0; bottom:0; max-height:88vh; max-height:88dvh; background:var(--wds-white); border-radius:20px 20px 0 0; display:flex; flex-direction:column; transform:translateY(100%); transition:transform .25s cubic-bezier(.2,.8,.2,1); box-shadow:0 -10px 40px rgba(0,0,0,0.2); }
+        .cm-sheet-wrap.on .cm-sheet-bg { opacity:1; }
+        .cm-sheet-wrap.on .cm-sheet { transform:none; }
+        .cm-sheet-head { position:relative; display:flex; align-items:center; justify-content:center; padding:18px 16px 8px; flex:none; }
+        .cm-sheet-head .grab { position:absolute; top:8px; left:50%; width:36px; height:4px; margin-left:-18px; border-radius:2px; background:var(--wds-gray-300); }
+        .cm-sheet-head h3 { margin:0; font-size:1.02rem; font-weight:800; color:var(--wds-black); }
+        .cm-sheet-head .cm-ib { position:absolute; right:8px; top:10px; }
+        .cm-sheet-body { overflow:auto; -webkit-overflow-scrolling:touch; padding:4px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+        .cm-sheet .cm-form { border:0; padding:0; background:none; }
+        body.cm-sheet-open { overflow:hidden; }
+        @media (min-width:768px) {
+            .cm-sheet { left:50%; right:auto; bottom:auto; top:50%; width:min(92vw, 560px); max-height:86vh; border-radius:20px; transform:translate(-50%, -46%); opacity:0; transition:transform .2s, opacity .2s; }
+            .cm-sheet-wrap.on .cm-sheet { transform:translate(-50%, -50%); opacity:1; }
+            .cm-sheet-head .grab { display:none; }
+        }
         .cm-form { background:var(--wds-white); border:1px solid var(--wds-gray-300); border-radius:14px; padding:16px 14px 14px; }
         body.dark .cm-form { background:var(--wds-gray-100); }
         .cm-form h3 { margin:0 0 4px; font-size:0.98rem; font-weight:800; color:var(--wds-black); }
@@ -1592,13 +1606,12 @@
         .cm-form .legend .req { color:#E5484D; }
         .cm-f label .req { color:#E5484D; margin-left:2px; }
         /* 전역 input[type="text"]{height:52px…} 규칙보다 특이도를 높여 44px 상자형으로 */
-        #communityContent .cm-f input, #communityContent .cm-f select, #communityContent .cm-f textarea { width:100%; height:44px; border:1px solid var(--wds-gray-300); border-radius:10px; padding:0 12px; font-size:0.92rem; font-family:inherit; background:var(--wds-white); color:var(--wds-black); box-sizing:border-box; margin:0; }
-        #communityContent .cm-f textarea { height:auto; min-height:84px; padding:10px 12px; resize:vertical; line-height:1.5; }
-        #communityContent .cm-f input:focus, #communityContent .cm-f select:focus, #communityContent .cm-f textarea:focus { outline:none; border-color:var(--wds-primary); }
+        .cm-form .cm-f input, .cm-form .cm-f select, .cm-form .cm-f textarea { width:100%; height:44px; border:1px solid var(--wds-gray-300); border-radius:10px; padding:0 12px; font-size:0.92rem; font-family:inherit; background:var(--wds-white); color:var(--wds-black); box-sizing:border-box; margin:0; }
+        .cm-form .cm-f textarea { height:auto; min-height:84px; padding:10px 12px; resize:vertical; line-height:1.5; }
+        .cm-form .cm-f input:focus, .cm-form .cm-f select:focus, .cm-form .cm-f textarea:focus { outline:none; border-color:var(--wds-primary); }
         .cm-f input::placeholder, .cm-f textarea::placeholder { color:var(--wds-gray-400); }
         .cm-f2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .cm-hint { font-size:0.76rem; color:var(--wds-gray-500); margin-top:10px; text-align:center; line-height:1.5; }
-        .cm-closed { text-align:center; padding:22px 0 10px; color:var(--wds-gray-600); font-weight:700; font-size:0.92rem; }
         /* 아래 고정 신청 바 — BGM 바(56px) 위. iOS fixed 요소는 backdrop-filter 금지(#bgm-player 주석 참고) */
         .cm-sticky { position:fixed; left:0; right:0; bottom:56px; z-index:9998; background:var(--wds-white); border-top:1px solid var(--wds-gray-200); padding:10px 16px; display:flex; align-items:center; gap:12px; transform:translateZ(0); -webkit-transform:translateZ(0); }
         .cm-sticky .pr { flex:1; min-width:0; }
@@ -1632,15 +1645,15 @@
         .cm-q-empty { font-size:0.82rem; color:var(--wds-gray-500); margin-bottom:8px; }
         /* 신청 폼: 복수 선택·동의 */
         .cm-f .cm-f-label { display:block; font-size:0.84rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; line-height:1.45; word-break:keep-all; }
-        #communityContent .cm-f label.cm-check:has(input:checked), #communityContent .cm-f label.cm-consent:has(input:checked) { border-color:var(--wds-primary); background:var(--wds-primary-light); }
+        .cm-form .cm-f label.cm-check:has(input:checked), .cm-form .cm-f label.cm-consent:has(input:checked) { border-color:var(--wds-primary); background:var(--wds-primary-light); }
         .cm-checks { display:flex; flex-direction:column; gap:6px; }
-        #communityContent .cm-f label.cm-check { display:flex; align-items:center; gap:8px; margin:0; padding:9px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-size:0.9rem; font-weight:500; color:var(--wds-black); cursor:pointer; }
-        #communityContent .cm-f label.cm-check.full { color:var(--wds-gray-500); background:var(--wds-gray-100); cursor:default; }
-        #communityContent .cm-f label.cm-check small { color:var(--wds-gray-500); font-size:0.76rem; }
-        #communityContent .cm-f label.cm-consent { display:flex; align-items:flex-start; gap:10px; margin:0; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-weight:500; cursor:pointer; }
-        #communityContent .cm-f label.cm-consent b { display:block; font-size:0.88rem; color:var(--wds-black); }
-        #communityContent .cm-f label.cm-consent small { display:block; font-size:0.78rem; color:var(--wds-gray-600); margin-top:2px; line-height:1.5; }
-        #communityContent .cm-f input[type=checkbox] { width:18px; height:18px; margin:1px 0 0; accent-color:var(--wds-primary); flex:none; padding:0; }
+        .cm-form .cm-f label.cm-check { display:flex; align-items:center; gap:8px; margin:0; padding:9px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-size:0.9rem; font-weight:500; color:var(--wds-black); cursor:pointer; }
+        .cm-form .cm-f label.cm-check.full { color:var(--wds-gray-500); background:var(--wds-gray-100); cursor:default; }
+        .cm-form .cm-f label.cm-check small { color:var(--wds-gray-500); font-size:0.76rem; }
+        .cm-form .cm-f label.cm-consent { display:flex; align-items:flex-start; gap:10px; margin:0; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-weight:500; cursor:pointer; }
+        .cm-form .cm-f label.cm-consent b { display:block; font-size:0.88rem; color:var(--wds-black); }
+        .cm-form .cm-f label.cm-consent small { display:block; font-size:0.78rem; color:var(--wds-gray-600); margin-top:2px; line-height:1.5; }
+        .cm-form .cm-f input[type=checkbox] { width:18px; height:18px; margin:1px 0 0; accent-color:var(--wds-primary); flex:none; padding:0; }
         .cm-f[hidden] { display:none; }
         /* 답변 집계(신청자 관리 탭) */
         .cm-agg { padding:10px 0; border-bottom:1px solid var(--wds-gray-200); }
@@ -7291,6 +7304,7 @@
         const _ALL_SCREEN_IDS = ['portal-page','landing-page','landing-page-band','landing-page-community','main-content','band-main-content','notice_container','band-news-page','performance-booking-page','pending-screen','shows-page','host-page'];
         function _hideAllScreens() {
             _ALL_SCREEN_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            if (typeof cmApplySheetClose === 'function') cmApplySheetClose(); // 커뮤니티 신청 시트가 떠 있으면 닫는다
             // GatheO 하단 탭바(+BGM 스택·본문 여백)는 GatheO 메인에서만 — 모든 화면 전환이 여길 거치므로 여기가 유일한 해제 지점
             document.body.classList.remove('gatheo-nav');
         }
@@ -8977,12 +8991,6 @@
                 <div class="th">${_cmCoverImg(m)}</div>
             </div>`;
         }
-        function communityToggleDesc() {
-            const d = document.getElementById('communityDesc'), b = document.getElementById('communityDescMore');
-            if (!d || !b) return;
-            const open = !d.classList.toggle('clamp');
-            b.innerHTML = open ? `접기 ${_CM_ICON.up}` : `더보기 ${_CM_ICON.down}`;
-        }
 
         function renderCommunityList() {
             if (state.communityTab === 'test') { renderCommunityTestHome(); return; }
@@ -9544,6 +9552,7 @@
             const el = document.getElementById('communityContent');
             if (!el) return;
             communityBarVisible(false);
+            cmApplySheetClose(); // 신청 완료 재렌더·재진입 때 남은 시트 정리
 
             // 상단 줄: [‹ 목록으로] … [공유] [수정]
             let html = `<div class="cm-top">
@@ -9587,39 +9596,58 @@
             </div>
             <div class="cm-lower">`;
 
-            // 모임 설명 — 길면 접기
-            if (meeting.description) {
-                const long = meeting.description.length > 240 || (meeting.description.match(/\n/g) || []).length > 7;
-                html += `<div class="cm-sec"><h2>모임 설명</h2><div class="cm-desc${long ? ' clamp' : ''}" id="communityDesc">${escapeHtml(meeting.description)}</div>${long ? `<button type="button" class="cm-more" id="communityDescMore" onclick="communityToggleDesc()">더보기 ${_CM_ICON.down}</button>` : ''}</div>`;
-            }
+            // 모임 설명 — 항상 전부 보인다(2026-10-13, 접기 없음)
+            if (meeting.description) html += `<div class="cm-sec"><h2>모임 설명</h2><div class="cm-desc" id="communityDesc">${escapeHtml(meeting.description)}</div></div>`;
+            html += `</div>`; // .cm-lower
 
-            // 참여 신청 — 카드 하나(입력 id 는 submitCommunityApplication 과 동일: ca_name/ca_phone/ca_custom_i)
-            html += `<div class="cm-sec"><div class="cm-form" id="communityApplyForm"><h3>참여 신청</h3>`;
-            if (closed) {
-                html += `<div class="cm-closed">모집이 마감되었어요</div>`;
-            } else {
-                const qCount = formFields.filter(f => f.type !== 'note').length;
-                html += `<p>${qCount ? `이름·연락처와 질문 ${qCount}개를 적어 주세요.` : '이름과 연락처만 적으면 돼요.'} 신청 내용은 모임장에게 바로 전달됩니다.</p>
+            // 참여 신청서는 본문에 두지 않고 [참여 신청하기] 를 누르면 시트로 연다(cmApplySheetOpen). 입력 id 는 submitCommunityApplication 과 동일: ca_name/ca_phone/ca_custom_i
+            state.communityApplyFormHTML = closed ? '' : cmApplyFormHTML(id, formFields, appList);
+
+            // 아래 고정 신청 바 — 마감이면 비활성
+            html += `<div class="cm-sticky-pad"></div><div class="cm-sticky"><div class="pr"><small>참여비</small><b>${feeLabel}</b></div>${closed
+                ? `<button type="button" class="gaa-btn gaa-btn-primary" disabled>모집 마감</button>`
+                : `<button type="button" class="gaa-btn gaa-btn-primary" onclick="cmApplySheetOpen()">참여 신청하기</button>`}</div>`;
+
+            el.innerHTML = html;
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+        // 신청서 본문(시트 안 .cm-form 내용)
+        function cmApplyFormHTML(id, formFields, appList) {
+            const qCount = formFields.filter(f => f.type !== 'note').length;
+            return `<p>${qCount ? `이름·연락처와 질문 ${qCount}개를 적어 주세요.` : '이름과 연락처만 적으면 돼요.'} 신청 내용은 모임장에게 바로 전달됩니다.</p>
                 <div class="legend"><span class="req">*</span> 표시는 필수 항목이에요</div>
                 <div class="cm-f2">
                     <div class="cm-f" id="cm_f_name"><label for="ca_name">이름<span class="req">*</span></label><input type="text" id="ca_name" placeholder="이름" autocomplete="name"></div>
                     <div class="cm-f" id="cm_f_phone"><label for="ca_phone">연락처<span class="req">*</span></label><input type="tel" id="ca_phone" placeholder="010-0000-0000" autocomplete="tel" inputmode="tel" oninput="cmPhoneFmt(this)"></div>
-                </div>`;
-                html += cmApplyFieldsHTML(formFields, appList); // 단일/복수 선택·동의·조건 표시·선택지 정원(마감) 포함
-                html += `<button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" onclick="submitCommunityApplication('${id}')">신청하기</button>
+                </div>
+                ${cmApplyFieldsHTML(formFields, appList)}
+                <button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" onclick="submitCommunityApplication('${id}')">신청하기</button>
                 <div class="cm-hint">신청 내역은 목록 상단 [신청 조회]에서 연락처로 확인·취소할 수 있어요</div>`;
-            }
-            html += `</div></div></div>`;
-
-            // 아래 고정 신청 바 — 누르면 신청 카드로 스크롤. 마감이면 비활성.
-            html += `<div class="cm-sticky-pad"></div><div class="cm-sticky"><div class="pr"><small>참여비</small><b>${feeLabel}</b></div>${closed
-                ? `<button type="button" class="gaa-btn gaa-btn-primary" disabled>모집 마감</button>`
-                : `<button type="button" class="gaa-btn gaa-btn-primary" onclick="document.getElementById('communityApplyForm').scrollIntoView({behavior:'smooth',block:'start'})">참여 신청하기</button>`}</div>`;
-
-            el.innerHTML = html;
-            if (!closed) cmApplyCond(); // 조건부 질문 초기 표시 상태
-            window.scrollTo({ top: 0, behavior: 'instant' });
         }
+        function cmApplySheetOpen() {
+            if (!state.communityApplyFormHTML) return;
+            cmApplySheetClose();
+            const wrap = document.createElement('div');
+            wrap.id = 'cmApplySheet'; wrap.className = 'cm-sheet-wrap'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', '참여 신청');
+            wrap.innerHTML = `<div class="cm-sheet-bg" onclick="cmApplySheetClose()"></div>
+                <div class="cm-sheet">
+                    <div class="cm-sheet-head"><span class="grab" aria-hidden="true"></span><h3>참여 신청</h3><button type="button" class="cm-ib" onclick="cmApplySheetClose()" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+                    <div class="cm-sheet-body"><div class="cm-form" id="communityApplyForm">${state.communityApplyFormHTML}</div></div>
+                </div>`;
+            document.body.appendChild(wrap);
+            document.body.classList.add('cm-sheet-open');
+            requestAnimationFrame(() => wrap.classList.add('on'));
+            cmApplyCond(); // 조건부 질문 초기 표시·번호
+            wrap._esc = (e) => { if (e.key === 'Escape') cmApplySheetClose(); };
+            document.addEventListener('keydown', wrap._esc);
+            if (window.matchMedia && matchMedia('(hover:hover)').matches) setTimeout(() => document.getElementById('ca_name')?.focus({ preventScroll: true }), 250); // 터치 기기는 키보드가 바로 올라오지 않게
+        }
+        function cmApplySheetClose() {
+            const wrap = document.getElementById('cmApplySheet'); if (!wrap) return;
+            if (wrap._esc) document.removeEventListener('keydown', wrap._esc);
+            wrap.remove(); document.body.classList.remove('cm-sheet-open');
+        }
+        window.addEventListener('popstate', () => { if (typeof cmApplySheetClose === 'function') cmApplySheetClose(); });
 
         function renderCommunityEditView(meeting, id, appList, formFields) {
             const cnt = appList.length;

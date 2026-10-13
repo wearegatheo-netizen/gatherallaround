@@ -74,9 +74,11 @@
   **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
   상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
   `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →
-  `.cm-rows`(모임장: 이니셜·이름·[문의하기]=`tel:` 링크로 번호 비노출 / 준비물) → 설명(`.cm-desc`, 240자·8줄 넘으면 `.clamp`+[더보기] `communityToggleDesc`) →
-  신청 카드 `.cm-form#communityApplyForm`(입력 id 는 종전 `ca_name/ca_phone/ca_custom_i` 유지, 44px 상자형 — 전역 `input[type=text]{height:52px}` 보다 특이도 높임) →
-  아래 고정 바 `.cm-sticky`(참여비 + [참여 신청하기] = 신청 카드로 스크롤, 마감이면 비활성; iOS 때문에 fixed 요소에 backdrop-filter 금지). 본문 폭 920px 제한(3열 그리드 폐기).
+  `.cm-rows`(모임장: 이니셜·이름·[문의하기]=`tel:` 링크로 번호 비노출 / 준비물) → 설명(`.cm-desc`, **항상 전부 표시** — 접기 없음, 2026-10-13) →
+  아래 고정 바 `.cm-sticky`(참여비 + [참여 신청하기], 마감이면 비활성; iOS 때문에 fixed 요소에 backdrop-filter 금지). 본문 폭 920px 제한(3열 그리드 폐기).
+  **신청서는 본문에 없고** [참여 신청하기] → `cmApplySheetOpen()` 이 `state.communityApplyFormHTML`(`cmApplyFormHTML`) 을 바닥 시트 `#cmApplySheet`(`.cm-sheet-wrap`, z 10001,
+  데스크톱 ≥768px 은 가운데 모달 560px)에 넣는다. 닫기 = ×·배경·Esc·popstate·`_hideAllScreens`·상세 재렌더(`cmApplySheetClose`). 시트는 body 직속이라
+  신청 폼 CSS 는 `#communityContent` 가 아니라 **`.cm-form .cm-f …`** 로 범위(입력 id 는 종전 `ca_name/ca_phone/ca_custom_i`, 44px 상자형 — 전역 `input[type=text]{height:52px}` 보다 특이도 높임).
   옛 `.community-card/.community-grid/.community-tab*/.community-detail-hero*` CSS 는 제거됨(`community-grid-2`·`gforms-*` 는 생성/수정 폼이 계속 씀).
   대표 이미지는 **정방형**: 만들기/수정에서 파일을 고르면 크롭 상자(`cmCropLoad/Zoom/Reset/Export`, 끌어 이동·1~3배 확대)로 보일 영역을 정하고 제출 때 1080² JPEG 로 잘라 올린다.
   테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
