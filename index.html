@@ -1527,7 +1527,7 @@
         .cm-day b { font-size:0.98rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-day span { font-size:0.8rem; color:var(--wds-gray-500); font-weight:600; }
         .cm-day .dd { margin-left:auto; }
-        .cm-ev { display:flex; align-items:center; gap:12px; background:var(--wds-white); border:1px solid var(--wds-gray-200); border-radius:16px; padding:13px 13px 13px 15px; margin-bottom:10px; box-shadow:0 2px 10px rgba(17,17,17,0.04); cursor:pointer; transition:transform .15s, box-shadow .15s; outline:none; }
+        .cm-ev { display:flex; align-items:stretch; gap:12px; background:var(--wds-white); border:1px solid var(--wds-gray-200); border-radius:16px; padding:13px 13px 13px 15px; margin-bottom:10px; box-shadow:0 2px 10px rgba(17,17,17,0.04); cursor:pointer; transition:transform .15s, box-shadow .15s; outline:none; }
         body.dark .cm-ev { background:var(--wds-gray-100); border-color:var(--wds-gray-300); box-shadow:none; }
         .cm-ev:hover { transform:translateY(-1px); box-shadow:0 8px 22px rgba(17,17,17,0.08); }
         .cm-ev:focus-visible { box-shadow:0 0 0 3px var(--wds-primary-light), 0 0 0 4px var(--wds-primary); }
@@ -1539,7 +1539,7 @@
         .cm-ev .mt svg { width:14px; height:14px; color:var(--wds-gray-500); flex:none; }
         .cm-ev .ft { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:8px; font-size:0.8rem; color:var(--wds-gray-600); }
         .cm-ev .ft b { color:var(--wds-black); font-size:0.86rem; }
-        .cm-ev .th { width:86px; height:86px; border-radius:12px; overflow:hidden; background:var(--wds-gray-100); flex:none; }
+        .cm-ev .th { width:96px; height:96px; border-radius:12px; overflow:hidden; background:var(--wds-gray-100); flex:none; align-self:stretch; } /* 실제 크기는 _cmFitThumbs() 가 왼쪽 글 상자 높이에 맞춘다(정방형) */
         .cm-ev .th img { width:100%; height:100%; object-fit:cover; display:block; }
         .cm-ev .th .ph, .cm-cover .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:'KkuBulLim',sans-serif; font-size:1.6rem; color:#fff; background:linear-gradient(135deg,#6B8CFF,#3366FF); }
         .cm-cover .ph { font-size:3.2rem; }
@@ -1675,7 +1675,6 @@
         .cm-crop-ctl input[type=range] { flex:1; min-width:0; accent-color:var(--wds-primary); margin:0; height:auto; }
         .cm-crop p { margin:8px 0 0; font-size:0.78rem; color:var(--wds-gray-500); line-height:1.5; }
         @media (min-width:768px) {
-            .cm-ev .th { width:120px; height:120px; }
             .cm-ev .tt { font-size:1.1rem; }
             .cm-hero { display:grid; grid-template-columns:1.05fr 1fr; gap:30px; align-items:start; margin-bottom:8px; }
             .cm-hero .cm-cover { margin-bottom:0; aspect-ratio:1/1; border-radius:16px; }
@@ -8974,6 +8973,20 @@
             if (!m.cover_image_url) return _cmPlaceholder(m.title);
             return `<img src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.parentNode.innerHTML='<div class=\\'ph\\'>${jsStr(escapeHtml((m.title || '모')[0]))}</div>'">`;
         }
+        // 카드 썸네일을 왼쪽 글 상자와 위아래가 맞는 정방형으로(2026-10-13 요청) — 글 높이가 제목 줄 수·장소 유무·화면 폭에 따라 달라지므로 그린 뒤 재서 맞춘다.
+        // 썸네일을 키우면 글 상자가 좁아져 줄바꿈이 늘 수 있으니 안정될 때까지 최대 3번 반복. 화면 폭이 바뀌면 다시 맞춘다.
+        function _cmFitThumbs() {
+            document.querySelectorAll('#communityContent .cm-ev').forEach(ev => {
+                const th = ev.querySelector('.th'), bd = ev.querySelector('.bd'); if (!th || !bd) return;
+                for (let pass = 0; pass < 3; pass++) {
+                    const h = Math.round(bd.getBoundingClientRect().height); if (!h) break;
+                    if (Math.abs((parseFloat(th.style.width) || 0) - h) < 1) break;
+                    th.style.width = th.style.height = h + 'px';
+                }
+            });
+        }
+        let _cmFitTimer = null;
+        window.addEventListener('resize', () => { clearTimeout(_cmFitTimer); _cmFitTimer = setTimeout(_cmFitThumbs, 120); });
         function _cmEventCardHTML(m) {
             const closed = communityIsClosed(m);
             const isFree = communityIsFreeMeeting(m.fee);
@@ -9153,6 +9166,8 @@
 
             el.innerHTML = html;
             if (state.communityCreateOpen) { renderCommunityCreateFieldEditor(); initCommunityCal(); }
+            _cmFitThumbs();
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(_cmFitThumbs);
         }
 
         // 모임 등록 폼의 공간 시간표 달력 — 대관 달력 렌더러를 커뮤니티 컨텍스트로 구동

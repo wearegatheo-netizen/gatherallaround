@@ -70,7 +70,7 @@
 - **커뮤니티(2026-10-13 개편, 시안 A·절제형 발전안)**: 머리는 앱 바 `#communityBar`(`.cm-bar`: 뒤로·제목·[신청 조회] 알약·SVG 모드 버튼 `themeToggleBtnCommunity` — `applyTheme` 가
   textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
   상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
-  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일 86px(데스크톱 120px).
+  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 글 상자 높이의 정방형.
   **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
   상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
   `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →
@@ -84,7 +84,7 @@
   테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
   **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent|note, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
   `note` = 입력칸 없는 안내문(답·필수·조건 없음, CSV·집계 제외). 신청 폼은 질문 번호 칩(안내문 제외)·머리글에 질문 수, 검증 오류는 알림창 대신 `cmFieldError()`(칸 빨간 테두리+문구+스크롤),
-  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `align-items:center` 로 세로 가운데.
+  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `_cmFitThumbs()` 가 **왼쪽 글 상자 높이의 정방형**으로 맞춘다(그린 뒤 측정, 최대 3회 반복, resize 때 재조정; CSS 기본 96px).
   답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
   (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
   신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인. 신청자 관리 탭 「답변 집계」 `cmAggregationHTML`.
