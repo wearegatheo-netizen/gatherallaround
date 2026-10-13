@@ -1527,7 +1527,7 @@
         .cm-day b { font-size:0.98rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-day span { font-size:0.8rem; color:var(--wds-gray-500); font-weight:600; }
         .cm-day .dd { margin-left:auto; }
-        .cm-ev { display:flex; gap:12px; background:var(--wds-white); border:1px solid var(--wds-gray-200); border-radius:16px; padding:13px 13px 13px 15px; margin-bottom:10px; box-shadow:0 2px 10px rgba(17,17,17,0.04); cursor:pointer; transition:transform .15s, box-shadow .15s; outline:none; }
+        .cm-ev { display:flex; align-items:center; gap:12px; background:var(--wds-white); border:1px solid var(--wds-gray-200); border-radius:16px; padding:13px 13px 13px 15px; margin-bottom:10px; box-shadow:0 2px 10px rgba(17,17,17,0.04); cursor:pointer; transition:transform .15s, box-shadow .15s; outline:none; }
         body.dark .cm-ev { background:var(--wds-gray-100); border-color:var(--wds-gray-300); box-shadow:none; }
         .cm-ev:hover { transform:translateY(-1px); box-shadow:0 8px 22px rgba(17,17,17,0.08); }
         .cm-ev:focus-visible { box-shadow:0 0 0 3px var(--wds-primary-light), 0 0 0 4px var(--wds-primary); }
@@ -1581,8 +1581,15 @@
         body.dark .cm-form { background:var(--wds-gray-100); }
         .cm-form h3 { margin:0 0 4px; font-size:0.98rem; font-weight:800; color:var(--wds-black); }
         .cm-form p { margin:0 0 14px; font-size:0.8rem; color:var(--wds-gray-600); line-height:1.5; }
-        .cm-f { margin-bottom:12px; }
-        .cm-f label { display:block; font-size:0.8rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; }
+        .cm-f { margin-bottom:16px; }
+        .cm-f label { display:block; font-size:0.84rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; line-height:1.45; word-break:keep-all; }
+        .cm-f-no { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:var(--wds-gray-200); color:var(--wds-gray-700); font-size:0.72rem; font-weight:800; margin-right:6px; vertical-align:1px; }
+        .cm-f.err input:not([type=checkbox]), .cm-f.err select, .cm-f.err textarea, .cm-f.err .cm-check, .cm-f.err .cm-consent { border-color:#E5484D !important; }
+        .cm-f-err { font-size:0.78rem; color:#E5484D; margin-top:6px; font-weight:600; }
+        .cm-note { background:var(--wds-gray-100); border-radius:10px; padding:12px 14px; font-size:0.86rem; line-height:1.55; color:var(--wds-gray-800); white-space:pre-wrap; word-break:keep-all; }
+        .cm-note b { display:block; font-size:0.88rem; color:var(--wds-black); margin-bottom:2px; }
+        .cm-form .legend { font-size:0.76rem; color:var(--wds-gray-500); margin:-8px 0 14px; }
+        .cm-form .legend .req { color:#E5484D; }
         .cm-f label .req { color:#E5484D; margin-left:2px; }
         /* 전역 input[type="text"]{height:52px…} 규칙보다 특이도를 높여 44px 상자형으로 */
         #communityContent .cm-f input, #communityContent .cm-f select, #communityContent .cm-f textarea { width:100%; height:44px; border:1px solid var(--wds-gray-300); border-radius:10px; padding:0 12px; font-size:0.92rem; font-family:inherit; background:var(--wds-white); color:var(--wds-black); box-sizing:border-box; margin:0; }
@@ -1624,7 +1631,8 @@
         .cm-q-tools .gaa-btn-xs { min-height:28px; padding:3px 8px; }
         .cm-q-empty { font-size:0.82rem; color:var(--wds-gray-500); margin-bottom:8px; }
         /* 신청 폼: 복수 선택·동의 */
-        .cm-f .cm-f-label { display:block; font-size:0.8rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; }
+        .cm-f .cm-f-label { display:block; font-size:0.84rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; line-height:1.45; word-break:keep-all; }
+        #communityContent .cm-f label.cm-check:has(input:checked), #communityContent .cm-f label.cm-consent:has(input:checked) { border-color:var(--wds-primary); background:var(--wds-primary-light); }
         .cm-checks { display:flex; flex-direction:column; gap:6px; }
         #communityContent .cm-f label.cm-check { display:flex; align-items:center; gap:8px; margin:0; padding:9px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-size:0.9rem; font-weight:500; color:var(--wds-black); cursor:pointer; }
         #communityContent .cm-f label.cm-check.full { color:var(--wds-gray-500); background:var(--wds-gray-100); cursor:default; }
@@ -9219,7 +9227,7 @@
         // ── 신청폼 질문 편집기(2026-10-13): 만들기('cc' → state.communityCreateFields)·수정('ce' → state.communityEditFields) 공용 ──
         // 질문 { label, type:'text'|'textarea'|'select'|'multi'|'consent', required, placeholder, options:[], limits:{선택지:정원}, showIf:{field:기준 질문 label, value}, text(동의 문구) }
         // 답변 form_data[label]: text/textarea/select → 문자열, multi → 배열, consent → '동의' | ''. 조건으로 숨겨진 질문은 저장하지 않는다.
-        const CM_Q_TYPES = [['text', '텍스트'], ['textarea', '장문'], ['select', '단일 선택'], ['multi', '복수 선택'], ['consent', '동의']];
+        const CM_Q_TYPES = [['text', '텍스트'], ['textarea', '장문'], ['select', '단일 선택'], ['multi', '복수 선택'], ['consent', '동의'], ['note', '안내문']]; // note = 입력칸 없는 안내 글(섹션 제목·주의사항·마무리 인사)
         const _cmQKeys = { cc: 'communityCreateFields', ce: 'communityEditFields' };
         const cmQHasOptions = (f) => f.type === 'select' || f.type === 'multi';
         const cmQIsCond = (f) => f.type === 'select' || f.type === 'multi' || f.type === 'consent'; // 표시 조건의 기준이 될 수 있는 질문
@@ -9270,6 +9278,8 @@
                     <div class="cm-q-hint">정원을 적으면 그 수만큼 신청되는 순간 그 선택지는 "마감"으로 표시돼요. 선택지 칸에서 Enter 를 누르면 다음 선택지가 추가됩니다.</div></div>`;
                 } else if (f.type === 'consent') {
                     body = `<textarea class="cm-q-text" rows="2" placeholder="동의 문구 (예: 모임 사진이 게더링 SNS 에 올라갈 수 있어요)" onchange="cmQ('${k}', ${i}, { text: this.value })">${escapeHtml(f.text || '')}</textarea><div class="cm-q-hint">신청자에게 체크 한 칸으로 보여요. 필수로 두면 체크해야 신청할 수 있어요.</div>`;
+                } else if (f.type === 'note') {
+                    body = `<textarea class="cm-q-text" rows="2" placeholder="안내 글 (예: 적어주신 번호로 1~3일 안에 연락드려요)" onchange="cmQ('${k}', ${i}, { text: this.value })">${escapeHtml(f.text || '')}</textarea><div class="cm-q-hint">입력칸 없이 제목(위 칸)과 글만 보여요. 섹션 제목·주의사항·마무리 인사에 쓰세요.</div>`;
                 } else {
                     body = `<input type="text" class="cm-q-ph" value="${escapeHtml(f.placeholder || '')}" placeholder="작성 안내 (예: 곡명 - 아티스트)" onchange="cmQ('${k}', ${i}, { placeholder: this.value })">`;
                 }
@@ -9290,7 +9300,7 @@
                     </div>
                     ${body}
                     <div class="cm-q-foot">
-                        <label class="cm-q-req"><input type="checkbox" ${f.required ? 'checked' : ''} onchange="cmQ('${k}', ${i}, { required: this.checked })"> 필수</label>
+                        ${f.type === 'note' ? '' : `<label class="cm-q-req"><input type="checkbox" ${f.required ? 'checked' : ''} onchange="cmQ('${k}', ${i}, { required: this.checked })"> 필수</label>`}
                         ${cond}
                         <span class="cm-q-tools">
                             <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="cmQMove('${k}', ${i}, -1)"${i === 0 ? ' disabled' : ''} aria-label="위로">↑</button>
@@ -9312,8 +9322,9 @@
                     const lim = {}; Object.entries(f.limits || {}).forEach(([o, n]) => { if (f.options.includes(o) && parseInt(n, 10) > 0) lim[o] = parseInt(n, 10); });
                     if (Object.keys(lim).length) f.limits = lim; else delete f.limits;
                 } else { delete f.options; delete f.limits; }
-                if (f.type !== 'consent') delete f.text; else f.text = String(f.text || '').trim();
-                if (f.type === 'consent' || cmQHasOptions(f)) delete f.placeholder;
+                if (f.type !== 'consent' && f.type !== 'note') delete f.text; else f.text = String(f.text || '').trim();
+                if (f.type === 'consent' || f.type === 'note' || cmQHasOptions(f)) delete f.placeholder;
+                if (f.type === 'note') { delete f.required; delete f.showIf; }
                 if (f.showIf && (!labels.has(f.showIf.field) || f.showIf.field === f.label || !f.showIf.value)) delete f.showIf;
             });
             return out;
@@ -9341,21 +9352,43 @@
         const cmOptFull = (f, counts, o) => !!(f.limits && f.limits[o] && ((counts[f.label] || {})[o] || 0) >= f.limits[o]);
         function cmApplyFieldsHTML(formFields, appList) {
             const counts = cmOptionCounts(formFields, appList);
+            let no = 0; // 안내문을 뺀 질문 번호
             return formFields.map((f, i) => {
-                const fid = `ca_custom_${i}`, req = f.required ? '<span class="req">*</span>' : '';
+                if (f.type === 'note') return `<div class="cm-f" data-qi="${i}"><div class="cm-note">${f.label ? `<b>${escapeHtml(f.label)}</b>` : ''}${escapeHtml(f.text || '')}</div></div>`;
+                no++;
+                const fid = `ca_custom_${i}`, req = f.required ? '<span class="req">*</span>' : '', num = `<span class="cm-f-no">${no}</span>`;
                 let inner;
-                if (f.type === 'textarea') inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}"></textarea>`;
-                else if (f.type === 'select') inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><select id="${fid}" onchange="cmApplyCond()"><option value="">선택하세요</option>${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<option value="${escapeHtml(o)}"${full ? ' disabled' : ''}>${escapeHtml(o)}${full ? ' (마감)' : ''}</option>`; }).join('')}</select>`;
-                else if (f.type === 'multi') inner = `<span class="cm-f-label">${escapeHtml(f.label)}${req}</span><div class="cm-checks" id="${fid}">${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<label class="cm-check${full ? ' full' : ''}"><input type="checkbox" value="${escapeHtml(o)}"${full ? ' disabled' : ''} onchange="cmApplyCond()"> ${escapeHtml(o)}${full ? ' <small>마감</small>' : ''}</label>`; }).join('')}</div>`;
-                else if (f.type === 'consent') inner = `<label class="cm-consent"><input type="checkbox" id="${fid}" onchange="cmApplyCond()"> <span><b>${escapeHtml(f.label)}${req}</b>${f.text ? `<small>${escapeHtml(f.text)}</small>` : ''}</span></label>`;
-                else inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}">`;
+                if (f.type === 'textarea') inner = `<label for="${fid}">${num}${escapeHtml(f.label)}${req}</label><textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}" oninput="cmGrow(this)"></textarea>`;
+                else if (f.type === 'select') inner = `<label for="${fid}">${num}${escapeHtml(f.label)}${req}</label><select id="${fid}" onchange="cmApplyCond()"><option value="">선택하세요</option>${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<option value="${escapeHtml(o)}"${full ? ' disabled' : ''}>${escapeHtml(o)}${full ? ' (마감)' : ''}</option>`; }).join('')}</select>`;
+                else if (f.type === 'multi') inner = `<span class="cm-f-label">${num}${escapeHtml(f.label)}${req}</span><div class="cm-checks" id="${fid}">${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<label class="cm-check${full ? ' full' : ''}"><input type="checkbox" value="${escapeHtml(o)}"${full ? ' disabled' : ''} onchange="cmApplyCond()"> ${escapeHtml(o)}${full ? ' <small>마감</small>' : ''}</label>`; }).join('')}</div>`;
+                else if (f.type === 'consent') inner = `<span class="cm-f-label">${num}${escapeHtml(f.label)}${req}</span><label class="cm-consent"><input type="checkbox" id="${fid}" onchange="cmApplyCond()"> <span><b>동의합니다</b>${f.text ? `<small>${escapeHtml(f.text)}</small>` : ''}</span></label>`;
+                else inner = `<label for="${fid}">${num}${escapeHtml(f.label)}${req}</label><input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}">`;
                 return `<div class="cm-f" data-qi="${i}"${f.showIf ? ' hidden' : ''}>${inner}</div>`;
             }).join('');
+        }
+        function cmGrow(el) { el.style.height = 'auto'; el.style.height = Math.max(84, el.scrollHeight) + 'px'; } // 장문 칸: 내용만큼 늘어남
+        function cmPhoneFmt(el) { // 연락처 자동 하이픈(010-1234-5678 / 02-… 는 그대로 둠)
+            const d = el.value.replace(/\D/g, '').slice(0, 11);
+            if (!d.startsWith('01')) return;
+            el.value = d.length <= 3 ? d : d.length <= 7 ? `${d.slice(0, 3)}-${d.slice(3)}` : d.length <= 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+        }
+        // 신청 폼 인라인 오류: 해당 칸을 빨갛게 표시하고 안내를 아래 붙인 뒤 그리로 스크롤(알림창 대신)
+        function cmFieldError(wrapSel, msg) {
+            document.querySelectorAll('#communityApplyForm .cm-f.err').forEach(w => { w.classList.remove('err'); w.querySelector('.cm-f-err')?.remove(); });
+            const w = document.querySelector(wrapSel);
+            if (!w) { alert(msg); return; }
+            w.classList.add('err');
+            const e = document.createElement('div'); e.className = 'cm-f-err'; e.textContent = msg; w.appendChild(e);
+            w.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (w.querySelector('input:not([type=checkbox]), select, textarea') || w.querySelector('input'))?.focus({ preventScroll: true });
+            const clear = () => { w.classList.remove('err'); w.querySelector('.cm-f-err')?.remove(); };
+            w.addEventListener('input', clear, { once: true }); w.addEventListener('change', clear, { once: true });
         }
         function cmFieldValue(f, i) {
             if (f.type === 'multi') return [...document.querySelectorAll(`#ca_custom_${i} input:checked`)].map(x => x.value);
             const el = document.getElementById(`ca_custom_${i}`); if (!el) return '';
             if (f.type === 'consent') return el.checked ? '동의' : '';
+            if (f.type === 'note') return '';
             return String(el.value || '').trim();
         }
         function cmCondVisible(f, formFields, i, depth = 0) { // 표시 조건 평가 — 기준 질문이 숨겨져 있으면 같이 숨김
@@ -9370,9 +9403,11 @@
         function cmApplyCond() {
             const formFields = state.communityCurrentFormFields || [];
             formFields.forEach((f, i) => { const w = document.querySelector(`#communityApplyForm .cm-f[data-qi="${i}"]`); if (w) w.hidden = !cmCondVisible(f, formFields, i); });
+            let no = 0; // 보이는 질문만 다시 번호 매김(조건으로 숨긴 질문 때문에 번호가 건너뛰지 않게)
+            document.querySelectorAll('#communityApplyForm .cm-f[data-qi]:not([hidden]) .cm-f-no').forEach(e => { e.textContent = ++no; });
         }
         function cmAggregationHTML(formFields, appList) { // 신청자 관리 탭 「답변 집계」
-            const qs = (formFields || []).filter(f => f.label);
+            const qs = (formFields || []).filter(f => f.label && f.type !== 'note');
             if (!qs.length) return '';
             const counts = cmOptionCounts(qs, appList);
             const active = (appList || []).filter(a => (a.status || 'pending') !== 'rejected');
@@ -9563,10 +9598,12 @@
             if (closed) {
                 html += `<div class="cm-closed">모집이 마감되었어요</div>`;
             } else {
-                html += `<p>이름과 연락처만 적으면 돼요. 신청 내용은 모임장에게 바로 전달됩니다.</p>
+                const qCount = formFields.filter(f => f.type !== 'note').length;
+                html += `<p>${qCount ? `이름·연락처와 질문 ${qCount}개를 적어 주세요.` : '이름과 연락처만 적으면 돼요.'} 신청 내용은 모임장에게 바로 전달됩니다.</p>
+                <div class="legend"><span class="req">*</span> 표시는 필수 항목이에요</div>
                 <div class="cm-f2">
-                    <div class="cm-f"><label>이름<span class="req">*</span></label><input type="text" id="ca_name" placeholder="이름" autocomplete="name"></div>
-                    <div class="cm-f"><label>연락처<span class="req">*</span></label><input type="tel" id="ca_phone" placeholder="010-0000-0000" autocomplete="tel"></div>
+                    <div class="cm-f" id="cm_f_name"><label for="ca_name">이름<span class="req">*</span></label><input type="text" id="ca_name" placeholder="이름" autocomplete="name"></div>
+                    <div class="cm-f" id="cm_f_phone"><label for="ca_phone">연락처<span class="req">*</span></label><input type="tel" id="ca_phone" placeholder="010-0000-0000" autocomplete="tel" inputmode="tel" oninput="cmPhoneFmt(this)"></div>
                 </div>`;
                 html += cmApplyFieldsHTML(formFields, appList); // 단일/복수 선택·동의·조건 표시·선택지 정원(마감) 포함
                 html += `<button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" onclick="submitCommunityApplication('${id}')">신청하기</button>
@@ -9957,17 +9994,19 @@
             const email = '';
             const phone = (document.getElementById('ca_phone') || {}).value?.trim() || '';
 
-            if (!name) return alert('이름을 입력해주세요.');
-            if (!phone) return alert('연락처를 입력해주세요.');
+            if (!name) return cmFieldError('#cm_f_name', '이름을 입력해주세요.');
+            if (!phone) return cmFieldError('#cm_f_phone', '연락처를 입력해주세요.');
+            if (phone.replace(/\D/g, '').length < 9) return cmFieldError('#cm_f_phone', '연락처를 끝까지 입력해주세요.');
 
             const formFields = Array.isArray(meeting.form_fields) ? meeting.form_fields : [];
             const formData = {};
             for (let i = 0; i < formFields.length; i++) {
                 const f = formFields[i];
+                if (f.type === 'note') continue; // 안내문은 답이 없다
                 if (!cmCondVisible(f, formFields, i)) continue; // 조건으로 숨겨진 질문은 저장하지 않음
                 const val = cmFieldValue(f, i);
                 const empty = Array.isArray(val) ? val.length === 0 : !val;
-                if (f.required && empty) return alert(f.type === 'consent' ? `"${f.label}"에 동의해야 신청할 수 있어요.` : `"${f.label}" 항목을 입력해주세요.`);
+                if (f.required && empty) return cmFieldError(`#communityApplyForm .cm-f[data-qi="${i}"]`, f.type === 'consent' ? '동의해야 신청할 수 있어요.' : f.type === 'multi' ? '하나 이상 골라주세요.' : f.type === 'select' ? '골라주세요.' : '적어주세요.');
                 formData[f.label] = val;
             }
 
@@ -10049,7 +10088,7 @@
                 .order('created_at', { ascending: true });
             if (error) return alert('다운로드 실패: ' + error.message);
 
-            const formFields = meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : [];
+            const formFields = (meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : []).filter(f => f.type !== 'note'); // 안내문은 답이 없다
             const headers = ['이름', '이메일', '전화번호', '상태', '신청일시', ...formFields.map(f => f.label)];
             const stLabel = { accepted: '수락', rejected: '거절', pending: '대기' };
             const rows = (apps || []).map(a => {

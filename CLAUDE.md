@@ -80,7 +80,9 @@
   옛 `.community-card/.community-grid/.community-tab*/.community-detail-hero*` CSS 는 제거됨(`community-grid-2`·`gforms-*` 는 생성/수정 폼이 계속 씀).
   대표 이미지는 **정방형**: 만들기/수정에서 파일을 고르면 크롭 상자(`cmCropLoad/Zoom/Reset/Export`, 끌어 이동·1~3배 확대)로 보일 영역을 정하고 제출 때 1080² JPEG 로 잘라 올린다.
   테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
-  **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
+  **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent|note, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
+  `note` = 입력칸 없는 안내문(답·필수·조건 없음, CSV·집계 제외). 신청 폼은 질문 번호 칩(안내문 제외)·머리글에 질문 수, 검증 오류는 알림창 대신 `cmFieldError()`(칸 빨간 테두리+문구+스크롤),
+  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `align-items:center` 로 세로 가운데.
   답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
   (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
   신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인. 신청자 관리 탭 「답변 집계」 `cmAggregationHTML`.
