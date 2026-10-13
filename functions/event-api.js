@@ -483,7 +483,9 @@ export async function onRequest(context) {
             if (!kk) return fail(401, 'auth', '카카오 로그인이 만료되었습니다. 다시 로그인해주세요.');
             const kakaoId = kk.id;
             const isAdmin = kakaoId === ADMIN_KAKAO_ID;
-            const posterOk = (u) => !u || String(u).startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/community-images/events/`);
+            // 포스터 URL 은 우리 스토리지만: 호스트 업로드(community-images/events/) 또는 포스터 꾸미기 작품 미리보기(wappen/previews/)
+            const POSTER_PREFIXES = ['community-images/events/', 'wappen/previews/'];
+            const posterOk = (u) => !u || POSTER_PREFIXES.some(pre => String(u).startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/${pre}`));
             // 팀 대상 액션 공통 게이트 — needOwner=true면 owner(또는 ADMIN)만
             const requireTeam = async (hostId, needOwner) => {
                 if (!isUuid(hostId)) return { err: [400, 'bad_team', '팀 정보가 올바르지 않습니다.'] };

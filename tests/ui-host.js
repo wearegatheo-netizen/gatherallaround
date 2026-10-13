@@ -59,6 +59,11 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
         const resp = window.__apiQueue.shift() || { ok: false, error: 'no-mock', message: 'no mock: ' + JSON.parse(opts.body).action };
         return Promise.resolve(new Response(JSON.stringify(resp), { status: 200 }));
       }
+      if (String(url) === '/wappen-api') { // 포스터 꾸미기 작품 목록(my_content) 목
+        window.__wpCalls = window.__wpCalls || []; window.__wpCalls.push(JSON.parse(opts.body));
+        const resp = window.__wpResp || { ok: false, error: 'auth' };
+        return Promise.resolve(new Response(JSON.stringify(resp.body || resp), { status: resp.status || 200 }));
+      }
       return realFetch(url, opts);
     };
   });
@@ -118,6 +123,32 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   // ── 3. 새 공연 등록 폼 → 장소 검색·콤마 가격·분리 계좌·서식 소개 → payload 검증
   await p.click('button:has-text("+ 새 공연 등록")');
   await p.waitForTimeout(150);
+  // ── 3a. 포스터 꾸미기 작품 가져오기: 와펜 세션 없음 → 로그인 안내 / 세션 있음 → 작품 격자 → 선택 → poster_url
+  await p.evaluate(() => { try { localStorage.removeItem('wappen_session'); } catch (_) {} });
+  await p.click('#evPosterPickBtn');
+  await p.waitForTimeout(100);
+  s = await p.evaluate(() => ({ modal: !!document.getElementById('wpPosterModal'), txt: document.getElementById('wpPosterModal')?.textContent || '',
+    link: document.querySelector('#wpPosterModal a[href="/wappen/"]')?.getAttribute('target'), calls: (window.__wpCalls || []).length }));
+  chk('포스터 피커: 와펜 세션 없음 → 로그인 안내 + [포스터 꾸미기 열기] 새 탭, API 미호출', s.modal && s.txt.includes('로그인되어 있지 않습니다') && s.link === '_blank' && s.calls === 0, s.txt.slice(0, 60));
+  await p.click('#wpPosterModal .gaa-btn-ghost');
+  await p.evaluate(() => {
+    try { localStorage.setItem('wappen_session', 'wp-sess-1'); } catch (_) {}
+    window.__wpResp = { ok: true, projects: [], requests: [], works: [
+      { id: 'w1', title: '겨울 공연 포스터', preview_url: 'https://sb.test/storage/v1/object/public/wappen/previews/u1/w1.jpg', wappen_projects: { title: '12월 기획' } },
+      { id: 'w2', title: '미리보기 없음', preview_url: '' },
+    ] };
+  });
+  await p.click('#evPosterPickBtn');
+  await p.waitForTimeout(150);
+  s = await p.evaluate(() => ({ call: (window.__wpCalls || [])[0], n: document.querySelectorAll('#wpPosterModal .wp-pick').length,
+    first: [...document.querySelectorAll('#wpPosterModal .wp-pick span, #wpPosterModal .wp-pick small')].map(e => e.textContent.trim()).join(' | ') }));
+  chk('포스터 피커: my_content 를 저장된 와펜 세션으로 호출, 미리보기 있는 작품만 격자(제목·프로젝트)', s.call && s.call.action === 'my_content' && s.call.session === 'wp-sess-1'
+    && s.n === 1 && s.first === '겨울 공연 포스터 | 12월 기획', JSON.stringify(s));
+  await p.click('#wpPosterModal .wp-pick');
+  await p.waitForTimeout(100);
+  s = await p.evaluate(() => ({ url: _hostState.posterUrl, st: document.getElementById('evPosterStatus').textContent, prev: document.querySelector('#evPosterPreview img')?.getAttribute('src'),
+    closed: !document.getElementById('wpPosterModal') }));
+  chk('작품 선택 → posterUrl = 미리보기 URL, 상태 문구·미리보기 표시, 모달 닫힘', s.url.endsWith('/wappen/previews/u1/w1.jpg') && s.st.includes('겨울 공연 포스터') && s.prev === s.url && s.closed, JSON.stringify(s));
   await p.fill('#evTitle', '한여름 밤의 락');
   await p.fill('#evStartsAt', '2026-12-24T19:30');
   await p.fill('#evSalesOpen', '2026-12-20T12:00');
@@ -190,6 +221,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     && e3.starts_at === new Date('2026-12-24T19:30').toISOString() && e3.capacity === 50 && e3.price === 15000,
     JSON.stringify(e3).slice(0, 120));
   chk('payload: 팀 host_id 포함', s.call && s.call.host_id === 'h1');
+  chk('payload: 포스터 꾸미기 작품 URL 이 poster_url 로', e3 && e3.poster_url === 'https://sb.test/storage/v1/object/public/wappen/previews/u1/w1.jpg', e3 && e3.poster_url);
   chk('payload: 계좌 합성(은행 계좌 예금주)', e3 && e3.bank_info === '토스뱅크 1002-1111-2222 김호스트', e3 && e3.bank_info);
   chk('payload: 직접 입력 장소(좌표 없음) + 상세설명(여러 줄)', e3 && e3.venue === '홍대 클럽 FF 지하' && e3.venue_lat === null
     && e3.venue_lng === null && e3.venue_address === '서울 마포구 와우산로 12 B1\n간판 없음 — 초록 문으로 들어오세요',

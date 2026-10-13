@@ -166,6 +166,10 @@
         body.dark .slot-past { background: #252525 !important; }
         body.dark .slot-blocked { background: #3a1414 !important; color: #ff8080 !important; border-left-color: #ff4d4f; }
         body.dark .slot-occupied { background: #1a2a4a !important; color: #7aabff !important; border-left-color: #5580ff; }
+        /* 커뮤니티 모임 등록 달력: 게더링 차단 시간은 '요청' 칸 — 고를 수 있고, 운영진 수락 후 모임 공개 */
+        .slot-request { background: repeating-linear-gradient(135deg, #fff4e0 0 6px, #ffe9c4 6px 12px); color: #b45309; font-size: 0.7rem; font-weight: 700; }
+        .slot-request.selected { color: #fff; }
+        body.dark .slot-request { background: repeating-linear-gradient(135deg, #3a2a10 0 6px, #4a3614 6px 12px); color: #f0b35a; }
         body.dark .nav-btn { background: var(--wds-gray-100) !important; color: var(--wds-black); }
         body.dark #comments_container { background: var(--wds-gray-100) !important; }
         body.dark .board-post-expand { background: #2a2a2a !important; }
@@ -390,6 +394,17 @@
         .perf-hf-chip.selected { background: var(--wds-primary); color: #fff; border-color: var(--wds-primary); }
         .perf-summary-box { background: var(--wds-gray-100); border-radius: 10px; padding: 12px 14px; font-size: 0.86rem; line-height: 1.7; margin-bottom: 16px; color: var(--wds-gray-700); }
         /* 관리자 대관 카드 */
+        /* 공연 등록 폼: 포스터 미리보기 + 포스터 꾸미기 작품 고르기 모달 */
+        #evPosterPreview img { display: block; width: 96px; max-height: 140px; object-fit: contain; border: 1px solid var(--wds-gray-300); border-radius: 8px; margin-top: 8px; background: var(--wds-gray-100); }
+        .wp-pick-msg { font-size: 0.86rem; color: var(--wds-gray-700); line-height: 1.6; margin: 0 0 14px; }
+        .wp-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+        .wp-pick { border: 1px solid var(--wds-gray-300); border-radius: 10px; padding: 6px; background: var(--wds-white); cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 4px; min-width: 0; font: inherit; color: inherit; }
+        .wp-pick:hover, .wp-pick:focus-visible { border-color: var(--wds-primary); outline: none; }
+        .wp-pick img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: var(--wds-gray-100); border-radius: 6px; }
+        .wp-pick span { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wp-pick small { font-size: 0.72rem; color: var(--wds-gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.dark .wp-pick { background: #1e1e1e; border-color: #3a3a3a; }
+        body.dark .wp-pick img, body.dark #evPosterPreview img { background: #2a2a2a; border-color: #3a3a3a; }
         .perf-admin-card { border: 1px solid var(--wds-gray-300); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
         .perf-admin-card.pending { border-color: #e07b00; background: #fff8f0; }
         body.dark .perf-admin-card.pending { background: #2a1800; }
@@ -7531,14 +7546,18 @@
             _cs().rangeConflicts = map;
         }
 
+        // 커뮤니티 모임 등록 달력(allowBlocked): 예약·대관은 막고, 게더링 차단(time_blocks)은 '요청' 칸으로 고를 수 있다 — 운영진 수락 후 모임 공개
+        const _calAllowBlocked = () => !!(_calCtx && _calCtx.allowBlocked);
+        function getHardConflicts(dateStr) { return _cs().rangeConflicts[dateStr] || []; } // 예약·대관(확정/대기)만
         function getDateConflicts(dateStr) {
             const base = _cs().rangeConflicts[dateStr] || [];
             const blocks = perfBlocksForDate(dateStr).map(b => ({ start_time: b.start_time, end_time: b.end_time }));
             return [...base, ...blocks];
         }
 
-        function dateConflictStatus(dateStr) {
-            const list = getDateConflicts(dateStr);
+        function dateHardStatus(dateStr) { return _slotStatus(getHardConflicts(dateStr)); }
+        function dateConflictStatus(dateStr) { return _slotStatus(getDateConflicts(dateStr)); }
+        function _slotStatus(list) {
             if (!list.length) return 'free';
             const occupied = new Set();
             for (const c of list) {
@@ -7726,7 +7745,7 @@
                     }
                     day.appendChild(info);
                 }
-                const clickable = !isPast && cs !== 'full';
+                const clickable = !isPast && (cs !== 'full' || (_calAllowBlocked() && dateHardStatus(dateStr) !== 'full'));
                 if (clickable) {
                     day.style.cursor = 'pointer';
                     day.onclick = () => selectPerfDate(dateStr);
@@ -7738,7 +7757,7 @@
             container.appendChild(grid);
             const legend = document.createElement('div');
             legend.style.cssText = 'font-size:0.72rem;color:var(--wds-gray-500);margin-top:8px';
-            legend.innerHTML = '· 날짜를 선택하면 시간 슬롯이 표시됩니다';
+            legend.innerHTML = '· 날짜를 선택하면 시간 슬롯이 표시됩니다' + (_calAllowBlocked() ? '<br>· 게더링이 막아 둔 시간도 고를 수 있어요 — 운영진이 수락하면 모임이 공개됩니다' : '');
             container.appendChild(legend);
             if (_cs().selectedDate) renderPerfWeekTimePicker(container);
         }
@@ -7782,11 +7801,10 @@
                     if (i === 6) s.classList.add('week-sat');
                     if (d.getTime() === today.getTime()) s.classList.add('week-today');
                     const isPast = d < today;
-                    const conflicts = getDateConflicts(dateStr);
-                    const conflicted = conflicts.some(c => {
-                        const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
-                        return idx >= cs && idx <= ce;
-                    });
+                    const inSlot = c => { const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time); return idx >= cs && idx <= ce; };
+                    const allowBlocked = _calAllowBlocked();
+                    const conflicted = (allowBlocked ? getHardConflicts(dateStr) : getDateConflicts(dateStr)).some(inSlot);
+                    const softBlock = allowBlocked && !conflicted && perfBlocksForDate(dateStr).some(inSlot); // 게더링 차단 — 고를 수 있지만 운영진 수락 필요
                     if (isPast) {
                         s.style.cursor = 'not-allowed'; s.style.opacity = '0.4';
                     } else if (conflicted) {
@@ -7797,6 +7815,7 @@
                         s.textContent = '예약불가';
                     } else {
                         s.style.cursor = 'pointer';
+                        if (softBlock) { s.classList.add('slot-request'); s.textContent = '요청'; s.title = '게더링이 막아 둔 시간 — 선택하면 운영진 수락 후 모임이 공개됩니다'; }
                         if (_cs().selectedDate === dateStr && _cs().startSlot !== null) {
                             const sStart = _cs().startSlot, sEnd = _cs().endSlot;
                             if (sEnd !== null && idx >= sStart && idx <= sEnd) s.classList.add('selected');
@@ -7813,6 +7832,7 @@
             const help = document.createElement('div');
             help.style.cssText = 'font-size:0.75rem;color:var(--wds-gray-500);margin-top:8px;text-align:center';
             help.textContent = _calMin() > 1 ? `시작 슬롯 → 종료 슬롯 순서로 클릭 (최소 ${_calMin()}시간)` : '시작 슬롯 → 종료 슬롯 순서로 클릭 (1시간이면 같은 슬롯을 두 번)';
+            if (_calAllowBlocked()) help.textContent += " · '요청' 칸은 게더링이 막아 둔 시간(운영진 수락 후 공개)";
             container.appendChild(help);
         }
 
@@ -7831,7 +7851,7 @@
                 st.startSlot = null; st.endSlot = null; rerender(); return;
             }
             if (idx - startSlot + 1 < min) { alert(`최소 ${min}시간 이상 선택해주세요.`); return; }
-            const conflicts = getDateConflicts(dateStr);
+            const conflicts = _calAllowBlocked() ? getHardConflicts(dateStr) : getDateConflicts(dateStr);
             for (let j = startSlot; j <= idx; j++) {
                 const conf = conflicts.some(c => {
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
@@ -8297,7 +8317,8 @@
             state.perfAdminItems = items; // 인라인 수정(editPerfBooking)에서 원본 조회용
             const pending = items.filter(b => b.status === 'pending' && !_pbExpired(b));
             const others = items.filter(b => !(b.status === 'pending' && !_pbExpired(b)));
-            let html = `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
+            let html = await _cmReqSectionHTML(); // 커뮤니티 모임의 게더링 차단 시간 사용 요청 — 수락/거절
+            html += `<div class="admin-section-title">🎭 공간 대관 신청 (${items.length}건)</div>`;
             if (!items.length) { html += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500)">신청 내역이 없습니다.</p>'; container.innerHTML = html; return; }
             // 카드 내 액션 버튼 공통 스타일 — 크기·모양 통일 (기능별 색만 다르게)
             const _pbtn = _gaaBtn; // 색 인자 → gaa-btn 변형 (아래 _gaaBtn 참고)
@@ -8353,6 +8374,93 @@
             };
             html += pending.map(renderCard).join('') + others.map(renderCard).join('');
             container.innerHTML = html;
+        }
+
+        // ── 커뮤니티 모임 시간 사용 요청(community_meetings.status='pending') — 공간대관 탭 머리 ──
+        // 모임장이 게더링이 막아 둔 시간을 골라 만든 모임. 수락 → /community-admin 이 status active + time_blocks, 거절 → rejected (anon UPDATE 회수 상태라 서버만 가능)
+        function _cmMeetingSlots(m) { // meeting_time "10:00 ~ 13:00"(끝은 표시용 다음 슬롯) → [시작, 끝] 슬롯
+            const mm = String(m.meeting_time || '').match(/(\d{2}:\d{2})\s*~\s*(\d{2}:\d{2})/); if (!mm) return null;
+            const s = TIMES.indexOf(mm[1]); const e = mm[2] === '23:00' ? TIMES.length - 1 : TIMES.indexOf(mm[2]) - 1;
+            return s < 0 || e < s ? null : [s, e];
+        }
+        function _cmReqBlocks(m, blocks) { // 요청 모임과 겹치는 차단 사유 목록
+            const r = _cmMeetingSlots(m); if (!r || !m.meeting_date) return [];
+            const dow = new Date(m.meeting_date + 'T00:00:00').getDay();
+            return (blocks || []).filter(b => b.day_of_week === dow && !(b.start_date && m.meeting_date < b.start_date) && !(b.end_date && m.meeting_date > b.end_date))
+                .filter(b => { const bs = TIMES.indexOf(b.start_time), be = TIMES.indexOf(b.end_time); return r[0] <= be && r[1] >= bs; })
+                .map(b => `${b.start_time}~${TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00'}${b.reason ? ' · ' + b.reason : ''}`);
+        }
+        async function _cmReqSectionHTML() {
+            let rows = [], err = null;
+            try {
+                const r = await supabaseClient.from('community_meetings')
+                    .select('id,title,meeting_date,meeting_time,organizer_name,organizer_phone,organizer_email,capacity,fee,created_at,status')
+                    .eq('status', 'pending').order('created_at', { ascending: false });
+                if (r.error) err = r.error; else rows = (r.data || []).filter(m => m.status === 'pending');
+            } catch (e) { err = e; }
+            state.cmReqItems = rows;
+            let html = `<div class="admin-section-title">🙋 커뮤니티 모임 시간 요청 (${rows.length}건)</div>`;
+            const note = (t) => `<p style="font-size:0.8rem;color:var(--wds-gray-500);padding:2px 0 14px;line-height:1.6">${t}</p>`;
+            if (err) {
+                console.error('community pending fetch:', err);
+                return html + note('요청 목록을 불러오지 못했습니다. status 컬럼이 없다면 supabase/migrations/20261013_community_meeting_status.sql 을 실행하세요.');
+            }
+            if (!rows.length) return html + note('대기 중인 요청이 없습니다. 모임장이 게더링이 막아 둔 시간을 고르면 여기에 뜹니다.');
+            let blocks = [];
+            try { blocks = (await supabaseClient.from('time_blocks').select('*')).data || []; } catch (_) {}
+            return html + rows.map(m => {
+                const phone = String(m.organizer_phone || '').replace(/\D/g, '');
+                const cd = new Date(m.created_at);
+                const created = isNaN(cd) ? '' : `${cd.getMonth() + 1}/${cd.getDate()} ${String(cd.getHours()).padStart(2, '0')}:${String(cd.getMinutes()).padStart(2, '0')} 접수`;
+                const wd = m.meeting_date ? ['일', '월', '화', '수', '목', '금', '토'][new Date(m.meeting_date + 'T00:00:00').getDay()] : '';
+                const blk = _cmReqBlocks(m, blocks);
+                return `<div class="perf-admin-card pending" id="cmreq-${m.id}">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span class="status-badge status-pending sm">⏳ 수락 대기</span>
+                        <span style="font-size:0.9rem;font-weight:700">${escapeHtml(m.title || '')}</span>
+                        <span style="margin-left:auto;font-size:0.72rem;color:var(--wds-gray-500)">${created}</span>
+                    </div>
+                    <div class="perf-admin-card-info" style="margin-top:8px">
+                        📅 ${escapeHtml(m.meeting_date || '날짜 미정')}${wd ? `(${wd})` : ''} ${escapeHtml(m.meeting_time || '')}<br>
+                        🚫 차단: ${blk.length ? blk.map(escapeHtml).join(', ') : '겹치는 차단 정보를 찾지 못함'}<br>
+                        👤 ${escapeHtml(m.organizer_name || '')} · 📞 ${phone ? `<a href="tel:${phone}" style="color:inherit">${escapeHtml(m.organizer_phone)}</a>` : '-'}${m.organizer_email ? ` · ✉️ ${escapeHtml(m.organizer_email)}` : ''}<br>
+                        👥 정원 ${m.capacity || '-'}명 · 💰 ${escapeHtml(m.fee || '무료')}
+                    </div>
+                    <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
+                        <button class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="reviewCommunityMeeting('${m.id}', 'approved')">수락</button>
+                        <button class="gaa-btn gaa-btn-sm gaa-btn-danger" onclick="reviewCommunityMeeting('${m.id}', 'rejected')">거절</button>
+                        <span style="margin-left:auto;font-size:0.72rem;color:var(--wds-gray-500)">수락하면 목록 공개 + 시간표 반영</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        // 서버(/community-admin 등)에 보낼 관리자 인증 — 카카오 토큰(메모리) → Supabase 세션 → 카카오 캐시 세션이면 팝업으로 토큰 재발급
+        async function _adminApiAuth() {
+            try { const kt = typeof Kakao !== 'undefined' && Kakao.Auth && Kakao.Auth.getAccessToken && Kakao.Auth.getAccessToken(); if (kt) return { kakao_token: kt }; } catch (_) {}
+            try { const { data } = await supabaseClient.auth.getSession(); if (data && data.session && data.session.access_token) return { sb_token: data.session.access_token }; } catch (_) {}
+            if (typeof Kakao === 'undefined' || !Kakao.Auth || !Kakao.Auth.login) return null;
+            return new Promise(resolve => {
+                try {
+                    if (!Kakao.isInitialized()) initKakao();
+                    Kakao.Auth.login({ success: a => resolve(a && a.access_token ? { kakao_token: a.access_token } : null), fail: () => resolve(null) });
+                } catch (_) { resolve(null); }
+            });
+        }
+        async function reviewCommunityMeeting(id, decision) {
+            const m = (state.cmReqItems || []).find(x => x.id === id);
+            const approve = decision === 'approved';
+            if (!confirm(`"${m ? m.title : '모임'}" 요청을 ${approve ? '수락' : '거절'}할까요?\n${approve ? '수락하면 모임이 커뮤니티 목록에 공개되고 시간표에 잡힙니다.' : '거절하면 모임은 공개되지 않습니다.'}\n결과는 모임장 이메일로 안내됩니다.`)) return;
+            const auth = await _adminApiAuth();
+            if (!auth) { alert('관리자 인증 정보를 가져오지 못했습니다. 다시 로그인한 뒤 시도해주세요.'); return; }
+            try {
+                const r = await fetch('/community-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'review_meeting', meeting_id: id, decision, ...auth }) });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok || !j.ok) { console.error('[community-admin]', r.status, j); alert(j.message || '처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                showToast(approve ? `모임을 수락했습니다. 커뮤니티에 공개됩니다.${j.time_block ? '' : ' (시간표 반영은 실패 — 차단 탭에서 직접 추가)'}` : '요청을 거절했습니다.');
+            } catch (e) { console.error(e); alert('처리하지 못했습니다. 네트워크를 확인해주세요.'); return; }
+            await fetchReservations();
+            state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
         async function approvePerfBooking(id) {
@@ -8759,23 +8867,39 @@
 
         async function fetchCommunityReservationsAndBlocks() {
             try {
-                const [rb, bb] = await Promise.all([
+                const [rb, bb, pb] = await Promise.all([
                     supabaseClient.from('reservations').select('id, res_date, start_time, end_time, status'),
                     supabaseClient.from('time_blocks').select('*'),
+                    supabaseClient.from('performance_bookings').select('id, date, start_time, end_time, status, created_at').not('status', 'in', '("rejected","expired","cancelled")'),
                 ]);
-                if (rb.data) state.reservations = rb.data;
+                // 공간 대관(확정·대기, 4시간 만료 제외)도 예약과 같은 모양으로 합친다 — 달력(loadPerfRangeConflicts)과 같은 기준
+                const perfVirtual = ((pb && pb.data) || []).filter(b => !_pbExpired(b))
+                    .map(b => ({ id: 'perf-' + b.id, res_date: b.date, start_time: b.start_time, end_time: b.end_time, status: 'approved' }));
+                if (rb.data) state.reservations = [...rb.data, ...perfVirtual];
                 if (bb.data) state.blocks = bb.data;
             } catch (e) { /* ignore */ }
         }
 
+        // 반환: null(겹침 없음) | { kind:'invalid'|'reservation', message } (등록 불가)
+        //      | { kind:'block', message, range, reason } (게더링 차단 — 운영진 수락 요청으로 진행 가능). 예약·대관이 차단보다 우선.
         function checkCommunityTimeConflict(dateStr, startTime, endTime) {
             const sIdx = TIMES.indexOf(startTime);
             const eIdx = TIMES.indexOf(endTime);
-            if (sIdx < 0 || eIdx < 0 || sIdx > eIdx) return '시간 범위가 올바르지 않습니다.';
+            if (sIdx < 0 || eIdx < 0 || sIdx > eIdx) return { kind: 'invalid', message: '시간 범위가 올바르지 않습니다.' };
             const [y, m, d] = dateStr.split('-').map(Number);
             const dow = new Date(y, m - 1, d).getDay();
 
-            // Check time_blocks
+            // 예약·대관(approved + pending)
+            for (const r of (state.reservations || [])) {
+                if (r.status === 'rejected' || r.status === 'cancelled') continue;
+                if (r.res_date !== dateStr) continue;
+                const rSIdx = TIMES.indexOf(r.start_time);
+                const rEIdx = TIMES.indexOf(r.end_time);
+                if (sIdx <= rEIdx && eIdx >= rSIdx) {
+                    return { kind: 'reservation', message: `해당 시간대에 이미 예약이 있습니다 (${r.start_time}~${TIMES[rEIdx + 1] || '23:00'}).` };
+                }
+            }
+            // 게더링 차단(time_blocks) — 요청 가능
             for (const b of (state.blocks || [])) {
                 if (b.day_of_week !== dow) continue;
                 if (b.start_date && dateStr < b.start_date) continue;
@@ -8783,17 +8907,8 @@
                 const bSIdx = TIMES.indexOf(b.start_time);
                 const bEIdx = TIMES.indexOf(b.end_time);
                 if (sIdx <= bEIdx && eIdx >= bSIdx) {
-                    return `해당 시간대는 차단되어 있습니다 (${b.start_time}~${TIMES[bEIdx + 1] || '23:00'}${b.reason ? ' · ' + b.reason : ''}).`;
-                }
-            }
-            // Check reservations (approved + pending)
-            for (const r of (state.reservations || [])) {
-                if (r.status === 'rejected' || r.status === 'cancelled') continue;
-                if (r.res_date !== dateStr) continue;
-                const rSIdx = TIMES.indexOf(r.start_time);
-                const rEIdx = TIMES.indexOf(r.end_time);
-                if (sIdx <= rEIdx && eIdx >= rSIdx) {
-                    return `해당 시간대에 이미 예약이 있습니다 (${r.start_time}~${TIMES[rEIdx + 1] || '23:00'}).`;
+                    const range = `${b.start_time}~${TIMES[bEIdx + 1] || '23:00'}`;
+                    return { kind: 'block', range, reason: b.reason || '', message: `게더링이 막아 둔 시간과 겹칩니다 (${range}${b.reason ? ' · ' + b.reason : ''}).` };
                 }
             }
             return null;
@@ -8824,9 +8939,10 @@
                 .select('*')
                 .order('meeting_date', { ascending: true, nullsFirst: false });
             if (!error && data) {
-                state.communityMeetings = data;
+                // pending(운영진 수락 대기)·rejected 모임은 공개 목록에서 제외 (status 컬럼 없던 행은 active)
+                state.communityMeetings = data.filter(m => (m.status || 'active') === 'active');
                 // Fetch application counts — 거절 건은 정원에서 제외 (status 컬럼 마이그레이션 전이면 전체 집계 폴백)
-                const ids = data.map(m => m.id);
+                const ids = state.communityMeetings.map(m => m.id);
                 if (ids.length > 0) {
                     let { data: appData, error: appErr } = await supabaseClient
                         .from('community_applications')
@@ -9175,9 +9291,14 @@
         function initCommunityCal() {
             if (!document.getElementById('ccCalContainer')) return;
             _ccCalState = { calView: 'month', viewDate: new Date(), selectedDate: null, startSlot: null, endSlot: null, rangeConflicts: {}, blocks: [] };
-            _calCtx = { state: _ccCalState, minSlots: 1, onChange: _ccCalOnChange,
+            _calCtx = { state: _ccCalState, minSlots: 1, onChange: _ccCalOnChange, allowBlocked: true, // 차단 시간은 '요청' 칸
                 ids: { container: 'ccCalContainer', label: 'ccCalLabel', monthBtn: 'ccCalMonthBtn', weekBtn: 'ccCalWeekBtn' } };
             renderPerfCal();
+        }
+        // 달력에서 고른 범위와 겹치는 게더링 차단(time_blocks) — 있으면 모임은 운영진 수락 후 공개된다
+        function _ccRangeBlock() {
+            const st = _ccCalState; if (!st || !st.selectedDate || st.startSlot === null || st.endSlot === null) return null;
+            return perfBlocksForDate(st.selectedDate).find(b => { const bs = TIMES.indexOf(b.start_time), be = TIMES.indexOf(b.end_time); return st.startSlot <= be && st.endSlot >= bs; }) || null;
         }
         function _ccCalOnChange() {
             const st = _ccCalState; if (!st) return;
@@ -9191,6 +9312,7 @@
             if (!sum) return;
             if (st.selectedDate && st.startSlot !== null && st.endSlot !== null) {
                 sum.textContent = `선택: ${st.selectedDate.replace(/-/g, '.')} ${TIMES[st.startSlot]} ~ ${TIMES[st.endSlot + 1] || '23:00'} → 아래 날짜·시간에 입력됨`;
+                if (_ccRangeBlock()) sum.textContent += ' · ⚠ 게더링이 막아 둔 시간이 포함돼 운영진 수락 후 공개됩니다';
             } else if (st.selectedDate && st.startSlot !== null) {
                 sum.textContent = `${st.selectedDate.replace(/-/g, '.')} ${TIMES[st.startSlot]} 시작 — 종료 슬롯을 클릭하세요`;
             } else if (st.selectedDate) {
@@ -9485,10 +9607,12 @@
             if (pw !== pw2) return alert('비밀번호가 일치하지 않습니다.');
             const qProblem = cmFieldsProblem(cmCleanFields(state.communityCreateFields)); if (qProblem) return alert(qProblem);
 
-            // Check conflict with GatheO reservations & time_blocks
+            // 예약·대관과 겹치면 불가, 게더링 차단(time_blocks)만 겹치면 운영진 수락 요청(pending)으로 진행
             await fetchCommunityReservationsAndBlocks();
             const conflict = checkCommunityTimeConflict(date, startTime, endTime);
-            if (conflict) return alert(conflict);
+            if (conflict && conflict.kind !== 'block') return alert(conflict.message);
+            const needsApproval = !!conflict;
+            if (needsApproval && !confirm(`선택한 시간은 게더링이 막아 둔 시간과 겹칩니다.\n${conflict.range}${conflict.reason ? ' · ' + conflict.reason : ''}\n\n운영진에게 사용 요청을 보내고, 수락되면 모임이 커뮤니티에 공개됩니다.\n요청을 보낼까요?`)) return;
 
             const salt = genSalt();
             const hash = await hashPw(pw, salt);
@@ -9513,26 +9637,39 @@
                 is_closed: false, form_fields: cmCleanFields(state.communityCreateFields)
             };
 
+            payload.status = needsApproval ? 'pending' : 'active'; // pending = 운영진 수락 전(목록 비공개), 수락은 /community-admin 이 처리
             const { data, error } = await supabaseClient.from('community_meetings').insert(payload).select().single();
-            if (error) return alert('모임 생성 실패: ' + error.message);
+            if (error) {
+                console.error('community_meetings insert:', error);
+                const em = String(error.message || '');
+                if (/status/.test(em) && /column|schema/i.test(em)) return alert('모임 상태 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261013_community_meeting_status.sql 을 실행해야 합니다.');
+                return alert('모임 생성 실패: ' + em);
+            }
 
-            // Insert time_block to reflect in GatheO
-            try {
-                const [y, m, d] = date.split('-').map(Number);
-                const dow = new Date(y, m - 1, d).getDay();
-                await supabaseClient.from('time_blocks').insert({
-                    day_of_week: dow,
-                    start_time: startTime,
-                    end_time: endTime,
-                    reason: `[커뮤니티] ${title}`,
-                    start_date: date,
-                    end_date: date,
-                });
-            } catch (e) { console.warn('time_block 생성 실패:', e); }
+            if (!needsApproval) {
+                // 시간표(time_blocks)에 반영 — 요청 건은 운영진이 수락할 때 서버가 넣는다
+                try {
+                    const [y, m, d] = date.split('-').map(Number);
+                    const dow = new Date(y, m - 1, d).getDay();
+                    await supabaseClient.from('time_blocks').insert({
+                        day_of_week: dow,
+                        start_time: startTime,
+                        end_time: endTime,
+                        reason: `[커뮤니티] ${title}`,
+                        start_date: date,
+                        end_date: date,
+                    });
+                } catch (e) { console.warn('time_block 생성 실패:', e); }
+            }
+            // 운영 총괄 배너(푸시) 알림 — 실패해도 모임 생성은 완료
+            sendAdminPush(needsApproval ? '🙋 커뮤니티 모임 시간 사용 요청' : '🎪 새 커뮤니티 모임 등록',
+                `${title} · ${date.replace(/-/g, '.')} ${timeText} · ${orgName}${needsApproval ? ' — 공간대관 탭에서 수락/거절' : ''}`,
+                { roles: ['운영 총괄'] }).catch(() => {});
 
             state.communityCreateOpen = false;
             await fetchCommunityMeetings();
             renderCommunityList();
+            if (needsApproval) alert('사용 요청을 보냈습니다.\n운영진이 수락하면 모임이 커뮤니티 목록에 공개됩니다. 수락·거절 결과는 모임장 이메일로 안내됩니다.');
         }
 
         async function renderCommunityDetail(id) {
@@ -13327,7 +13464,7 @@
             return (data || []).map(r => r.push_subscription).filter(Boolean);
         }
 
-        async function sendAdminPush(title, body) {
+        async function sendAdminPush(title, body, opts = {}) { // opts.roles: 수신 역할 좁히기(예: ['운영 총괄'])
             // ⚠️ 반드시 "릴레이 우선 + 직접 발송 폴백" 하이브리드 유지할 것 (둘 중 하나만 쓰지 말 것).
             //  - 릴레이(/notify-admins)는 service role 로 '모든' 관리자에게 발송 → 커버리지 완전.
             //    (직접 발송은 호출자 RLS 로 읽히는 일부 관리자만 도달 → 운영총괄 등이 누락됨.
@@ -13338,7 +13475,7 @@
                 const r = await fetch('/notify-admins', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, body })
+                    body: JSON.stringify(Array.isArray(opts.roles) && opts.roles.length ? { title, body, roles: opts.roles } : { title, body })
                 });
                 const j = await r.json().catch(() => ({}));
                 console.log('[push] notify-admins:', r.status, j);
@@ -15859,7 +15996,12 @@
                 <div class="perf-form-group">
                     <label class="perf-form-label">포스터 이미지 (선택)</label>
                     <input type="file" id="evPoster" accept="image/*" onchange="uploadEventPoster(this)" style="font-size:0.84rem">
-                    <div id="evPosterStatus" style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.posterUrl ? '✅ 현재 포스터 유지 (새 파일 선택 시 교체)' : ''}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" id="evPosterPickBtn" onclick="openWappenPosterPicker()">🎨 포스터 꾸미기에서 가져오기</button>
+                        <span style="font-size:0.74rem;color:var(--wds-gray-500)">포스터 꾸미기에서 저장한 내 작품을 바로 포스터로 씁니다</span>
+                    </div>
+                    <div id="evPosterStatus" style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:6px">${_hostState.posterUrl ? '✅ 현재 포스터 유지 (새 파일·작품 선택 시 교체)' : ''}</div>
+                    <div id="evPosterPreview">${_hostState.posterUrl ? `<img src="${escapeHtml(_hostState.posterUrl)}" alt="포스터 미리보기">` : ''}</div>
                 </div>
                 <div id="evFormResult" style="font-size:0.86rem;text-align:center;min-height:22px;padding:2px 0;color:#e74c3c"></div>
                 <button class="gaa-btn gaa-btn-block gaa-btn-primary" id="evSaveBtn" onclick="saveHostEvent(${ev ? `'${jsStr(ev.id)}'` : 'null'})">${ev ? '수정 저장' : '공연 등록'}</button>`;
@@ -15905,10 +16047,65 @@
                 const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
                 _hostState.posterUrl = urlData.publicUrl;
                 if (st) st.textContent = '✅ 업로드 완료';
+                _evPosterPreview();
             } catch (e) {
                 if (st) st.textContent = '업로드 실패: ' + (e.message || e);
                 input.value = '';
             }
+        }
+        function _evPosterPreview() {
+            const box = document.getElementById('evPosterPreview'); if (!box) return;
+            box.innerHTML = _hostState.posterUrl ? `<img src="${escapeHtml(_hostState.posterUrl)}" alt="포스터 미리보기">` : '';
+        }
+
+        // ── 포스터 꾸미기(/wappen/) 작품을 공연 포스터로 ──
+        // 같은 출처라 localStorage.wappen_session(와펜 로그인 토큰)을 그대로 /wappen-api my_content 에 보낸다.
+        // 미리보기(previews/<uid>/…, 1080px JPEG) URL 을 poster_url 로 쓰고, 서버(event-api posterOk)가 wappen 버킷 접두를 허용한다.
+        function _wpPickerBox(inner) {
+            return `<div style="background:var(--wds-white);border-radius:var(--wds-radius-l);padding:22px 20px;max-width:560px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+                    <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--wds-black)">포스터 꾸미기에서 가져오기</h3>
+                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="document.getElementById('wpPosterModal')?.remove()">닫기</button>
+                </div>${inner}</div>`;
+        }
+        async function openWappenPosterPicker() {
+            document.getElementById('wpPosterModal')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'wpPosterModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+            overlay.innerHTML = _wpPickerBox('<p style="font-size:0.86rem;color:var(--wds-gray-500);margin:0">불러오는 중…</p>');
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+            const openBtn = `<a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="/wappen/" target="_blank" rel="noopener">포스터 꾸미기 열기</a>`;
+            const loginHint = `<p class="wp-pick-msg">포스터 꾸미기에 로그인되어 있지 않습니다.<br>포스터 꾸미기에서 카카오 로그인 후 작품을 저장하면 여기서 바로 고를 수 있어요.</p>${openBtn}`;
+            let session = null; try { session = localStorage.getItem('wappen_session'); } catch (_) {}
+            if (!session) { overlay.innerHTML = _wpPickerBox(loginHint); return; }
+            let works = [];
+            try {
+                const r = await fetch('/wappen-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'my_content', session }) });
+                const j = await r.json().catch(() => ({}));
+                if (r.status === 401) { overlay.innerHTML = _wpPickerBox(loginHint); return; }
+                if (!r.ok || !j.ok) throw new Error(j.message || ('HTTP ' + r.status));
+                works = (j.works || []).filter(w => w && w.preview_url);
+            } catch (e) {
+                console.error('[wappen picker]', e);
+                overlay.innerHTML = _wpPickerBox(`<p class="wp-pick-msg">작품을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>${openBtn}`);
+                return;
+            }
+            if (!document.getElementById('wpPosterModal')) return; // 기다리는 동안 닫음
+            if (!works.length) { overlay.innerHTML = _wpPickerBox(`<p class="wp-pick-msg">저장한 작품이 없습니다.<br>포스터 꾸미기에서 작품을 저장한 뒤 다시 열어주세요.</p>${openBtn}`); return; }
+            state.wpPickerWorks = works;
+            overlay.innerHTML = _wpPickerBox(`<p class="wp-pick-msg">작품을 누르면 공연 포스터로 사용합니다. (${works.length}개)</p>
+                <div class="wp-pick-grid">${works.map(w => `<button type="button" class="wp-pick" onclick="pickWappenPoster('${jsStr(w.id)}')">
+                    <img src="${escapeHtml(w.preview_url)}" alt="" loading="lazy"><span>${escapeHtml(w.title || '제목 없음')}</span><small>${escapeHtml((w.wappen_projects && w.wappen_projects.title) || '')}</small></button>`).join('')}</div>`);
+        }
+        function pickWappenPoster(id) {
+            const w = (state.wpPickerWorks || []).find(x => x.id === id); if (!w) return;
+            _hostState.posterUrl = w.preview_url;
+            const st = document.getElementById('evPosterStatus'); if (st) st.textContent = `✅ 포스터 꾸미기 작품 「${w.title || '제목 없음'}」 선택됨`;
+            const inp = document.getElementById('evPoster'); if (inp) inp.value = '';
+            _evPosterPreview();
+            document.getElementById('wpPosterModal')?.remove();
         }
 
         async function saveHostEvent(evId) {

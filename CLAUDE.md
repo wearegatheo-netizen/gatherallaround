@@ -10,6 +10,9 @@
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
   QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
+  **포스터 꾸미기 작품을 공연 포스터로**(2026-10-13): 공연 등록 폼 [🎨 포스터 꾸미기에서 가져오기](`openWappenPosterPicker`) — 같은 출처라 `localStorage.wappen_session` 을 그대로
+  `/wappen-api {action:'my_content', session}` 에 보내 내 작품(`preview_url` 있는 것)을 격자로, 고르면 `_hostState.posterUrl` = 미리보기(1080px JPEG) URL(`pickWappenPoster`, `#evPosterPreview` 썸네일).
+  세션 없음/401 → 로그인 안내 + [포스터 꾸미기 열기](새 탭). 서버 `posterOk`(event-api)는 `community-images/events/` 와 `wappen/previews/` 두 접두만 허용(`POSTER_PREFIXES`).
   **공연 공유**는 경로형 `/show/<id>`(`functions/show/[id].js`) — 크롤러(kakaotalk-scrap 등)에는 포스터·제목·일시 OG 페이지, 사람에게는
   루트 셸에 `<base href="/">`+`history.replaceState('/#shows/<id>')` 를 넣어 200 으로(302+해시 금지, 인앱이 해시를 버림). 상세 [🔗 공유] = `shareShow(id)`
   (navigator.share → 클립보드 폴백). 숨김 공연은 기본 OG. index.html 머리 스크립트가 `/show/<id>` 정적 폴백도 해시로 치환. 셸 자산은 절대 경로만 쓸 것(`/vendor/…`).
@@ -89,12 +92,20 @@
   (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
   신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인. 신청자 관리 탭 「답변 집계」 `cmAggregationHTML`.
   CSV·메일은 `cmAnswerText`(배열은 ", " 연결). 질문명이 form_data 키라 **질문명 변경 시 과거 답변과 끊김** — 편집기는 showIf 참조만 따라간다.
-  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings`·`community_applications` 데이터, 나머지 빈 결과).
+  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings`·`community_applications`·`time_blocks` 데이터, `.eq('status')` 만 흉내, 나머지 빈 결과).
+  **게더링 차단 시간 사용 요청(2026-10-13)**: 모임 만들기 달력은 `_calCtx.allowBlocked=true` — 예약·대관(`getHardConflicts`)만 '예약불가', `time_blocks` 는 `.slot-request` '요청' 칸으로 고를 수 있다
+  (월간은 차단만으로 꽉 찬 날도 클릭, `dateHardStatus`). `checkCommunityTimeConflict` 는 `{kind:'reservation'|'block'|'invalid', message, range, reason}` 를 돌려주며 예약·대관이 차단보다 우선
+  (`fetchCommunityReservationsAndBlocks` 가 `performance_bookings` 도 가상 예약으로 합침). `submitCommunityCreate`: 차단과 겹치면 확인창 → **`status:'pending'`** 으로 저장(time_blocks 안 넣음), 아니면 `active`+time_blocks.
+  둘 다 `sendAdminPush(title, body, {roles:['운영 총괄']})`(배너 푸시 — `/notify-admins` roles). 공개 목록(`fetchCommunityMeetings`)은 `(status||'active')==='active'` 만.
+  운영 총괄의 **공간대관 탭 머리** `_cmReqSectionHTML()`(🙋 요청 N건, 차단 사유 `_cmReqBlocks`, [수락][거절] → `reviewCommunityMeeting`) → `functions/community-admin.js`
+  `{action:'review_meeting', meeting_id, decision, kakao_token|sb_token}`(service role; anon UPDATE 가 회수된 테이블이라 서버만 가능). 인증 `_adminApiAuth()`: 카카오 토큰 → Supabase 세션 → 캐시 세션이면 카카오 팝업 재발급.
+  서버는 kapi/GoTrue 검증 후 `profiles.role='운영 총괄'`(카카오 `ADMIN_KAKAO_ID` 백스톱), `status=eq.pending` 조건 PATCH(경합 409), 수락 시 `time_blocks` 1행(`meetingSlots` 로 "10:00 ~ 13:00" 역변환)
+  + 모임장 Resend 메일(키 있을 때만). 마이그레이션 `20261013_community_meeting_status.sql`(status/reviewed_at) 미실행이면 요청 생성·탭이 안내 문구로 알려준다. 단위 테스트 `tests/community-admin-unit.mjs`.
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
   달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
-- 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search 단위, shows/host/band UI —
+- 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search·community-admin 단위, shows/host/band UI —
   Playwright는 scratchpad node_modules 필요, `ui-band.js`는 가짜 supabase 쿼리빌더로 밴드 관리자 화면 검증)
 - 개발 브랜치: `claude/exciting-gauss-83p6k1`
 
