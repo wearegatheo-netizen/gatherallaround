@@ -123,6 +123,13 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('새 프로젝트: 다른 이름이면 다음 검사(이미지)로 진행', true);
     const bottomNavVisible = await p.locator('#bottomNav').isVisible();
     chk(`하단 탭바: ${VW < 640 ? '모바일에서 표시' : '데스크톱에서 숨김'}`, bottomNavVisible === (VW <= 640));
+    // 헤더 「돌아가기」 = 포털(루트)로 가는 링크 — 본 사이트 섹션들의 .portal-back-btn 과 같은 역할. 모바일은 화살표만, 데스크톱은 글자까지
+    const back = p.locator('.wp-back'); const backBox = await back.boundingBox();
+    chk('헤더 돌아가기: 포털(/) 링크·보임·36px 터치 영역', (await back.getAttribute('href')) === '/' && !!backBox && backBox.height >= 34 && backBox.width >= 34
+        && (await back.evaluate(el => new URL(el.href).pathname)) === '/' && (await back.getAttribute('aria-label') || '').includes('돌아가기'));
+    chk(`헤더 돌아가기: ${VW <= 640 ? '모바일은 화살표만' : '데스크톱은 「돌아가기」 글자'}`, (await back.locator('span').isVisible()) === (VW > 640));
+    const headerBox = await p.locator('.wp-header-inner').boundingBox(); const rightBox = await p.locator('.wp-header-right').boundingBox();
+    chk('헤더: 돌아가기·로고·우측 버튼이 한 줄에 다 들어옴', !!headerBox && !!rightBox && rightBox.x + rightBox.width <= headerBox.x + headerBox.width + 1 && backBox.y < headerBox.y + headerBox.height);
     if (VW <= 640) chk('하단 탭바: 만들기 활성', (await p.locator('#bottomNav a[data-nav="new"]').getAttribute('class') || '').includes('active'));
     await shot(p, 'new');
 

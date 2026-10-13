@@ -20,7 +20,7 @@
     <meta name="twitter:image" content="https://gatherallaround.com/icon.jpg">
     <!-- Pretendard -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    <link rel="stylesheet" href="./style.css?v=15">
+    <link rel="stylesheet" href="./style.css?v=16">
     <!-- Supabase SDK (anon 읽기 전용) · Kakao SDK v1 (팝업 로그인) — 본 사이트와 동일 버전 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
@@ -28,6 +28,8 @@
 <body>
     <header class="wp-header">
         <div class="wp-header-inner">
+            <!-- 포털로 돌아가기 — 본 사이트 각 섹션의 「← 돌아가기」(.portal-back-btn) 와 같은 역할. 편집 중 저장 안 한 변경은 beforeunload 가 막는다 -->
+            <a href="/" class="wp-back" aria-label="포털로 돌아가기" title="Gather all around 포털로 돌아가기"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>돌아가기</span></a>
             <a href="#/" class="wp-logo" aria-label="포스터 꾸미기 홈"><span class="wp-logo-mark">🧩</span><span>포스터 꾸미기</span></a>
             <nav class="wp-nav" id="mainNav">
                 <a href="#/" data-nav="home">홈</a>

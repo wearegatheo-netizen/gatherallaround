@@ -38,6 +38,9 @@ svg.ico { width: 16px; height: 16px; flex: none; display: inline-block; vertical
 /* ── 헤더 ─────────────────────────────────────────── */
 .wp-header { position: sticky; top: 0; z-index: 100; background: var(--wds-white); border-bottom: 1px solid var(--wds-gray-200); padding-top: var(--wp-safe-top); }
 .wp-header-inner { max-width: 1080px; margin: 0 auto; height: var(--wp-header-h); padding: 0 16px; display: flex; align-items: center; gap: 14px; }
+.wp-back { display: inline-flex; align-items: center; gap: 4px; height: var(--h-ctl); padding: 0 10px 0 6px; margin-left: -6px; border-radius: 8px; color: var(--wds-gray-700); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; flex: none; }   /* 포털로 돌아가기 */
+.wp-back:hover { background: var(--wds-gray-100); color: var(--wds-black); }
+.wp-back svg.ico { width: 18px; height: 18px; flex: none; }
 .wp-logo { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: var(--fs-h2); letter-spacing: -0.01em; white-space: nowrap; }
 .wp-logo-mark { font-size: 1.25rem; }
 .wp-nav { display: flex; gap: 2px; margin-left: 6px; overflow-x: auto; scrollbar-width: none; }
@@ -372,6 +375,8 @@ body.editing .wp-bottom-nav { display: none !important; }
 @media (max-width: 640px) {
     :root { --wp-bottom-nav-h: 56px; }
     .wp-header-inner { gap: 8px; padding: 0 12px; }
+    .wp-back { width: var(--h-ctl); padding: 0; margin-left: -4px; justify-content: center; }
+    .wp-back span { display: none; }         /* 좁은 화면은 화살표만(aria-label·title 로 설명) */
     .wp-nav { display: none; }               /* 헤더 메뉴 → 하단 탭바 */
     .wp-bottom-nav { display: flex; }
     .wp-footer { display: none; }

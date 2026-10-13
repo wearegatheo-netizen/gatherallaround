@@ -207,6 +207,8 @@
 - **라이브 갱신**: 뷰가 `setLive(fn)` 으로 "조용히 다시 그리는 함수"를 등록(서명 `sigOf()` 비교로 바뀐 때만 DOM 교체, 로딩 깜빡임 없음), `render()` 가 해제.
   `initLive()` 가 탭 복귀(visibilitychange/pageshow/focus)·25초 폴링·Supabase Realtime(`wappen_works/projects/items` postgres_changes, 발행 등록은
   `20261007_wappen_realtime.sql` 선택 실행 — 없으면 폴링만)으로 `liveKick()`. 홈엔 「방금 올라온 작품」 스트립(최신 10). 작품 화면은 반응 집계를 라이브로 갱신(내가 누르는 중엔 건너뜀).
+- **헤더 맨 왼쪽 「← 돌아가기」(`.wp-back`, 2026-10-13)** = 포털 루트 `/` 링크 — 본 사이트 섹션들의 `.portal-back-btn` 과 같은 역할(와펜은 별도 페이지라 `showPortal()` 을 못 부름).
+  ≤640px 는 36px 화살표만(`aria-label`·`title` 로 설명), 데스크톱은 글자까지. 편집 중 저장 안 한 변경은 기존 `beforeunload` 가 막는다. UI 테스트가 링크·터치 영역·한 줄 배치를 검사.
 - 모바일(≤640px)은 헤더 메뉴 대신 **하단 탭바**(`.wp-bottom-nav`, SVG 아이콘, 편집 화면에선 숨김). 설치형(PWA, 상태바 black-translucent)·노치 대응은
   `--wp-safe-top/--wp-safe-bottom`(env(safe-area-inset-*))을 헤더·에디터·탭바·시트가 공유. `label.dropzone` 은 반드시 `display:block`(inline 이면 점선 테두리가 깨짐).
   이미지 업로드 UI 가 추가되면 같은 `.dropzone` 클래스를 쓸 것.
