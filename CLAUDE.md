@@ -67,6 +67,18 @@
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
   D-2 관리자 알림: GitHub Actions 크론(매일 07:47 KST + 10:17 예비, `{scope:'booking'}`) → `/send-reminders`
   (`reminder_sent_at` 선점으로 건당 1회, 놓친 날은 D-1/D-DAY 캐치업, 푸시는 `/notify-admins` 재사용).
+- **커뮤니티(2026-10-13 개편, 시안 A·절제형 발전안)**: 머리는 앱 바 `#communityBar`(`.cm-bar`: 뒤로·제목·[신청 조회] 알약·SVG 모드 버튼 `themeToggleBtnCommunity` — `applyTheme` 가
+  textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
+  상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
+  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일 86px(데스크톱 120px).
+  **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
+  상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
+  `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →
+  `.cm-rows`(모임장: 이니셜·이름·[문의하기]=`tel:` 링크로 번호 비노출 / 준비물) → 설명(`.cm-desc`, 240자·8줄 넘으면 `.clamp`+[더보기] `communityToggleDesc`) →
+  신청 카드 `.cm-form#communityApplyForm`(입력 id 는 종전 `ca_name/ca_phone/ca_custom_i` 유지, 44px 상자형 — 전역 `input[type=text]{height:52px}` 보다 특이도 높임) →
+  아래 고정 바 `.cm-sticky`(참여비 + [참여 신청하기] = 신청 카드로 스크롤, 마감이면 비활성; iOS 때문에 fixed 요소에 backdrop-filter 금지). 본문 폭 920px 제한(3열 그리드 폐기).
+  옛 `.community-card/.community-grid/.community-tab*/.community-detail-hero*` CSS 는 제거됨(`community-grid-2`·`gforms-*` 는 생성/수정 폼이 계속 씀).
+  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings` 만 데이터, 나머지 빈 결과).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
