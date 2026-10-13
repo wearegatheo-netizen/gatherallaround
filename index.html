@@ -1599,6 +1599,52 @@
         .cm-sticky .pr b { font-size:1.1rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-sticky .gaa-btn { flex:1.4; max-width:260px; }
         .cm-sticky-pad { height:84px; }
+        /* 신청폼 질문 편집기(만들기·수정 공용) */
+        .cm-q { border:1px solid var(--wds-gray-300); border-radius:12px; padding:12px; margin-bottom:10px; background:var(--wds-white); }
+        body.dark .cm-q { background:var(--wds-gray-100); }
+        .cm-q-head { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+        .cm-q-no { font-size:0.74rem; font-weight:800; color:var(--wds-primary); background:var(--wds-primary-light); border-radius:6px; padding:3px 6px; flex:none; }
+        #communityContent .cm-q input[type=text], #communityContent .cm-q input[type=number], #communityContent .cm-q select, #communityContent .cm-q textarea { height:38px; border:1px solid var(--wds-gray-300); border-radius:8px; padding:0 10px; font-size:0.86rem; font-family:inherit; background:var(--wds-white); color:var(--wds-black); box-sizing:border-box; margin:0; min-width:0; }
+        #communityContent .cm-q textarea { height:auto; padding:8px 10px; width:100%; resize:vertical; line-height:1.5; }
+        #communityContent .cm-q .cm-q-label { flex:1; }
+        #communityContent .cm-q .cm-q-type { flex:none; width:auto; }
+        #communityContent .cm-q .cm-q-ph { width:100%; }
+        .cm-q-opts { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+        .cm-q-opt { display:flex; gap:6px; width:100%; align-items:center; }
+        #communityContent .cm-q-opt input[type=text] { flex:1; }
+        #communityContent .cm-q-opt input[type=number] { width:76px; flex:none; appearance:textfield; -moz-appearance:textfield; }
+        .cm-q-x { width:34px; height:38px; border:1px solid var(--wds-gray-300); border-radius:8px; background:var(--wds-white); color:var(--wds-gray-600); font-size:1.1rem; cursor:pointer; flex:none; font-family:inherit; }
+        .cm-q-hint { font-size:0.74rem; color:var(--wds-gray-500); line-height:1.5; }
+        .cm-q-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+        .cm-q-req { display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:var(--wds-gray-700); font-weight:600; }
+        #communityContent .cm-q-req input[type=checkbox] { width:16px; height:16px; margin:0; accent-color:var(--wds-primary); }
+        .cm-q-cond { display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--wds-gray-600); flex-wrap:wrap; }
+        #communityContent .cm-q-cond select { height:32px; font-size:0.78rem; padding:0 8px; width:auto; max-width:180px; }
+        .cm-q-tools { margin-left:auto; display:inline-flex; gap:2px; }
+        .cm-q-tools .gaa-btn-xs { min-height:28px; padding:3px 8px; }
+        .cm-q-empty { font-size:0.82rem; color:var(--wds-gray-500); margin-bottom:8px; }
+        /* 신청 폼: 복수 선택·동의 */
+        .cm-f .cm-f-label { display:block; font-size:0.8rem; font-weight:700; color:var(--wds-gray-800); margin-bottom:6px; }
+        .cm-checks { display:flex; flex-direction:column; gap:6px; }
+        #communityContent .cm-f label.cm-check { display:flex; align-items:center; gap:8px; margin:0; padding:9px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-size:0.9rem; font-weight:500; color:var(--wds-black); cursor:pointer; }
+        #communityContent .cm-f label.cm-check.full { color:var(--wds-gray-500); background:var(--wds-gray-100); cursor:default; }
+        #communityContent .cm-f label.cm-check small { color:var(--wds-gray-500); font-size:0.76rem; }
+        #communityContent .cm-f label.cm-consent { display:flex; align-items:flex-start; gap:10px; margin:0; padding:10px 12px; border:1px solid var(--wds-gray-300); border-radius:10px; font-weight:500; cursor:pointer; }
+        #communityContent .cm-f label.cm-consent b { display:block; font-size:0.88rem; color:var(--wds-black); }
+        #communityContent .cm-f label.cm-consent small { display:block; font-size:0.78rem; color:var(--wds-gray-600); margin-top:2px; line-height:1.5; }
+        #communityContent .cm-f input[type=checkbox] { width:18px; height:18px; margin:1px 0 0; accent-color:var(--wds-primary); flex:none; padding:0; }
+        .cm-f[hidden] { display:none; }
+        /* 답변 집계(신청자 관리 탭) */
+        .cm-agg { padding:10px 0; border-bottom:1px solid var(--wds-gray-200); }
+        .cm-agg:last-child { border-bottom:0; }
+        .cm-agg-q { font-size:0.88rem; font-weight:700; color:var(--wds-black); margin-bottom:6px; }
+        .cm-agg-q small { font-weight:400; color:var(--wds-gray-500); font-size:0.76rem; margin-left:6px; }
+        .cm-agg-row { display:grid; grid-template-columns:minmax(72px, 32%) 1fr 58px; gap:8px; align-items:center; font-size:0.82rem; color:var(--wds-gray-800); padding:3px 0; }
+        .cm-agg-row .o { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cm-agg-row .bar { height:8px; background:var(--wds-gray-200); border-radius:4px; overflow:hidden; }
+        .cm-agg-row .bar i { display:block; height:100%; background:var(--wds-primary); border-radius:4px; }
+        .cm-agg-row .n { text-align:right; font-weight:700; color:var(--wds-black); white-space:nowrap; }
+        .cm-agg-row.full .n { color:#C2591B; }
         /* 대표 이미지 정방형 크롭(모임 만들기·수정): 끌어서 이동, 슬라이더로 확대 */
         .cm-crop { margin-top:10px; }
         .cm-crop-box { position:relative; width:min(100%, 300px); aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--wds-gray-200); touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
@@ -9170,48 +9216,184 @@
             showToast('사전 미팅 신청 폼이 열렸습니다. 미팅 후 모임을 만들어주세요.');
         }
 
+        // ── 신청폼 질문 편집기(2026-10-13): 만들기('cc' → state.communityCreateFields)·수정('ce' → state.communityEditFields) 공용 ──
+        // 질문 { label, type:'text'|'textarea'|'select'|'multi'|'consent', required, placeholder, options:[], limits:{선택지:정원}, showIf:{field:기준 질문 label, value}, text(동의 문구) }
+        // 답변 form_data[label]: text/textarea/select → 문자열, multi → 배열, consent → '동의' | ''. 조건으로 숨겨진 질문은 저장하지 않는다.
+        const CM_Q_TYPES = [['text', '텍스트'], ['textarea', '장문'], ['select', '단일 선택'], ['multi', '복수 선택'], ['consent', '동의']];
+        const _cmQKeys = { cc: 'communityCreateFields', ce: 'communityEditFields' };
+        const cmQHasOptions = (f) => f.type === 'select' || f.type === 'multi';
+        const cmQIsCond = (f) => f.type === 'select' || f.type === 'multi' || f.type === 'consent'; // 표시 조건의 기준이 될 수 있는 질문
+        const cmAnswerText = (v) => Array.isArray(v) ? v.join(', ') : (v == null ? '' : String(v)); // 메일·CSV 표기
+        function _cmQList(k) { if (!Array.isArray(state[_cmQKeys[k]])) state[_cmQKeys[k]] = []; return state[_cmQKeys[k]]; }
+        function _cmQRerender(k) { if (k === 'cc') renderCommunityCreateFieldEditor(); else renderCommunityFieldEditor(); }
+        function cmQ(k, i, patch) { // 질문 속성 바꾸기 — label 이 바뀌면 이 질문을 조건으로 쓰는 질문의 showIf 도 따라간다
+            const list = _cmQList(k), f = list[i]; if (!f) return;
+            if (patch.label !== undefined && patch.label !== f.label) list.forEach(g => { if (g.showIf && g.showIf.field === f.label) g.showIf.field = patch.label; });
+            Object.assign(f, patch);
+            if (patch.type !== undefined) { if (cmQHasOptions(f) && !Array.isArray(f.options)) f.options = ['', '']; _cmQRerender(k); }
+            if (patch.label !== undefined) _cmQRerender(k); // 조건 선택지 목록 갱신
+        }
+        function cmQAdd(k) { _cmQList(k).push({ label: '', type: 'text', placeholder: '', required: false }); _cmQRerender(k); setTimeout(() => { const els = document.querySelectorAll(`#${k === 'cc' ? 'communityCreateFieldEditor' : 'communityFieldEditor'} .cm-q-label`); els[els.length - 1]?.focus(); }, 0); }
+        function cmQRemove(k, i) { const list = _cmQList(k); const [f] = list.splice(i, 1); if (f) list.forEach(g => { if (g.showIf && g.showIf.field === f.label) delete g.showIf; }); _cmQRerender(k); }
+        function cmQMove(k, i, dir) { const list = _cmQList(k), j = i + dir; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; _cmQRerender(k); }
+        function cmQDup(k, i) { const list = _cmQList(k); if (!list[i]) return; const c = JSON.parse(JSON.stringify(list[i])); c.label = (c.label || '') + ' (복사)'; delete c.showIf; list.splice(i + 1, 0, c); _cmQRerender(k); }
+        function cmQOptAdd(k, i) { const f = _cmQList(k)[i]; if (!f) return; (f.options = f.options || []).push(''); _cmQRerender(k); setTimeout(() => document.getElementById(`${k}_q${i}_opt${f.options.length - 1}`)?.focus(), 0); }
+        function cmQOptSet(k, i, j, v) { // 선택지 글 바꾸기 — 정원·조건이 그 선택지를 가리키면 함께 옮긴다
+            const f = _cmQList(k)[i]; if (!f || !f.options) return; const old = f.options[j]; if (old === v) return; f.options[j] = v;
+            if (f.limits && old in f.limits) { f.limits[v] = f.limits[old]; delete f.limits[old]; }
+            _cmQList(k).forEach(g => { if (g.showIf && g.showIf.field === f.label && g.showIf.value === old) g.showIf.value = v; });
+        }
+        function cmQOptLimit(k, i, j, v) { const f = _cmQList(k)[i]; if (!f || !f.options) return; const n = parseInt(v, 10); f.limits = f.limits || {}; if (n > 0) f.limits[f.options[j]] = n; else delete f.limits[f.options[j]]; }
+        function cmQOptRemove(k, i, j) { const f = _cmQList(k)[i]; if (!f || !f.options) return; const [o] = f.options.splice(j, 1); if (f.limits) delete f.limits[o]; _cmQRerender(k); }
+        function cmQOptKey(e, k, i, j) { if (e.key === 'Enter') { e.preventDefault(); cmQOptSet(k, i, j, e.target.value); cmQOptAdd(k, i); } }
+        function cmQCond(k, i, field) { // 표시 조건 기준 질문 고르기(값은 그 질문의 첫 선택지)
+            const list = _cmQList(k), f = list[i]; if (!f) return;
+            const src = field ? list.find(g => g.label === field) : null;
+            if (!src) delete f.showIf; else f.showIf = { field, value: src.type === 'consent' ? 'yes' : ((src.options || []).find(Boolean) || '') };
+            _cmQRerender(k);
+        }
+        function cmQCondValue(k, i, value) { const f = _cmQList(k)[i]; if (f && f.showIf) f.showIf.value = value; }
+        function cmQEditorHTML(k) {
+            const list = _cmQList(k);
+            if (!list.length) return `<div class="cm-q-empty">추가된 질문이 없어요. 이름·연락처는 기본으로 받습니다.</div>`;
+            return list.map((f, i) => {
+                const typeSel = `<select class="cm-q-type" onchange="cmQ('${k}', ${i}, { type: this.value })" aria-label="질문 유형">${CM_Q_TYPES.map(([v, l]) => `<option value="${v}"${f.type === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+                let body = '';
+                if (cmQHasOptions(f)) {
+                    const opts = f.options || [];
+                    body = `<div class="cm-q-opts">${opts.map((o, j) => `<div class="cm-q-opt">
+                        <input type="text" id="${k}_q${i}_opt${j}" value="${escapeHtml(o)}" placeholder="선택지 ${j + 1}" onchange="cmQOptSet('${k}', ${i}, ${j}, this.value)" onkeydown="cmQOptKey(event, '${k}', ${i}, ${j})">
+                        <input type="number" min="1" inputmode="numeric" value="${f.limits && f.limits[o] ? f.limits[o] : ''}" placeholder="정원" title="이 선택지를 고를 수 있는 최대 인원 (비우면 제한 없음)" onchange="cmQOptLimit('${k}', ${i}, ${j}, this.value)">
+                        <button type="button" class="cm-q-x" onclick="cmQOptRemove('${k}', ${i}, ${j})" aria-label="선택지 삭제">×</button>
+                    </div>`).join('')}
+                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="cmQOptAdd('${k}', ${i})">+ 선택지 추가</button>
+                    <div class="cm-q-hint">정원을 적으면 그 수만큼 신청되는 순간 그 선택지는 "마감"으로 표시돼요. 선택지 칸에서 Enter 를 누르면 다음 선택지가 추가됩니다.</div></div>`;
+                } else if (f.type === 'consent') {
+                    body = `<textarea class="cm-q-text" rows="2" placeholder="동의 문구 (예: 모임 사진이 게더링 SNS 에 올라갈 수 있어요)" onchange="cmQ('${k}', ${i}, { text: this.value })">${escapeHtml(f.text || '')}</textarea><div class="cm-q-hint">신청자에게 체크 한 칸으로 보여요. 필수로 두면 체크해야 신청할 수 있어요.</div>`;
+                } else {
+                    body = `<input type="text" class="cm-q-ph" value="${escapeHtml(f.placeholder || '')}" placeholder="작성 안내 (예: 곡명 - 아티스트)" onchange="cmQ('${k}', ${i}, { placeholder: this.value })">`;
+                }
+                // 표시 조건: 다른 선택/동의 질문의 답이 특정 값일 때만 보이기
+                const srcs = list.map((g, gi) => ({ g, gi })).filter(x => x.gi !== i && cmQIsCond(x.g) && x.g.label);
+                const cur = f.showIf || null;
+                const src = cur ? srcs.find(x => x.g.label === cur.field) : null;
+                const vals = src ? (src.g.type === 'consent' ? [['yes', '동의함']] : (src.g.options || []).filter(Boolean).map(o => [o, o])) : [];
+                const cond = srcs.length ? `<div class="cm-q-cond"><span>표시 조건</span>
+                    <select onchange="cmQCond('${k}', ${i}, this.value)" aria-label="표시 조건 기준 질문"><option value="">항상 표시</option>${srcs.map(x => `<option value="${escapeHtml(x.g.label)}"${cur && cur.field === x.g.label ? ' selected' : ''}>Q${x.gi + 1} ${escapeHtml(x.g.label)}</option>`).join('')}</select>
+                    ${src ? `<span>의 답이</span><select onchange="cmQCondValue('${k}', ${i}, this.value)" aria-label="표시 조건 값">${vals.map(([v, l]) => `<option value="${escapeHtml(v)}"${cur.value === v ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select><span>일 때만</span>` : ''}
+                </div>` : '';
+                return `<div class="cm-q" data-qi="${i}">
+                    <div class="cm-q-head">
+                        <span class="cm-q-no">Q${i + 1}</span>
+                        <input type="text" class="cm-q-label" value="${escapeHtml(f.label || '')}" placeholder="질문 (예: 담당 파트)" onchange="cmQ('${k}', ${i}, { label: this.value })">
+                        ${typeSel}
+                    </div>
+                    ${body}
+                    <div class="cm-q-foot">
+                        <label class="cm-q-req"><input type="checkbox" ${f.required ? 'checked' : ''} onchange="cmQ('${k}', ${i}, { required: this.checked })"> 필수</label>
+                        ${cond}
+                        <span class="cm-q-tools">
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="cmQMove('${k}', ${i}, -1)"${i === 0 ? ' disabled' : ''} aria-label="위로">↑</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="cmQMove('${k}', ${i}, 1)"${i === list.length - 1 ? ' disabled' : ''} aria-label="아래로">↓</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="cmQDup('${k}', ${i})">복제</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="cmQRemove('${k}', ${i})">삭제</button>
+                        </span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        // 저장 전 정리: 빈 질문 제거, 선택지 공백 정리, 정원은 있는 선택지만, 조건은 존재하는 질문만
+        function cmCleanFields(fields) {
+            const out = (Array.isArray(fields) ? fields : []).map(f => ({ ...f, label: String(f.label || '').trim() })).filter(f => f.label);
+            const labels = new Set(out.map(f => f.label));
+            out.forEach(f => {
+                if (cmQHasOptions(f)) {
+                    f.options = (f.options || []).map(o => String(o).trim()).filter(Boolean);
+                    const lim = {}; Object.entries(f.limits || {}).forEach(([o, n]) => { if (f.options.includes(o) && parseInt(n, 10) > 0) lim[o] = parseInt(n, 10); });
+                    if (Object.keys(lim).length) f.limits = lim; else delete f.limits;
+                } else { delete f.options; delete f.limits; }
+                if (f.type !== 'consent') delete f.text; else f.text = String(f.text || '').trim();
+                if (f.type === 'consent' || cmQHasOptions(f)) delete f.placeholder;
+                if (f.showIf && (!labels.has(f.showIf.field) || f.showIf.field === f.label || !f.showIf.value)) delete f.showIf;
+            });
+            return out;
+        }
+        function cmDupLabel(fields) { const seen = new Set(); for (const f of fields) { if (seen.has(f.label)) return f.label; seen.add(f.label); } return null; }
+        function cmFieldsProblem(fields) { // 저장 막을 문제가 있으면 문구
+            const dup = cmDupLabel(fields); if (dup) return `질문 "${dup}"이(가) 두 번 있어요. 질문 이름은 서로 달라야 합니다.`;
+            const noOpt = fields.find(f => cmQHasOptions(f) && (f.options || []).length < 1); if (noOpt) return `"${noOpt.label}" 질문에 선택지를 하나 이상 적어주세요.`;
+            return null;
+        }
+        // ── 신청 폼 쪽: 선택지 정원·조건·값 읽기·집계 ──
+        function cmOptionCounts(formFields, apps) { // 선택지별 신청 수(거절 제외) — 정원 마감 판정·집계 공용
+            const counts = {};
+            formFields.forEach(f => { if (cmQHasOptions(f) || f.type === 'consent') counts[f.label] = {}; });
+            (apps || []).forEach(a => {
+                if ((a.status || 'pending') === 'rejected') return;
+                const fd = a.form_data || {};
+                formFields.forEach(f => {
+                    const c = counts[f.label], v = fd[f.label]; if (!c || v === undefined || v === null || v === '') return;
+                    (Array.isArray(v) ? v : [v]).forEach(o => { c[o] = (c[o] || 0) + 1; });
+                });
+            });
+            return counts;
+        }
+        const cmOptFull = (f, counts, o) => !!(f.limits && f.limits[o] && ((counts[f.label] || {})[o] || 0) >= f.limits[o]);
+        function cmApplyFieldsHTML(formFields, appList) {
+            const counts = cmOptionCounts(formFields, appList);
+            return formFields.map((f, i) => {
+                const fid = `ca_custom_${i}`, req = f.required ? '<span class="req">*</span>' : '';
+                let inner;
+                if (f.type === 'textarea') inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}"></textarea>`;
+                else if (f.type === 'select') inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><select id="${fid}" onchange="cmApplyCond()"><option value="">선택하세요</option>${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<option value="${escapeHtml(o)}"${full ? ' disabled' : ''}>${escapeHtml(o)}${full ? ' (마감)' : ''}</option>`; }).join('')}</select>`;
+                else if (f.type === 'multi') inner = `<span class="cm-f-label">${escapeHtml(f.label)}${req}</span><div class="cm-checks" id="${fid}">${(f.options || []).map(o => { const full = cmOptFull(f, counts, o); return `<label class="cm-check${full ? ' full' : ''}"><input type="checkbox" value="${escapeHtml(o)}"${full ? ' disabled' : ''} onchange="cmApplyCond()"> ${escapeHtml(o)}${full ? ' <small>마감</small>' : ''}</label>`; }).join('')}</div>`;
+                else if (f.type === 'consent') inner = `<label class="cm-consent"><input type="checkbox" id="${fid}" onchange="cmApplyCond()"> <span><b>${escapeHtml(f.label)}${req}</b>${f.text ? `<small>${escapeHtml(f.text)}</small>` : ''}</span></label>`;
+                else inner = `<label for="${fid}">${escapeHtml(f.label)}${req}</label><input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}">`;
+                return `<div class="cm-f" data-qi="${i}"${f.showIf ? ' hidden' : ''}>${inner}</div>`;
+            }).join('');
+        }
+        function cmFieldValue(f, i) {
+            if (f.type === 'multi') return [...document.querySelectorAll(`#ca_custom_${i} input:checked`)].map(x => x.value);
+            const el = document.getElementById(`ca_custom_${i}`); if (!el) return '';
+            if (f.type === 'consent') return el.checked ? '동의' : '';
+            return String(el.value || '').trim();
+        }
+        function cmCondVisible(f, formFields, i, depth = 0) { // 표시 조건 평가 — 기준 질문이 숨겨져 있으면 같이 숨김
+            if (!f.showIf || depth > 10) return true;
+            const si = formFields.findIndex(g => g.label === f.showIf.field); if (si < 0) return true;
+            const src = formFields[si];
+            if (!cmCondVisible(src, formFields, si, depth + 1)) return false;
+            const v = cmFieldValue(src, si);
+            if (src.type === 'consent') return v === '동의';
+            return Array.isArray(v) ? v.includes(f.showIf.value) : v === f.showIf.value;
+        }
+        function cmApplyCond() {
+            const formFields = state.communityCurrentFormFields || [];
+            formFields.forEach((f, i) => { const w = document.querySelector(`#communityApplyForm .cm-f[data-qi="${i}"]`); if (w) w.hidden = !cmCondVisible(f, formFields, i); });
+        }
+        function cmAggregationHTML(formFields, appList) { // 신청자 관리 탭 「답변 집계」
+            const qs = (formFields || []).filter(f => f.label);
+            if (!qs.length) return '';
+            const counts = cmOptionCounts(qs, appList);
+            const active = (appList || []).filter(a => (a.status || 'pending') !== 'rejected');
+            const rows = qs.map((f, i) => {
+                if (cmQHasOptions(f) || f.type === 'consent') {
+                    const c = counts[f.label] || {}, opts = f.type === 'consent' ? ['동의'] : (f.options || []);
+                    const max = Math.max(1, ...opts.map(o => c[o] || 0));
+                    return `<div class="cm-agg"><div class="cm-agg-q">Q${i + 1} ${escapeHtml(f.label)}</div>${opts.map(o => { const n = c[o] || 0, lim = f.limits && f.limits[o]; return `<div class="cm-agg-row${lim && n >= lim ? ' full' : ''}"><span class="o">${escapeHtml(o)}</span><span class="bar"><i style="width:${Math.round(n / max * 100)}%"></i></span><span class="n">${n}${lim ? `/${lim}` : ''}명</span></div>`; }).join('')}</div>`;
+                }
+                const answered = active.filter(a => cmAnswerText((a.form_data || {})[f.label]).trim()).length;
+                return `<div class="cm-agg"><div class="cm-agg-q">Q${i + 1} ${escapeHtml(f.label)}<small>답변 ${answered}명 · 내용은 CSV 에서</small></div></div>`;
+            }).join('');
+            return `<div class="gforms-card"><label class="gforms-label" style="font-size:1.05rem;font-weight:700;">답변 집계 <small style="font-weight:400;color:var(--wds-gray-500);font-size:0.8rem;">거절 제외 ${active.length}명 기준</small></label>${rows}</div>`;
+        }
+
         function renderCommunityCreateFieldEditor() {
             const el = document.getElementById('communityCreateFieldEditor');
-            if (!el) return;
-            const fields = state.communityCreateFields || [];
-            if (fields.length === 0) {
-                el.innerHTML = `<div style="color:var(--wds-gray-500);font-size:0.82rem;margin-bottom:8px;">추가된 항목 없음</div>`;
-                return;
-            }
-            let html = '';
-            fields.forEach((f, i) => {
-                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:8px 10px;margin-bottom:8px;background:var(--wds-gray-100);">
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
-                        <input type="text" value="${escapeHtml(f.label)}" placeholder="항목명" onchange="state.communityCreateFields[${i}].label=this.value" style="flex:1;min-width:80px;height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                        <select onchange="state.communityCreateFields[${i}].type=this.value;renderCommunityCreateFieldEditor()" style="height:32px;padding:0 6px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                            <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
-                            <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
-                            <option value="select"${f.type==='select'?' selected':''}>선택</option>
-                        </select>
-                        <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
-                            <input type="checkbox" ${f.required?'checked':''} onchange="state.communityCreateFields[${i}].required=this.checked"> 필수
-                        </label>
-                        <button class="gaa-btn gaa-btn-xs gaa-btn-danger" onclick="removeCommunityCreateField(${i})">삭제</button>
-                    </div>
-                    ${f.type === 'select'
-                        ? `<input type="text" value="${escapeHtml((f.options||[]).join(', '))}" placeholder="선택지 (쉼표로 구분)" onchange="state.communityCreateFields[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
-                        : `<input type="text" value="${escapeHtml(f.placeholder || '')}" placeholder="작성 내용 형식(필요시)" onchange="state.communityCreateFields[${i}].placeholder=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
-                    }
-                </div>`;
-            });
-            el.innerHTML = html;
+            if (el) el.innerHTML = cmQEditorHTML('cc');
         }
-
-        function addCommunityCreateField() {
-            if (!state.communityCreateFields) state.communityCreateFields = [];
-            state.communityCreateFields.push({ label: '', type: 'text', required: false });
-            renderCommunityCreateFieldEditor();
-        }
-
-        function removeCommunityCreateField(i) {
-            state.communityCreateFields.splice(i, 1);
-            renderCommunityCreateFieldEditor();
-        }
+        function addCommunityCreateField() { cmQAdd('cc'); }
+        function removeCommunityCreateField(i) { cmQRemove('cc', i); }
 
         async function submitCommunityCreate() {
             const title = document.getElementById('cc_title').value.trim();
@@ -9243,6 +9425,7 @@
             if (deadline && date && deadline > date) return alert('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
             if (!pw) return alert('비밀번호는 필수입니다.');
             if (pw !== pw2) return alert('비밀번호가 일치하지 않습니다.');
+            const qProblem = cmFieldsProblem(cmCleanFields(state.communityCreateFields)); if (qProblem) return alert(qProblem);
 
             // Check conflict with GatheO reservations & time_blocks
             await fetchCommunityReservationsAndBlocks();
@@ -9269,7 +9452,7 @@
                 application_deadline: deadline || null,
                 description: desc || null,
                 password_salt: salt, password_hash: hash,
-                is_closed: false, form_fields: state.communityCreateFields || []
+                is_closed: false, form_fields: cmCleanFields(state.communityCreateFields)
             };
 
             const { data, error } = await supabaseClient.from('community_meetings').insert(payload).select().single();
@@ -9385,18 +9568,7 @@
                     <div class="cm-f"><label>이름<span class="req">*</span></label><input type="text" id="ca_name" placeholder="이름" autocomplete="name"></div>
                     <div class="cm-f"><label>연락처<span class="req">*</span></label><input type="tel" id="ca_phone" placeholder="010-0000-0000" autocomplete="tel"></div>
                 </div>`;
-                formFields.forEach((f, i) => {
-                    const fid = `ca_custom_${i}`;
-                    html += `<div class="cm-f"><label>${escapeHtml(f.label)}${f.required ? '<span class="req">*</span>' : ''}</label>`;
-                    if (f.type === 'textarea') {
-                        html += `<textarea id="${fid}" rows="3" placeholder="${escapeHtml(f.placeholder || '')}"></textarea>`;
-                    } else if (f.type === 'select' && f.options) {
-                        html += `<select id="${fid}"><option value="">선택하세요</option>${f.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`;
-                    } else {
-                        html += `<input type="text" id="${fid}" placeholder="${escapeHtml(f.placeholder || '')}">`;
-                    }
-                    html += `</div>`;
-                });
+                html += cmApplyFieldsHTML(formFields, appList); // 단일/복수 선택·동의·조건 표시·선택지 정원(마감) 포함
                 html += `<button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" onclick="submitCommunityApplication('${id}')">신청하기</button>
                 <div class="cm-hint">신청 내역은 목록 상단 [신청 조회]에서 연락처로 확인·취소할 수 있어요</div>`;
             }
@@ -9408,6 +9580,7 @@
                 : `<button type="button" class="gaa-btn gaa-btn-primary" onclick="document.getElementById('communityApplyForm').scrollIntoView({behavior:'smooth',block:'start'})">참여 신청하기</button>`}</div>`;
 
             el.innerHTML = html;
+            if (!closed) cmApplyCond(); // 조건부 질문 초기 표시 상태
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
 
@@ -9516,6 +9689,7 @@
                     <span style="color:var(--wds-gray-400);font-size:0.8rem;">CSV 파일에는 이름·연락처·신청일시와 모임에서 설정한 모든 추가 항목이 포함됩니다.</span>
                 </p>
             </div>
+            ${cmAggregationHTML(formFields, appList)}
             <div class="gforms-card">
                 <label class="gforms-label" style="font-size:1.05rem;font-weight:700;">신청자 목록 (${cnt}명)</label>
                 <div>`;
@@ -9674,52 +9848,20 @@
         function renderCommunityFieldEditor() {
             const el = document.getElementById('communityFieldEditor');
             if (!el) return;
-            const fields = state.communityEditFields;
             const saveBtn = document.getElementById('communityFieldSaveBtn');
-            if (saveBtn) saveBtn.style.display = fields.length > 0 ? '' : 'none';
-            if (fields.length === 0) {
-                el.innerHTML = `<div style="color:var(--wds-gray-500);font-size:0.85rem;margin-bottom:8px;">추가된 항목 없음</div>`;
-                return;
-            }
-            let html = '';
-            fields.forEach((f, i) => {
-                html += `<div style="border:1px solid var(--wds-gray-200);border-radius:var(--wds-radius-s);padding:10px;margin-bottom:8px;background:var(--wds-gray-100);">
-                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                        <input type="text" value="${escapeHtml(f.label)}" placeholder="필드명" onchange="state.communityEditFields[${i}].label=this.value" style="flex:1;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                        <select onchange="state.communityEditFields[${i}].type=this.value;renderCommunityFieldEditor()" style="padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;">
-                            <option value="text"${f.type==='text'?' selected':''}>텍스트</option>
-                            <option value="textarea"${f.type==='textarea'?' selected':''}>장문</option>
-                            <option value="select"${f.type==='select'?' selected':''}>선택</option>
-                        </select>
-                        <label style="font-size:0.78rem;color:var(--wds-gray-600);display:flex;align-items:center;gap:3px;">
-                            <input type="checkbox" ${f.required?'checked':''} onchange="state.communityEditFields[${i}].required=this.checked"> 필수
-                        </label>
-                        <button class="gaa-btn gaa-btn-xs gaa-btn-danger" onclick="removeCommunityFormField(${i})">삭제</button>
-                    </div>
-                    ${f.type === 'select'
-                        ? `<input type="text" value="${escapeHtml((f.options||[]).join(', '))}" placeholder="선택지 (쉼표로 구분)" onchange="state.communityEditFields[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
-                        : `<input type="text" value="${escapeHtml(f.placeholder || '')}" placeholder="작성 내용 형식(필요시)" onchange="state.communityEditFields[${i}].placeholder=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;box-sizing:border-box;font-family:inherit;">`
-                    }
-                </div>`;
-            });
-            el.innerHTML = html;
+            if (saveBtn) saveBtn.style.display = ''; // 질문을 전부 지우는 것도 저장할 수 있어야 한다
+            el.innerHTML = cmQEditorHTML('ce');
         }
-
-        function addCommunityFormField() {
-            state.communityEditFields.push({ label: '', type: 'text', placeholder: '', required: false });
-            renderCommunityFieldEditor();
-        }
-
-        function removeCommunityFormField(i) {
-            state.communityEditFields.splice(i, 1);
-            renderCommunityFieldEditor();
-        }
+        function addCommunityFormField() { cmQAdd('ce'); }
+        function removeCommunityFormField(i) { cmQRemove('ce', i); }
 
         async function saveCommunityFormFields(id) {
-            const { error } = await communityUpdate(id, { form_fields: state.communityEditFields });
+            const fields = cmCleanFields(state.communityEditFields);
+            const problem = cmFieldsProblem(fields); if (problem) return alert(problem);
+            const { error } = await communityUpdate(id, { form_fields: fields });
             if (error) return alert('저장 실패: ' + error.message);
             await fetchCommunityMeetings();
-            alert('커스텀 필드가 저장되었습니다.');
+            showToast('질문이 저장되었습니다.');
             renderCommunityDetail(id);
         }
 
@@ -9822,9 +9964,10 @@
             const formData = {};
             for (let i = 0; i < formFields.length; i++) {
                 const f = formFields[i];
-                const el = document.getElementById(`ca_custom_${i}`);
-                const val = el ? el.value.trim() : '';
-                if (f.required && !val) return alert(`"${f.label}" 필드를 입력해주세요.`);
+                if (!cmCondVisible(f, formFields, i)) continue; // 조건으로 숨겨진 질문은 저장하지 않음
+                const val = cmFieldValue(f, i);
+                const empty = Array.isArray(val) ? val.length === 0 : !val;
+                if (f.required && empty) return alert(f.type === 'consent' ? `"${f.label}"에 동의해야 신청할 수 있어요.` : `"${f.label}" 항목을 입력해주세요.`);
                 formData[f.label] = val;
             }
 
@@ -9832,10 +9975,19 @@
             // ※ DB의 (meeting_id, applicant_email) unique는 이메일 칸 제거 후 모든 신청이
             //   ''로 저장되며 서로 충돌하는 오작동을 일으켰다 — 이메일은 null로 저장해 회피.
             const phoneDigits = phone.replace(/\D/g, '');
-            const { data: dupCheck } = await supabaseClient.from('community_applications')
-                .select('applicant_phone').eq('meeting_id', id);
+            let { data: dupCheck, error: dupErr } = await supabaseClient.from('community_applications')
+                .select('applicant_phone,status,form_data').eq('meeting_id', id);
+            if (dupErr) ({ data: dupCheck } = await supabaseClient.from('community_applications').select('applicant_phone').eq('meeting_id', id)); // status 컬럼 이전 폴백
             if ((dupCheck || []).some(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits)) {
                 return alert('이미 신청하셨습니다.\n신청 내역은 목록의 [신청 조회]에서 확인·취소할 수 있습니다.');
+            }
+            // 선택지 정원 — 제출 직전에 다시 센다(그 사이 마감됐으면 되돌림)
+            const optCounts = cmOptionCounts(formFields, dupCheck || []);
+            for (const f of formFields) {
+                if (!cmQHasOptions(f) || !f.limits) continue;
+                const v = formData[f.label], chosen = Array.isArray(v) ? v : (v ? [v] : []);
+                const full = chosen.find(o => cmOptFull(f, optCounts, o));
+                if (full) { alert(`"${f.label}"의 "${full}" 선택지가 방금 마감되었어요. 다른 선택지를 골라주세요.`); return renderCommunityDetail(id); }
             }
 
             const { data: newApp, error } = await supabaseClient.from('community_applications').insert({
@@ -9864,7 +10016,7 @@
             if (dateStr) mailBodyText += `- 날짜: ${dateStr}${timeStr ? ' ' + timeStr : ''}\n`;
             if (locStr) mailBodyText += `- 장소: ${locStr}\n`;
             mailBodyText += `\n■ 신청자 정보\n- 이름: ${name}\n- 연락처: ${phone}`;
-            Object.entries(formData).forEach(([k, v]) => { if (v) mailBodyText += `\n- ${k}: ${v}`; });
+            Object.entries(formData).forEach(([k, v]) => { const t = cmAnswerText(v); if (t) mailBodyText += `\n- ${k}: ${t}`; });
             mailBodyText += `\n\n※ 신청자 전체 목록은 모임 수정 화면 → [신청자 관리] 탭 → 'CSV 다운로드' 버튼으로 확인하실 수 있습니다.\n\n감사합니다.\n게어드 커뮤니티`;
 
             if (newApp && newApp.id) {
@@ -9906,7 +10058,7 @@
                     a.applicant_name, a.applicant_email, a.applicant_phone || '',
                     stLabel[a.status || 'pending'] || '대기',
                     new Date(a.created_at).toLocaleString('ko-KR'),
-                    ...formFields.map(f => fd[f.label] || '')
+                    ...formFields.map(f => cmAnswerText(fd[f.label]))
                 ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
             });
 

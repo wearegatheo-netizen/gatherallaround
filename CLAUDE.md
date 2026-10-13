@@ -78,7 +78,14 @@
   신청 카드 `.cm-form#communityApplyForm`(입력 id 는 종전 `ca_name/ca_phone/ca_custom_i` 유지, 44px 상자형 — 전역 `input[type=text]{height:52px}` 보다 특이도 높임) →
   아래 고정 바 `.cm-sticky`(참여비 + [참여 신청하기] = 신청 카드로 스크롤, 마감이면 비활성; iOS 때문에 fixed 요소에 backdrop-filter 금지). 본문 폭 920px 제한(3열 그리드 폐기).
   옛 `.community-card/.community-grid/.community-tab*/.community-detail-hero*` CSS 는 제거됨(`community-grid-2`·`gforms-*` 는 생성/수정 폼이 계속 씀).
-  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings` 만 데이터, 나머지 빈 결과).
+  대표 이미지는 **정방형**: 만들기/수정에서 파일을 고르면 크롭 상자(`cmCropLoad/Zoom/Reset/Export`, 끌어 이동·1~3배 확대)로 보일 영역을 정하고 제출 때 1080² JPEG 로 잘라 올린다.
+  테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
+  **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
+  답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
+  (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
+  신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인. 신청자 관리 탭 「답변 집계」 `cmAggregationHTML`.
+  CSV·메일은 `cmAnswerText`(배열은 ", " 연결). 질문명이 form_data 키라 **질문명 변경 시 과거 답변과 끊김** — 편집기는 showIf 참조만 따라간다.
+  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings`·`community_applications` 데이터, 나머지 빈 결과).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
