@@ -90,7 +90,10 @@
   연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `_cmFitThumbs()` 가 **왼쪽 글 상자 높이의 정방형**으로 맞춘다(그린 뒤 측정, 최대 3회 반복, resize 때 재조정; CSS 기본 96px).
   답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
   (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
-  신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인. 신청자 관리 탭 「답변 집계」 `cmAggregationHTML`.
+  신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인.
+  신청자 관리 탭 「답변 집계」 `cmAggregationHTML`(2026-10-14 간소화): 접힌 `<details class="cm-agg-wrap">`(요약에 N명 기준·질문 수), 질문마다 선택지 「이름 N(/정원)」 칩 한 줄(`.cm-agg-row`, 0명 `.zero` 흐림·정원 참 `.full` 주황, 막대 없음), 텍스트 질문은 답변 수만.
+  **모임 설명은 서식 HTML**(2026-10-14): 만들기/수정이 `docEditorHTML('cc_desc'|'ce_desc', …, {image:true})` — 공연 소개와 같은 편집기에 🖼 사진 버튼(`rteImage`: `_rteShrink` 긴 변 1600px JPEG → `uploadCommunityImage` → `<img>`),
+  링크는 🔗(`rteLink`). 저장은 `rteValue()`(DOMPurify, 없으면 `_htmlSanitizeFallback`), 표시는 `.cm-desc` 에 `renderMarkdown()` — 옛 평문 설명도 같은 경로(줄바꿈·자동 링크). CDN 미로드 폴백도 HTML 이면 최소 살균으로 그대로 보인다.
   CSV·메일은 `cmAnswerText`(배열은 ", " 연결). 질문명이 form_data 키라 **질문명 변경 시 과거 답변과 끊김** — 편집기는 showIf 참조만 따라간다.
   검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings`·`community_applications`·`time_blocks` 데이터, `.eq('status')` 만 흉내, 나머지 빈 결과).
   **게더링 차단 시간 사용 요청(2026-10-13)**: 모임 만들기 달력은 `_calCtx.allowBlocked=true` — 예약·대관(`getHardConflicts`)만 '예약불가', `time_blocks` 는 `.slot-request` '요청' 칸으로 고를 수 있다

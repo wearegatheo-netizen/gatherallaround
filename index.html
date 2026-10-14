@@ -1587,7 +1587,11 @@
         .cm-rows .v a.lnk { flex:none; font-size:0.8rem; color:var(--wds-primary); font-weight:700; text-decoration:none; }
         .cm-sec { padding:22px 0 0; }
         .cm-sec h2 { margin:0 0 10px; font-size:1rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
-        .cm-desc { font-size:0.92rem; line-height:1.75; color:var(--wds-gray-800); white-space:pre-wrap; word-break:keep-all; }
+        .cm-desc { font-size:0.92rem; line-height:1.75; color:var(--wds-gray-800); word-break:keep-all; overflow-wrap:anywhere; }
+        .cm-desc p { margin:0 0 8px; } .cm-desc h2 { font-size:1.08rem; margin:14px 0 6px; font-family:inherit; } .cm-desc h3 { font-size:0.98rem; margin:12px 0 4px; }
+        .cm-desc ul, .cm-desc ol { padding-left:22px; margin:6px 0; } .cm-desc a { color:var(--wds-primary); text-decoration:underline; }
+        .cm-desc blockquote { border-left:3px solid var(--wds-primary); padding-left:12px; margin:8px 0; color:var(--wds-gray-700); }
+        .cm-desc img, .rte-body img { display:block; max-width:100%; height:auto; border-radius:10px; margin:8px 0; }
         /* 참여 신청 시트(2026-10-13): 아래 고정 [참여 신청하기] → 바닥에서 올라오는 시트(데스크톱은 가운데 모달). 본문엔 신청서를 두지 않는다 */
         .cm-sheet-wrap { position:fixed; inset:0; z-index:10001; }
         .cm-sheet-bg { position:absolute; inset:0; background:rgba(0,0,0,0.45); opacity:0; transition:opacity .2s; }
@@ -1671,16 +1675,24 @@
         .cm-form .cm-f input[type=checkbox] { width:18px; height:18px; margin:1px 0 0; accent-color:var(--wds-primary); flex:none; padding:0; }
         .cm-f[hidden] { display:none; }
         /* 답변 집계(신청자 관리 탭) */
-        .cm-agg { padding:10px 0; border-bottom:1px solid var(--wds-gray-200); }
+        /* 답변 집계(2026-10-14 간소화): 접이식 <details>, 질문마다 선택지 칩 한 줄(막대 없음) */
+        .cm-agg-wrap { border:1px solid var(--wds-gray-300); border-radius:12px; background:var(--wds-white); margin-bottom:14px; }
+        .cm-agg-wrap > summary { list-style:none; cursor:pointer; padding:12px 14px; font-size:0.95rem; font-weight:700; color:var(--wds-black); display:flex; align-items:center; gap:8px; }
+        .cm-agg-wrap > summary::-webkit-details-marker { display:none; }
+        .cm-agg-wrap > summary::after { content:'▾'; margin-left:auto; color:var(--wds-gray-500); transition:transform .15s; }
+        .cm-agg-wrap[open] > summary::after { transform:rotate(180deg); }
+        .cm-agg-wrap > summary small { font-weight:400; color:var(--wds-gray-500); font-size:0.78rem; }
+        .cm-agg-body { padding:0 14px 6px; border-top:1px solid var(--wds-gray-200); }
+        .cm-agg { padding:9px 0; border-bottom:1px solid var(--wds-gray-200); }
         .cm-agg:last-child { border-bottom:0; }
-        .cm-agg-q { font-size:0.88rem; font-weight:700; color:var(--wds-black); margin-bottom:6px; }
+        .cm-agg-q { font-size:0.84rem; font-weight:700; color:var(--wds-black); margin-bottom:5px; }
         .cm-agg-q small { font-weight:400; color:var(--wds-gray-500); font-size:0.76rem; margin-left:6px; }
-        .cm-agg-row { display:grid; grid-template-columns:minmax(72px, 32%) 1fr 58px; gap:8px; align-items:center; font-size:0.82rem; color:var(--wds-gray-800); padding:3px 0; }
-        .cm-agg-row .o { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .cm-agg-row .bar { height:8px; background:var(--wds-gray-200); border-radius:4px; overflow:hidden; }
-        .cm-agg-row .bar i { display:block; height:100%; background:var(--wds-primary); border-radius:4px; }
-        .cm-agg-row .n { text-align:right; font-weight:700; color:var(--wds-black); white-space:nowrap; }
-        .cm-agg-row.full .n { color:#C2591B; }
+        .cm-agg-chips { display:flex; flex-wrap:wrap; gap:6px; }
+        .cm-agg-row { display:inline-flex; align-items:center; gap:5px; font-size:0.78rem; padding:3px 9px; border-radius:999px; background:var(--wds-gray-100); color:var(--wds-gray-800); }
+        .cm-agg-row .n { font-weight:700; color:var(--wds-black); }
+        .cm-agg-row.zero { opacity:.55; }
+        .cm-agg-row.full { background:#FEF3C7; color:#92400E; } .cm-agg-row.full .n { color:#C2591B; }
+        body.dark .cm-agg-wrap { background:#1e1e1e; border-color:#3a3a3a; } body.dark .cm-agg-row { background:#2a2a2a; color:#ddd; } body.dark .cm-agg-row .n { color:#fff; }
         /* 대표 이미지 정방형 크롭(모임 만들기·수정): 끌어서 이동, 슬라이더로 확대 */
         .cm-crop { margin-top:10px; }
         .cm-crop-box { position:relative; width:min(100%, 300px); aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--wds-gray-200); touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
@@ -9220,7 +9232,7 @@
                     </div>
                     <div class="gforms-card">
                         <label class="gforms-label">모임 설명<span class="req">*</span></label>
-                        <textarea id="cc_desc" rows="4" class="gforms-textarea" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요."></textarea>
+                        ${docEditorHTML('cc_desc', '', '진행 컨텐츠 및 타임라인 등을 작성해주세요. 링크(🔗)와 사진(🖼)도 넣을 수 있어요.', { image: true })}
                     </div>
                     <div class="gforms-card">
                         <label class="gforms-label">대표 이미지</label>
@@ -9559,13 +9571,13 @@
             const rows = qs.map((f, i) => {
                 if (cmQHasOptions(f) || f.type === 'consent') {
                     const c = counts[f.label] || {}, opts = f.type === 'consent' ? ['동의'] : (f.options || []);
-                    const max = Math.max(1, ...opts.map(o => c[o] || 0));
-                    return `<div class="cm-agg"><div class="cm-agg-q">Q${i + 1} ${escapeHtml(f.label)}</div>${opts.map(o => { const n = c[o] || 0, lim = f.limits && f.limits[o]; return `<div class="cm-agg-row${lim && n >= lim ? ' full' : ''}"><span class="o">${escapeHtml(o)}</span><span class="bar"><i style="width:${Math.round(n / max * 100)}%"></i></span><span class="n">${n}${lim ? `/${lim}` : ''}명</span></div>`; }).join('')}</div>`;
+                    // 선택지마다 「이름 N(/정원)」 칩 한 줄 — 0명은 흐리게, 정원 찬 것은 주황
+                    return `<div class="cm-agg"><div class="cm-agg-q">Q${i + 1} ${escapeHtml(f.label)}</div><div class="cm-agg-chips">${opts.map(o => { const n = c[o] || 0, lim = f.limits && f.limits[o]; return `<span class="cm-agg-row${lim && n >= lim ? ' full' : (n ? '' : ' zero')}"><span class="o">${escapeHtml(o)}</span><span class="n">${n}${lim ? `/${lim}` : ''}</span></span>`; }).join('')}</div></div>`;
                 }
                 const answered = active.filter(a => cmAnswerText((a.form_data || {})[f.label]).trim()).length;
                 return `<div class="cm-agg"><div class="cm-agg-q">Q${i + 1} ${escapeHtml(f.label)}<small>답변 ${answered}명 · 내용은 CSV 에서</small></div></div>`;
             }).join('');
-            return `<div class="gforms-card"><label class="gforms-label" style="font-size:1.05rem;font-weight:700;">답변 집계 <small style="font-weight:400;color:var(--wds-gray-500);font-size:0.8rem;">거절 제외 ${active.length}명 기준</small></label>${rows}</div>`;
+            return `<details class="cm-agg-wrap"><summary>답변 집계 <small>${active.length}명 기준 · 질문 ${qs.length}개 (거절 제외)</small></summary><div class="cm-agg-body">${rows}</div></details>`;
         }
 
         function renderCommunityCreateFieldEditor() {
@@ -9588,7 +9600,7 @@
             const items = document.getElementById('cc_items').value.trim();
             const capacity = document.getElementById('cc_capacity').value;
             const deadline = document.getElementById('cc_deadline').value;
-            const desc = document.getElementById('cc_desc').value.trim();
+            const desc = rteValue('cc_desc'); // 서식 HTML(링크·사진 포함, 살균됨)
             const pw = document.getElementById('cc_pw').value;
             const pw2 = document.getElementById('cc_pw2').value;
             const imgFile = document.getElementById('cc_image').files[0];
@@ -9749,7 +9761,7 @@
             <div class="cm-lower">`;
 
             // 모임 설명 — 항상 전부 보인다(2026-10-13, 접기 없음)
-            if (meeting.description) html += `<div class="cm-sec"><h2>모임 설명</h2><div class="cm-desc" id="communityDesc">${escapeHtml(meeting.description)}</div></div>`;
+            if (meeting.description) html += `<div class="cm-sec"><h2>모임 설명</h2><div class="cm-desc" id="communityDesc">${renderMarkdown(meeting.description)}</div></div>`; // 서식 HTML·옛 평문 모두 DOMPurify 경유
             html += `</div>`; // .cm-lower
 
             // 참여 신청서는 본문에 두지 않고 [참여 신청하기] 를 누르면 시트로 연다(cmApplySheetOpen). 입력 id 는 submitCommunityApplication 과 동일: ca_name/ca_phone/ca_custom_i
@@ -9858,7 +9870,7 @@
             </div>
             <div class="gforms-card">
                 <label class="gforms-label">모임 설명</label>
-                <textarea id="ce_desc" rows="4" class="gforms-textarea" placeholder="진행 컨텐츠 및 타임라인 등을 작성해주세요.">${escapeHtml(meeting.description || '')}</textarea>
+                ${docEditorHTML('ce_desc', renderMarkdown(meeting.description || ''), '진행 컨텐츠 및 타임라인 등을 작성해주세요. 링크(🔗)와 사진(🖼)도 넣을 수 있어요.', { image: true })}
             </div>
             <div class="community-grid-2">
                 <div class="gforms-card">
@@ -10106,7 +10118,7 @@
             const items = document.getElementById('ce_items').value.trim();
             const capacity = document.getElementById('ce_capacity').value;
             const deadline = document.getElementById('ce_deadline').value;
-            const desc = document.getElementById('ce_desc').value.trim();
+            const desc = rteValue('ce_desc');
             const imgFile = document.getElementById('ce_image').files[0];
 
             if (!title) return alert('모임명을 입력해주세요.');
@@ -13629,6 +13641,8 @@
 
         function renderMarkdown(md) {
             if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                // CDN 미로드: 편집기가 저장한 HTML 은 최소 살균으로 그대로, 평문은 이스케이프 + 줄바꿈
+                if (/^\s*<[a-z]/i.test(md || '')) return _htmlSanitizeFallback(md);
                 return (md || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
             }
             return DOMPurify.sanitize(marked.parse(md || '', { breaks: true, gfm: true }));
@@ -13638,7 +13652,7 @@
         // 저장 형식은 그대로 마크다운 컬럼(content)을 쓰되 HTML을 담는다.
         // 표시 경로가 renderMarkdown = DOMPurify(marked.parse(...))라 마크다운/HTML 둘 다
         // 처리되므로, 기존 마크다운 문서도 편집기에서 열면 서식으로 보이고 그대로 저장된다.
-        function docEditorHTML(id, initialHtml, placeholder) {
+        function docEditorHTML(id, initialHtml, placeholder, opts = {}) { // opts.image: 🖼 사진 버튼(커뮤니티 이미지 버킷에 올려 본문에 삽입)
             const b = (label, cmd, val, title, extra) =>
                 `<button type="button" class="rte-btn" title="${title}" onmousedown="event.preventDefault()" onclick="rteExec('${id}','${cmd}'${val ? ",'" + val + "'" : ''})"${extra || ''}>${label}</button>`;
             return `
@@ -13661,6 +13675,7 @@
                         ${b('☰', 'justifyCenter', '', '가운데 정렬')}
                         <div class="rte-sep"></div>
                         <button type="button" class="rte-btn" title="링크" onmousedown="event.preventDefault()" onclick="rteLink('${id}')">🔗</button>
+                        ${opts.image ? `<button type="button" class="rte-btn" title="사진 넣기" onmousedown="event.preventDefault()" onclick="rteImage('${id}')">🖼</button>` : ''}
                         ${b('─', 'insertHorizontalRule', '', '구분선')}
                         ${b('✕서식', 'removeFormat', '', '서식 지우기')}
                     </div>
@@ -13695,6 +13710,38 @@
                 `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener">${escapeHtml(safe)}</a>`);
         }
 
+        // 🖼 사진 넣기 — 파일 선택 → 긴 변 1600px JPEG 로 줄여 community-images 에 올리고 커서 자리에 <img>
+        function rteImage(id) {
+            const el = document.getElementById(id); if (!el) return;
+            const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+            inp.onchange = async () => {
+                const f = inp.files && inp.files[0]; if (!f) return;
+                el.focus();
+                try { document.execCommand('insertHTML', false, '<p class="rte-uploading">🖼 사진 올리는 중…</p>'); } catch (_) {}
+                try {
+                    const url = await uploadCommunityImage(await _rteShrink(f));
+                    const html = `<p><img src="${escapeHtml(url)}" alt=""></p>`;
+                    const ph = el.querySelector('.rte-uploading');
+                    if (ph) ph.outerHTML = html; else el.insertAdjacentHTML('beforeend', html);
+                } catch (e) {
+                    el.querySelector('.rte-uploading')?.remove();
+                    console.error('rteImage:', e); alert('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.');
+                }
+            };
+            inp.click();
+        }
+        async function _rteShrink(file, max = 1600) {
+            if (!/^image\//.test(file.type)) throw new Error('이미지 파일만 넣을 수 있습니다.');
+            const bmp = await createImageBitmap(file).catch(() => null);
+            if (!bmp) return file;
+            const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+            if (s === 1 && file.size < 400 * 1024) return file;
+            const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+            c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+            const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+            return new File([blob], 'desc.jpg', { type: 'image/jpeg' });
+        }
+
         // 편집기 내용을 저장용으로 정리 — 저장 시점에도 한 번 살균한다(표시 경로와 이중 방어).
         // 문서 본문(마크다운 또는 HTML)에서 태그를 걷어낸 순수 텍스트 — 목록 미리보기용
         function docPlainText(content) {
@@ -13712,6 +13759,10 @@
             if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(raw);
             // DOMPurify 미로드(CDN 지연·차단) 시에도 위험 요소는 남기지 않는다.
             // 표시 경로에도 폴백 이스케이프가 있지만, 애초에 저장하지 않는 편이 안전하다.
+            return _htmlSanitizeFallback(raw);
+        }
+        // DOMPurify 없이 쓰는 최소 살균(저장·표시 공용): 위험 태그 제거, on* 속성·javascript: 주소 제거
+        function _htmlSanitizeFallback(raw) {
             const doc = new DOMParser().parseFromString(raw, 'text/html');
             doc.body.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach(n => n.remove());
             doc.body.querySelectorAll('*').forEach(n => {
