@@ -65,6 +65,7 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+- 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
