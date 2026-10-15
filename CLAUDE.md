@@ -105,6 +105,24 @@
   `{action:'review_meeting', meeting_id, decision, kakao_token|sb_token}`(service role; anon UPDATE 가 회수된 테이블이라 서버만 가능). 인증 `_adminApiAuth()`: 카카오 토큰 → Supabase 세션 → 캐시 세션이면 카카오 팝업 재발급.
   서버는 kapi/GoTrue 검증 후 `profiles.role='운영 총괄'`(카카오 `ADMIN_KAKAO_ID` 백스톱), `status=eq.pending` 조건 PATCH(경합 409), 수락 시 `time_blocks` 1행(`meetingSlots` 로 "10:00 ~ 13:00" 역변환)
   + 모임장 Resend 메일(키 있을 때만). 마이그레이션 `20261013_community_meeting_status.sql`(status/reviewed_at) 미실행이면 요청 생성·탭이 안내 문구로 알려준다. 단위 테스트 `tests/community-admin-unit.mjs`.
+- **게더링 멤버 페이지(2026-10-15 개편, 시안 B 「홈 중심」)** — `#main-content`. 앱 바 `.gatheo-topbar`(홈=워드마크 `#gtBarWm`, 다른 탭=제목 `#gtBarTitle`(`_GT_TITLES`),
+  관리자 톱니 `#gatheoTab-admin`(id 는 종전 그대로 — loginUI/logoutUI 가 hidden 토글), SVG 모드 버튼 `#themeToggleBtn.theme-toggle-svg`(`applyTheme` 가 textContent 를 건드리면 안 됨),
+  아바타 버튼 `#gtAvatarBtn` → 마이; `gtUpdateBar()`). 하단 탭 **홈·예약·멤버·게시판·마이** 5개(`_GATHEO_TABS` 에 `home`, 기본 탭 `home`, 관리자는 탭이 아니라 톱니+마이 목록 줄).
+  **홈** `renderGatheoHome()`(`#gatheOTabHome`): 인사(이번 주 합주·내 예약·새 글 수) → 다음 합주 큰 카드 `#gtNextSched`(날짜 단위, 참석자 아바타 `_gtDateAttendees` = 날짜/그룹/슬롯 신청 합집합,
+  내가 신청했으면 「참석 확정」 칩, 버튼은 `openScheduleForDate`) + 내가 신청한 다른 날짜가 있으면 「내 다음 참여 일정」 줄 → 내 다음 예약 `#gtNextRes`(멤버 아바타·[멤버 수정]) → 공지 한 줄 `#gtNotice`(접힘, 누르면 전부)
+  → 바로가기 4(`.gt-qa`) → 게시판 새 글 3(`gtOpenPost`). 데이터 갱신은 `gtHomeRefresh()`(render()/공지/일정/댓글 fetch 끝에서 호출, 60ms 디바운스). 옛 `#notice_container`·`#schedule_banner` 는
+  숨긴 채 데이터만 유지(renderNotices 가 다시 보이게 하지 않음; 공지 편집은 관리자 탭).
+  **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
+  → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
+  **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,
+  팀 카드는 수정/삭제 버튼 대신 `.team-more` ⋯ → `gtTeamMenu` 시트, 멤버 아바타 묶음 `.gt-stack`. **게시판**: 제목은 앱 바, `#main-content #comments_container` 평면, 글쓴이 아바타(`_gtMemberByKakao`).
+  **마이** `renderMypagePanel()`: 프로필 카드 `.gt-prof`(아바타·역할 칩·세션 칩·[수정]) → 숫자 타일 `.gt-tiles` → 설정형 목록 `.gt-list`(내 예약·음악 취향·연락처·소속 팀·운영안내·활동 앨범·관리자(관리자만) / 푸시 알림·다크 모드·로그아웃).
+  하위 화면 `gtMypageSub('res'|'taste'|'docs'|'activity')` → `renderMypageSubView()`(`state.mypageSub`, 머리 [‹]; `renderMypagePanel` 은 mypageSub 가 있으면 하위 화면을 그리고 끝 — 탭 전환의 비동기 렌더가 덮지 않게).
+  운영안내 분류 버튼의 `render()` 호출은 하위 화면에서 `renderMypageSubView()` 로 바꿔 붙인다. 내 예약 목록은 종전 `renderMyPage(container)`(pager 는 `changePage('myRes')` 가 마이에서 하위 화면을 다시 그림).
+  **아바타**: `gaAvatar(name, {url, cls})` — url 있으면 `.ga-avatar.img`(background-image), 없으면 이름 이니셜. `profiles.avatar_url`(마이그레이션 `20261015_profile_avatar.sql`) 기본값은 **카카오 프로필 사진**
+  (`handleLogin` 이 `select('*')` 로 읽고 비어 있으면 thumbnail/profile_image_url 을 저장, `state.user.avatarUrl/kakaoAvatar`), 마이 › 수정 「프로필 사진」 [사진 바꾸기]=`gtAvatarPick`(가운데 정방형 256px JPEG →
+  `community-images/avatars/<profile>-<ts>.jpg` → `gtAvatarSave`) / [카카오 사진으로|기본(이니셜)으로]=`gtAvatarReset`. 멤버 목록·팀·홈 참석자·게시판·앱 바가 같은 부품을 쓴다.
+  검증 scratchpad `gatheo/test.js`(Playwright, `gatheo/seed.js` 가짜 supabase — profiles/reservations(participant_ids)/schedules/schedule_attendees/documents/comments/teams, `.eq/.in` 만 흉내), 시안 목업 `gatheo/mock.html`, 캡처 `gatheo/shoot-new.js`(`W/H/OUT/DARK` 환경변수).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

@@ -589,22 +589,110 @@
 
         /* GatheO Community-style Layout */
         .gatheo-main { width: 100%; max-width: 800px; margin-bottom: 40px; }
+        /* ===== GatheO 멤버 페이지 개편(2026-10-15, 시안 B) — 앱 바·홈·알약 탭·카드·설정형 목록 ===== */
         .gatheo-topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 20px;
-            background: var(--wds-white);
-            border-bottom: 1px solid var(--wds-gray-300);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            margin-left: calc(-50vw + 50%);
-            margin-right: calc(-50vw + 50%);
-            padding-left: max(20px, calc((100vw - 800px) / 2 + 20px));
-            padding-right: max(20px, calc((100vw - 800px) / 2 + 20px));
+            display: flex; align-items: center; gap: 2px; height: 54px;
+            background: var(--wds-white); border-bottom: 1px solid var(--wds-gray-200);
+            position: sticky; top: 0; z-index: 100;
+            margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%);
+            padding-left: max(16px, calc((100vw - 800px) / 2 + 16px));
+            padding-right: max(6px, calc((100vw - 800px) / 2 + 6px));
         }
-        .gatheo-tab-body { padding: 16px 4px 48px; }
+        .gt-wm { font-family: 'KkuBulLim', sans-serif; font-size: 1.25rem; color: var(--wds-black); flex: 1; min-width: 0; }
+        .gt-title { flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 800; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gatheo-topbar .cm-ib.active { color: var(--wds-primary); }
+        .gt-avbtn { width: 36px; height: 36px; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; }
+        .gt-avbtn .ga-avatar { width: 30px; height: 30px; font-size: 0.82rem; }
+        .ga-avatar.img { background-size: cover; background-position: center; color: transparent; }
+        .gt-card { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 16px; padding: 14px 16px; margin-top: 12px; }
+        .gt-row { display: flex; align-items: center; gap: 10px; }
+        .gt-seg { display: flex; gap: 6px; padding: 4px 0; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+        .gt-seg::-webkit-scrollbar { display: none; }
+        .gt-seg .tab, .gt-seg .seg-btn { flex: none; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-gray-800); font-size: 0.86rem; font-weight: 700; font-family: inherit; cursor: pointer; position: static; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; min-width: 0; text-align: center; line-height: 1; }
+        .gt-seg .tab.active, .gt-seg .seg-btn.on { background: var(--wds-black); border-color: var(--wds-black); color: var(--wds-white); }
+        .gt-seg .tab.active::after { display: none; }
+        .gt-seg b { font-weight: 700; opacity: 0.6; font-size: 0.78rem; }
+        .gt-seg b:empty { display: none; }
+        .gt-seg-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .gt-link { background: none; border: 0; color: var(--wds-gray-500); font-size: 0.78rem; font-family: inherit; cursor: pointer; white-space: nowrap; padding: 4px 0; margin-left: auto; }
+        .gt-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+        .gt-chip.ok { background: #E6F6EF; color: #1E8A5A; } .gt-chip.wn { background: #FEF3C7; color: #92400E; }
+        .gt-chip.p { background: var(--wds-primary-light); color: var(--wds-primary); } .gt-chip.g { background: var(--wds-gray-200); color: var(--wds-gray-700); }
+        body.dark .gt-chip.ok { background: #143d2a; color: #6fd3a0; } body.dark .gt-chip.wn { background: #3a2f0d; color: #FCD34D; }
+        .gt-stack { display: flex; flex: none; }
+        .gt-stack .ga-avatar { width: 28px; height: 28px; font-size: 0.72rem; border: 2px solid var(--wds-white); margin-left: -8px; box-shadow: none; }
+        .gt-stack .ga-avatar:first-child { margin-left: 0; }
+        /* 홈 */
+        .gt-hello { margin: 14px 0 2px; }
+        .gt-hello h1 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; color: var(--wds-black); font-family: inherit; }
+        .gt-hello p { margin: 4px 0 0; color: var(--wds-gray-700); font-size: 0.84rem; }
+        .gt-big { background: linear-gradient(135deg, #3366FF, #5B8CFF); color: #fff; border-radius: 18px; padding: 16px; margin-top: 14px; }
+        .gt-big .eb { font-size: 0.74rem; opacity: 0.85; font-weight: 700; }
+        .gt-big h3 { margin: 6px 0 2px; font-size: 1.15rem; font-weight: 800; color: #fff; font-family: inherit; }
+        .gt-big p { margin: 0; font-size: 0.82rem; opacity: 0.92; }
+        .gt-big .ft { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+        .gt-big .gaa-btn-primary { background: #fff; border-color: #fff; color: var(--wds-primary); }
+        .gt-big .gt-chip { background: rgba(255,255,255,0.22); color: #fff; }
+        .gt-big .gt-stack .ga-avatar { border-color: #4f7dff; }
+        .gt-time { font-size: 1.05rem; font-weight: 800; color: var(--wds-black); margin-top: 6px; }
+        .gt-ntc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; background: #FFF8E1; border-radius: 12px; padding: 10px 12px; font-size: 0.82rem; color: #7A5A00; cursor: pointer; }
+        .gt-ntc b { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+        .gt-ntc.open b { white-space: normal; }
+        .gt-ntc small { color: #B08A2E; white-space: nowrap; }
+        .gt-ntc-body { flex-basis: 100%; margin-top: 6px; font-size: 0.84rem; color: #5f4700; white-space: pre-wrap; line-height: 1.6; }
+        .gt-ntc-body + .gt-ntc-body { border-top: 1px dashed #E9D58A; padding-top: 8px; }
+        .gt-ntc-body b { white-space: normal; display: block; margin-bottom: 2px; }
+        body.dark .gt-ntc { background: #3a2f0d; color: #FCD34D; } body.dark .gt-ntc small { color: #C9A94B; } body.dark .gt-ntc-body { color: #E8D48A; }
+        .gt-qa { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+        .gt-qa button { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 14px; padding: 12px 4px; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--wds-gray-800); font-family: inherit; cursor: pointer; }
+        .gt-qa button i { display: block; font-style: normal; font-size: 1.3rem; margin-bottom: 6px; }
+        .gt-sec { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 4px; }
+        .gt-sec h2 { margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--wds-black); font-family: inherit; }
+        .gt-sec button { background: none; border: 0; font-size: 0.8rem; color: var(--wds-gray-500); font-family: inherit; cursor: pointer; }
+        .gt-post { padding: 10px 0; border-bottom: 1px solid var(--wds-gray-100); cursor: pointer; }
+        .gt-post:last-child { border-bottom: 0; }
+        .gt-post b { display: block; font-size: 0.9rem; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gt-post span { font-size: 0.74rem; color: var(--wds-gray-500); }
+        /* 예약 */
+        .gt-myres { display: flex; align-items: center; gap: 8px; width: 100%; background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 14px; padding: 12px 14px; margin-top: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 700; color: var(--wds-black); font-family: inherit; text-align: left; }
+        .gt-myres .r { margin-left: auto; color: var(--wds-gray-500); font-size: 0.8rem; font-weight: 500; white-space: nowrap; }
+        .gt-myres .r::after { content: '›'; margin-left: 4px; font-size: 1rem; }
+        .gt-leg { display: flex; gap: 12px; margin-top: 10px; font-size: 0.72rem; color: var(--wds-gray-500); flex-wrap: wrap; }
+        .gt-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+        .cal-day-info .mine { background: var(--wds-primary); color: #fff !important; border-radius: 4px; font-weight: 800; }
+        .gatheo-tab-body .view-header { margin-bottom: 10px; }
+        .gatheo-tab-body .view-title { font-size: 1.1rem; }
+        .gatheo-tab-body .nav-btn { height: 32px; min-width: 32px; padding: 0 10px; border-radius: 8px; font-size: 0.8rem; }
+        .gatheo-tab-body .submit-btn { height: 48px; font-size: 1rem; border-radius: 12px; margin-top: 12px; }
+        /* 마이: 프로필·숫자 타일·설정형 목록 */
+        .gt-prof { display: flex; align-items: center; gap: 14px; }
+        .gt-prof .ga-avatar { width: 56px; height: 56px; font-size: 1.3rem; }
+        .gt-prof .nm { font-size: 1.15rem; font-weight: 800; color: var(--wds-black); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .gt-prof .ss { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+        .gt-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+        .gt-tile { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 14px; padding: 12px 6px; text-align: center; }
+        .gt-tile b { display: block; font-size: 1.25rem; color: var(--wds-black); }
+        .gt-tile span { font-size: 0.7rem; color: var(--wds-gray-700); }
+        .gt-list { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 16px; margin-top: 12px; overflow: hidden; }
+        .gt-list > button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border: 0; border-bottom: 1px solid var(--wds-gray-100); background: none; font-size: 0.92rem; font-weight: 600; color: var(--wds-black); text-align: left; font-family: inherit; cursor: pointer; }
+        .gt-list > button:last-child { border-bottom: 0; }
+        .gt-list .ic { width: 32px; height: 32px; border-radius: 10px; background: var(--wds-gray-100); display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; flex: none; }
+        .gt-list .r { margin-left: auto; color: var(--wds-gray-500); font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+        .gt-list .r::after { content: '›'; margin-left: 6px; font-size: 1rem; }
+        .gt-list > button.muted { color: var(--wds-gray-500); }
+        .gt-sub-head { display: flex; align-items: center; gap: 6px; margin: 2px 0 8px; }
+        .gt-sub-head h2 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--wds-black); font-family: inherit; }
+        .gt-avatar-edit { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; }
+        .gt-avatar-edit .ga-avatar { width: 56px; height: 56px; font-size: 1.3rem; }
+        /* 멤버 목록·팀 카드 */
+        .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
+        .team-card .gt-stack { margin-right: 6px; }
+        .team-more { width: 32px; height: 32px; border: 0; background: var(--wds-gray-100); border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--wds-gray-700); font-family: inherit; }
+        /* 게시판: 바깥 회색 상자 제거(앱 바 제목이 있으므로 평면) */
+        #main-content #comments_container { background: none; border: 0; box-shadow: none; padding: 0; margin: 12px 0 48px; max-width: none; }
+        .comment-author .ga-avatar { width: 30px; height: 30px; font-size: 0.78rem; }
+        @media (max-width: 480px) { .gt-qa button { font-size: 0.7rem; padding: 10px 2px; } .gt-tile b { font-size: 1.1rem; } }
+        .gatheo-tab-body { padding: 12px 0 48px; }
 
         /* Reservation Form */
         .form-group { margin-bottom: 20px; }
@@ -2453,16 +2541,13 @@
     <div id="main-content" class="gatheo-main hidden">
         <!-- Sticky topbar -->
         <div id="userInfoArea" class="gatheo-topbar">
-            <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-family:'KkuBulLim',sans-serif;font-size:1.15rem;font-weight:800;letter-spacing:-0.01em">GatheO</span>
-                <span style="color:var(--wds-gray-300)">|</span>
-                <strong id="userNameDisplay" style="font-family:'KkuBulLim',sans-serif;font-size:1rem"></strong>
-                <span style="color:var(--wds-gray-500);font-size:0.85rem">님</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:4px">
-                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
-                <button type="button" class="logout-btn" onclick="handleLogout()">로그아웃</button>
-            </div>
+            <!-- 2026-10-15 시안 B: 워드마크(홈) / 탭 제목, 관리자 톱니(id 는 종전 gatheoTab-admin 유지 — loginUI/logoutUI 가 hidden 을 토글), SVG 모드 버튼, 아바타(→ 마이) -->
+            <span class="gt-wm" id="gtBarWm">GatheO</span>
+            <span class="gt-title hidden" id="gtBarTitle"></span>
+            <strong id="userNameDisplay" hidden></strong>
+            <button type="button" id="gatheoTab-admin" class="cm-ib gt-admin hidden" onclick="setGatheOTab('admin')" title="관리자" aria-label="관리자"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+            <button type="button" id="themeToggleBtn" class="cm-ib theme-toggle-svg" onclick="toggleTheme()" title="테마 전환" aria-label="테마 전환"><svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+            <button type="button" id="gtAvatarBtn" class="gt-avbtn" onclick="setGatheOTab('mypage')" title="마이" aria-label="마이"></button>
         </div>
 
         <!-- Banners -->
@@ -2473,40 +2558,37 @@
         <span id="memberPanelArrow" style="display:none"></span>
         <span id="mypagePanelArrow" style="display:none"></span>
 
-        <!-- Tab body: 예약 -->
-        <div id="gatheOTabReservation" class="gatheo-tab-body">
+        <!-- Tab body: 홈 (2026-10-15 시안 B — renderGatheoHome 이 그린다) -->
+        <div id="gatheOTabHome" class="gatheo-tab-body"></div>
+
+        <!-- Tab body: 예약 — 내 예약 줄 → [월간|주간] 알약 + ⓘ 예약 안내(시트) → 달력 카드(범례) → 참여 멤버 → 제출 -->
+        <div id="gatheOTabReservation" class="gatheo-tab-body hidden">
+            <button type="button" class="gt-myres" id="gtMyResRow" onclick="gtMypageSub('res')">📌 내 예약 <span id="gtMyResChips" class="gt-row" style="gap:4px"></span><span class="r">보기</span></button>
             <form id="reservationForm">
                 <input type="hidden" id="userNameInput">
-
-                <div class="form-group section-box">
-                    <span class="label">예약 및 확인</span>
-                    <div style="background:var(--wds-primary-light);border-radius:var(--wds-radius-s);padding:10px 14px;margin-bottom:16px;font-size:0.82rem;line-height:1.8;color:var(--wds-gray-700)">
-                        <span style="font-weight:700;color:var(--wds-primary)">📌 예약 전 확인해주세요</span><br>
-                        · 예약 가능 시간: <strong>오전 10시 ~ 오후 11시</strong><br>
-                        · <strong>2시간 초과</strong> 예약은 관리자 승인이 필요합니다<br>
-                        · 합주실 사용 후 <strong>정리 및 원상복구</strong>는 필수입니다<br>
-                        · 참여 멤버를 정확히 등록해주세요 <span style="color:var(--wds-gray-500)">(참여 횟수 집계에 반영됩니다)</span>
+                <div class="gt-seg-row">
+                    <div class="gt-seg">
+                        <button type="button" class="tab active" data-view="month">월간</button>
+                        <button type="button" class="tab" data-view="week">주간</button>
                     </div>
-                    <div class="tabs">
-                        <div class="tab active" data-view="month">월간</div>
-                        <div class="tab" data-view="week">주간</div>
-                    </div>
-
+                    <button type="button" class="gt-link" onclick="gtRulesSheet()">ⓘ 예약 안내</button>
+                </div>
+                <div class="gt-card">
                     <div class="view-header">
                         <div id="viewTitle" class="view-title">2026.05</div>
                         <div class="nav-btns">
-                            <button type="button" class="nav-btn" id="prevBtn">&lt;</button>
+                            <button type="button" class="nav-btn" id="prevBtn">‹</button>
                             <button type="button" class="nav-btn" id="todayBtn">오늘</button>
-                            <button type="button" class="nav-btn" id="nextBtn">&gt;</button>
+                            <button type="button" class="nav-btn" id="nextBtn">›</button>
                         </div>
                     </div>
-
                     <div id="viewContainer"></div>
+                    <div class="gt-leg"><span><i style="background:var(--wds-primary-light)"></i>예약</span><span><i style="background:#FEF3C7"></i>승인 대기</span><span><i style="background:var(--wds-primary)"></i>내 예약</span><span><i style="background:#FDECEC"></i>차단</span></div>
                     <input type="hidden" id="selectedDate" required>
                     <input type="hidden" id="selectedTime" required>
                 </div>
 
-                <div class="form-group section-box" id="participantSection" style="display:none">
+                <div class="gt-card" id="participantSection" style="display:none">
                     <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
                     <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요.</p>
                     <div style="display:flex;gap:6px;margin-bottom:8px">
@@ -2515,10 +2597,10 @@
                     </div>
                     <div id="participantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
                     <div style="margin-top:10px">
-                        <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;box-sizing:border-box;font-family:inherit">
+                        <input type="text" id="participantEtcInput" placeholder="기타 (예: 홍길동, 외부 게스트)" oninput="state.participantEtc=this.value" style="width:100%;padding:8px 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
                         <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
                             <label style="font-size:0.8rem;color:var(--wds-gray-600);white-space:nowrap">비등록 참여 인원:</label>
-                            <input type="number" id="participantCountInput" min="0" max="99" value="0" oninput="state.participantCount=parseInt(this.value)||0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;text-align:center">
+                            <input type="number" id="participantCountInput" min="0" max="99" value="0" oninput="state.participantCount=parseInt(this.value)||0" style="width:64px;padding:5px 8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit">
                             <span style="font-size:0.8rem;color:var(--wds-gray-500)">명</span>
                         </div>
                         <p style="font-size:0.75rem;color:var(--wds-gray-500);margin:4px 0 0 0">멤버 목록에 없는 참여자는 여기에 적어주세요. (참여 횟수에는 반영되지 않습니다)</p>
@@ -2534,13 +2616,11 @@
         <!-- Tab body: 멤버 & 팀 -->
         <div id="gatheOTabMember" class="gatheo-tab-body hidden">
             <div id="memberPanelContent">
-                <div class="admin-subtabs">
-                    <div class="admin-subtab active" onclick="setMemberTab('docs')">운영안내</div>
-                    <div class="admin-subtab" onclick="setMemberTab('list')">멤버 목록</div>
-                    <div class="admin-subtab" onclick="setMemberTab('teams')">팀 구성</div>
-                    <div class="admin-subtab" onclick="setMemberTab('schedule')">일정표</div>
-                    <div class="admin-subtab" onclick="setMemberTab('stats')">참여횟수</div>
-                    <div class="admin-subtab" onclick="setMemberTab('activity')">활동기록</div>
+                <div class="gt-seg" id="memberSeg">
+                    <button type="button" class="seg-btn on" data-tab="list" onclick="setMemberTab('list')">멤버<b id="gtMemberCnt"></b></button>
+                    <button type="button" class="seg-btn" data-tab="teams" onclick="setMemberTab('teams')">팀<b id="gtTeamCnt"></b></button>
+                    <button type="button" class="seg-btn" data-tab="schedule" onclick="setMemberTab('schedule')">일정표</button>
+                    <button type="button" class="seg-btn" data-tab="stats" onclick="setMemberTab('stats')">참여횟수</button>
                 </div>
                 <div id="memberPanelView"></div>
             </div>
@@ -2548,19 +2628,15 @@
 
         <!-- Tab body: 마이페이지 -->
         <div id="gatheOTabMypage" class="gatheo-tab-body hidden">
-            <div class="form-group section-box">
-                <span class="label" style="margin-bottom:12px;display:block">마이페이지</span>
-                <div id="mypagePanelContent"></div>
-            </div>
+            <div id="mypagePanelContent"></div>
         </div>
 
         <!-- Tab body: 관리자 -->
         <div id="gatheOTabAdmin" class="gatheo-tab-body hidden"></div>
 
         <!-- Tab body: 게시판 (자유게시판 — main-content 밖 상시 노출에서 하단 탭바의 독립 탭으로 이동) -->
-        <div id="comments_container" class="hidden" style="margin:16px 4px 48px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 style="margin:0">📋 자유게시판</h2>
+        <div id="comments_container" class="hidden">
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin:4px 0 12px">
             <button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" id="boardWriteToggleBtn" onclick="toggleBoardWriteForm()">✏️ 글쓰기</button>
         </div>
         <div id="boardWriteForm" style="display:none;margin-bottom:16px;background:white;border:1px solid var(--wds-gray-300);border-radius:10px;padding:14px">
@@ -2636,13 +2712,17 @@
                                 ? res.kakao_account.profile.nickname
                                 : (res.properties ? res.properties.nickname : '사용자');
                             const kakaoId = res.id.toString();
+                            const prof = (res.kakao_account && res.kakao_account.profile) || {};
+                            const kakaoAvatar = prof.thumbnail_image_url || prof.profile_image_url || (res.properties && (res.properties.thumbnail_image || res.properties.profile_image)) || null;
                             if (supabaseClient) {
-                                const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', kakaoId).maybeSingle();
+                                const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', kakaoId).maybeSingle();
                                 if (!data) { state.user = { nickname, kakaoId }; loginUI(nickname); return; }
                                 if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
                                 if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
                                 if (data.status !== 'approved') { alert('계정 상태를 확인할 수 없습니다. 관리자에게 문의해주세요.'); return; }
-                                state.user = { nickname: data.name || nickname, kakaoId, role: data.role || '일반' };
+                                state.user = { nickname: data.name || nickname, kakaoId, role: data.role || '일반', avatarUrl: data.avatar_url || kakaoAvatar || null, kakaoAvatar };
+                                // 아바타 기본값 = 카카오 프로필 사진(2026-10-15): 아직 없으면 저장해 둔다(컬럼 없으면 조용히 실패)
+                                if (!data.avatar_url && kakaoAvatar) supabaseClient.from('profiles').update({ avatar_url: kakaoAvatar }).eq('kakao_id', kakaoId).then(() => {}, () => {});
                                 // 승인된 게더링 로그인만 자동 로그인 캐시에 기록 — 재방문 자동 진입은 이 캐시로만 판단
                                 try { localStorage.setItem('gaa_kakao_uid', kakaoId); } catch(e) {}
                             } else {
@@ -2700,22 +2780,13 @@
                 const adminBtn = document.getElementById('gatheoTab-admin');
                 if (adminBtn) adminBtn.classList.remove('hidden');
             }
-            // 내 예약 탭 추가 (예약 탭 내부)
-            const tabs = document.querySelector('.tabs');
-            if (!document.querySelector('[data-view="my"]')) {
-                const myTab = document.createElement('div');
-                myTab.className = 'tab';
-                myTab.dataset.view = 'my';
-                myTab.textContent = '내 예약';
-                tabs.appendChild(myTab);
-                myTab.addEventListener('click', onTabClick);
-            }
+            // 내 예약은 마이 탭(gtMypageSub('res'))과 예약 탭 머리 줄에서 — 달력 안쪽 탭은 월간/주간만(2026-10-15)
             // 비로그인 상태로 #gatheo/... 딥링크 진입했다가 로그인한 경우 — 그 탭으로 이어간다
             {
                 const sub = Array.isArray(_pendingGatheoSub) && _pendingGatheoSub.length ? _pendingGatheoSub : null;
                 _pendingGatheoSub = null;
-                let initTab = sub && _GATHEO_TABS.includes(sub[0]) ? sub[0] : 'reservation';
-                if (initTab === 'admin' && !isAdminUser()) initTab = 'reservation';
+                let initTab = sub && _GATHEO_TABS.includes(sub[0]) ? sub[0] : 'home';
+                if (initTab === 'admin' && !isAdminUser()) initTab = 'home';
                 setGatheOTab(initTab);
                 if (initTab === 'member' && sub && _MEMBER_SUBTABS.includes(sub[1])) setMemberTab(sub[1]);
             }
@@ -2730,7 +2801,7 @@
             fetchPollVotes();
             subscribeToPolls();
             fetchTeams();
-            document.getElementById('notice_container').classList.remove('hidden');
+            // 공지·일정 배너는 홈 탭 카드로 통합(2026-10-15) — #notice_container/#schedule_banner 는 숨긴 채 데이터만 유지
             startInactivityWatcher();
             checkKakaoUserProfile();
             _gatheoEntered = true;
@@ -2925,20 +2996,28 @@
         }
 
         // --- GatheO tab navigation ---
+        const _GT_TITLES = { home: '', reservation: '예약', member: '멤버', board: '게시판', mypage: '마이', admin: '관리자' };
         function setGatheOTab(tab) {
             state.gatheoTab = tab;
-            const map = { reservation: 'gatheOTabReservation', member: 'gatheOTabMember', board: 'comments_container', mypage: 'gatheOTabMypage', admin: 'gatheOTabAdmin' };
+            const map = { home: 'gatheOTabHome', reservation: 'gatheOTabReservation', member: 'gatheOTabMember', board: 'comments_container', mypage: 'gatheOTabMypage', admin: 'gatheOTabAdmin' };
             Object.entries(map).forEach(([t, id]) => {
                 const btn = document.getElementById('gatheoTab-' + t);
                 const body = document.getElementById(id);
                 if (btn) btn.classList.toggle('active', t === tab);
                 if (body) body.classList.toggle('hidden', t !== tab);
             });
-            if (tab === 'member') {
+            gtUpdateBar();
+            gtSheetClose();
+            window.scrollTo({ top: 0 });
+            if (tab === 'home') {
+                renderGatheoHome();
+            } else if (tab === 'reservation') {
+                gtUpdateMyResRow();
+            } else if (tab === 'member') {
                 document.getElementById('memberPanelContent')?.classList.remove('hidden');
                 renderMemberPanel();
-                setTimeout(() => document.getElementById('gatheOTabMember')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
             } else if (tab === 'mypage') {
+                state.mypageSub = null;
                 document.getElementById('mypagePanelContent')?.classList.remove('hidden');
                 renderMypagePanel();
             } else if (tab === 'admin') {
@@ -2947,6 +3026,15 @@
                 fetchComments();
             }
             _pushNav('gatheo/' + tab); // 탭 단위 딥링크 주소 발행
+        }
+        // 앱 바: 홈이면 워드마크, 다른 탭은 제목. 아바타 버튼(→ 마이)은 내 프로필 사진/이니셜
+        function gtUpdateBar() {
+            const wm = document.getElementById('gtBarWm'), tt = document.getElementById('gtBarTitle');
+            const title = _GT_TITLES[state.gatheoTab] || '';
+            if (wm) wm.classList.toggle('hidden', !!title);
+            if (tt) { tt.textContent = title; tt.classList.toggle('hidden', !title); }
+            const av = document.getElementById('gtAvatarBtn');
+            if (av && state.user) { const me = _gtMe(); av.innerHTML = gaAvatar((me && me.name) || state.user.nickname, { url: (me && me.avatar_url) || state.user.avatarUrl }); }
         }
 
         // ── 활동기록: Google Drive 갤러리 ─────────────────────────────────────
@@ -3375,6 +3463,195 @@
             document.body.appendChild(overlay);
         }
 
+        // ══ GatheO 멤버 페이지 개편(2026-10-15, 시안 B) ═══════════════════════════════════════════
+        // 홈 탭: 인사 → 다음 합주 카드(참석 상태·참석자) → 내 다음 예약 → 공지(접힘) → 바로가기 → 게시판 새 글
+        function _gtMe() {
+            const u = state.user; if (!u) return null;
+            return (state.cachedMembers || []).find(m => m.kakao_id === u.kakaoId || m.id === u.kakaoId || (u.email && m.email && m.email === u.email)) || null;
+        }
+        function _gtMemberById(id) { return (state.cachedMembers || []).find(m => m.id === id) || null; }
+        function _gtMemberByKakao(kid) { return (state.cachedMembers || []).find(m => m.kakao_id === kid || m.id === kid) || null; }
+        function _gtAvatarOf(m, fallbackName) { return gaAvatar(m ? m.name : (fallbackName || '?'), { url: m && m.avatar_url }); }
+        function _gtFmtDate(d) {
+            const [y, m, dd] = String(d).split('-').map(Number); if (!y) return '';
+            return `${m}/${dd} (${['일','월','화','수','목','금','토'][new Date(y, m - 1, dd).getDay()]})`;
+        }
+        function _gtDday(iso) {
+            if (!iso) return null; const c = new Date(iso), n = new Date(); if (isNaN(c)) return null;
+            const days = Math.ceil((new Date(c.getFullYear(), c.getMonth(), c.getDate()) - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000);
+            return days > 0 ? `D-${days}` : days === 0 ? 'D-day' : null;
+        }
+        function _gtAgo(iso) {
+            const ms = Date.now() - new Date(iso).getTime(); if (isNaN(ms)) return '';
+            const m = Math.floor(ms / 60000); if (m < 1) return '방금'; if (m < 60) return `${m}분 전`;
+            const h = Math.floor(m / 60); if (h < 24) return `${h}시간 전`; const d = Math.floor(h / 24); if (d < 7) return `${d}일 전`;
+            return new Date(iso).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+        }
+        function _gtDateAttendees(date) {
+            const a = (state.scheduleAttendees || {})[date] || [];
+            const g = Object.values((state.scheduleGroupAttendees || {})[date] || {}).flat();
+            const s = Object.values((state.scheduleSlotAttendees || {})[date] || {}).flat();
+            return [...new Set([...a, ...g, ...s])];
+        }
+        let _gtHomeAttDates = '';
+        function gtHomeRefresh() { if (state.gatheoTab !== 'home') return; clearTimeout(window._gtHomeT); window._gtHomeT = setTimeout(renderGatheoHome, 60); }
+        function renderGatheoHome() {
+            const el = document.getElementById('gatheOTabHome'); if (!el || !state.user) return;
+            const today = new Date().toLocaleDateString('en-CA');
+            const me = _gtMe(); const myId = me ? me.id : null;
+            const name = ((me && me.name) || state.user.nickname || '멤버').replace('(관리자)', '').trim();
+            // ── 다음 합주(날짜 단위) + 참석 상태
+            const upcoming = (state.schedules || []).filter(s => s.date >= today).sort((a, b) => a.date.localeCompare(b.date) || (a.start_time || '').localeCompare(b.start_time || ''));
+            const dates = [...new Set(upcoming.map(s => s.date))].slice(0, 8);
+            if (dates.length && _gtHomeAttDates !== dates.join(',')) {
+                _gtHomeAttDates = dates.join(',');
+                fetchScheduleAttendees(dates).then(() => { if (state.gatheoTab === 'home') renderGatheoHome(); }).catch(() => {});
+            }
+            const in7 = (d) => { const diff = (new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000; return diff >= 0 && diff < 7; };
+            let bigHtml = '';
+            if (!dates.length) {
+                bigHtml = `<div class="gt-big"><div class="eb">다음 합주</div><h3>예정된 합주 일정이 없어요</h3><p>일정이 등록되면 여기에 바로 보여드릴게요.</p></div>`;
+            } else {
+                const date = dates[0], entries = upcoming.filter(s => s.date === date), first = entries[0];
+                const title = [...new Set(entries.map(e => e.group_name || e.team_name).filter(Boolean))].slice(0, 2).join(' · ') || '합주 일정';
+                const last = entries[entries.length - 1];
+                const timeRange = `${first.start_time || ''}${last.end_time ? ' ~ ' + last.end_time : ''}`;
+                const att = _gtDateAttendees(date), mine = !!(myId && att.includes(myId));
+                const now = new Date();
+                const closed = !!(first.signup_close && now > new Date(first.signup_close));
+                const before = !!(first.signup_open && now < new Date(first.signup_open));
+                const dd = !closed && first.signup_close ? _gtDday(first.signup_close) : null;
+                const stack = att.slice(0, 4).map(id => _gtAvatarOf(_gtMemberById(id))).join('') + (att.length > 4 ? `<span class="ga-avatar" style="background:rgba(255,255,255,0.3)">+${att.length - 4}</span>` : '');
+                const status = mine ? '참석 확정' : closed ? '신청 마감' : before ? '신청 전' : dd ? `신청 마감 ${dd}` : '신청 가능';
+                bigHtml = `<div class="gt-big" id="gtNextSched">
+                    <div class="eb">다음 합주 · ${_gtFmtDate(date)} ${escapeHtml(timeRange)}</div>
+                    <h3>${escapeHtml(title)}</h3>
+                    <p>${first.note ? escapeHtml(first.note) + ' · ' : ''}${status}</p>
+                    <div class="ft">
+                        ${att.length ? `<div class="gt-stack">${stack}</div><span style="font-size:0.78rem;opacity:0.9">${att.length}명 참석</span>` : '<span style="font-size:0.78rem;opacity:0.9">아직 참석 신청이 없어요</span>'}
+                        ${mine ? '<span class="gt-chip">✓ 참석 확정</span>' : ''}
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" style="margin-left:auto" onclick="openScheduleForDate('${date}')">${mine || closed || before ? '일정 보기' : '참석 신청'}</button>
+                    </div></div>`;
+                const myNext = dates.find(d => myId && _gtDateAttendees(d).includes(myId));
+                if (myNext && myNext !== date) bigHtml += `<button type="button" class="gt-myres" onclick="openScheduleForDate('${myNext}')">✅ 내 다음 참여 일정<span class="r">${_gtFmtDate(myNext)}</span></button>`;
+            }
+            // ── 내 다음 예약
+            const myRes = (state.reservations || []).filter(r => r.kakao_id === state.user.kakaoId && r.res_date >= today && (r.status === 'approved' || r.status === 'pending'))
+                .sort((a, b) => a.res_date.localeCompare(b.res_date) || TIMES.indexOf(a.start_time) - TIMES.indexOf(b.start_time));
+            const r0 = myRes[0];
+            let resHtml;
+            if (r0) {
+                const endDisp = TIMES[TIMES.indexOf(r0.end_time) + 1] || '23:00';
+                const chip = r0.status === 'approved' ? '<span class="gt-chip ok">승인됨</span>' : '<span class="gt-chip wn">승인 대기</span>';
+                const ids = Array.isArray(r0.participant_ids) ? r0.participant_ids : [];
+                const stack = ids.slice(0, 4).map(id => _gtAvatarOf(_gtMemberById(id))).join('');
+                const names = participantNames(r0) || (r0.participant_etc ? '기타: ' + r0.participant_etc : '');
+                resHtml = `<div class="gt-card" id="gtNextRes">
+                    <div class="gt-row">${chip}<b style="font-size:0.95rem">내 다음 예약</b><span style="margin-left:auto;font-size:0.78rem;color:var(--wds-gray-500)">${_gtFmtDate(r0.res_date)}</span></div>
+                    <div class="gt-time">${r0.start_time} ~ ${endDisp}</div>
+                    <div class="gt-row" style="margin-top:8px">${ids.length ? `<div class="gt-stack">${stack}</div>` : ''}<span style="font-size:0.78rem;color:var(--wds-gray-500);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(names || '멤버 미등록')}</span>${isReservationEditable(r0) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="openEditParticipantsModal('${r0.id}')">멤버 수정</button>` : ''}</div>
+                    ${myRes.length > 1 ? `<button type="button" class="gt-link" style="margin:8px 0 0;padding:0" onclick="gtMypageSub('res')">예정 예약 ${myRes.length}건 전체 보기 ›</button>` : ''}
+                </div>`;
+            } else {
+                resHtml = `<div class="gt-card gt-row" id="gtNextRes"><div style="flex:1;min-width:0"><b style="font-size:0.95rem">예정된 예약이 없어요</b><div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:2px">합주실을 쓰려면 먼저 예약해 주세요</div></div><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="setGatheOTab('reservation')">예약하기</button></div>`;
+            }
+            // ── 공지(최신 1건 접힘, 펼치면 전체)
+            const ns = Array.isArray(notices) ? notices : [];
+            const fmtN = (n) => new Date(n.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+            const ntcHtml = ns.length ? `<div class="gt-ntc${state.gtNoticeOpen ? ' open' : ''}" id="gtNotice" onclick="state.gtNoticeOpen=!state.gtNoticeOpen;renderGatheoHome()">
+                <span>📢</span><b>${escapeHtml(ns[0].title)}</b><small>${fmtN(ns[0])}${ns.length > 1 ? ` · 공지 ${ns.length}` : ''}</small><small>${state.gtNoticeOpen ? '▴' : '▾'}</small>
+                ${state.gtNoticeOpen ? ns.map((n, i) => `<div class="gt-ntc-body">${i ? `<b>${escapeHtml(n.title)} <small>${fmtN(n)}</small></b>` : ''}${escapeHtml(n.content || '')}</div>`).join('') : ''}
+            </div>` : '';
+            // ── 게시판 새 글
+            const all = state.comments || [];
+            const posts = all.filter(c => !c.parent_id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const newPosts = posts.filter(p => Date.now() - new Date(p.created_at).getTime() < 7 * 86400000).length;
+            const postsHtml = posts.length ? `<div class="gt-card" style="padding:4px 16px">${posts.slice(0, 3).map(p => {
+                const { title, body } = parseBoardPost(p.content);
+                const t = title || String(body || '').replace(/\s+/g, ' ').trim().slice(0, 40) || '(제목 없음)';
+                const replies = all.filter(c => c.parent_id === p.id).length;
+                return `<div class="gt-post" onclick="gtOpenPost('${p.id}')"><b>${escapeHtml(t)}</b><span>${escapeHtml(p.user_name || '')} · ${_gtAgo(p.created_at)}${replies ? ' · 답글 ' + replies : ''}${p.likes ? ' · ♥ ' + p.likes : ''}</span></div>`;
+            }).join('')}</div>` : `<div class="gt-card" style="text-align:center;color:var(--wds-gray-500);font-size:0.84rem">아직 글이 없어요</div>`;
+            const weekCnt = dates.filter(in7).length;
+            el.innerHTML = `<div class="gt-hello"><h1>안녕하세요, ${escapeHtml(name)}님 👋</h1><p>이번 주 합주 ${weekCnt}건 · 내 예약 ${myRes.length}건 · 새 글 ${newPosts}</p></div>
+                ${bigHtml}${resHtml}${ntcHtml}
+                <div class="gt-qa">
+                    <button type="button" onclick="setGatheOTab('reservation')"><i>📅</i>예약하기</button>
+                    <button type="button" onclick="setMemberTab('schedule')"><i>🗓️</i>일정표</button>
+                    <button type="button" onclick="setMemberTab('teams')"><i>🎸</i>팀 구성</button>
+                    <button type="button" onclick="gtMypageSub('docs')"><i>📖</i>운영안내</button>
+                </div>
+                <div class="gt-sec"><h2>게시판 새 글</h2><button type="button" onclick="setGatheOTab('board')">전체 보기 ›</button></div>
+                ${postsHtml}`;
+        }
+        function gtOpenPost(id) {
+            setGatheOTab('board');
+            setTimeout(() => { const el = document.getElementById('board-post-' + id); if (el && el.classList.contains('hidden')) toggleBoardPost(id); el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600);
+        }
+        // 공용 바닥 시트(커뮤니티 .cm-sheet 스킨 재사용)
+        function gtSheetOpen(title, html) {
+            gtSheetClose();
+            const w = document.createElement('div'); w.id = 'gtSheet'; w.className = 'cm-sheet-wrap'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', title);
+            w.innerHTML = `<div class="cm-sheet-bg" onclick="gtSheetClose()"></div><div class="cm-sheet"><div class="cm-sheet-head"><span class="grab"></span><h3>${escapeHtml(title)}</h3><button type="button" class="cm-ib" onclick="gtSheetClose()" aria-label="닫기">✕</button></div><div class="cm-sheet-body">${html}</div></div>`;
+            document.body.appendChild(w); document.body.classList.add('cm-sheet-open');
+            requestAnimationFrame(() => w.classList.add('on'));
+        }
+        function gtSheetClose() { const w = document.getElementById('gtSheet'); if (!w) return; w.remove(); document.body.classList.remove('cm-sheet-open'); }
+        function gtRulesSheet() {
+            gtSheetOpen('예약 전 확인해주세요', `<ul style="margin:4px 0 8px;padding-left:18px;font-size:0.9rem;line-height:1.9;color:var(--wds-gray-800)">
+                <li>예약 가능 시간: <strong>오전 10시 ~ 오후 11시</strong></li>
+                <li><strong>2시간 초과</strong> 예약은 관리자 승인이 필요합니다</li>
+                <li>합주실 사용 후 <strong>정리 및 원상복구</strong>는 필수입니다</li>
+                <li>참여 멤버를 정확히 등록해주세요 <span style="color:var(--wds-gray-500)">(참여 횟수 집계에 반영됩니다)</span></li>
+                <li>달력에서 날짜를 누르면 주간 시간표가 열리고, 시작·끝 칸을 차례로 누르면 시간이 정해집니다</li>
+            </ul><button type="button" class="gaa-btn gaa-btn-block gaa-btn-primary" onclick="gtSheetClose()">확인</button>`);
+        }
+        // 예약 탭 머리 줄: 예정 예약의 승인/대기 수
+        function gtUpdateMyResRow() {
+            const el = document.getElementById('gtMyResChips'); if (!el || !state.user) return;
+            const today = new Date().toLocaleDateString('en-CA');
+            const mine = (state.reservations || []).filter(r => r.kakao_id === state.user.kakaoId && r.res_date >= today);
+            const ok = mine.filter(r => r.status === 'approved').length, wait = mine.filter(r => r.status === 'pending').length;
+            el.innerHTML = (ok ? `<span class="gt-chip ok">승인 ${ok}</span>` : '') + (wait ? `<span class="gt-chip wn">대기 ${wait}</span>` : '') + (!ok && !wait ? '<span class="gt-chip g">예정 없음</span>' : '');
+        }
+        // 마이 탭 하위 화면: res(내 예약) · taste(음악 취향) · docs(운영안내) · activity(활동 앨범)
+        function gtMypageSub(kind) {
+            if (state.gatheoTab !== 'mypage') setGatheOTab('mypage'); // 탭 전환(renderMypagePanel 비동기) — 아래 mypageSub 가 그 결과를 덮지 않게 막는다
+            state.mypageSub = kind;
+            renderMypageSubView();
+            _pushNav('gatheo/mypage');
+        }
+        function renderMypageSubView() {
+            const c = document.getElementById('mypagePanelContent'); if (!c || !state.mypageSub) return;
+            const kind = state.mypageSub;
+            const titles = { res: '내 예약', taste: '음악 취향', docs: '운영안내', activity: '활동 앨범' };
+            c.innerHTML = `<div class="gt-sub-head"><button type="button" class="cm-ib" onclick="state.mypageSub=null;renderMypagePanel()" aria-label="마이로">‹</button><h2>${titles[kind] || ''}</h2></div><div id="gtSubBody"></div>`;
+            const body = document.getElementById('gtSubBody');
+            if (kind === 'res') {
+                renderMyPage(body);
+            } else if (kind === 'taste') {
+                const p = state.myProfile;
+                body.innerHTML = `<div class="gt-card" style="margin-top:0">${p && p.music_taste ? musicTasteTags(p.music_taste) : '<div style="font-size:0.86rem;color:var(--wds-gray-500)">아직 등록한 음악 취향이 없어요.</div>'}
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="margin-top:12px" onclick="state.mypageSub=null;renderMypagePanel().then(()=>showMypageEditForm())">취향 수정</button></div>`;
+            } else if (kind === 'docs') {
+                renderDocsPage(body);
+                // 문서 분류 버튼은 종전 달력 render() 대신 이 화면을 다시 그린다
+                body.querySelectorAll('.docs-cat-tab').forEach(b => b.setAttribute('onclick', (b.getAttribute('onclick') || '').replace(/render\(\)/, 'renderMypageSubView()')));
+            } else if (kind === 'activity') {
+                body.innerHTML = '<div id="driveGalleryRoot"></div>';
+                window.__driveStack = [];
+                renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
+            }
+            window.scrollTo({ top: 0 });
+        }
+        // 팀 카드 ⋯ → 수정/삭제 시트
+        function gtTeamMenu(id) {
+            const t = (state.teams || []).find(x => x.id === id); if (!t) return;
+            gtSheetOpen(t.name, `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0 6px">
+                <button type="button" class="gaa-btn gaa-btn-block gaa-btn-secondary" onclick="gtSheetClose();editTeam('${id}')">팀 수정</button>
+                <button type="button" class="gaa-btn gaa-btn-block gaa-btn-danger" onclick="gtSheetClose();deleteTeam('${id}')">팀 삭제</button></div>`);
+        }
+
         function renderGatheOAdmin() {
             const container = document.getElementById('gatheOTabAdmin');
             if (!container) return;
@@ -3414,23 +3691,32 @@
                 ? state.teams.filter(t => (t.members || []).some(s => s.memberId === profile.id))
                 : [];
 
+            state.myProfile = profile;
+            if (state.mypageSub) { renderMypageSubView(); return; } // 하위 화면(내 예약·운영안내 …)이 열려 있으면 그쪽을 그린다
+            const roleChipMap = { '운영 총괄': ['운영총괄', 'p'], '총괄': ['총괄', 'p'], '세션장': ['세션장', 'g'] };
+            const rc = profile && roleChipMap[profile.role];
+            const sessionChips = profile ? (profile.instruments || '').split(',').map(s => s.trim()).filter(Boolean).map((s, i) => `<span class="gt-chip ${i ? 'g' : 'p'}">${INST_EMOJI[s] ? INST_EMOJI[s] + ' ' : ''}${escapeHtml(s)}</span>`).join('') : '';
             const profileHtml = profile ? `
                 <div id="mypageInfoView">
-                    <div class="mypage-profile-card">
+                    <div class="gt-prof">
+                        ${gaAvatar(profile.name, { url: profile.avatar_url })}
                         <div style="flex:1;min-width:0">
-                            <div class="mypage-profile-name">${escapeHtml(profile.name)}</div>
-                            ${profile.instruments ? `<div class="mypage-profile-session">${escapeHtml(profile.instruments)}</div>` : ''}
+                            <div class="nm">${escapeHtml(profile.name)}${rc ? `<span class="gt-chip ${rc[1]}" style="height:20px;font-size:0.66rem">${rc[0]}</span>` : ''}</div>
+                            <div class="ss">${sessionChips || '<span style="font-size:0.78rem;color:var(--wds-gray-500)">세션 미입력</span>'}</div>
                         </div>
-                        <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="flex-shrink:0" onclick="showMypageEditForm()">✏️ 수정</button>
+                        <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="flex-shrink:0" onclick="showMypageEditForm()">수정</button>
                     </div>
-                    <div class="mypage-detail-list">
-                        <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value">${escapeHtml(profile.email || '-')}</span></div>
-                        <div class="mypage-info-row"><span class="mypage-info-label">전화번호</span><span class="mypage-info-value">${escapeHtml(profile.phone || '-')}</span></div>
-                    </div>
-                    ${profile.music_taste ? `<div class="mypage-section-label">🎧 음악 취향</div>${musicTasteTags(profile.music_taste)}` : ''}
                 </div>
                 <div id="mypageEditForm" class="hidden" style="margin-top:12px" data-music-taste="${escapeHtml(profile.music_taste || '')}">
                     <div style="display:flex;flex-direction:column;gap:8px">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">프로필 사진</label>
+                        <div class="gt-avatar-edit" id="gtAvatarEdit">
+                            ${gaAvatar(profile.name, { url: profile.avatar_url })}
+                            <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">
+                                <div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="gtAvatarPick('${profile.id}')">사진 바꾸기</button>${profile.avatar_url ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="gtAvatarReset('${profile.id}')">${state.user.kakaoAvatar ? '카카오 사진으로' : '기본(이니셜)으로'}</button>` : ''}</div>
+                                <div style="font-size:0.74rem;color:var(--wds-gray-500)">기본은 카카오 프로필 사진이고, 여기서 바꾼 사진은 멤버 목록·게시판에 함께 보여요.</div>
+                            </div>
+                        </div>
                         <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호</label>
                         <input type="tel" id="mypagePhone" value="${escapeHtml(profile.phone || '')}" placeholder="010-0000-0000"
                             style="height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;outline:none">
@@ -3525,19 +3811,74 @@
                     ${myTeams.map(t => `<span style="background:var(--wds-primary-light);color:var(--wds-primary);padding:4px 12px;border-radius:16px;font-size:0.82rem;font-weight:600">${escapeHtml(t.name)}</span>`).join('')}
                 </div>` : '';
 
+            if (state.mypageSub) { renderMypageSubView(); return; }
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const upcomingCnt = myRes.filter(r => r.res_date >= todayStr && r.status !== 'rejected').length;
+            const tasteSummary = profile && profile.music_taste ? (() => { const t = document.createElement('div'); t.innerHTML = musicTasteTags(profile.music_taste); return [...t.querySelectorAll('.mt-tag')].map(e => e.textContent.trim()).slice(0, 3).join(' · '); })() : '';
+            const contact = profile ? (profile.phone || profile.email || '') : '';
+            const pendingAdmin = isAdminUser() ? (state.reservations || []).filter(r => r.status === 'pending' && !r.__perf).length : 0;
+            const pushOn = !!(profile && profile.push_subscription);
             content.innerHTML = `
-                ${profileHtml}
-                <div class="mypage-section-label">📊 활동 요약</div>
-                <div class="stat-grid stat-grid-compact" style="grid-template-columns:repeat(4,1fr);gap:5px">
-                    <div class="stat-card" style="border-left:3px solid var(--wds-primary);padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">전체 예약</div><div class="stat-value" style="font-size:0.98rem">${myRes.length}</div></div>
-                    <div class="stat-card" style="border-left:3px solid #00b894;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">승인됨</div><div class="stat-value" style="font-size:0.98rem">${approvedCount}</div></div>
-                    <div class="stat-card" style="border-left:3px solid #f0a050;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">대기중</div><div class="stat-value" style="font-size:0.98rem">${pendingCount}</div></div>
-                    <div class="stat-card" style="border-left:3px solid #6c5ce7;padding:6px 8px"><div class="stat-label" style="font-size:0.65rem;margin-bottom:1px">참여횟수</div><div class="stat-value" style="font-size:0.98rem">${participationCount}</div></div>
+                <div class="gt-card" style="margin-top:0">${profileHtml}</div>
+                <div class="gt-tiles">
+                    <div class="gt-tile"><b>${myRes.length}</b><span>전체 예약</span></div>
+                    <div class="gt-tile"><b>${approvedCount}</b><span>승인됨</span></div>
+                    <div class="gt-tile"><b>${pendingCount}</b><span>대기 중</span></div>
+                    <div class="gt-tile" title="실제 참여한 날짜 수 (오늘 이전, 같은 날 중복 1회)"><b>${participationCount}</b><span>참여 횟수</span></div>
                 </div>
-                <div style="font-size:0.72rem;color:var(--wds-gray-500);margin-top:4px">참여횟수 = 실제 참여한 날짜 수 (오늘 이전 기준, 같은 날 중복 1회)</div>
-                ${teamsHtml}
-            `;
+                <div class="gt-list">
+                    <button type="button" onclick="gtMypageSub('res')"><span class="ic">📌</span>내 예약<span class="r">${upcomingCnt ? `예정 ${upcomingCnt}건` : '예정 없음'}</span></button>
+                    <button type="button" onclick="gtMypageSub('taste')"><span class="ic">🎧</span>음악 취향<span class="r">${escapeHtml(tasteSummary || '미입력')}</span></button>
+                    ${profile ? `<button type="button" onclick="showMypageEditForm();document.getElementById('mypageEditForm')?.scrollIntoView({block:'center'})"><span class="ic">📞</span>연락처<span class="r">${escapeHtml(contact || '미입력')}</span></button>` : ''}
+                    ${myTeams.length ? `<button type="button" onclick="setMemberTab('teams')"><span class="ic">🎸</span>소속 팀<span class="r">${escapeHtml(myTeams.map(t => t.name).join(', '))}</span></button>` : ''}
+                    <button type="button" onclick="gtMypageSub('docs')"><span class="ic">📖</span>운영안내<span class="r">${(state.docs || []).length ? `${(state.docs || []).length}개 문서` : ''}</span></button>
+                    <button type="button" onclick="gtMypageSub('activity')"><span class="ic">📷</span>활동 앨범<span class="r"></span></button>
+                    ${isAdminUser() ? `<button type="button" onclick="setGatheOTab('admin')"><span class="ic">🛠️</span>관리자<span class="r">${pendingAdmin ? `예약 승인 대기 ${pendingAdmin}` : ''}</span></button>` : ''}
+                </div>
+                <div class="gt-list">
+                    ${profile ? `<button type="button" onclick="${pushOn ? 'unsubscribePush()' : 'subscribePush()'}"><span class="ic">🔔</span>푸시 알림<span class="r">${pushOn ? '켜짐' : '꺼짐'}</span></button>` : ''}
+                    <button type="button" onclick="toggleTheme();renderMypagePanel()"><span class="ic">${document.body.classList.contains('dark') ? '☀️' : '🌙'}</span>다크 모드<span class="r">${document.body.classList.contains('dark') ? '켜짐' : '꺼짐'}</span></button>
+                    <button type="button" class="muted" onclick="handleLogout()"><span class="ic">↩︎</span>로그아웃<span class="r"></span></button>
+                </div>`;
             if (profile) setTimeout(() => renderMtEditUI('mtEdit_mypage', profile.music_taste), 0);
+        }
+
+        // ── 프로필 사진 바꾸기(2026-10-15): 가운데 정방형으로 잘라 256px JPEG → community-images/avatars/ → profiles.avatar_url ──
+        function gtAvatarPick(profileId) {
+            const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+            inp.onchange = async () => {
+                const f = inp.files && inp.files[0]; if (!f) return;
+                try {
+                    const small = await _gtSquareThumb(f, 256);
+                    const path = `avatars/${profileId}-${Date.now()}.jpg`;
+                    const { error } = await supabaseClient.storage.from('community-images').upload(path, small, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
+                    if (error) throw error;
+                    const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
+                    await gtAvatarSave(profileId, urlData.publicUrl);
+                    showToast('프로필 사진을 바꿨습니다.');
+                } catch (e) { console.error('avatar upload:', e); alert('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.'); }
+            };
+            inp.click();
+        }
+        async function gtAvatarReset(profileId) {
+            await gtAvatarSave(profileId, state.user && state.user.kakaoAvatar ? state.user.kakaoAvatar : null);
+            showToast(state.user && state.user.kakaoAvatar ? '카카오 프로필 사진으로 되돌렸습니다.' : '기본 이니셜로 되돌렸습니다.');
+        }
+        async function gtAvatarSave(profileId, url) {
+            const { error } = await supabaseClient.from('profiles').update({ avatar_url: url }).eq('id', profileId);
+            if (error) { console.error(error); if (/avatar_url/.test(error.message || '')) alert('프로필 사진 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261015_profile_avatar.sql 을 실행해야 합니다.'); else alert('저장하지 못했습니다.'); return; }
+            if (state.user) state.user.avatarUrl = url;
+            const me = _gtMe(); if (me) me.avatar_url = url;
+            await renderMypagePanel(); showMypageEditForm(); gtUpdateBar();
+        }
+        async function _gtSquareThumb(file, size) {
+            if (!/^image\//.test(file.type)) throw new Error('이미지 파일만 올릴 수 있습니다.');
+            const bmp = await createImageBitmap(file);
+            const s = Math.min(bmp.width, bmp.height), sx = (bmp.width - s) / 2, sy = (bmp.height - s) / 2;
+            const c = document.createElement('canvas'); c.width = size; c.height = size;
+            c.getContext('2d').drawImage(bmp, sx, sy, s, s, 0, 0, size, size);
+            const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
+            return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
         }
 
         async function handleChangePassword() {
@@ -3658,8 +3999,10 @@
             reservations: [],
             blocks: [],
             teams: [],
-            gatheoTab: 'reservation',
-            memberPanelTab: 'docs',
+            gatheoTab: 'home',
+            memberPanelTab: 'list',
+            mypageSub: null, // 마이 탭 하위 화면: res|taste|docs|activity
+            gtNoticeOpen: false,
             editingTeam: null,
             editingSlots: [],
             editingSongs: [],
@@ -3735,6 +4078,7 @@
 
         function changePage(key, page) {
             state.paging[key] = page;
+            if (key === 'myRes' && state.gatheoTab === 'mypage') { renderMypageSubView(); return; }
             if (key.startsWith('adminMember')) {
                 const el = document.getElementById('memberList');
                 if (el) renderAdminMemberListEl(el);
@@ -4030,9 +4374,9 @@
             const cachedKakaoId = localStorage.getItem('gaa_kakao_uid');
             if (cachedKakaoId && supabaseClient) {
                 try {
-                    const { data } = await supabaseClient.from('profiles').select('name, status, role').eq('kakao_id', cachedKakaoId).maybeSingle();
+                    const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', cachedKakaoId).maybeSingle();
                     if (data && data.status === 'approved') {
-                        state.user = { nickname: data.name, kakaoId: cachedKakaoId, role: data.role || '일반' };
+                        state.user = { nickname: data.name, kakaoId: cachedKakaoId, role: data.role || '일반', avatarUrl: data.avatar_url || null };
                         if (target === 'gatheo') loginUI(state.user.nickname); else _finishBoot();
                         return;
                     }
@@ -4104,6 +4448,9 @@
             renderParticipantSelector();
             const wcs = container.querySelectorAll('.weekly-container');
             wcs.forEach((el, i) => { if (prevScrolls[i]) { el.scrollLeft = prevScrolls[i].left; el.scrollTop = prevScrolls[i].top; } });
+            // 홈·예약 머리 줄·마이 하위 화면은 같은 데이터를 보므로 함께 갱신(2026-10-15)
+            gtHomeRefresh(); gtUpdateMyResRow();
+            if (state.gatheoTab === 'mypage' && state.mypageSub) renderMypageSubView();
         }
 
         // 지난 팀 판정 — 활동 종료일이 어제 이전이면 지난 팀 (종료일 없음 = 진행 중).
@@ -4320,16 +4667,17 @@
 
         function setMemberTab(tab) {
             state.memberPanelTab = tab;
-            const subtabs = document.querySelectorAll('#memberPanelContent .admin-subtab');
-            const order = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
-            subtabs.forEach((el, i) => el.classList.toggle('active', order[i] === tab));
-            renderMemberPanel();
+            document.querySelectorAll('#memberSeg [data-tab]').forEach(el => el.classList.toggle('on', el.dataset.tab === tab));
+            if (state.gatheoTab !== 'member') setGatheOTab('member'); else renderMemberPanel();
             _pushNav('gatheo/member/' + tab); // 하위탭 딥링크 주소 발행
         }
 
         async function renderMemberPanel() {
             const view = document.getElementById('memberPanelView');
             if (!view) return;
+            const mc = document.getElementById('gtMemberCnt'), tc = document.getElementById('gtTeamCnt');
+            if (mc) mc.textContent = (state.cachedMembers || []).filter(m => !isHiddenMember(m)).length || '';
+            if (tc) tc.textContent = (state.teams || []).filter(t => !isPastTeam(t)).length || '';
             if (state.memberPanelTab === 'list') {
                 await renderMembersTab(view);
             } else if (state.memberPanelTab === 'stats') {
@@ -5118,15 +5466,13 @@
                     const name = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?';
                     return `<span class="team-slot"><strong>${escapeHtml(s.session)}</strong>${escapeHtml(name)}</span>`;
                 }).join('');
+                const avatars = slots.slice(0, 5).map(s => _gtAvatarOf(memberMap[s.memberId])).join('');
                 return `<div class="team-card"${isPast ? ' style="opacity:0.78"' : ''}>
-                    <div class="team-card-actions">
-                        <button class="team-edit" onclick="editTeam('${t.id}')">수정</button>
-                        <button class="team-delete" onclick="deleteTeam('${t.id}')">삭제</button>
-                    </div>
+                    <div class="team-card-actions"><button type="button" class="team-more" onclick="gtTeamMenu('${t.id}')" aria-label="팀 관리">⋯</button></div>
                     <div class="team-name">${escapeHtml(t.name)}${isPast ? ' <span style="display:inline-block;vertical-align:middle;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);color:var(--wds-gray-500);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px">종료</span>' : ''}</div>
                     ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">${period}</span></div>` : ''}
                     ${songs.length > 0 ? `<div class="team-row"><span class="team-label">곡</span><div class="team-songs">${songsHtml}</div></div>` : ''}
-                    <div class="team-row"><span class="team-label">멤버</span><div class="team-slots">${slotsHtml}</div></div>
+                    <div class="team-row"><span class="team-label">멤버</span><div class="team-slots">${slots.length ? `<div class="gt-stack">${avatars}</div>` : ''}${slotsHtml}</div></div>
                 </div>`;
             };
             // 종료일이 지난 팀은 '지난 팀'으로 분리 (종료일 없는 팀 = 진행 중)
@@ -5564,7 +5910,8 @@
             const color = GA_AVATAR_COLORS[h % GA_AVATAR_COLORS.length];
             const initial = escapeHtml(n.charAt(0).toUpperCase());
             const cls = (opts && opts.cls) ? ' ' + opts.cls : '';
-            return `<span class="ga-avatar${cls}" style="background:${color}">${initial}</span>`;
+            if (opts && opts.url) return `<span class="ga-avatar img${cls}" style="background-image:url('${escapeHtml(opts.url)}')" title="${escapeHtml(n)}"></span>`;
+            return `<span class="ga-avatar${cls}" style="background:${color}" title="${escapeHtml(n)}">${initial}</span>`;
         }
 
         // 음악취향을 컴팩트 태그로 (멤버 카드용)
@@ -5846,6 +6193,7 @@
                     ${m.phone ? `<span>${escapeHtml(m.phone)}</span>` : ''}
                 </div>` : '';
                 return `<div class="mlist-card">
+                    ${gaAvatar(m.name, { url: m.avatar_url })}
                     <div class="mlist-body">
                         <div class="mlist-name-row"><span class="mlist-name">${memberDisplayName(m)}</span>${roleTag}</div>
                         ${subLine}
@@ -6887,7 +7235,7 @@
                     const startH = parseInt(r.start_time.split(':')[0]);
                     const endStr = TIMES[TIMES.indexOf(r.end_time) + 1] || '23:00';
                     const endH = parseInt(endStr.split(':')[0]);
-                    const cls = r.status === 'approved' ? 'approved' : 'pending';
+                    const cls = (r.status === 'approved' ? 'approved' : 'pending') + (state.user && r.kakao_id === state.user.kakaoId ? ' mine' : '');
                     const icon = r.status === 'approved' ? '✓' : '⏳';
                     const etcTitle = canApproveRes() && r.participant_etc ? ` title="기타: ${r.participant_etc.replace(/"/g,'&quot;')}"` : '';
                     const etcMark = canApproveRes() && r.participant_etc ? '<span style="color:#e07b00">*</span>' : '';
@@ -7344,6 +7692,7 @@
         function _hideAllScreens() {
             _ALL_SCREEN_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             if (typeof cmApplySheetClose === 'function') cmApplySheetClose(); // 커뮤니티 신청 시트가 떠 있으면 닫는다
+            if (typeof gtSheetClose === 'function') gtSheetClose();
             // GatheO 하단 탭바(+BGM 스택·본문 여백)는 GatheO 메인에서만 — 모든 화면 전환이 여길 거치므로 여기가 유일한 해제 지점
             document.body.classList.remove('gatheo-nav');
         }
@@ -7355,13 +7704,12 @@
             _hideAllScreens();
             document.getElementById('main-content').classList.remove('hidden');
             document.body.classList.add('gatheo-nav');
-            document.getElementById('notice_container').classList.remove('hidden');
         }
 
         // ── 서브 경로(탭 단위 딥링크) ──────────────────────────
         // #gatheo/board, #gatheo/member/schedule, #community/test 형태.
         // 허용 목록에 없는 세그먼트는 섹션까지로 절단 — 임의 해시로 이상 상태 방지.
-        const _GATHEO_TABS = ['reservation', 'member', 'board', 'mypage', 'admin'];
+        const _GATHEO_TABS = ['home', 'reservation', 'member', 'board', 'mypage', 'admin']; // home: 2026-10-15 시안 B
         const _MEMBER_SUBTABS = ['docs', 'list', 'teams', 'schedule', 'stats', 'activity'];
         const _COMMUNITY_TABS = ['current', 'past', 'test'];
         // 공연 예매 파라미터 라우트 검증 — _pageFromHash가 부팅 초기에 실행되므로 여기(사용처 옆)에 선언
@@ -7420,7 +7768,7 @@
                     if (state.user) {
                         if (_gatheoEntered) _showGatheoMain(); else loginUI(state.user.nickname); // 세션만 복구된 상태면 데이터 로딩 포함 진입
                         let tab = _GATHEO_TABS.includes(segs[1]) ? segs[1] : null;
-                        if (tab === 'admin' && !isAdminUser()) tab = 'reservation'; // 권한 없는 딥링크 방어
+                        if (tab === 'admin' && !isAdminUser()) tab = 'home'; // 권한 없는 딥링크 방어
                         if (tab) {
                             setGatheOTab(tab);
                             if (tab === 'member' && _MEMBER_SUBTABS.includes(segs[2])) setMemberTab(segs[2]);
@@ -13093,7 +13441,7 @@
             }
 
             if (data.status === 'approved') {
-                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반', email: data.email };
+                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반', email: data.email, avatarUrl: data.avatar_url || null };
                 if (!target || target === 'gatheo') loginUI(data.name); else _finishBoot();
             } else if (data.status === 'rejected') {
                 alert('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
@@ -14232,7 +14580,7 @@
         async function fetchNotices() {
             if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('notices').select('*').order('created_at', { ascending: false });
-            if (!error) { notices = data; renderNotices(); }
+            if (!error) { notices = data; renderNotices(); gtHomeRefresh(); }
         }
 
         function renderScheduleBanner() {
@@ -14254,6 +14602,7 @@
             if (dates.length === 0) {
                 banner.classList.add('hidden');
                 banner.innerHTML = '';
+                gtHomeRefresh();
                 return;
             }
             const isToday = (d) => d === today;
@@ -14280,7 +14629,7 @@
                 </div>`;
             }).join('');
             banner.innerHTML = items;
-            banner.classList.remove('hidden');
+            gtHomeRefresh(); // 배너 자체는 숨김(홈 카드가 대신) — 데이터 갱신만 홈에 반영
             // 신청 마감 시각이 지나면 새로고침 없이도 자동으로 배너가 내려가도록 주기적 재렌더
             if (!window._scheduleBannerTimer) {
                 window._scheduleBannerTimer = setInterval(() => {
@@ -14305,7 +14654,7 @@
                 container.classList.add('hidden');
                 return;
             }
-            container.classList.remove('hidden');
+            // 2026-10-15: 공지는 홈 탭 카드(renderGatheoHome)가 보여준다 — 이 컨테이너는 숨긴 채 관리자 인라인 편집 마크업만 유지
             container.innerHTML = notices.map(n => {
                 const date = new Date(n.created_at).toLocaleDateString('ko-KR');
                 const safeTitle = n.title.replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -14425,7 +14774,7 @@
                 .from('comments')
                 .select('*')
                 .order('created_at', { ascending: false });
-            if (!error) renderComments(data);
+            if (!error) { state.comments = data || []; renderComments(data); gtHomeRefresh(); }
         }
 
         function toggleBoardWriteForm() {
@@ -14466,7 +14815,7 @@
                 // 답글은 제목 없음. 게시글은 제목/본문 분리
                 const { title, body } = isReply ? { title: '', body: String(c.content || '').replace(/\x1F/g, '') } : parseBoardPost(c.content);
                 const titleHtml = (!isReply && !isExpandParent && title) ? `<div class="board-post-title">${escapeHtml(title)}</div>` : '';
-                const authorHtml = isExpandParent ? '' : `<div class="comment-author"><div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>`;
+                const authorHtml = isExpandParent ? '' : `<div class="comment-author">${_gtAvatarOf(_gtMemberByKakao(c.kakao_id), c.user_name)}<div><div class="comment-author-name">${escapeHtml(c.user_name)}</div><div class="comment-author-date">${date}</div></div></div>`;
                 const footDateHtml = isExpandParent ? `<span class="comment-date-foot">${date}</span>` : '';
                 const canEdit = isMine && !isReply;
                 return `
@@ -14736,11 +15085,9 @@
             const isDark = theme === 'dark';
             document.body.classList.toggle('dark', isDark);
             const label = isDark ? '☀️' : '🌙';
-            const a = document.getElementById('themeToggleBtn');
             const b = document.getElementById('themeToggleBtnLanding');
             const d = document.getElementById('themeToggleBtnBand');
-            // 포털·커뮤니티 버튼(themeToggleBtnPortal/Community)은 SVG 달/해 아이콘을 CSS(body.dark)로 바꾼다 — textContent 를 쓰면 아이콘이 지워진다
-            if (a) a.textContent = label;
+            // 포털·커뮤니티·멤버 페이지 버튼(themeToggleBtnPortal/Community/themeToggleBtn)은 SVG 달/해 아이콘을 CSS(body.dark)로 바꾼다 — textContent 를 쓰면 아이콘이 지워진다
             if (b) b.textContent = label;
             if (d) d.textContent = label;
         }
@@ -16842,13 +17189,17 @@ ${body}
 
     <!-- GatheO 하단 탭바 — body.gatheo-nav일 때만 표시 (loginUI/_showGatheoMain에서 부여, _hideAllScreens에서 제거) -->
     <nav id="gatheo-bottom-nav">
-        <button type="button" class="gnav-item active" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">
+        <button type="button" class="gnav-item active" id="gatheoTab-home" onclick="setGatheOTab('home')">
+            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 4l8.5 6.5V20a1 1 0 0 1-1 1h-5v-6H9.5v6h-5a1 1 0 0 1-1-1z"/></svg></span>
+            <span class="gnav-label">홈</span>
+        </button>
+        <button type="button" class="gnav-item" id="gatheoTab-reservation" onclick="setGatheOTab('reservation')">
             <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/></svg></span>
             <span class="gnav-label">예약</span>
         </button>
         <button type="button" class="gnav-item" id="gatheoTab-member" onclick="setGatheOTab('member')">
             <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M15.5 5.7a3.2 3.2 0 0 1 0 5.6"/><path d="M17.5 14.9c1.8.7 3 2.4 3 4.6"/></svg></span>
-            <span class="gnav-label">멤버&amp;팀</span>
+            <span class="gnav-label">멤버</span>
         </button>
         <button type="button" class="gnav-item" id="gatheoTab-board" onclick="setGatheOTab('board')">
             <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H12l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"/><path d="M8.5 9h7M8.5 12h4.5"/></svg></span>
@@ -16856,11 +17207,7 @@ ${body}
         </button>
         <button type="button" class="gnav-item" id="gatheoTab-mypage" onclick="setGatheOTab('mypage')">
             <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.5 3.1-5.8 7-5.8s7 2.3 7 5.8"/></svg></span>
-            <span class="gnav-label">마이페이지</span>
-        </button>
-        <button type="button" class="gnav-item hidden" id="gatheoTab-admin" onclick="setGatheOTab('admin')">
-            <span class="gnav-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M17 7h3M4 12h3M11 12h9M4 17h7M17 17h3"/><circle cx="14" cy="7" r="2.2"/><circle cx="8" cy="12" r="2.2"/><circle cx="14" cy="17" r="2.2"/></svg></span>
-            <span class="gnav-label">관리자</span>
+            <span class="gnav-label">마이</span>
         </button>
     </nav>
 
