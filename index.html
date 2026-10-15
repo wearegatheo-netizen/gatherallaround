@@ -598,7 +598,8 @@
             padding-left: max(16px, calc((100vw - 800px) / 2 + 16px));
             padding-right: max(6px, calc((100vw - 800px) / 2 + 6px));
         }
-        .gt-wm { font-family: 'KkuBulLim', sans-serif; font-size: 1.25rem; color: var(--wds-black); flex: 1; min-width: 0; }
+        .gt-wm { font-family: 'KkuBulLim', sans-serif; font-size: 1.25rem; color: var(--wds-black); flex: 1; min-width: 0; white-space: nowrap; }
+        .gt-wm .en { font-size: 0.82em; opacity: 0.75; margin-left: 1px; }
         .gt-title { flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 800; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gatheo-topbar .cm-ib.active { color: var(--wds-primary); }
         .gt-avbtn { width: 36px; height: 36px; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; }
@@ -628,9 +629,11 @@
         .gt-hello p { margin: 4px 0 0; color: var(--wds-gray-700); font-size: 0.84rem; }
         .gt-big { background: linear-gradient(135deg, #3366FF, #5B8CFF); color: #fff; border-radius: 18px; padding: 16px; margin-top: 14px; }
         .gt-big .eb { font-size: 0.74rem; opacity: 0.85; font-weight: 700; }
-        .gt-big h3 { margin: 6px 0 2px; font-size: 1.15rem; font-weight: 800; color: #fff; font-family: inherit; }
+        .gt-big h3 { margin: 6px 0 2px; font-size: 1.12rem; font-weight: 800; color: #fff; font-family: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gt-big p { margin: 0; font-size: 0.82rem; opacity: 0.92; }
-        .gt-big .ft { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+        .gt-big .ft { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: nowrap; }
+        .gt-big .ft .info { flex: 1; min-width: 0; font-size: 0.8rem; opacity: 0.92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gt-big .ft .gaa-btn { flex: none; }
         .gt-big .gaa-btn-primary { background: #fff; border-color: #fff; color: var(--wds-primary); }
         .gt-big .gt-chip { background: rgba(255,255,255,0.22); color: #fff; }
         .gt-big .gt-stack .ga-avatar { border-color: #4f7dff; }
@@ -2543,7 +2546,7 @@
         <!-- Sticky topbar -->
         <div id="userInfoArea" class="gatheo-topbar">
             <!-- 2026-10-15 시안 B: 워드마크(홈) / 탭 제목, 관리자 톱니(id 는 종전 gatheoTab-admin 유지 — loginUI/logoutUI 가 hidden 을 토글), SVG 모드 버튼, 아바타(→ 마이) -->
-            <span class="gt-wm" id="gtBarWm">GatheO</span>
+            <span class="gt-wm" id="gtBarWm">게더링<span class="en">(GatheO)</span></span>
             <span class="gt-title hidden" id="gtBarTitle"></span>
             <strong id="userNameDisplay" hidden></strong>
             <button type="button" id="gatheoTab-admin" class="cm-ib gt-admin hidden" onclick="setGatheOTab('admin')" title="관리자" aria-label="관리자"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
@@ -3522,17 +3525,27 @@
                 const closed = !!(first.signup_close && now > new Date(first.signup_close));
                 const before = !!(first.signup_open && now < new Date(first.signup_open));
                 const dd = !closed && first.signup_close ? _gtDday(first.signup_close) : null;
-                const stack = att.slice(0, 4).map(id => _gtAvatarOf(_gtMemberById(id))).join('') + (att.length > 4 ? `<span class="ga-avatar" style="background:rgba(255,255,255,0.3)">+${att.length - 4}</span>` : '');
-                const status = mine ? '참석 확정' : closed ? '신청 마감' : before ? '신청 전' : dd ? `신청 마감 ${dd}` : '신청 가능';
+                const stack = att.slice(0, 3).map(id => _gtAvatarOf(_gtMemberById(id))).join('') + (att.length > 3 ? `<span class="ga-avatar" style="background:rgba(255,255,255,0.3)">+${att.length - 3}</span>` : '');
+                // 상태 줄: 참석 확정은 아래 줄에서 한 번만 말하고, 여기엔 메모와 신청 상태만
+                const status = mine ? '' : closed ? '신청 마감' : before ? '신청 전' : dd ? `신청 마감 ${dd}` : '신청 가능';
+                const pLine = [first.note ? escapeHtml(first.note) : '', status].filter(Boolean).join(' · ');
+                const info = att.length ? `${att.length}명 참석${mine ? ' · 참석 확정 ✓' : ''}` : (mine ? '참석 확정 ✓' : '아직 참석 신청이 없어요');
                 bigHtml = `<div class="gt-big" id="gtNextSched">
                     <div class="eb">다음 합주 · ${_gtFmtDate(date)} ${escapeHtml(timeRange)}</div>
-                    <h3>${escapeHtml(title)}</h3>
-                    <p>${first.note ? escapeHtml(first.note) + ' · ' : ''}${status}</p>
+                    <h3 title="${escapeHtml(title)}">${escapeHtml(title)}</h3>
+                    ${pLine ? `<p>${pLine}</p>` : ''}
                     <div class="ft">
-                        ${att.length ? `<div class="gt-stack">${stack}</div><span style="font-size:0.78rem;opacity:0.9">${att.length}명 참석</span>` : '<span style="font-size:0.78rem;opacity:0.9">아직 참석 신청이 없어요</span>'}
-                        ${mine ? '<span class="gt-chip">✓ 참석 확정</span>' : ''}
-                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" style="margin-left:auto" onclick="openScheduleForDate('${date}')">${mine || closed || before ? '일정 보기' : '참석 신청'}</button>
+                        ${att.length ? `<div class="gt-stack">${stack}</div>` : ''}<span class="info">${info}</span>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="openScheduleForDate('${date}')">${mine || closed || before ? '일정 보기' : '참석 신청'}</button>
                     </div></div>`;
+                // 운영진이 배너로 표시한 다른 날짜(show_banner, 신청 마감 전)는 큰 카드 아래 한 줄씩 — 옛 보라색 일정 배너의 자리
+                const flagged = dates.filter(d => d !== date && upcoming.some(s => s.date === d && s.show_banner) && !upcoming.filter(s => s.date === d).some(s => s.signup_close && now > new Date(s.signup_close))).slice(0, 2);
+                bigHtml += flagged.map(d => {
+                    const es = upcoming.filter(s => s.date === d), f = es[0], l = es[es.length - 1];
+                    const t = [...new Set(es.map(e => e.group_name || e.team_name).filter(Boolean))].slice(0, 2).join(' · ') || '합주 일정';
+                    const tr = `${f.start_time || ''}${l.end_time ? ' ~ ' + l.end_time : ''}`;
+                    return `<button type="button" class="gt-myres gt-banner" onclick="openScheduleForDate('${d}')">📌 ${_gtFmtDate(d)} <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${escapeHtml(t)}</span><span class="r">${escapeHtml(tr)}</span></button>`;
+                }).join('');
                 const myNext = dates.find(d => myId && _gtDateAttendees(d).includes(myId));
                 if (myNext && myNext !== date) bigHtml += `<button type="button" class="gt-myres" onclick="openScheduleForDate('${myNext}')">✅ 내 다음 참여 일정<span class="r">${_gtFmtDate(myNext)}</span></button>`;
             }
