@@ -685,7 +685,7 @@
         .gt-avatar-edit { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; }
         .gt-avatar-edit .ga-avatar { width: 56px; height: 56px; font-size: 1.3rem; }
         /* 멤버 목록·팀 카드 */
-        .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
+        .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; align-self: center; } /* 글 상자 높이와 무관하게 세로 가운데 — 아래 여백 없음 */
         .team-card .gt-stack { margin-right: 6px; }
         .team-more { width: 32px; height: 32px; border: 0; background: var(--wds-gray-100); border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--wds-gray-700); font-family: inherit; }
         /* 게시판: 바깥 회색 상자 제거(앱 바 제목이 있으므로 평면) */
@@ -14647,42 +14647,13 @@
             setMemberTab('schedule');
         }
 
+        // 공지는 홈 탭 카드(renderGatheoHome)가 보여준다(2026-10-15). 옛 #notice_container 에 관리자 편집 마크업까지 그리면
+        // 관리자 탭 목록과 같은 id(notice-edit-title-…)·클래스(.notice-view-…)가 숨은 채 겹쳐 [수정]이 숨은 쪽을 토글하고 [저장]이
+        // 숨은 입력값을 읽는 버그가 있었다 — 여기선 아무것도 그리지 않고 홈만 갱신한다.
         function renderNotices() {
             const container = document.getElementById('notice_container');
-            const isAdmin = canPostNotice();
-            if (!notices || notices.length === 0) {
-                container.classList.add('hidden');
-                return;
-            }
-            // 2026-10-15: 공지는 홈 탭 카드(renderGatheoHome)가 보여준다 — 이 컨테이너는 숨긴 채 관리자 인라인 편집 마크업만 유지
-            container.innerHTML = notices.map(n => {
-                const date = new Date(n.created_at).toLocaleDateString('ko-KR');
-                const safeTitle = n.title.replace(/</g,'&lt;').replace(/"/g,'&quot;');
-                const safeContent = (n.content||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-                const adminBtns = isAdmin ? `
-                    <button class="gaa-btn gaa-btn-xs gaa-btn-primary" style="margin-left:8px" type="button" onclick="toggleNoticeEdit('${n.id}')">수정</button>
-                    <button class="notice-delete-btn" onclick="deleteNotice('${n.id}')">삭제</button>` : '';
-                return `<div class="notice-card" id="notice-row-${n.id}">
-                    <div class="notice-view-${n.id}">
-                        <div class="notice-header">
-                            <span class="notice-title">📢 ${n.title.replace(/</g,'&lt;')}</span>
-                            <span style="display:flex;align-items:center">
-                                <span class="notice-date">${date}</span>
-                                ${adminBtns}
-                            </span>
-                        </div>
-                        <div class="notice-content">${n.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-                    </div>
-                    ${isAdmin ? `<div class="notice-edit-${n.id}" style="display:none;padding:10px">
-                        <input id="notice-edit-title-${n.id}" type="text" value="${safeTitle}" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;box-sizing:border-box">
-                        <textarea id="notice-edit-content-${n.id}" style="width:100%;height:100px;margin-bottom:6px;padding:8px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;resize:vertical;box-sizing:border-box">${safeContent}</textarea>
-                        <div style="display:flex;gap:6px;justify-content:flex-end">
-                            <button class="gaa-btn gaa-btn-xs gaa-btn-primary" type="button" onclick="updateNotice('${n.id}')">저장</button>
-                            <button class="gaa-btn gaa-btn-xs gaa-btn-secondary" type="button" onclick="toggleNoticeEdit('${n.id}')">취소</button>
-                        </div>
-                    </div>` : ''}
-                </div>`;
-            }).join('');
+            if (container) { container.innerHTML = ''; container.classList.add('hidden'); }
+            gtHomeRefresh();
         }
 
         async function quickAddNotice() {
