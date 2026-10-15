@@ -685,7 +685,8 @@
         .gt-avatar-edit { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; }
         .gt-avatar-edit .ga-avatar { width: 56px; height: 56px; font-size: 1.3rem; }
         /* 멤버 목록·팀 카드 */
-        .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; align-self: center; } /* 글 상자 높이와 무관하게 세로 가운데 — 아래 여백 없음 */
+        .mlist-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
         .team-card .gt-stack { margin-right: 6px; }
         .team-more { width: 32px; height: 32px; border: 0; background: var(--wds-gray-100); border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--wds-gray-700); font-family: inherit; }
         /* 게시판: 바깥 회색 상자 제거(앱 바 제목이 있으므로 평면) */
@@ -1094,7 +1095,7 @@
         }
         @media (min-width: 620px) { .mlist { grid-template-columns: 1fr 1fr; } }
         .mlist-card {
-            display: flex; align-items: flex-start; gap: 10px;
+            display: flex; flex-direction: column; align-items: stretch; gap: 6px;
             padding: 11px 13px; background: var(--wds-white);
             border: 1px solid var(--wds-gray-300); border-radius: 12px;
             transition: border-color 0.15s, box-shadow 0.15s;
@@ -6192,14 +6193,17 @@
                     <span>${m.email ? escapeHtml(m.email) : '카카오 로그인'}</span>
                     ${m.phone ? `<span>${escapeHtml(m.phone)}</span>` : ''}
                 </div>` : '';
+                // 아바타는 이름·연락처 줄 옆(머리 줄)에만 — 취향 태그·곡은 그 아래 전체 폭 (2026-10-15 요청: 왼쪽 기둥형은 위아래 여백이 남는다)
                 return `<div class="mlist-card">
-                    ${gaAvatar(m.name, { url: m.avatar_url })}
-                    <div class="mlist-body">
-                        <div class="mlist-name-row"><span class="mlist-name">${memberDisplayName(m)}</span>${roleTag}</div>
-                        ${subLine}
-                        ${adminMeta}
-                        ${musicTasteTags(m.music_taste)}
+                    <div class="mlist-head">
+                        ${gaAvatar(m.name, { url: m.avatar_url })}
+                        <div class="mlist-body">
+                            <div class="mlist-name-row"><span class="mlist-name">${memberDisplayName(m)}</span>${roleTag}</div>
+                            ${subLine}
+                            ${adminMeta}
+                        </div>
                     </div>
+                    ${musicTasteTags(m.music_taste)}
                 </div>`;
             };
 
