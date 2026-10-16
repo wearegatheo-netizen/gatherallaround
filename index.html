@@ -692,6 +692,24 @@
         .mlist-card .ga-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
         .team-card .gt-stack { margin-right: 6px; }
         .team-more { width: 32px; height: 32px; border: 0; background: var(--wds-gray-100); border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--wds-gray-700); font-family: inherit; }
+        .team-slot.leader { border-color: #F0B35A; background: #FFF8E1; }
+        body.dark .team-slot.leader { background: #3a2f0d; border-color: #8a6a1e; }
+        .slot-leader { display: inline-flex; align-items: center; gap: 2px; flex: none; cursor: pointer; font-size: 0.95rem; opacity: 0.45; }
+        .slot-leader input { margin: 0; width: 14px; height: 14px; accent-color: #d98f1f; }
+        .slot-leader:has(input:checked) { opacity: 1; }
+        /* 일정표 참여자 명단 [이름|세션별|팀장별] */
+        .gt-att-seg { display: inline-flex; gap: 2px; background: var(--wds-gray-100); border-radius: 999px; padding: 2px; margin-bottom: 6px; }
+        .gt-att-seg button { border: 0; background: none; font: inherit; font-size: 0.7rem; font-weight: 700; color: var(--wds-gray-600); padding: 3px 9px; border-radius: 999px; cursor: pointer; }
+        .gt-att-seg button.on { background: var(--wds-white); color: var(--wds-black); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .gt-att-grp + .gt-att-grp { margin-top: 8px; }
+        .gt-att-h { font-size: 0.72rem; font-weight: 800; color: var(--wds-gray-700); margin-bottom: 4px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .gt-att-h b { background: var(--wds-gray-200); border-radius: 999px; padding: 0 6px; font-size: 0.66rem; }
+        .gt-att-h small { font-weight: 600; color: var(--wds-gray-500); }
+        .gt-att-h img { height: 12px !important; vertical-align: -2px; }
+        .gt-att-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .gt-att-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--wds-white); border: 1px solid var(--wds-gray-300); border-radius: 999px; padding: 2px 8px 2px 2px; font-size: 0.72rem; font-weight: 600; color: var(--wds-gray-800); }
+        .gt-att-chip .ga-avatar { width: 18px; height: 18px; font-size: 0.6rem; box-shadow: none; }
+        .gt-att-chip.me { background: var(--wds-primary); border-color: var(--wds-primary); color: #fff; }
         /* 게시판: 바깥 회색 상자 제거(앱 바 제목이 있으므로 평면) */
         #main-content #comments_container { background: none; border: 0; box-shadow: none; padding: 0; margin: 12px 0 48px; max-width: none; }
         .comment-author .ga-avatar { width: 30px; height: 30px; font-size: 0.78rem; }
@@ -3476,6 +3494,53 @@
         const _gtViewCache = {};
         const _GT_PLACEHOLDER = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
         function _gtPlaceholder(el) { if (el && !el.dataset.cached) el.innerHTML = _GT_PLACEHOLDER; }
+        // ── 일정표 참여자 명단 보기(2026-10-16): [이름|세션별|팀장별] — 패널(.gt-att)에 ids 를 data 로 두고 모드 전환 시 제자리에서 다시 그린다 ──
+        const _ATT_MODES = [['plain', '이름'], ['session', '세션별'], ['leader', '팀장별']];
+        function _attPanelHTML(ids, opts) {
+            const mode = state.attMode || 'session';
+            const seg = `<div class="gt-att-seg">${_ATT_MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${mode === k ? 'on' : ''}" onclick="event.stopPropagation();gtAttMode('${k}')">${l}</button>`).join('')}</div>`;
+            return `<div class="gt-att" data-ids="${ids.join(',')}" data-team="${opts.teamId || ''}" data-my="${opts.myId || ''}">${seg}<div class="gt-att-body">${_attBodyHTML(ids, opts)}</div></div>`;
+        }
+        function gtAttMode(mode) {
+            state.attMode = mode;
+            document.querySelectorAll('.gt-att').forEach(p => {
+                const ids = (p.dataset.ids || '').split(',').filter(Boolean);
+                p.querySelectorAll('.gt-att-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+                p.querySelector('.gt-att-body').innerHTML = _attBodyHTML(ids, { myId: p.dataset.my || null, teamId: p.dataset.team || null });
+            });
+        }
+        function _attChip(id, myId) {
+            const m = _gtMemberById(id); const name = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?';
+            return `<span class="gt-att-chip${id === myId ? ' me' : ''}">${_gtAvatarOf(m, name)}${escapeHtml(name)}</span>`;
+        }
+        function _attBodyHTML(ids, { myId, teamId }) {
+            const mode = state.attMode || 'session';
+            const sorted = [...ids].sort((a, b) => (b === myId ? 1 : 0) - (a === myId ? 1 : 0)); // 나를 맨 앞으로
+            if (mode === 'plain') return `<div class="gt-att-chips">${sorted.map(id => _attChip(id, myId)).join('')}</div>`;
+            const groups = [];
+            if (mode === 'session') {
+                const ORDER = ['보컬', '기타', '베이스', '키보드', '드럼'];
+                const by = {};
+                sorted.forEach(id => { const m = _gtMemberById(id); const k = ((m && m.instruments) || '').split(',').map(x => x.trim()).filter(Boolean)[0] || '미지정'; (by[k] = by[k] || []).push(id); });
+                Object.keys(by).sort((a, b) => { const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b); if (ai === -1 && bi === -1) return a.localeCompare(b, 'ko'); if (ai === -1) return 1; if (bi === -1) return -1; return ai - bi; })
+                    .forEach(k => groups.push({ label: `${INST_EMOJI[k] || '🎵'} ${escapeHtml(k)}`, ids: by[k] }));
+            } else {
+                // 팀장별 = 소속 팀(진행 중)별, 머리글은 팀장 이름 — 이 슬롯의 팀이 있으면 그 팀 먼저, 여러 팀이면 각각에 표시
+                const teams = (state.teams || []).filter(t => !isPastTeam(t)).sort((a, b) => (b.id === teamId ? 1 : 0) - (a.id === teamId ? 1 : 0));
+                const placed = new Set();
+                teams.forEach(t => {
+                    const lid = teamLeaderId(t);
+                    const inT = sorted.filter(id => (t.members || []).some(sl => sl.memberId === id)).sort((a, b) => (b === lid ? 1 : 0) - (a === lid ? 1 : 0));
+                    if (!inT.length) return;
+                    inT.forEach(id => placed.add(id));
+                    const lead = _gtMemberById(lid);
+                    groups.push({ label: `👑 ${lead ? escapeHtml(lead.name.replace(/\s*\(.*?\)\s*$/, '')) : '팀장 미지정'} <small>· ${escapeHtml(t.name)}</small>`, ids: inT });
+                });
+                const rest = sorted.filter(id => !placed.has(id));
+                if (rest.length) groups.push({ label: '소속 팀 없음', ids: rest });
+            }
+            return groups.map(g => `<div class="gt-att-grp"><div class="gt-att-h">${g.label}<b>${g.ids.length}</b></div><div class="gt-att-chips">${g.ids.map(id => _attChip(id, myId)).join('')}</div></div>`).join('');
+        }
         function _gtMe() {
             const u = state.user; if (!u) return null;
             return (state.cachedMembers || []).find(m => m.kakao_id === u.kakaoId || m.id === u.kakaoId || (u.email && m.email && m.email === u.email)) || null;
@@ -5245,7 +5310,7 @@
                         start_time: entry.startTime.trim(), end_time: entry.endTime.trim() || null,
                         team_id: team ? team.id : null,
                         team_name: teamName || null,
-                        members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
+                        members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, leader: !!s.leader, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
                         show_banner: showBanner,
                         signup_open: signupOpen, signup_close: signupClose,
@@ -5362,9 +5427,7 @@
                            >👥 ${grpAttendees.length}명</button>`
                         : '';
                     const attendeeList = grpAttendees.length
-                        ? `<div id="${gnId}" class="hidden" style="padding:5px 8px 6px;background:var(--wds-primary-light);border-radius:6px;margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">
-                            ${grpAttendeeNames.map(n=>`<span style="background:white;border-radius:4px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}
-                          </div>`
+                        ? `<div id="${gnId}" class="hidden" style="margin-top:6px">${_attPanelHTML(grpAttendees.filter(pid => memberMap[pid]), { myId, teamId: null })}</div>`
                         : '';
                     const header = gn ? `<div style="margin:10px 0 7px">
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 10px;background:rgba(51,102,255,0.07);border-radius:7px;border-left:3px solid var(--wds-primary)">
@@ -5378,7 +5441,7 @@
                         const members = (s.members||[]).map(m => {
                             const prof = memberMap[m.memberId];
                             const name = prof ? prof.name.replace(/\s*\(.*?\)\s*$/,'') : (m.memberName||'?');
-                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem;letter-spacing:0.02em">${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
+                            return `<span style="background:var(--wds-gray-100);border-radius:5px;padding:1px 6px;font-size:0.72rem;letter-spacing:0.02em">${m.leader ? '👑 ' : ''}${escapeHtml(m.session?m.session+' ':'')}${escapeHtml(name)}</span>`;
                         }).join('');
                         const songs = (s.songs||[]).map(sg=>sg.title||sg).filter(Boolean);
                         // 슬롯별 참여 신청
@@ -5394,7 +5457,7 @@
                         // 참여자수 버튼 — 시간과 같은 라인에 배치
                         const slotCountBtn = attCount ? `<button type="button" class="status-badge sm ${isMeInSlot?'status-info':'status-neutral'}" style="border:none;cursor:pointer;flex-shrink:0;font-family:inherit" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()">🙋 ${attCount}명</button>` : '';
                         // 참여자 명단 — 기본 항상 닫힘
-                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${slotChips}</div>` : '';
+                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:6px">${_attPanelHTML(slotAttendees.filter(pid => memberMap[pid]), { myId, teamId: s.team_id || null })}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
                         const slotBtn = (state.user && !isPastDate) ? `<button type="button" class="gaa-btn gaa-btn-xs ${isMeInSlot?'gaa-btn-danger':'gaa-btn-primary'}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 9px" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}>${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
@@ -5513,12 +5576,13 @@
                         ${s.artwork ? `<img src="${escapeHtml(s.artwork)}" alt="">` : ''}
                         <span class="team-song-text">${escapeHtml(s.title)}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
                     </div>`).join('');
-                const slotsHtml = slots.map(s => {
+                const ordered = [...slots].sort((a, b) => (b.leader ? 1 : 0) - (a.leader ? 1 : 0)); // 팀장 먼저
+                const slotsHtml = ordered.map(s => {
                     const m = memberMap[s.memberId];
                     const name = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?';
-                    return `<span class="team-slot"><strong>${escapeHtml(s.session)}</strong>${escapeHtml(name)}</span>`;
+                    return `<span class="team-slot${s.leader ? ' leader' : ''}" title="${s.leader ? '팀장' : ''}">${s.leader ? '👑 ' : ''}<strong>${escapeHtml(s.session || '')}</strong>${escapeHtml(name)}</span>`;
                 }).join('');
-                const avatars = slots.slice(0, 5).map(s => _gtAvatarOf(memberMap[s.memberId])).join('');
+                const avatars = ordered.slice(0, 5).map(s => _gtAvatarOf(memberMap[s.memberId])).join('');
                 return `<div class="team-card"${isPast ? ' style="opacity:0.78"' : ''}>
                     <div class="team-card-actions"><button type="button" class="team-more" onclick="gtTeamMenu('${t.id}')" aria-label="팀 관리">⋯</button></div>
                     <div class="team-name">${escapeHtml(t.name)}${isPast ? ' <span style="display:inline-block;vertical-align:middle;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);color:var(--wds-gray-500);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px">종료</span>' : ''}</div>
@@ -5563,7 +5627,7 @@
             if (team) {
                 state.editingTeam = team;
                 state.editingSlots = (team.members && team.members.length > 0)
-                    ? team.members.map(s => ({ session: s.session || '', memberId: s.memberId || '' }))
+                    ? team.members.map(s => ({ session: s.session || '', memberId: s.memberId || '', leader: !!s.leader }))
                     : sessions.map(s => ({ session: s, memberId: '' }));
                 state.editingSongs = team.songs ? [...team.songs]
                     : (team.song_title ? [{ title: team.song_title, artist: team.song_artist || '', artwork: '' }] : []);
@@ -6047,10 +6111,14 @@
                         <option value="">-- 멤버 선택 --</option>
                         ${members.map(m => `<option value="${m.id}" ${slot.memberId === m.id ? 'selected' : ''}>${m.name}${m.instruments ? ' (' + m.instruments + ')' : ''}</option>`).join('')}
                     </select>
+                    <label class="slot-leader" title="팀장으로 지정"><input type="radio" name="teamLeaderPick" ${slot.leader ? 'checked' : ''} onchange="setTeamLeader(${idx})"><span>👑</span></label>
                     <button type="button" class="slot-remove" onclick="removeTeamSlot(${idx})">×</button>
                 </div>
-            `).join('');
+            `).join('') + `<div style="font-size:0.74rem;color:var(--wds-gray-500);margin-top:2px">👑 를 눌러 팀장을 정하세요 (한 명)</div>`;
         }
+        // 팀장(2026-10-16): 슬롯 객체의 leader=true 한 명 — teams.members JSON 안에 저장(컬럼 추가 없음)
+        function setTeamLeader(idx) { state.editingSlots.forEach((sl, i) => { sl.leader = i === idx; }); }
+        function teamLeaderId(t) { const sl = ((t && t.members) || []).find(x => x.leader && x.memberId); return sl ? sl.memberId : null; }
 
         function updateSlotSession(idx, value) {
             if (state.editingSlots[idx]) state.editingSlots[idx].session = value;
@@ -6076,7 +6144,8 @@
             const startDate = document.getElementById('teamStartDate').value || null;
             const endDate = document.getElementById('teamEndDate').value || null;
 
-            const slots = state.editingSlots.filter(s => s.session && s.memberId);
+            const slots = state.editingSlots.filter(s => s.session && s.memberId).map(s => ({ session: s.session, memberId: s.memberId, leader: !!s.leader }));
+            if (slots.filter(s => s.leader).length > 1) slots.forEach((s, i) => { if (i !== slots.findIndex(x => x.leader)) s.leader = false; }); // 팀장은 한 명
             const songs = state.editingSongs.length > 0 ? state.editingSongs : null;
             const firstSong = songs ? songs[0] : null;
 

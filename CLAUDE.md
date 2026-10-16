@@ -122,6 +122,12 @@
   **아바타**: `gaAvatar(name, {url, cls})` — url 있으면 `.ga-avatar.img`(background-image), 없으면 이름 이니셜. `profiles.avatar_url`(마이그레이션 `20261015_profile_avatar.sql`) 기본값은 **카카오 프로필 사진**
   (`handleLogin` 이 `select('*')` 로 읽고 비어 있으면 thumbnail/profile_image_url 을 저장, `state.user.avatarUrl/kakaoAvatar`), 마이 › 수정 「프로필 사진」 [사진 바꾸기]=`gtAvatarPick`(가운데 정방형 256px JPEG →
   `community-images/avatars/<profile>-<ts>.jpg` → `gtAvatarSave`) / [카카오 사진으로|기본(이니셜)으로]=`gtAvatarReset`. 멤버 목록·팀·홈 참석자·게시판·앱 바가 같은 부품을 쓴다.
+  **팀장·참여자 명단 보기(2026-10-16)**: 팀 구성 폼의 슬롯 줄마다 👑 라디오(`.slot-leader`, `setTeamLeader(idx)`) — 팀장은 **`teams.members` JSON 슬롯의 `leader:true` 한 명**(컬럼·마이그레이션 없음,
+  `saveTeam` 이 `{session, memberId, leader}` 로 정규화·둘 이상이면 첫 번째만, `teamLeaderId(t)`). 팀 카드는 팀장 칩 `.team-slot.leader`(👑, 호박색) 을 맨 앞에·아바타 묶음도 팀장 먼저,
+  일정 편집기가 팀 멤버를 복사할 때(`members[].leader`)와 일정 슬롯 멤버 칩도 👑. 일정표 참여자 명단(그룹 `#grp-att-…`·슬롯 `#slatt-…` 패널)은 `_attPanelHTML(ids, {myId, teamId})` —
+  알약 `.gt-att-seg` [이름|세션별|팀장별](`state.attMode`, 기본 세션별) 을 누르면 `gtAttMode()` 가 **모든 `.gt-att` 패널을 data-ids 로 제자리에서 다시 그림**(재요청 없음).
+  세션별 = 프로필 `instruments` 첫 악기(보컬·기타·베이스·키보드·드럼 순, 없으면 「미지정」), 팀장별 = 진행 중 팀(`isPastTeam` 제외)별 「👑 팀장 · 팀명 N」(슬롯의 `team_id` 팀 먼저, 여러 팀이면 각각 표시, 나머지 「소속 팀 없음」).
+  칩 `.gt-att-chip`(아바타+이름, 나는 `.me` 파란 채움). 캡처 `gatheo/shoot-att.js`.
   **탭 전환 체감(2026-10-16, stale-while-revalidate)**: 멤버 하위 화면 4종·마이는 마지막 HTML 을 `_gtViewCache` 에 두고 재진입 때 즉시 보여준 뒤 서버로 갱신(`renderMemberPanel` 이 캐시 주입·수거, 렌더러는
   `_gtPlaceholder(el)` 로 캐시 없을 때만 "불러오는 중"). 첫 진입도 로그인 때 받아 둔 `state.cachedMembers/teams/schedules`(+홈이 받아 둔 참석자)로 먼저 그린다 — 멤버 목록 `paint()`(서명 같으면 DOM 유지),
   팀 `paint()`(열린 팀 폼은 안 덮음), 일정표·마이는 `{quick:true}` 재귀 호출. 기다리는 동안 다른 하위 탭으로 옮기면 쓰지 않음(`state.memberPanelTab` 확인). `fetchScheduleAttendees` 는 요청 날짜 + 이미 받은 날짜(`state._attLoaded`)를
