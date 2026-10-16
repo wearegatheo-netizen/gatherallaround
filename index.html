@@ -2979,6 +2979,8 @@
             const myTab = document.querySelector('[data-view="my"]');
             if (myTab) myTab.remove();
             state.user = null;
+            try { Object.keys(_gtViewCache).forEach(k => delete _gtViewCache[k]); } catch (_) {} // 멤버 페이지 화면 캐시(다음 로그인 사용자에게 안 보이게)
+            state._attLoaded = null; state.myProfile = null;
             state.bandProfile = null;
             state.bandNotices = [];
             state.bandMembers = [];
@@ -3469,6 +3471,11 @@
 
         // ══ GatheO 멤버 페이지 개편(2026-10-15, 시안 B) ═══════════════════════════════════════════
         // 홈 탭: 인사 → 다음 합주 카드(참석 상태·참석자) → 내 다음 예약 → 공지(접힘) → 바로가기 → 게시판 새 글
+        // 탭 전환 체감 속도(2026-10-16): 멤버 하위 화면·마이는 마지막으로 그린 HTML 을 캐시해 두고 다시 들어오면 그걸 즉시 보여준 뒤
+        // 서버 데이터로 갱신한다(stale-while-revalidate). 자리표시("불러오는 중")는 보여줄 캐시가 없을 때만.
+        const _gtViewCache = {};
+        const _GT_PLACEHOLDER = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+        function _gtPlaceholder(el) { if (el && !el.dataset.cached) el.innerHTML = _GT_PLACEHOLDER; }
         function _gtMe() {
             const u = state.user; if (!u) return null;
             return (state.cachedMembers || []).find(m => m.kakao_id === u.kakaoId || m.id === u.kakaoId || (u.email && m.email && m.email === u.email)) || null;
@@ -3497,7 +3504,7 @@
             const s = Object.values((state.scheduleSlotAttendees || {})[date] || {}).flat();
             return [...new Set([...a, ...g, ...s])];
         }
-        let _gtHomeAttDates = '';
+        let _gtAttInflight = null;
         function gtHomeRefresh() { if (state.gatheoTab !== 'home') return; clearTimeout(window._gtHomeT); window._gtHomeT = setTimeout(renderGatheoHome, 60); }
         function renderGatheoHome() {
             const el = document.getElementById('gatheOTabHome'); if (!el || !state.user) return;
@@ -3506,10 +3513,9 @@
             const name = ((me && me.name) || state.user.nickname || '멤버').replace('(관리자)', '').trim();
             // ── 다음 합주(날짜 단위) + 참석 상태
             const upcoming = (state.schedules || []).filter(s => s.date >= today).sort((a, b) => a.date.localeCompare(b.date) || (a.start_time || '').localeCompare(b.start_time || ''));
-            const dates = [...new Set(upcoming.map(s => s.date))].slice(0, 8);
-            if (dates.length && _gtHomeAttDates !== dates.join(',')) {
-                _gtHomeAttDates = dates.join(',');
-                fetchScheduleAttendees(dates).then(() => { if (state.gatheoTab === 'home') renderGatheoHome(); }).catch(() => {});
+            const dates = [...new Set(upcoming.map(s => s.date))].slice(0, 30);
+            if (dates.length && !_gtAttInflight && dates.some(d => !(state._attLoaded && state._attLoaded.has(d)))) {
+                _gtAttInflight = fetchScheduleAttendees(dates).catch(() => {}).then(() => { _gtAttInflight = null; if (state.gatheoTab === 'home') renderGatheoHome(); });
             }
             const in7 = (d) => { const diff = (new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000; return diff >= 0 && diff < 7; };
             let bigHtml = '';
@@ -3677,17 +3683,22 @@
         function toggleMypagePanel() { setGatheOTab('mypage'); }
 
 
-        async function renderMypagePanel() {
+        async function renderMypagePanel(opts = {}) {
             const content = document.getElementById('mypagePanelContent');
             if (!content || !state.user) return;
 
             const isEmailUser = state.user.authType === 'email';
-            content.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            if (_gtViewCache.mypage && !state.mypageSub) content.innerHTML = _gtViewCache.mypage; else content.innerHTML = _GT_PLACEHOLDER;
 
             let profile = null;
-            const lookupCol = isEmailUser ? 'id' : 'kakao_id';
-            const { data, error } = await supabaseClient.from('profiles').select('*').eq(lookupCol, state.user.kakaoId).single();
-            if (!error && data) profile = data;
+            if (opts.quick) {
+                profile = _gtMe(); // 로그인 때 받아 둔 내 프로필 행(select('*'))
+            } else {
+                if (!_gtViewCache.mypage && _gtMe()) await renderMypagePanel({ quick: true }); // 첫 진입: 먼저 그려 두고 아래서 서버 값으로 갱신(2026-10-16)
+                const lookupCol = isEmailUser ? 'id' : 'kakao_id';
+                const { data, error } = await supabaseClient.from('profiles').select('*').eq(lookupCol, state.user.kakaoId).single();
+                if (!error && data) profile = data;
+            }
 
             if (state.teams.length === 0) await fetchTeams();
 
@@ -3854,6 +3865,7 @@
                     <button type="button" onclick="toggleTheme();renderMypagePanel()"><span class="ic">${document.body.classList.contains('dark') ? '☀️' : '🌙'}</span>다크 모드<span class="r">${document.body.classList.contains('dark') ? '켜짐' : '꺼짐'}</span></button>
                     <button type="button" class="muted" onclick="handleLogout()"><span class="ic">↩︎</span>로그아웃<span class="r"></span></button>
                 </div>`;
+            _gtViewCache.mypage = content.innerHTML;
             if (profile) setTimeout(() => renderMtEditUI('mtEdit_mypage', profile.music_taste), 0);
         }
 
@@ -4692,21 +4704,25 @@
             const mc = document.getElementById('gtMemberCnt'), tc = document.getElementById('gtTeamCnt');
             if (mc) mc.textContent = (state.cachedMembers || []).filter(m => !isHiddenMember(m)).length || '';
             if (tc) tc.textContent = (state.teams || []).filter(t => !isPastTeam(t)).length || '';
-            if (state.memberPanelTab === 'list') {
+            const tab = state.memberPanelTab, key = 'member:' + tab;
+            if (_gtViewCache[key]) { view.innerHTML = _gtViewCache[key]; view.dataset.cached = '1'; } else { delete view.dataset.cached; }
+            if (tab === 'list') {
                 await renderMembersTab(view);
-            } else if (state.memberPanelTab === 'stats') {
+            } else if (tab === 'stats') {
                 await renderParticipationStatsTab(view);
-            } else if (state.memberPanelTab === 'activity') {
+            } else if (tab === 'activity') {
                 view.innerHTML = '<div id="driveGalleryRoot"></div>';
                 window.__driveStack = [];
                 renderDriveGallery(DRIVE_ROOT_FOLDER_ID);
-            } else if (state.memberPanelTab === 'docs') {
+            } else if (tab === 'docs') {
                 renderDocsPage(view);
-            } else if (state.memberPanelTab === 'schedule') {
+            } else if (tab === 'schedule') {
                 await renderScheduleView(view);
             } else {
                 await renderTeamsTab(view);
             }
+            delete view.dataset.cached;
+            if (state.memberPanelTab === tab && ['list', 'teams', 'schedule', 'stats'].includes(tab)) _gtViewCache[key] = view.innerHTML;
         }
 
         async function renderVotesTab(container) {
@@ -4793,8 +4809,9 @@
         }
 
         async function renderParticipationStatsTab(container) {
-            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            _gtPlaceholder(container);
             const members = await fetchMembers();
+            if (state.memberPanelTab !== 'stats') return;
             const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
             state.cachedMembers = approved;
 
@@ -4898,33 +4915,41 @@
         }
 
         async function fetchScheduleAttendees(dates) {
-            state.scheduleAttendees = {};
-            state.scheduleGroupAttendees = {};
-            state.scheduleSlotAttendees = {};
-            if (!supabaseClient || !dates || dates.length === 0) return;
+            // 요청한 날짜 + 이미 불러온 날짜를 합쳐 다시 받는다(2026-10-16) — 홈(다가오는 날짜)·일정표·참여횟수(지난 날짜)가 번갈아 불러도
+            // 서로의 결과를 지우지 않는다. 너무 많아지면 요청분만. 상태는 응답을 받은 뒤 한 번에 바꾼다.
+            const prev = Array.from(state._attLoaded || []);
+            let all = [...new Set([...(dates || []), ...prev])];
+            if (all.length > 120) all = [...new Set(dates || [])];
+            if (!supabaseClient || all.length === 0) {
+                state.scheduleAttendees = {}; state.scheduleGroupAttendees = {}; state.scheduleSlotAttendees = {}; state._attLoaded = new Set(all);
+                return;
+            }
             const { data } = await supabaseClient
                 .from('schedule_attendees')
                 .select('schedule_date, profile_id, group_name')
-                .in('schedule_date', dates);
+                .in('schedule_date', all);
+            const A = {}, G = {}, S = {};
             (data || []).forEach(r => {
                 const d = r.schedule_date;
                 const gn = r.group_name;
                 if (gn && gn.startsWith('slot|')) {
                     // 슬롯별 신청 (group_name 컬럼을 슬롯 키로 재사용)
-                    if (!state.scheduleSlotAttendees[d]) state.scheduleSlotAttendees[d] = {};
-                    if (!state.scheduleSlotAttendees[d][gn]) state.scheduleSlotAttendees[d][gn] = [];
-                    if (!state.scheduleSlotAttendees[d][gn].includes(r.profile_id)) state.scheduleSlotAttendees[d][gn].push(r.profile_id);
+                    if (!S[d]) S[d] = {};
+                    if (!S[d][gn]) S[d][gn] = [];
+                    if (!S[d][gn].includes(r.profile_id)) S[d][gn].push(r.profile_id);
                     return;
                 }
                 if (!gn) {
-                    if (!state.scheduleAttendees[d]) state.scheduleAttendees[d] = [];
-                    if (!state.scheduleAttendees[d].includes(r.profile_id)) state.scheduleAttendees[d].push(r.profile_id);
+                    if (!A[d]) A[d] = [];
+                    if (!A[d].includes(r.profile_id)) A[d].push(r.profile_id);
                 } else {
-                    if (!state.scheduleGroupAttendees[d]) state.scheduleGroupAttendees[d] = {};
-                    if (!state.scheduleGroupAttendees[d][gn]) state.scheduleGroupAttendees[d][gn] = [];
-                    if (!state.scheduleGroupAttendees[d][gn].includes(r.profile_id)) state.scheduleGroupAttendees[d][gn].push(r.profile_id);
+                    if (!G[d]) G[d] = {};
+                    if (!G[d][gn]) G[d][gn] = [];
+                    if (!G[d][gn].includes(r.profile_id)) G[d][gn].push(r.profile_id);
                 }
             });
+            state.scheduleAttendees = A; state.scheduleGroupAttendees = G; state.scheduleSlotAttendees = S;
+            state._attLoaded = new Set(all);
         }
 
         function checkSignupPeriod(date) {
@@ -5251,14 +5276,20 @@
             if (container && state.memberPanelTab === 'schedule') await renderScheduleView(container);
         }
 
-        async function renderScheduleView(container) {
-            if (!container) return;
-            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
-            await fetchSchedules();
-            if (state.teams.length === 0) await fetchTeams();
-            if (!state.cachedMembers || state.cachedMembers.length === 0) {
-                const members = await fetchMembers();
-                state.cachedMembers = (members || []).filter(m => m.status === 'approved');
+        async function renderScheduleView(container, opts = {}) {
+            if (!container) return false;
+            if (!opts.quick) {
+                // 첫 진입: 로그인 때 받아 둔 일정·멤버(+홈이 받아 둔 참석자)로 먼저 그린다 — 안 되면 자리표시(2026-10-16)
+                if (!container.dataset.cached && (state.schedules || []).length && (state.cachedMembers || []).length) {
+                    if (await renderScheduleView(container, { quick: true })) container.dataset.cached = '1';
+                }
+                _gtPlaceholder(container);
+                await fetchSchedules();
+                if (state.teams.length === 0) await fetchTeams();
+                if (!state.cachedMembers || state.cachedMembers.length === 0) {
+                    const members = await fetchMembers();
+                    state.cachedMembers = (members || []).filter(m => m.status === 'approved');
+                }
             }
             const memberMap = {};
             (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
@@ -5274,7 +5305,8 @@
 
             const myMember = state.user ? (state.cachedMembers || []).find(m => m.kakao_id === state.user.kakaoId || m.email === state.user.email) : null;
             const myId = myMember ? myMember.id : null;
-            await fetchScheduleAttendees(sortedDates);
+            if (opts.quick) { if (!sortedDates.every(d => state._attLoaded && state._attLoaded.has(d))) return false; } // 참석자 미수신 날짜가 있으면 빠른 그리기 포기
+            else await fetchScheduleAttendees(sortedDates);
 
             const fmtDT = (iso) => {
                 if (!iso) return '';
@@ -5424,6 +5456,7 @@
                 </div>`;
             };
 
+            if (state.memberPanelTab !== 'schedule' || !container.isConnected) return false; // 기다리는 동안 다른 하위 화면으로 옮김
             container.innerHTML = `
                 <div>
                     ${canEdit ? '<div id="schedEditor"></div>' : ''}
@@ -5436,23 +5469,28 @@
                         ? `<p style="text-align:center;color:var(--wds-gray-500);font-size:0.9rem;padding:30px 0">${showPast?'지난 일정이 없습니다.':'등록된 일정이 없습니다.'}</p>`
                         : sortedDates.map(d => timetableDay(d, dateMap[d])).join('')}
                 </div>`;
+            return true;
         }
 
         async function renderTeamsTab(container) {
-            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
+            const paint = () => {
+                if (container.querySelector('#teamFormContainer:not(.hidden)')) return; // 팀 폼을 열어 둔 상태면 덮어쓰지 않는다
+                const memberMap = {};
+                (state.cachedMembers || []).forEach(m => memberMap[m.id] = m);
+                container.innerHTML = `
+                    <button class="team-create-btn" onclick="showTeamForm()">+ 새 팀 만들기</button>
+                    <div id="teamFormContainer" class="hidden"></div>
+                    <div id="teamList" style="margin-top:16px"></div>
+                `;
+                renderTeamList(memberMap);
+            };
+            if (!container.dataset.cached) { if ((state.teams || []).length || (state.cachedMembers || []).length) paint(); else _gtPlaceholder(container); }
             await fetchTeams();
             const members = await fetchMembers();
+            if (state.memberPanelTab !== 'teams') return;
             const approvedMembers = (members || []).filter(m => m.status === 'approved');
-            state.cachedMembers = approvedMembers;
-            const memberMap = {};
-            approvedMembers.forEach(m => memberMap[m.id] = m);
-
-            container.innerHTML = `
-                <button class="team-create-btn" onclick="showTeamForm()">+ 새 팀 만들기</button>
-                <div id="teamFormContainer" class="hidden"></div>
-                <div id="teamList" style="margin-top:16px"></div>
-            `;
-            renderTeamList(memberMap);
+            if (approvedMembers.length) state.cachedMembers = approvedMembers;
+            paint();
         }
 
         function renderTeamList(memberMap) {
@@ -6125,26 +6163,36 @@
         }
 
         async function renderMembersTab(container) {
-            container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:30px">불러오는 중...</p>';
-            const members = await fetchMembers();
-            const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
-            const isS = isSuper();
-            container.innerHTML = '';
-            if (approved.length === 0) {
-                container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:40px">아직 멤버가 없습니다.</p>';
-                return;
-            }
-
-            const searchWrap = document.createElement('div');
-            searchWrap.style.marginBottom = '10px';
-            const curQ = state.memberPanelSearch || '';
+            const paint = (members) => {
+                const approved = (members || []).filter(m => m.status === 'approved' && !isHiddenMember(m));
+                const sig = JSON.stringify(approved.map(m => [m.id, m.name, m.role, m.avatar_url, m.instruments, m.music_taste, m.phone, m.email]));
+                if (container.dataset.sig === sig && container.querySelector('#memberPanelList')) return; // 바뀐 게 없으면 DOM 그대로(검색창 포커스 유지)
+                container.dataset.sig = sig;
+                const isS = isSuper();
+                container.innerHTML = '';
+                if (approved.length === 0) {
+                    container.innerHTML = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:40px">아직 멤버가 없습니다.</p>';
+                    return;
+                }
+                const searchWrap = document.createElement('div');
+                searchWrap.style.marginBottom = '10px';
+                const curQ = state.memberPanelSearch || '';
             searchWrap.innerHTML = `<input type="text" id="memberPanelSearchInput" placeholder="이름, 세션 검색..." value="${escapeHtml(curQ)}" oninput="filterMemberPanelList()" style="width:100%;height:36px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box">`;
-            container.appendChild(searchWrap);
-            const listDiv = document.createElement('div');
-            listDiv.id = 'memberPanelList';
-            container.appendChild(listDiv);
-            window._memberPanelData = { approved, isS };
-            renderMemberPanelList();
+                container.appendChild(searchWrap);
+                const listDiv = document.createElement('div');
+                listDiv.id = 'memberPanelList';
+                container.appendChild(listDiv);
+                window._memberPanelData = { approved, isS };
+                renderMemberPanelList();
+            };
+            // 즉시: 캐시 HTML 이 이미 보이면 그대로, 아니면 로그인 때 받아 둔 멤버로 그린다(둘 다 없으면 자리표시)
+            if (!container.dataset.cached) { delete container.dataset.sig; if ((state.cachedMembers || []).length) paint(state.cachedMembers); else _gtPlaceholder(container); }
+            else delete container.dataset.sig;
+            const members = await fetchMembers();
+            if (state.memberPanelTab !== 'list') return; // 기다리는 동안 다른 하위 화면으로 옮겼으면 덮어쓰지 않는다
+            const approvedAll = (members || []).filter(m => m.status === 'approved');
+            if (approvedAll.length) state.cachedMembers = approvedAll;
+            paint(members);
         }
 
         function filterMemberPanelList() {
