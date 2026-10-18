@@ -112,7 +112,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
     myev: window.__apiCalls.find(c => c.action === 'my_events'),
     dash: document.getElementById('host-container').textContent,
     sel: !!document.querySelector('#host-container select'),
-    tabs: [...document.querySelectorAll('#host-container .community-tab')].map(b => b.textContent.trim()).join(','),
+    tabs: [...document.querySelectorAll('#host-container .cm-seg button')].map(b => b.textContent.trim()).join(','),
   }));
   chk('팀 생성(create_team payload) → 대시보드', s.reg.action === 'create_team' && s.reg.name === '밴드 스컬'
     && s.reg.bio === '신촌 5인조 밴드' && s.reg.sns === 'instagram.com/bandskull' && s.dash.includes('등록한 공연이 없습니다'));
@@ -418,7 +418,7 @@ const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
   await p.waitForTimeout(200);
   s = await p.evaluate(() => ({
     txt: document.getElementById('host-container').textContent,
-    activeTab: document.querySelector('#host-container .community-tab.active')?.textContent.trim(),
+    activeTab: document.querySelector('#host-container .cm-seg button.on')?.textContent.trim(),
   }));
   chk('팀 관리 탭: 멤버 목록 + 역할 배지 (초대 코드 입력은 공연 관리 탭으로 이동)', s.activeTab === '팀 관리'
     && s.txt.includes('카카오닉') && s.txt.includes('팀 소유자') && s.txt.includes('기타리스트')

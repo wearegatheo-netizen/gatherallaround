@@ -16,6 +16,20 @@
   **공연 공유**는 경로형 `/show/<id>`(`functions/show/[id].js`) — 크롤러(kakaotalk-scrap 등)에는 포스터·제목·일시 OG 페이지, 사람에게는
   루트 셸에 `<base href="/">`+`history.replaceState('/#shows/<id>')` 를 넣어 200 으로(302+해시 금지, 인앱이 해시를 버림). 상세 [🔗 공유] = `shareShow(id)`
   (navigator.share → 클립보드 폴백). 숨김 공연은 기본 OG. index.html 머리 스크립트가 `/show/<id>` 정적 폴백도 해시로 치환. 셸 자산은 절대 경로만 쓸 것(`/vendor/…`).
+- **공연 예매·공간 대관·호스트 센터 머리·레이아웃(2026-10-16, 커뮤니티·게더링 개편 반영 — 탭 성격별로 다르게)**: 세 화면 모두 큰 제목 헤더(`.perf-header`, 삭제됨) 대신
+  **앱 바 `.sec-bar > .cm-bar`**(뒤로 `.cm-ib`·KkuBulLim 제목·`.cm-pill`·SVG 모드 버튼 `theme-toggle-svg` — `applyTheme` 가 textContent 를 건드리면 안 됨; 폭은 `.w1100`(대관)/기본 920(공연)/`.w720`(호스트)).
+  **공연 예매**(두둥식 발견·전환): 포스터 격자 `.show-grid` 유지(2열/≥600px 3열/≥900px 4열) — 카드 칩은 포스터 왼쪽 위(`_sxChip`, `.cm-chip d/ok/warn/sold/closed`, `_seatInfo().cls`), 지난·마감은 `.closed` 흐림.
+  목록은 알약 탭 `#showsListTabs .cm-seg`(다가오는/지난 + 수) → 한 줄 `.sx-sub`(「다가오는 N개 · 예매 가능 N개」 + [호스트 센터] 링크, ≤480px 은 안내문 숨김) → 검색 `.sx-search` → 격자; [내 티켓 조회]는 앱 바 알약 `#showsTicketBtn`.
+  상세 = 커뮤니티 상세 골격: `.cm-top`([‹ 공연 목록]·[공유]) → `.cm-hero.sx-hero`(포스터 `.sx-poster` 3:4, ≥768px 왼쪽 320px) → `.cm-eyebrow`(D-day·잔여석 칩 + `_showDateLong`) → `.cm-title` → `.cm-place` →
+  `.cm-stats`(가격·잔여석/정원·예매 마감|오픈) → `.cm-rows`(주최·장소(+지도 링크)·결제) → `.cm-sec` 주최 팀(`.sx-host`)·오시는 길(`#showMap`)·공연 소개(`.cm-desc.docs-card-content`) → **고정 바 `.cm-sticky`**(가격 + [예매하기] `#showBookOpenBtn`, 불가면 비활성 라벨).
+  예매 폼은 `#bookSheetWrap.cm-sheet-wrap.hidden`(DOM 에 미리 있음, 입력 id 종전 `showName/showPhone/showQty/showAnswer-i/showPrivacyAgree`) — `openBookingSheet()` 가 hidden 제거+`.on`+`body.cm-sheet-open`+Esc, `closeBookingSheet()` 는 popstate·`_hideAllScreens` 도 부른다.
+  `_sxSheetReset()` 을 목록·상세·티켓 화면 머리에서 불러 스크롤 잠금이 남지 않게. 티켓 조회는 `.cm-form`(`findCode/findPhone`).
+  **공간 대관**(예약 퍼널): 단계 표시 `_perfStepsHTML(1|2|3)`(`.sx-steps`, 조회 화면엔 없음) → 달력 카드 `.gt-card`(머리 `.perf-cal-head`: 알약 `.gt-seg` [월간|주간] — id `perfCalMonthBtn/WeekBtn`·`.active` 토글은 `setPerfCalView` 그대로 + ‹ › 원형 `.perf-cal-nav`)
+  → 인원 카드 `#perfHeadcountSection` → 공간 소개 카드 → 요금 띠 `.cm-stats.sx-rate`(평일/주말/최소 3시간 + `.sx-note`) → `<details class="sx-acc">` 유의사항·환불 규정(접힘, summary 에 요약).
+  범위가 완성되면 **고정 바 `#perfStep1Next.cm-sticky`**(`#perfStickyFee` = 날짜·시간 / 금액·시간·인원, `renderPerfFee` 가 채움; `_perfCalOnChange` 가 flex 로 켜고 `#perfStep1Pad` 도 함께, 처음 완성 때 인원 카드로 `scrollIntoView`).
+  2단계는 `[‹ 날짜·시간 다시 선택]` + 요약 띠(`#perfSummaryHeadcount` 는 「N명」만, 관람객 미정은 `#perfSummaryTbd`) + 폼(제출 버튼 하나), 조회는 `.cm-form`. 앱 바 알약 `#perfLookupTopBtn`.
+  **호스트 센터**(관리 콘솔): 알약 탭 `_hostTabBar()` → `.cm-seg`(공연 관리/팀 관리), 요약은 `.gt-tiles`(예정 공연·예매 매수(대기)·확정 매출), 로그인 카드 `.host-card.sx-login`, 폼 머리 [‹ 대시보드]는 `.cm-top`.
+  `.host-card` 는 gray-200·16px 로 통일. 캡처 scratchpad `shows/shoot-after.js`(`W/H/OUT/TAG/DARK`), 테스트 `tests/ui-shows.js`(알약 탭·앱 바 알약 확인)·`tests/ui-host.js`.
 - 가수·곡 검색(마이페이지 음악 취향·팀 연습곡): 두 축을 **브라우저 `musicSearch(q,type,limit)`** 가 합친다 —
   ① 애플 iTunes **KR 뮤직비디오**(한글 표기·표지) 브라우저 직접 호출(`_appleMusicSearch`; Workers 에서 부르면 애플이 429 로 막음, 실측)
   ② **Deezer**(무료·키 없음, CORS 없음)는 `functions/music-search.js` 프록시(`/search/track|artist`, 오류가 HTTP 200 본문 `error`로도 옴 — 쿼터 code 4, no data 800은 빈 결과).
