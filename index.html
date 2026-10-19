@@ -784,6 +784,9 @@
         .gt-att-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--wds-white); border: 1px solid var(--wds-gray-300); border-radius: 999px; padding: 2px 8px 2px 2px; font-size: 0.72rem; font-weight: 600; color: var(--wds-gray-800); }
         .gt-att-chip .ga-avatar { width: 18px; height: 18px; font-size: 0.6rem; box-shadow: none; }
         .gt-att-chip.me { background: var(--wds-primary); border-color: var(--wds-primary); color: #fff; }
+        /* 이동 뒤 포커스 강조(2026-10-19) — gtFocus() 가 1.7초 동안 파란 테두리를 깜빡여 어디로 왔는지 알려준다 */
+        .gt-flash { animation: gtFlash 1.6s ease-out; }
+        @keyframes gtFlash { 0%, 40% { outline: 3px solid var(--wds-primary); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
         /* 게시판: 바깥 회색 상자 제거(앱 바 제목이 있으므로 평면) */
         #main-content #comments_container { background: none; border: 0; box-shadow: none; padding: 0; margin: 12px 0 48px; max-width: none; }
         .comment-author .ga-avatar { width: 30px; height: 30px; font-size: 0.78rem; }
@@ -3565,6 +3568,25 @@
         const _gtViewCache = {};
         const _GT_PLACEHOLDER = '<p style="color:var(--wds-gray-500);font-size:0.9rem;text-align:center;padding:20px">불러오는 중...</p>';
         function _gtPlaceholder(el) { if (el && !el.dataset.cached) el.innerHTML = _GT_PLACEHOLDER; }
+        // ── 이동 뒤 포커스(2026-10-19): 홈 카드·편집 버튼 등에서 다른 탭/폼으로 갈 때 해당 요소로 스크롤(앱 바 54px 만큼 띄움)·잠깐 강조(.gt-flash)·첫 입력 포커스.
+        //    비동기 렌더 뒤에 생기는 요소는 최대 3초(100ms×tries) 기다린다. ifHidden:true 면 이미 화면에 다 보이는 요소는 스크롤하지 않는다. focus 는 포인터 기기에서만(터치는 키보드가 올라오지 않게).
+        function gtFocus(target, opts = {}) {
+            const { tries = 30, focus = null, flash = true, block = 'start', ifHidden = false } = opts;
+            let n = 0;
+            const tick = () => {
+                const el = typeof target === 'string' ? document.querySelector(target) : target;
+                if (!el || !el.isConnected || el.offsetParent === null) { if (n++ < tries) setTimeout(tick, 100); return; }
+                const r = el.getBoundingClientRect();
+                const visible = r.top >= 64 && r.bottom <= innerHeight - 60;
+                if (!(ifHidden && visible)) {
+                    const top = window.scrollY + r.top - (block === 'center' ? Math.max(70, (innerHeight - r.height) / 2) : 70);
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                }
+                if (flash) { el.classList.remove('gt-flash'); void el.offsetWidth; el.classList.add('gt-flash'); setTimeout(() => el.classList.remove('gt-flash'), 1700); }
+                if (focus) setTimeout(() => { const f = el.querySelector(focus); if (f && (!window.matchMedia || matchMedia('(hover:hover)').matches)) f.focus({ preventScroll: true }); }, 400);
+            };
+            setTimeout(tick, 0);
+        }
         // ── 일정표 참여자 명단 보기(2026-10-16): [이름|세션별|팀장별] — 패널(.gt-att)에 ids 를 data 로 두고 모드 전환 시 제자리에서 다시 그린다 ──
         const _ATT_MODES = [['plain', '이름'], ['session', '세션별'], ['leader', '팀장별']];
         function _attPanelHTML(ids, opts) {
@@ -3742,7 +3764,14 @@
         }
         function gtOpenPost(id) {
             setGatheOTab('board');
-            setTimeout(() => { const el = document.getElementById('board-post-' + id); if (el && el.classList.contains('hidden')) toggleBoardPost(id); el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 600);
+            let n = 0;
+            const open = () => { // 게시판 fetch 가 끝나 글이 그려질 때까지(최대 4초) 기다린다(2026-10-19 — 고정 0.6초 대기는 느린 망에서 빗나갔다)
+                const el = document.getElementById('board-post-' + id);
+                if (!el) { if (n++ < 40) setTimeout(open, 100); return; }
+                if (el.classList.contains('hidden')) toggleBoardPost(id);
+                gtFocus(el.closest('.board-row-wrap') || el, { block: 'start' });
+            };
+            setTimeout(open, 50);
         }
         // 공용 바닥 시트(커뮤니티 .cm-sheet 스킨 재사용)
         function gtSheetOpen(title, html) {
@@ -5399,6 +5428,7 @@
             await fetchSchedules();
             const container = document.getElementById('memberPanelView');
             if (container && state.memberPanelTab === 'schedule') await renderScheduleView(container);
+            gtFocus('#schedDay-' + date); // 저장한 날짜 카드로(2026-10-19) — 다시 그리면 편집기는 비워지므로 결과를 바로 보여준다
         }
 
         async function deleteScheduleDate(date) {
@@ -5572,7 +5602,7 @@
                       </div>`
                     : '';
 
-                return `<div style="margin-bottom:14px;background:var(--wds-white);border:1.5px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.07)">
+                return `<div id="schedDay-${date}" data-date="${date}" style="margin-bottom:14px;background:var(--wds-white);border:1.5px solid ${isToday?'var(--wds-primary)':'var(--wds-gray-200)'};border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.07)">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${isToday?'var(--wds-primary)':'var(--wds-gray-50)'}">
                         <div style="display:flex;align-items:center;gap:7px">
                             ${isToday?'<span style="font-size:0.65rem;background:rgba(255,255,255,0.3);color:#fff;padding:2px 7px;border-radius:8px;font-weight:700">오늘</span>':''}
@@ -5580,7 +5610,7 @@
                             <span style="font-size:0.72rem;color:${isToday?'rgba(255,255,255,0.7)':'var(--wds-gray-400)'}">${gOrder.length}그룹 · ${entries.length}슬롯</span>
                         </div>
                         ${canEdit ? `<div style="display:flex;gap:4px">
-                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" style="${isToday?'background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.5);color:#fff':''}" onclick="schedEditorInit('${date}');document.getElementById('schedEditor')?.scrollIntoView({behavior:'smooth',block:'start'})">편집</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" style="${isToday?'background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.5);color:#fff':''}" onclick="schedEditorInit('${date}');gtFocus('#schedEditor')">편집</button>
                             <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-danger" style="${isToday?'background:rgba(255,100,100,0.15);border-color:rgba(255,100,100,0.5);color:#ffb3b3':''}" onclick="deleteScheduleDate('${date}')">삭제</button>
                         </div>` : ''}
                     </div>
@@ -5594,7 +5624,7 @@
             container.innerHTML = `
                 <div>
                     ${canEdit ? '<div id="schedEditor"></div>' : ''}
-                    ${canEdit ? `<button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-secondary" style="margin-bottom:10px" type="button" onclick="schedEditorInit(new Date().toLocaleDateString('en-CA'));document.getElementById('schedEditor')?.scrollIntoView({behavior:'smooth',block:'start'})">+ 새 일정 추가</button>` : ''}
+                    ${canEdit ? `<button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-secondary" style="margin-bottom:10px" type="button" onclick="schedEditorInit(new Date().toLocaleDateString('en-CA'));gtFocus('#schedEditor')">+ 새 일정 추가</button>` : ''}
                     <div style="display:flex;gap:6px;margin-bottom:12px">
                         <button type="button" class="gaa-btn gaa-btn-xs ${!showPast?'gaa-btn-primary':'gaa-btn-secondary'}" style="flex:1" onclick="state.scheduleFilter='upcoming';renderMemberPanel()">다가오는 일정</button>
                         <button type="button" class="gaa-btn gaa-btn-xs ${showPast?'gaa-btn-primary':'gaa-btn-secondary'}" style="flex:1" onclick="state.scheduleFilter='past';renderMemberPanel()">지난 일정</button>
@@ -5654,7 +5684,7 @@
                     return `<span class="team-slot${s.leader ? ' leader' : ''}" title="${s.leader ? '팀장' : ''}">${s.leader ? '👑 ' : ''}<strong>${escapeHtml(s.session || '')}</strong>${escapeHtml(name)}</span>`;
                 }).join('');
                 const avatars = ordered.slice(0, 5).map(s => _gtAvatarOf(memberMap[s.memberId])).join('');
-                return `<div class="team-card"${isPast ? ' style="opacity:0.78"' : ''}>
+                return `<div class="team-card" id="team-${t.id}"${isPast ? ' style="opacity:0.78"' : ''}>
                     <div class="team-card-actions"><button type="button" class="team-more" onclick="gtTeamMenu('${t.id}')" aria-label="팀 관리">⋯</button></div>
                     <div class="team-name">${escapeHtml(t.name)}${isPast ? ' <span style="display:inline-block;vertical-align:middle;background:var(--wds-gray-100);border:1px solid var(--wds-gray-300);color:var(--wds-gray-500);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px">종료</span>' : ''}</div>
                     ${period ? `<div class="team-row"><span class="team-label">기간</span><span class="team-period">${period}</span></div>` : ''}
@@ -5762,6 +5792,7 @@
             `;
             renderTeamSlots();
             renderSongList();
+            gtFocus('#teamFormContainer', { focus: '#teamName' }); // 폼은 목록 위에 있어 아래쪽 팀을 수정할 때 안 보이던 문제(2026-10-19)
         }
 
         function hideTeamForm() {
@@ -6238,9 +6269,15 @@
                 alert('팀 저장 실패: ' + error.message);
                 return;
             }
+            const editingId = state.editingTeam ? state.editingTeam.id : null;
             hideTeamForm();
             await fetchTeams();
             renderMemberPanel();
+            // 저장한 팀 카드로(2026-10-19) — 새 팀은 같은 이름 중 가장 최근 행
+            const saved = editingId ? state.teams.find(t => t.id === editingId)
+                : [...state.teams].filter(t => t.name === name).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0];
+            if (saved) gtFocus('#team-' + saved.id, { block: 'center' });
+            showToast(editingId ? '팀을 수정했습니다.' : '팀을 만들었습니다.');
         }
 
         async function deleteTeam(id) {
@@ -7457,7 +7494,7 @@
                 });
                 if (dayRes.length > 0 || dayBlocks.length > 0) day.appendChild(info);
 
-                day.onclick = () => { state.viewDate = loopDate; state.currentView = 'week'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'week')); render(); };
+                day.onclick = () => { state.viewDate = loopDate; state.currentView = 'week'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'week')); render(); gtFocus('#viewContainer', { flash: false, ifHidden: true }); }; // 주간 시간표가 화면 밖이면 거기로(2026-10-19)
                 grid.appendChild(day);
             }
             container.appendChild(grid);
@@ -7694,6 +7731,7 @@
         function onSlotClick(date, time) {
             if (isPastSlot(date, time)) return;
             const wasUnselected = !state.startTime;
+            const hadRange = !!(state.startTime && state.endTime);
             if (!state.selectedDate || !isSameDay(state.selectedDate, date)) {
                 state.selectedDate = new Date(date); state.startTime = time; state.endTime = null;
             } else {
@@ -7722,6 +7760,8 @@
             const scrollY = window.scrollY;
             render();
             window.scrollTo({ top: scrollY });
+            // 범위를 막 완성했으면 다음 단계(참여 멤버·제출)가 화면 밖에 있을 때만 거기로(2026-10-19)
+            if (!hadRange && state.startTime && state.endTime) gtFocus('#participantSection', { block: 'center', ifHidden: true, flash: false });
         }
 
         function isSlotSelected(date, time) {
@@ -14859,10 +14899,12 @@
         }
 
         function openScheduleForDate(date) {
-            state.scheduleFilter = 'upcoming';
+            const today = new Date().toLocaleDateString('en-CA');
+            state.scheduleFilter = date < today ? 'past' : 'upcoming';
             state.scheduleEditorDate = date;
             setGatheOTab('member');
             setMemberTab('schedule');
+            gtFocus('#schedDay-' + date); // 해당 날짜 카드로(2026-10-19) — 일정표가 그려지길 기다렸다가 스크롤·강조
         }
 
         // 공지는 홈 탭 카드(renderGatheoHome)가 보여준다(2026-10-15). 옛 #notice_container 에 관리자 편집 마크업까지 그리면

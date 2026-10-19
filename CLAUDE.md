@@ -142,6 +142,11 @@
   알약 `.gt-att-seg` [이름|세션별|팀장별](`state.attMode`, 기본 세션별) 을 누르면 `gtAttMode()` 가 **모든 `.gt-att` 패널을 data-ids 로 제자리에서 다시 그림**(재요청 없음).
   세션별 = 프로필 `instruments` 첫 악기(보컬·기타·베이스·키보드·드럼 순, 없으면 「미지정」), 팀장별 = 진행 중 팀(`isPastTeam` 제외)별 「👑 팀장 · 팀명 N」(슬롯의 `team_id` 팀 먼저, 여러 팀이면 각각 표시, 나머지 「소속 팀 없음」).
   칩 `.gt-att-chip`(아바타+이름, 나는 `.me` 파란 채움). 캡처 `gatheo/shoot-att.js`.
+  **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
+  `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
+  로 바꾸고 날짜 카드 `#schedDay-<date>` 로 / 홈 새 글 `gtOpenPost` 는 게시판 fetch 를 기다려 글을 펼치고 `.board-row-wrap` 으로 / 팀 [팀 수정]·[새 팀] → 목록 위 폼 `#teamFormContainer` 로 + `#teamName` 포커스, 저장 뒤엔 그 팀 카드 `#team-<id>` 강조 + 토스트 /
+  관리자 일정 [편집]·[+ 새 일정 추가] → `#schedEditor`, 저장 뒤엔 저장한 날짜 카드 / 예약 탭은 월간 날짜 클릭 → 주간 시간표(`#viewContainer`)가 화면 밖이면 거기로, 시작·끝 칸으로 범위를 완성하면 `#participantSection` 이 화면 밖일 때만 가운데로.
+  모달(멤버 수정)·인라인 편집(공지·멤버 정보)·마이 하위 화면은 원래 제자리라 손대지 않음. 검사는 `gatheo/test.js` 2b·3c·4c·5b·9c.
   **탭 전환 체감(2026-10-16, stale-while-revalidate)**: 멤버 하위 화면 4종·마이는 마지막 HTML 을 `_gtViewCache` 에 두고 재진입 때 즉시 보여준 뒤 서버로 갱신(`renderMemberPanel` 이 캐시 주입·수거, 렌더러는
   `_gtPlaceholder(el)` 로 캐시 없을 때만 "불러오는 중"). 첫 진입도 로그인 때 받아 둔 `state.cachedMembers/teams/schedules`(+홈이 받아 둔 참석자)로 먼저 그린다 — 멤버 목록 `paint()`(서명 같으면 DOM 유지),
   팀 `paint()`(열린 팀 폼은 안 덮음), 일정표·마이는 `{quick:true}` 재귀 호출. 기다리는 동안 다른 하위 탭으로 옮기면 쓰지 않음(`state.memberPanelTab` 확인). `fetchScheduleAttendees` 는 요청 날짜 + 이미 받은 날짜(`state._attLoaded`)를
