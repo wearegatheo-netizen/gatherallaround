@@ -83,15 +83,15 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     cards: document.querySelectorAll('#shows-container .show-card').length,
     grid: !!document.querySelector('#showsListBody .show-grid'),
     text: document.getElementById('shows-container').textContent,
-    tabs: [...document.querySelectorAll('#showsListTabs .community-tab')].map(b => b.textContent.trim()).join('|'),
+    tabs: [...document.querySelectorAll('#showsListTabs .cm-seg button')].map(b => b.textContent.trim()).join('|'),
     hash: location.hash,
-    hostBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '호스트 센터'),
-    ticketBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '내 티켓 조회'),
+    hostBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '호스트 센터'), // 알약 탭 아래 한 줄 요약의 링크
+    ticketBtn: [...document.querySelectorAll('#shows-page .sec-bar button')].some(b => b.textContent.trim() === '내 티켓 조회'), // 앱 바 알약(2026-10-16)
   }));
   chk('포털 → 공연 예매: 화면 전환 + 해시', s.pageShown && s.others.length === 0 && s.hash === '#shows');
   chk('목록: 다가오는 탭 3카드 (2열 그리드)', s.cards === 3 && s.grid, `${s.cards}개`);
   chk('목록: 잔여 3석/매진/무료 배지', s.text.includes('잔여 3석') && s.text.includes('매진') && s.text.includes('무료') && s.text.includes('₩15,000'));
-  chk('목록: 다가오는/지난 탭 + 헤더 버튼', s.tabs === '다가오는 공연 3|지난 공연 1' && s.hostBtn && s.ticketBtn, s.tabs);
+  chk('목록: 다가오는/지난 알약 탭(수) + 앱 바 [내 티켓 조회] + 호스트 센터 링크', s.tabs === '다가오는 공연3|지난 공연1' && s.hostBtn && s.ticketBtn, s.tabs);
 
   // ── 1a. 지난 공연 탭 전환 ↔ 복귀
   await p.click('#showsListTabs button:has-text("지난 공연")');
@@ -99,9 +99,9 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   s = await p.evaluate(() => ({
     cards: document.querySelectorAll('#showsListBody .show-card').length,
     text: document.getElementById('showsListBody').textContent,
-    active: document.querySelector('#showsListTabs .community-tab.active')?.textContent.trim(),
+    active: document.querySelector('#showsListTabs .cm-seg button.on')?.textContent.trim(),
   }));
-  chk('지난 공연 탭: 1카드(지난팀) + 활성 탭 표시', s.cards === 1 && s.text.includes('지난팀') && s.active === '지난 공연 1', s.active);
+  chk('지난 공연 탭: 1카드(지난팀) + 활성 탭 표시', s.cards === 1 && s.text.includes('지난팀') && s.active === '지난 공연1', s.active);
   await p.click('#showsListTabs button:has-text("다가오는 공연")');
   await p.waitForTimeout(150);
   s = await p.evaluate(() => document.querySelectorAll('#showsListBody .show-card').length);

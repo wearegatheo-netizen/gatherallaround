@@ -655,5 +655,22 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   chk('my_events: 공동 관리 공연 병합 + co_hosted 플래그', j.ok === true && j.events.length === 2 && co && co.co_hosted === true && co.host_name === '주최팀B');
 }
 
+// ── 포스터 URL 접두: 호스트 업로드 + 포스터 꾸미기 미리보기(wappen/previews/)만, 그 밖은 bad_poster
+{
+  const base = { title: '공연', venue: '게더', starts_at: FUTURE, capacity: 40, price: 0, max_per_booking: 4, description: '<p>소개</p>' };
+  const mk = () => mockFetch([KAPI_OK, MEMBERSHIP('member'), [`event_hosts?id=eq.${HOST_ID}`, { body: [TEAM] }], ['events', { method: 'POST', body: [{ id: EV_ID }] }]]);
+  mk();
+  const wp = 'https://sb.test/storage/v1/object/public/wappen/previews/u1/abc.jpg';
+  const j = await (await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, poster_url: wp } })).json();
+  const ins = JSON.parse(calls.find(c => c.url.endsWith('/events') && c.method === 'POST').body);
+  chk('create_event: 포스터 꾸미기 미리보기 URL(wappen/previews/) 허용', j.ok === true && ins.poster_url === wp);
+  mk();
+  const r2 = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, poster_url: 'https://sb.test/storage/v1/object/public/wappen/base/u1/x.png' } });
+  chk('create_event: wappen 버킷이라도 previews/ 밖(base/)은 400 bad_poster', r2.status === 400 && (await r2.json()).error === 'bad_poster');
+  mk();
+  const r3 = await run({ action: 'create_event', kakao_token: 't', host_id: HOST_ID, event: { ...base, poster_url: 'https://evil.example/p.jpg' } });
+  chk('create_event: 외부 URL → 400 bad_poster', r3.status === 400 && (await r3.json()).error === 'bad_poster');
+}
+
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
 process.exit(fail ? 1 : 0);

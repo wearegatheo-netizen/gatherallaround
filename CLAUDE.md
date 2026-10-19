@@ -10,9 +10,26 @@
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
   QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
+  **포스터 꾸미기 작품을 공연 포스터로**(2026-10-13): 공연 등록 폼 [🎨 포스터 꾸미기에서 가져오기](`openWappenPosterPicker`) — 같은 출처라 `localStorage.wappen_session` 을 그대로
+  `/wappen-api {action:'my_content', session}` 에 보내 내 작품(`preview_url` 있는 것)을 격자로, 고르면 `_hostState.posterUrl` = 미리보기(1080px JPEG) URL(`pickWappenPoster`, `#evPosterPreview` 썸네일).
+  세션 없음/401 → 로그인 안내 + [포스터 꾸미기 열기](새 탭). 서버 `posterOk`(event-api)는 `community-images/events/` 와 `wappen/previews/` 두 접두만 허용(`POSTER_PREFIXES`).
   **공연 공유**는 경로형 `/show/<id>`(`functions/show/[id].js`) — 크롤러(kakaotalk-scrap 등)에는 포스터·제목·일시 OG 페이지, 사람에게는
   루트 셸에 `<base href="/">`+`history.replaceState('/#shows/<id>')` 를 넣어 200 으로(302+해시 금지, 인앱이 해시를 버림). 상세 [🔗 공유] = `shareShow(id)`
   (navigator.share → 클립보드 폴백). 숨김 공연은 기본 OG. index.html 머리 스크립트가 `/show/<id>` 정적 폴백도 해시로 치환. 셸 자산은 절대 경로만 쓸 것(`/vendor/…`).
+- **공연 예매·공간 대관·호스트 센터 머리·레이아웃(2026-10-16, 커뮤니티·게더링 개편 반영 — 탭 성격별로 다르게)**: 세 화면 모두 큰 제목 헤더(`.perf-header`, 삭제됨) 대신
+  **앱 바 `.sec-bar > .cm-bar`**(뒤로 `.cm-ib`·KkuBulLim 제목·`.cm-pill`·SVG 모드 버튼 `theme-toggle-svg` — `applyTheme` 가 textContent 를 건드리면 안 됨; 폭은 `.w1100`(대관)/기본 920(공연)/`.w720`(호스트)).
+  **공연 예매**(두둥식 발견·전환): 포스터 격자 `.show-grid` 유지(2열/≥600px 3열/≥900px 4열) — 카드 칩은 포스터 왼쪽 위(`_sxChip`, `.cm-chip d/ok/warn/sold/closed`, `_seatInfo().cls`), 지난·마감은 `.closed` 흐림.
+  목록은 알약 탭 `#showsListTabs .cm-seg`(다가오는/지난 + 수) → 한 줄 `.sx-sub`(「다가오는 N개 · 예매 가능 N개」 + [호스트 센터] 링크, ≤480px 은 안내문 숨김) → 검색 `.sx-search` → 격자; [내 티켓 조회]는 앱 바 알약 `#showsTicketBtn`.
+  상세 = 커뮤니티 상세 골격: `.cm-top`([‹ 공연 목록]·[공유]) → `.cm-hero.sx-hero`(포스터 `.sx-poster` 3:4, ≥768px 왼쪽 320px) → `.cm-eyebrow`(D-day·잔여석 칩 + `_showDateLong`) → `.cm-title` → `.cm-place` →
+  `.cm-stats`(가격·잔여석/정원·예매 마감|오픈) → `.cm-rows`(주최·장소(+지도 링크)·결제) → `.cm-sec` 주최 팀(`.sx-host`)·오시는 길(`#showMap`)·공연 소개(`.cm-desc.docs-card-content`) → **고정 바 `.cm-sticky`**(가격 + [예매하기] `#showBookOpenBtn`, 불가면 비활성 라벨).
+  예매 폼은 `#bookSheetWrap.cm-sheet-wrap.hidden`(DOM 에 미리 있음, 입력 id 종전 `showName/showPhone/showQty/showAnswer-i/showPrivacyAgree`) — `openBookingSheet()` 가 hidden 제거+`.on`+`body.cm-sheet-open`+Esc, `closeBookingSheet()` 는 popstate·`_hideAllScreens` 도 부른다.
+  `_sxSheetReset()` 을 목록·상세·티켓 화면 머리에서 불러 스크롤 잠금이 남지 않게. 티켓 조회는 `.cm-form`(`findCode/findPhone`).
+  **공간 대관**(예약 퍼널): 단계 표시 `_perfStepsHTML(1|2|3)`(`.sx-steps`, 조회 화면엔 없음) → 달력 카드 `.gt-card`(머리 `.perf-cal-head`: 알약 `.gt-seg` [월간|주간] — id `perfCalMonthBtn/WeekBtn`·`.active` 토글은 `setPerfCalView` 그대로 + ‹ › 원형 `.perf-cal-nav`)
+  → 인원 카드 `#perfHeadcountSection` → 공간 소개 카드 → 요금 띠 `.cm-stats.sx-rate`(평일/주말/최소 3시간 + `.sx-note`) → `<details class="sx-acc">` 유의사항·환불 규정(접힘, summary 에 요약).
+  범위가 완성되면 **고정 바 `#perfStep1Next.cm-sticky`**(`#perfStickyFee` = 날짜·시간 / 금액·시간·인원, `renderPerfFee` 가 채움; `_perfCalOnChange` 가 flex 로 켜고 `#perfStep1Pad` 도 함께, 처음 완성 때 인원 카드로 `scrollIntoView`).
+  2단계는 `[‹ 날짜·시간 다시 선택]` + 요약 띠(`#perfSummaryHeadcount` 는 「N명」만, 관람객 미정은 `#perfSummaryTbd`) + 폼(제출 버튼 하나), 조회는 `.cm-form`. 앱 바 알약 `#perfLookupTopBtn`.
+  **호스트 센터**(관리 콘솔): 알약 탭 `_hostTabBar()` → `.cm-seg`(공연 관리/팀 관리), 요약은 `.gt-tiles`(예정 공연·예매 매수(대기)·확정 매출), 로그인 카드 `.host-card.sx-login`, 폼 머리 [‹ 대시보드]는 `.cm-top`.
+  `.host-card` 는 gray-200·16px 로 통일. 캡처 scratchpad `shows/shoot-after.js`(`W/H/OUT/TAG/DARK`), 테스트 `tests/ui-shows.js`(알약 탭·앱 바 알약 확인)·`tests/ui-host.js`.
 - 가수·곡 검색(마이페이지 음악 취향·팀 연습곡): 두 축을 **브라우저 `musicSearch(q,type,limit)`** 가 합친다 —
   ① 애플 iTunes **KR 뮤직비디오**(한글 표기·표지) 브라우저 직접 호출(`_appleMusicSearch`; Workers 에서 부르면 애플이 429 로 막음, 실측)
   ② **Deezer**(무료·키 없음, CORS 없음)는 `functions/music-search.js` 프록시(`/search/track|artist`, 오류가 HTTP 200 본문 `error`로도 옴 — 쿼터 code 4, no data 800은 빈 결과).
@@ -62,16 +79,84 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+- 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
   `_pbExpired()`로 화면·가용성 계산에서 즉시 만료 취급 + 관리자 탭 진입 시 `status:'expired'` sweep.
   D-2 관리자 알림: GitHub Actions 크론(매일 07:47 KST + 10:17 예비, `{scope:'booking'}`) → `/send-reminders`
   (`reminder_sent_at` 선점으로 건당 1회, 놓친 날은 D-1/D-DAY 캐치업, 푸시는 `/notify-admins` 재사용).
+- **커뮤니티(2026-10-13 개편, 시안 A·절제형 발전안)**: 머리는 앱 바 `#communityBar`(`.cm-bar`: 뒤로·제목·[신청 조회] 알약·SVG 모드 버튼 `themeToggleBtnCommunity` — `applyTheme` 가
+  textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
+  상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
+  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 글 상자 높이의 정방형.
+  **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
+  상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
+  `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →
+  `.cm-rows`(모임장: 이니셜·이름·[문의하기]=`tel:` 링크로 번호 비노출 / 준비물) → 설명(`.cm-desc`, **항상 전부 표시** — 접기 없음, 2026-10-13) →
+  아래 고정 바 `.cm-sticky`(참여비 + [참여 신청하기], 마감이면 비활성; iOS 때문에 fixed 요소에 backdrop-filter 금지). 본문 폭 920px 제한(3열 그리드 폐기).
+  **신청서는 본문에 없고** [참여 신청하기] → `cmApplySheetOpen()` 이 `state.communityApplyFormHTML`(`cmApplyFormHTML`) 을 바닥 시트 `#cmApplySheet`(`.cm-sheet-wrap`, z 10001,
+  데스크톱 ≥768px 은 가운데 모달 560px)에 넣는다. 닫기 = ×·배경·Esc·popstate·`_hideAllScreens`·상세 재렌더(`cmApplySheetClose`). 시트는 body 직속이라
+  신청 폼 CSS 는 `#communityContent` 가 아니라 **`.cm-form .cm-f …`** 로 범위(입력 id 는 종전 `ca_name/ca_phone/ca_custom_i`, 44px 상자형 — 전역 `input[type=text]{height:52px}` 보다 특이도 높임).
+  옛 `.community-card/.community-grid/.community-tab*/.community-detail-hero*` CSS 는 제거됨(`community-grid-2`·`gforms-*` 는 생성/수정 폼이 계속 씀).
+  대표 이미지는 **정방형**: 만들기/수정에서 파일을 고르면 크롭 상자(`cmCropLoad/Zoom/Reset/Export`, 끌어 이동·1~3배 확대)로 보일 영역을 정하고 제출 때 1080² JPEG 로 잘라 올린다.
+  테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
+  **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent|note, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
+  `note` = 입력칸 없는 안내문(답·필수·조건 없음, CSV·집계 제외). 신청 폼은 질문 번호 칩(안내문 제외)·머리글에 질문 수, 검증 오류는 알림창 대신 `cmFieldError()`(칸 빨간 테두리+문구+스크롤),
+  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `_cmFitThumbs()` 가 **왼쪽 글 상자 높이의 정방형**으로 맞춘다(그린 뒤 측정, 최대 3회 반복, resize 때 재조정; CSS 기본 96px).
+  답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
+  (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
+  신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인.
+  신청자 관리 탭 「답변 집계」 `cmAggregationHTML`(2026-10-14 간소화): 접힌 `<details class="cm-agg-wrap">`(요약에 N명 기준·질문 수), 질문마다 선택지 「이름 N(/정원)」 칩 한 줄(`.cm-agg-row`, 0명 `.zero` 흐림·정원 참 `.full` 주황, 막대 없음), 텍스트 질문은 답변 수만.
+  **모임 설명은 서식 HTML**(2026-10-14): 만들기/수정이 `docEditorHTML('cc_desc'|'ce_desc', …, {image:true})` — 공연 소개와 같은 편집기에 🖼 사진 버튼(`rteImage`: `_rteShrink` 긴 변 1600px JPEG → `uploadCommunityImage` → `<img>`),
+  링크는 🔗(`rteLink`). 저장은 `rteValue()`(DOMPurify, 없으면 `_htmlSanitizeFallback`), 표시는 `.cm-desc` 에 `renderMarkdown()` — 옛 평문 설명도 같은 경로(줄바꿈·자동 링크). CDN 미로드 폴백도 HTML 이면 최소 살균으로 그대로 보인다.
+  CSV·메일은 `cmAnswerText`(배열은 ", " 연결). 질문명이 form_data 키라 **질문명 변경 시 과거 답변과 끊김** — 편집기는 showIf 참조만 따라간다.
+  검증은 scratchpad `cm/test.js`(Playwright, 가짜 supabase 시드 — `community_meetings`·`community_applications`·`time_blocks` 데이터, `.eq('status')` 만 흉내, 나머지 빈 결과).
+  **게더링 차단 시간 사용 요청(2026-10-13)**: 모임 만들기 달력은 `_calCtx.allowBlocked=true` — 예약·대관(`getHardConflicts`)만 '예약불가', `time_blocks` 는 `.slot-request` '요청' 칸으로 고를 수 있다
+  (월간은 차단만으로 꽉 찬 날도 클릭, `dateHardStatus`). `checkCommunityTimeConflict` 는 `{kind:'reservation'|'block'|'invalid', message, range, reason}` 를 돌려주며 예약·대관이 차단보다 우선
+  (`fetchCommunityReservationsAndBlocks` 가 `performance_bookings` 도 가상 예약으로 합침). `submitCommunityCreate`: 차단과 겹치면 확인창 → **`status:'pending'`** 으로 저장(time_blocks 안 넣음), 아니면 `active`+time_blocks.
+  둘 다 `sendAdminPush(title, body, {roles:['운영 총괄']})`(배너 푸시 — `/notify-admins` roles). 공개 목록(`fetchCommunityMeetings`)은 `(status||'active')==='active'` 만.
+  운영 총괄의 **공간대관 탭 머리** `_cmReqSectionHTML()`(🙋 요청 N건, 차단 사유 `_cmReqBlocks`, [수락][거절] → `reviewCommunityMeeting`) → `functions/community-admin.js`
+  `{action:'review_meeting', meeting_id, decision, kakao_token|sb_token}`(service role; anon UPDATE 가 회수된 테이블이라 서버만 가능). 인증 `_adminApiAuth()`: 카카오 토큰 → Supabase 세션 → 캐시 세션이면 카카오 팝업 재발급.
+  서버는 kapi/GoTrue 검증 후 `profiles.role='운영 총괄'`(카카오 `ADMIN_KAKAO_ID` 백스톱), `status=eq.pending` 조건 PATCH(경합 409), 수락 시 `time_blocks` 1행(`meetingSlots` 로 "10:00 ~ 13:00" 역변환)
+  + 모임장 Resend 메일(키 있을 때만). 마이그레이션 `20261013_community_meeting_status.sql`(status/reviewed_at) 미실행이면 요청 생성·탭이 안내 문구로 알려준다. 단위 테스트 `tests/community-admin-unit.mjs`.
+- **게더링 멤버 페이지(2026-10-15 개편, 시안 B 「홈 중심」)** — `#main-content`. 앱 바 `.gatheo-topbar`(홈=워드마크 `#gtBarWm`, 다른 탭=제목 `#gtBarTitle`(`_GT_TITLES`),
+  관리자 톱니 `#gatheoTab-admin`(id 는 종전 그대로 — loginUI/logoutUI 가 hidden 토글), SVG 모드 버튼 `#themeToggleBtn.theme-toggle-svg`(`applyTheme` 가 textContent 를 건드리면 안 됨),
+  아바타 버튼 `#gtAvatarBtn` → 마이; `gtUpdateBar()`). 하단 탭 **홈·예약·멤버·게시판·마이** 5개(`_GATHEO_TABS` 에 `home`, 기본 탭 `home`, 관리자는 탭이 아니라 톱니+마이 목록 줄).
+  **홈** `renderGatheoHome()`(`#gatheOTabHome`): 인사(이번 주 합주·내 예약·새 글 수) → 다음 합주 큰 카드 `#gtNextSched`(날짜 단위, 참석자 아바타 `_gtDateAttendees` = 날짜/그룹/슬롯 신청 합집합,
+  내가 신청했으면 「참석 확정」 칩, 버튼은 `openScheduleForDate`) + 내가 신청한 다른 날짜가 있으면 「내 다음 참여 일정」 줄 → 내 다음 예약 `#gtNextRes`(멤버 아바타·[멤버 수정]) → 공지 한 줄 `#gtNotice`(접힘, 누르면 전부)
+  → 바로가기 4(`.gt-qa`) → 게시판 새 글 3(`gtOpenPost`). 데이터 갱신은 `gtHomeRefresh()`(render()/공지/일정/댓글 fetch 끝에서 호출, 60ms 디바운스). 옛 `#notice_container`·`#schedule_banner` 는
+  숨긴 채 데이터만 유지(renderNotices 가 다시 보이게 하지 않음; 공지 편집은 관리자 탭).
+  **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
+  → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
+  **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,
+  팀 카드는 수정/삭제 버튼 대신 `.team-more` ⋯ → `gtTeamMenu` 시트, 멤버 아바타 묶음 `.gt-stack`. **게시판**: 제목은 앱 바, `#main-content #comments_container` 평면, 글쓴이 아바타(`_gtMemberByKakao`).
+  **마이** `renderMypagePanel()`: 프로필 카드 `.gt-prof`(아바타·역할 칩·세션 칩·[수정]) → 숫자 타일 `.gt-tiles` → 설정형 목록 `.gt-list`(내 예약·음악 취향·연락처·소속 팀·운영안내·활동 앨범·관리자(관리자만) / 푸시 알림·다크 모드·로그아웃).
+  하위 화면 `gtMypageSub('res'|'taste'|'docs'|'activity')` → `renderMypageSubView()`(`state.mypageSub`, 머리 [‹]; `renderMypagePanel` 은 mypageSub 가 있으면 하위 화면을 그리고 끝 — 탭 전환의 비동기 렌더가 덮지 않게).
+  운영안내 분류 버튼의 `render()` 호출은 하위 화면에서 `renderMypageSubView()` 로 바꿔 붙인다. 내 예약 목록은 종전 `renderMyPage(container)`(pager 는 `changePage('myRes')` 가 마이에서 하위 화면을 다시 그림).
+  **아바타**: `gaAvatar(name, {url, cls})` — url 있으면 `.ga-avatar.img`(background-image), 없으면 이름 이니셜. `profiles.avatar_url`(마이그레이션 `20261015_profile_avatar.sql`) 기본값은 **카카오 프로필 사진**
+  (`handleLogin` 이 `select('*')` 로 읽고 비어 있으면 thumbnail/profile_image_url 을 저장, `state.user.avatarUrl/kakaoAvatar`), 마이 › 수정 「프로필 사진」 [사진 바꾸기]=`gtAvatarPick`(가운데 정방형 256px JPEG →
+  `community-images/avatars/<profile>-<ts>.jpg` → `gtAvatarSave`) / [카카오 사진으로|기본(이니셜)으로]=`gtAvatarReset`. 멤버 목록·팀·홈 참석자·게시판·앱 바가 같은 부품을 쓴다.
+  **팀장·참여자 명단 보기(2026-10-16)**: 팀 구성 폼의 슬롯 줄마다 👑 라디오(`.slot-leader`, `setTeamLeader(idx)`) — 팀장은 **`teams.members` JSON 슬롯의 `leader:true` 한 명**(컬럼·마이그레이션 없음,
+  `saveTeam` 이 `{session, memberId, leader}` 로 정규화·둘 이상이면 첫 번째만, `teamLeaderId(t)`). 팀 카드는 팀장 칩 `.team-slot.leader`(👑, 호박색) 을 맨 앞에·아바타 묶음도 팀장 먼저,
+  일정 편집기가 팀 멤버를 복사할 때(`members[].leader`)와 일정 슬롯 멤버 칩도 👑. 일정표 참여자 명단(그룹 `#grp-att-…`·슬롯 `#slatt-…` 패널)은 `_attPanelHTML(ids, {myId, teamId})` —
+  알약 `.gt-att-seg` [이름|세션별|팀장별](`state.attMode`, 기본 세션별) 을 누르면 `gtAttMode()` 가 **모든 `.gt-att` 패널을 data-ids 로 제자리에서 다시 그림**(재요청 없음).
+  세션별 = 프로필 `instruments` 첫 악기(보컬·기타·베이스·키보드·드럼 순, 없으면 「미지정」), 팀장별 = 진행 중 팀(`isPastTeam` 제외)별 「👑 팀장 · 팀명 N」(슬롯의 `team_id` 팀 먼저, 여러 팀이면 각각 표시, 나머지 「소속 팀 없음」).
+  칩 `.gt-att-chip`(아바타+이름, 나는 `.me` 파란 채움). 캡처 `gatheo/shoot-att.js`.
+  **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
+  `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
+  로 바꾸고 날짜 카드 `#schedDay-<date>` 로 / 홈 새 글 `gtOpenPost` 는 게시판 fetch 를 기다려 글을 펼치고 `.board-row-wrap` 으로 / 팀 [팀 수정]·[새 팀] → 목록 위 폼 `#teamFormContainer` 로 + `#teamName` 포커스, 저장 뒤엔 그 팀 카드 `#team-<id>` 강조 + 토스트 /
+  관리자 일정 [편집]·[+ 새 일정 추가] → `#schedEditor`, 저장 뒤엔 저장한 날짜 카드 / 예약 탭은 월간 날짜 클릭 → 주간 시간표(`#viewContainer`)가 화면 밖이면 거기로, 시작·끝 칸으로 범위를 완성하면 `#participantSection` 이 화면 밖일 때만 가운데로.
+  모달(멤버 수정)·인라인 편집(공지·멤버 정보)·마이 하위 화면은 원래 제자리라 손대지 않음. 검사는 `gatheo/test.js` 2b·3c·4c·5b·9c.
+  **탭 전환 체감(2026-10-16, stale-while-revalidate)**: 멤버 하위 화면 4종·마이는 마지막 HTML 을 `_gtViewCache` 에 두고 재진입 때 즉시 보여준 뒤 서버로 갱신(`renderMemberPanel` 이 캐시 주입·수거, 렌더러는
+  `_gtPlaceholder(el)` 로 캐시 없을 때만 "불러오는 중"). 첫 진입도 로그인 때 받아 둔 `state.cachedMembers/teams/schedules`(+홈이 받아 둔 참석자)로 먼저 그린다 — 멤버 목록 `paint()`(서명 같으면 DOM 유지),
+  팀 `paint()`(열린 팀 폼은 안 덮음), 일정표·마이는 `{quick:true}` 재귀 호출. 기다리는 동안 다른 하위 탭으로 옮기면 쓰지 않음(`state.memberPanelTab` 확인). `fetchScheduleAttendees` 는 요청 날짜 + 이미 받은 날짜(`state._attLoaded`)를
+  합쳐 받고 응답 뒤 한 번에 상태를 바꾼다(홈·일정표·참여횟수가 서로 지우지 않게, 120일 초과면 요청분만). 로그아웃이 캐시를 비운다. 계측은 scratchpad `gatheo/probe.js`(탭별 요청 수·자리표시 노출).
+  검증 scratchpad `gatheo/test.js`(Playwright, `gatheo/seed.js` 가짜 supabase — profiles/reservations(participant_ids)/schedules/schedule_attendees/documents/comments/teams, `.eq/.in` 만 흉내), 시안 목업 `gatheo/mock.html`, 캡처 `gatheo/shoot-new.js`(`W/H/OUT/DARK` 환경변수).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
   달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
-- 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search 단위, shows/host/band UI —
+- 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search·community-admin 단위, shows/host/band UI —
   Playwright는 scratchpad node_modules 필요, `ui-band.js`는 가짜 supabase 쿼리빌더로 밴드 관리자 화면 검증)
 - 개발 브랜치: `claude/exciting-gauss-83p6k1`
 
