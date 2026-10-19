@@ -88,7 +88,7 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   ]);
   const { status, out } = await jrun(null, 'GET');
   chk('GET 진단 200·테이블·RPC·버킷', status === 200 && out.wappen_users_테이블 === true && out.wappen_ranking_rpc === true && out.wappen_버킷 === true && out.버킷_공개 === true);
-  chk('GET 진단에 기본 와펜 세트 버전·개수', out.기본_와펜_세트 && out.기본_와펜_세트.version === 4 && out.기본_와펜_세트.count === SEED_ITEMS.length);
+  chk('GET 진단에 기본 와펜 세트 버전·개수', out.기본_와펜_세트 && out.기본_와펜_세트.version === 5 && out.기본_와펜_세트.count === SEED_ITEMS.length);
   chk('진단에 PII 없음', !JSON.stringify(out).includes('kakao_id'));
 }
 // ── 3. 로그인

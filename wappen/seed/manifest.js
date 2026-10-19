@@ -1,7 +1,7 @@
 // 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
 // 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
 // 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 export const SEED_ITEMS = [
     {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 235, "h": 209, "kind": "raster"},
     {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 242, "h": 230, "kind": "raster"},
@@ -65,4 +65,6 @@ export const SEED_ITEMS = [
     {"key": "p4-purple-butterfly", "name": "보라 나비", "category": "동물", "tags": ["나비", "보라", "노랑", "자수"], "file": "p4-purple-butterfly.png", "w": 370, "h": 274, "kind": "raster"},
     {"key": "p4-anchor", "name": "닻", "category": "도형·기호", "tags": ["닻", "바다", "파랑", "마린", "자수"], "file": "p4-anchor.png", "w": 267, "h": 330, "kind": "raster"},
     {"key": "p4-heart-glasses", "name": "하트 선글라스", "category": "도형·기호", "tags": ["선글라스", "하트", "빨강", "반짝", "자수"], "file": "p4-heart-glasses.png", "w": 363, "h": 168, "kind": "raster"},
+    {"key": "p5-club-ff", "name": "CLUB FF 라벨", "category": "글자", "tags": ["club ff", "영문", "검정", "라벨", "공연장", "자수"], "file": "p5-club-ff.png", "w": 324, "h": 129, "kind": "raster"},
+    {"key": "p5-date-261121", "name": "26/11/21(Sat) 5PM 라벨", "category": "글자", "tags": ["날짜", "시간", "공연", "검정", "라벨", "자수"], "file": "p5-date-261121.png", "w": 464, "h": 99, "kind": "raster"},
 ];

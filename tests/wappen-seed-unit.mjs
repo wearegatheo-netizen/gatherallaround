@@ -10,7 +10,7 @@ const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [
 const pngSize = (buf) => ({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });   // IHDR
 
 const VEC = SEED_ITEMS.filter(i => i.kind !== 'raster');   // 벡터 세트는 2026-10-07 부터 기본 목록에서 제외(build.mjs 를 돌리면 다시 포함되는 옵트인)
-chk('버전·개수(래스터 + 선택 벡터)', SEED_VERSION === 4 && SEED_ITEMS.length >= 62 && SEED_ITEMS.length === VEC.length + RASTER.length, String(SEED_ITEMS.length));
+chk('버전·개수(래스터 + 선택 벡터)', SEED_VERSION === 5 && SEED_ITEMS.length >= 64 && SEED_ITEMS.length === VEC.length + RASTER.length, String(SEED_ITEMS.length));
 chk('벡터 항목이 있다면 designs.mjs 의 key 여야 함', VEC.every(v => DESIGNS.some(d => d.key === v.key)));
 chk('래스터 항목: kind 표시·raster.json 과 key 일치·시트 격자 수 = 항목 수', SEED_ITEMS.filter(i => i.kind === 'raster').map(i => i.key).join() === RASTER.map(i => i.key).join()
     && JSON.parse(readFileSync(new URL('../tools/wappen-seed/raster.json', import.meta.url), 'utf8')).sheets.every(s => s.items.length === s.rows * s.cols && existsSync(new URL('../tools/wappen-seed/raster/' + s.src, import.meta.url))));
@@ -25,12 +25,13 @@ for (const it of SEED_ITEMS) {
     const buf = readFileSync(p); total += buf.length;
     const { w, h } = pngSize(buf);
     if (w !== it.w || h !== it.h) dimsOk = false;
-    if (it.kind === 'raster' ? (w < 100 || h < 100 || w > 1024 || h > 1024 || buf.length > 160 * 1024) : (w < 300 || h < 300 || w > 1024 || h > 1024 || buf.length > 120 * 1024)) sizeOk = false;
+    // 래스터 최소 변 90px: 낱개 라벨(p5-date, 99px 높이)은 원본 해상도 그대로 둔다
+    if (it.kind === 'raster' ? (w < 90 || h < 90 || w > 1024 || h > 1024 || buf.length > 160 * 1024) : (w < 300 || h < 300 || w > 1024 || h > 1024 || buf.length > 120 * 1024)) sizeOk = false;
     if (!buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) dimsOk = false;
 }
 chk('모든 파일 존재', missing.length === 0, missing.join(','));
 chk('PNG 크기가 manifest 와 일치', dimsOk);
-chk('치수 벡터 300~1024px·≤120KB / 래스터 100~1024px·≤160KB', sizeOk, `총 ${(total / 1024).toFixed(0)}KB`);
+chk('치수 벡터 300~1024px·≤120KB / 래스터 90~1024px·≤160KB', sizeOk, `총 ${(total / 1024).toFixed(0)}KB`);
 chk('DB check 범위(width/height 8~4000) 충족', SEED_ITEMS.every(i => i.w >= 8 && i.w <= 4000 && i.h >= 8 && i.h <= 4000));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
