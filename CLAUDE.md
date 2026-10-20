@@ -298,5 +298,7 @@
 - 모바일(≤640px)은 헤더 메뉴 대신 **하단 탭바**(`.wp-bottom-nav`, SVG 아이콘, 편집 화면에선 숨김). 설치형(PWA, 상태바 black-translucent)·노치 대응은
   `--wp-safe-top/--wp-safe-bottom`(env(safe-area-inset-*))을 헤더·에디터·탭바·시트가 공유. `label.dropzone` 은 반드시 `display:block`(inline 이면 점선 테두리가 깨짐).
   이미지 업로드 UI 가 추가되면 같은 `.dropzone` 클래스를 쓸 것.
+  **`<button>` 에 `aspect-ratio` 금지(2026-10-20)**: iOS Safari 가 버튼의 aspect-ratio 를 무시해 에디터 서랍 타일(`.ed-item`)이 주저앉고 그림이 겹쳐 보였다 —
+  정사각은 `::before { padding-top:100% }` 스페이서로(`.item-card .img` 같은 div 는 aspect-ratio 그대로 괜찮음). Chromium 만으로는 재현이 안 되니 폰(Safari) 스크린샷으로 확인할 것.
 - 테스트: `tests/wappen-api-unit.mjs`·`tests/middleware-unit.mjs`(node) · `tests/ui-wappen.js`(Playwright, 가짜 supabase/Kakao/API, `VIEWPORT=390x844 DARK=1 SHOT_DIR=` 옵션).
   운영 절차·한도·주의는 `docs/WAPPEN-RUNBOOK.md`. 마이그레이션 `supabase/migrations/20261006_wappen.sql` 은 **master 머지 전에** SQL Editor 에서 실행.
