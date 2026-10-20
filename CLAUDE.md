@@ -315,8 +315,9 @@
 - 모바일(≤640px)은 헤더 메뉴 대신 **하단 탭바**(`.wp-bottom-nav`, SVG 아이콘, 편집 화면에선 숨김). 설치형(PWA, 상태바 black-translucent)·노치 대응은
   `--wp-safe-top/--wp-safe-bottom`(env(safe-area-inset-*))을 헤더·에디터·탭바·시트가 공유. `label.dropzone` 은 반드시 `display:block`(inline 이면 점선 테두리가 깨짐).
   이미지 업로드 UI 가 추가되면 같은 `.dropzone` 클래스를 쓸 것.
-  **높이를 CSS 로 만드는 타일은 `<button>` 으로 만들지 말 것(2026-10-20)**: iOS Safari 는 button 안에서 `aspect-ratio` 도 `::before { padding-top:100% }` 스페이서도 높이를 못 만든다
-  (둘 다 실기기에서 타일이 주저앉아 그림·이름이 겹침). 에디터 서랍 타일 `.ed-item` 은 `div[role=button][tabindex=0]`(Enter/Space 는 grid keydown 이 click 으로) + aspect-ratio 와
-  ::before 스페이서 병행(border-box 기준 같은 높이). `.item-card .img` 같은 div 는 aspect-ratio 그대로 괜찮음. Chromium 만으로는 재현이 안 되니 폰(Safari) 스크린샷으로 확인할 것.
+  **에디터 서랍 타일은 고정 px 정사각(2026-10-20, 세 번 실패 끝)**: iOS Safari 실기기에서 `<button>`+aspect-ratio → `::before { padding-top:100% }` → `div`+aspect-ratio 모두 타일이 주저앉아
+  그림·이름이 겹쳤다(Chromium 은 셋 다 정상이라 재현 불가, Playwright WebKit 은 다운로드 차단). 지금은 `.ed-items { --ed-tile: 72px(≤640px 64px) }` 로 열(`repeat(auto-fill, var(--ed-tile))`
+  + `justify-content: space-between`)·행(`grid-auto-rows`)·타일(width/height)·그림(width/height = 타일 − 14/26px)을 전부 px 로 못 박고, 타일은 `div[role=button][tabindex=0]`(Enter/Space 는 grid keydown 이 click 으로).
+  서랍 타일엔 aspect-ratio·퍼센트 높이·스페이서를 다시 쓰지 말 것. `.item-card .img` 같은 일반 div 는 aspect-ratio 그대로 괜찮음. 폰(Safari) 스크린샷으로 확인할 것.
 - 테스트: `tests/wappen-api-unit.mjs`·`tests/middleware-unit.mjs`(node) · `tests/ui-wappen.js`(Playwright, 가짜 supabase/Kakao/API, `VIEWPORT=390x844 DARK=1 SHOT_DIR=` 옵션).
   운영 절차·한도·주의는 `docs/WAPPEN-RUNBOOK.md`. 마이그레이션 `supabase/migrations/20261006_wappen.sql` 은 **master 머지 전에** SQL Editor 에서 실행.

@@ -302,15 +302,13 @@ body.editing .wp-footer { display: none; }
 .ed-drawer-head .search-box { flex: 1; }
 .ed-drawer-head .search-box input { height: var(--h-xs); font-size: var(--fs-sm); }
 .ed-drawer-chips { padding: 0 10px 6px; flex: none; }
-.ed-items { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; padding: 4px 10px 12px; align-content: start; }
-/* 서랍 타일: 높이는 항상 정사각(폭 기준) — 이미지는 절대 배치로 타일 안에 contain(길쭉한 와펜도 타일을 키우지 않음, 2026-10-08) */
-/* 타일(div[role=button]) 은 정사각 — <button> 이면 iOS Safari 가 aspect-ratio 도 padding 스페이서도 무시해 타일이 주저앉고 그림이 겹쳤다(2026-10-20).
-   div 에 aspect-ratio + ::before padding-top 100% 를 함께 둔다(둘 다 border-box 기준으로 같은 높이, 하나가 무시돼도 정사각 유지) */
-.ed-item { box-sizing: border-box; border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); display: block; width: 100%; aspect-ratio: 1 / 1; cursor: pointer; padding: 0; position: relative; overflow: hidden; min-height: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
-.ed-item::before { content: ''; display: block; padding-top: 100%; }
+/* 서랍 타일은 고정 픽셀 정사각(--ed-tile) — iOS Safari 에서 aspect-ratio·padding 스페이서·퍼센트 높이가 전부 믿을 수 없어(2026-10-20 세 번 실패) 열·행·타일·그림 크기를 모두 px 로 못 박는다 */
+.ed-items { --ed-tile: 72px; flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, var(--ed-tile)); grid-auto-rows: var(--ed-tile); justify-content: space-between; gap: 6px; padding: 4px 10px 12px; align-content: start; }
+/* 타일(div[role=button]) 안의 그림은 절대 배치 contain — 길쭉한 와펜도 타일을 키우지 않는다(2026-10-08). <button> 은 iOS Safari 가 안쪽 높이를 못 만들어 쓰지 않는다 */
+.ed-item { box-sizing: border-box; width: var(--ed-tile); height: var(--ed-tile); border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); display: block; cursor: pointer; padding: 0; margin: 0; position: relative; overflow: hidden; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .ed-item:hover { border-color: var(--wds-primary); }
 .ed-item:focus-visible { outline: 2px solid var(--wds-primary); outline-offset: 1px; }
-.ed-item img { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 24px); max-width: calc(100% - 12px); max-height: calc(100% - 24px); object-fit: contain; pointer-events: none; }
+.ed-item img { position: absolute; left: 6px; top: 6px; width: calc(var(--ed-tile) - 14px); height: calc(var(--ed-tile) - 26px); max-width: calc(var(--ed-tile) - 14px); max-height: calc(var(--ed-tile) - 26px); object-fit: contain; pointer-events: none; }   /* 테두리 1px 안쪽 기준 */
 .ed-item span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.62rem; text-align: center; background: rgba(255,255,255,0.85); color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 0 0 9px 9px; }
 /* 에디터 서랍 탭(와펜/레이어) + 레이어 패널 */
 .ed-drawer-head .seg.sm { height: 30px; }
@@ -423,7 +421,7 @@ body.editing .wp-bottom-nav { display: none !important; }
     .ed-tools { bottom: 6px; padding: 4px; }
     .ed-tools button { width: 36px; height: 36px; }
     .ed-drawer { max-height: 38vh; }
-    .ed-items { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+    .ed-items { --ed-tile: 64px; }
     .modal { padding: 18px 16px; }
     .modal-backdrop:not(.sheet) { align-items: flex-end; padding: 0; }
     .modal-backdrop:not(.sheet) .modal { border-radius: 18px 18px 0 0; max-width: none; padding-bottom: calc(16px + var(--wp-safe-bottom)); }
