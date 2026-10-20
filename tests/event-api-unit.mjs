@@ -672,5 +672,104 @@ const EVENT_ROW = (over = {}) => ({ id: EV_ID, host_id: HOST_ID, host_name: '밴
   chk('create_event: 외부 URL → 400 bad_poster', r3.status === 400 && (await r3.json()).error === 'bad_poster');
 }
 
+// ── 13. 티켓 양도(링크 방식, 2026-10-20)
+{
+  const SEATS2 = [
+    { code: 'ABCXYZ', seat_no: 1, checked_in_at: null, cancelled_at: null, transferred_from_name: null },
+    { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: null, transferred_from_name: null }];
+  const ticketLookup = (over = {}) => ['event_tickets?code=eq.ABCXYZ&select', { method: 'GET', body: [TICKET(over)] }];
+  const seatsGet = (rows = SEATS2) => ['event_ticket_seats?ticket_id=eq.' + TK_ID + '&select=code,seat_no', { method: 'GET', body: rows }];
+  // 13a. create_transfer 성공: 토큰 24자, DB 엔 sha256 해시만, 48시간, from_name·seat_no
+  let inserted = null;
+  mockFetch([ticketLookup(), seatsGet(),
+    ['event_ticket_transfers?ticket_id=eq.' + TK_ID + '&status=in.(pending,claimed)', { method: 'GET', body: [] }],
+    ['event_ticket_transfers', { method: 'POST', body: (rec) => { inserted = JSON.parse(rec.body); return [{ id: 'tr1', ...inserted }]; } }],
+  ]);
+  const j = await (await run({ action: 'create_transfer', code: 'abcxyz', phone: '010-1234-5678', seat_code: 'zz9pqr' })).json();
+  const ttl = inserted ? (new Date(inserted.expires_at) - Date.now()) / 3600e3 : 0;
+  chk('create_transfer: 토큰 24자 + DB 엔 해시(64 hex)만 + 48시간 + from_name·seat_no', j.ok === true && /^[A-HJ-NP-Z2-9]{24}$/.test(j.token)
+    && inserted && /^[0-9a-f]{64}$/.test(inserted.token_hash) && inserted.token_hash !== j.token && inserted.from_name === '홍길동'
+    && inserted.seat_no === 2 && inserted.seat_code === 'ZZ9PQR' && inserted.ticket_id === TK_ID && ttl > 47.9 && ttl <= 48, JSON.stringify(j).slice(0, 120));
+  // 13b. 규칙: 입금 확정 전 / 입장한 좌석 / 대기 링크 있음 → 409
+  mockFetch([ticketLookup({ status: 'pending_payment' })]);
+  chk('create_transfer: 입금 확정 전 → 409 not_confirmed', (await (await run({ action: 'create_transfer', code: 'ABCXYZ', phone: '01012345678', seat_code: 'ZZ9PQR' })).json()).error === 'not_confirmed');
+  mockFetch([ticketLookup(), seatsGet([SEATS2[0], { ...SEATS2[1], checked_in_at: PAST }])]);
+  chk('create_transfer: 입장한 좌석 → 409 checked_in', (await (await run({ action: 'create_transfer', code: 'ABCXYZ', phone: '01012345678', seat_code: 'ZZ9PQR' })).json()).error === 'checked_in');
+  mockFetch([ticketLookup(), seatsGet(), ['event_ticket_transfers?ticket_id=eq.' + TK_ID, { method: 'GET', body: [{ seat_code: 'ZZ9PQR', seat_no: 2, status: 'pending', expires_at: FUTURE }] }]]);
+  chk('create_transfer: 대기 중 링크가 있으면 → 409 pending', (await (await run({ action: 'create_transfer', code: 'ABCXYZ', phone: '01012345678', seat_code: 'ZZ9PQR' })).json()).error === 'pending');
+  mockFetch([ticketLookup(), ['event_ticket_transfers?ticket_id=eq.' + TK_ID + '&seat_code=eq.ZZ9PQR&status=eq.pending', { method: 'PATCH', body: [{ id: 'tr1' }] }],
+    ['event_ticket_transfers?ticket_id=eq.' + TK_ID, { method: 'GET', body: [] }]]);
+  chk('cancel_transfer: pending 조건부 PATCH → ok + 현황', (await (await run({ action: 'cancel_transfer', code: 'ABCXYZ', phone: '01012345678', seat_code: 'ZZ9PQR' })).json()).ok === true);
+  // 13c. transfer_info / claim 거절 사유
+  const TOKEN = 'ABCDEFGHJKMNPQRSTUVWXYZ2';
+  const TR = (over = {}) => ({ id: 'tr1', event_id: EV_ID, ticket_id: TK_ID, seat_code: 'ZZ9PQR', seat_no: 2, status: 'pending', from_name: '홍길동', expires_at: FUTURE, to_name: null,
+    events: { id: EV_ID, title: '여름 공연', host_name: '밴드X', venue: '게더', starts_at: FUTURE, price: 15000, bank_info: '토스 111', status: 'published' }, ...over });
+  const trGet = (over) => ['event_ticket_transfers?token_hash=eq.', { method: 'GET', body: [TR(over)] }];
+  let whole = null; // 13e 에서 통째 양도 결과를 담는다 — 원 예매 재조회가 같은 URL 이라 함수 본문으로
+  const originGet = (over = {}) => ['event_tickets?id=eq.' + TK_ID + '&select=*', { method: 'GET',
+    body: () => [{ id: TK_ID, event_id: EV_ID, code: 'ABCXYZ', buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, status: 'confirmed', ...over, ...(whole || {}) }] }];
+  const seatGet = (over = {}) => ['event_ticket_seats?code=eq.ZZ9PQR&ticket_id=eq.' + TK_ID + '&select=*', { method: 'GET', body: [{ code: 'ZZ9PQR', ticket_id: TK_ID, seat_no: 2, checked_in_at: null, cancelled_at: null, ...over }] }];
+  mockFetch([trGet(), originGet(), seatGet()]);
+  const ji = await (await run({ action: 'transfer_info', token: TOKEN.toLowerCase() })).json();
+  chk('transfer_info: pending → 공연·좌석·가려진 이름(홍*동), 계좌 정보 없음, 토큰 대소문자 무시', ji.ok === true && ji.status === 'pending' && ji.from_name === '홍*동'
+    && ji.seat_no === 2 && ji.event.title === '여름 공연' && !('bank_info' in ji.event), JSON.stringify(ji).slice(0, 120));
+  mockFetch([trGet({ expires_at: PAST })]);
+  chk('transfer_info: 만료 → status expired', (await (await run({ action: 'transfer_info', token: TOKEN })).json()).status === 'expired');
+  mockFetch([trGet(), originGet(), seatGet({ checked_in_at: PAST })]);
+  chk('transfer_info: 좌석이 입장됨 → status unavailable', (await (await run({ action: 'transfer_info', token: TOKEN })).json()).status === 'unavailable');
+  mockFetch([trGet({ status: 'claimed', to_name: '김철수' })]);
+  chk('claim_transfer: 이미 받은 링크 → 409 used', (await (await run({ action: 'claim_transfer', token: TOKEN, name: '이영희', phone: '01099998888' })).json()).error === 'used');
+  mockFetch([trGet(), originGet(), seatGet()]);
+  chk('claim_transfer: 본인 번호 → 409 self', (await (await run({ action: 'claim_transfer', token: TOKEN, name: '홍길동', phone: '010-1234-5678' })).json()).error === 'self');
+  chk('transfer_info: 토큰 형식 오류 → 400', (await run({ action: 'transfer_info', token: 'short' })).status === 400);
+  // 13d. claim 분리 경로: 원 예매 2장 → 토큰 선점 → 새 예매 1매(confirmed) → 좌석 이동·코드 재발급 → 원 qty 2→1 → 링크에 to_ticket_id
+  const NEW_ID = '33333333-3333-4333-8333-333333333333';
+  let newTicket = null, seatPatch = null, lockBody = null, qtyPatch = null, linkPatch = null;
+  mockFetch([trGet(), originGet(), seatGet(),
+    ['event_ticket_transfers?id=eq.tr1&status=eq.pending', { method: 'PATCH', body: (rec) => { lockBody = JSON.parse(rec.body); return [{ id: 'tr1' }]; } }],
+    seatsGet(),
+    ['event_tickets?event_id=eq.' + EV_ID + '&buyer_phone=eq.01099998888', { method: 'GET', body: [] }],
+    ['event_tickets', { method: 'POST', body: (rec) => { newTicket = JSON.parse(rec.body); return [{ id: NEW_ID, ...newTicket }]; } }],
+    ['event_ticket_seats?code=eq.ZZ9PQR&ticket_id=eq.' + TK_ID + '&cancelled_at=is.null', { method: 'PATCH', body: (rec) => { seatPatch = JSON.parse(rec.body); return [{ code: seatPatch.code }]; } }],
+    ['event_tickets?id=eq.' + TK_ID + '&select=qty,status', { method: 'GET', body: [{ qty: 2, status: 'confirmed' }] }],
+    ['event_tickets?id=eq.' + TK_ID + '&qty=eq.2', { method: 'PATCH', body: (rec) => { qtyPatch = JSON.parse(rec.body); return [{ id: TK_ID, qty: 1 }]; } }],
+    ['event_ticket_transfers?id=eq.tr1', { method: 'PATCH', body: (rec) => { linkPatch = JSON.parse(rec.body); return []; } }],
+    ['event_tickets?id=eq.' + NEW_ID + '&select=*', { method: 'GET', body: () => [{ id: NEW_ID, ...newTicket }] }],
+    ['event_ticket_seats?ticket_id=eq.' + NEW_ID + '&select=code,seat_no', { method: 'GET', body: () => [{ code: seatPatch.code, seat_no: 1, checked_in_at: null, cancelled_at: null, transferred_from_name: '홍길동' }] }],
+    ['event_ticket_transfers?ticket_id=eq.' + NEW_ID, { method: 'GET', body: [] }],
+  ]);
+  const jc = await (await run({ action: 'claim_transfer', token: TOKEN, name: '이영희', phone: '010-9999-8888' })).json();
+  chk('claim(분리): 토큰 선점(claimed·to_name) → 새 예매 1매·confirmed·원 예매 참조·원 예매자 이름', jc.ok === true && lockBody && lockBody.status === 'claimed' && lockBody.to_name === '이영희'
+    && newTicket && newTicket.qty === 1 && newTicket.status === 'confirmed' && newTicket.buyer_phone === '01099998888' && newTicket.transferred_from === TK_ID
+    && newTicket.transferred_from_name === '홍길동', JSON.stringify(newTicket));
+  chk('claim(분리): 좌석 → 새 예매 1번으로 이동 + 코드 재발급(원 QR 무효) + 원 qty 2→1 + 링크 to_ticket_id + 응답 티켓·좌석', seatPatch && seatPatch.ticket_id === NEW_ID && seatPatch.seat_no === 1
+    && /^[A-HJ-NP-Z2-9]{6}$/.test(seatPatch.code) && seatPatch.code !== 'ZZ9PQR' && seatPatch.code === newTicket.code && seatPatch.transferred_from_name === '홍길동'
+    && qtyPatch && qtyPatch.qty === 1 && linkPatch && linkPatch.to_ticket_id === NEW_ID && jc.ticket.id === NEW_ID && jc.seats.length === 1, JSON.stringify(seatPatch));
+  // 13e. 통째 양도(활성 1장): 원 예매의 명의·예매번호 변경 + 좌석 코드 재발급
+  let wseat = null;
+  mockFetch([trGet(), originGet({ qty: 1 }), seatGet(),
+    ['event_ticket_transfers?id=eq.tr1&status=eq.pending', { method: 'PATCH', body: [{ id: 'tr1' }] }],
+    seatsGet([SEATS2[1]]),
+    ['event_tickets?event_id=eq.' + EV_ID + '&buyer_phone=eq.01099998888', { method: 'GET', body: [] }],
+    ['event_tickets?id=eq.' + TK_ID + '&status=eq.confirmed', { method: 'PATCH', body: (rec) => { whole = JSON.parse(rec.body); return [{ id: TK_ID }]; } }],
+    ['event_ticket_seats?code=eq.ZZ9PQR&ticket_id=eq.' + TK_ID, { method: 'PATCH', body: (rec) => { wseat = JSON.parse(rec.body); return []; } }],
+    ['event_ticket_transfers?id=eq.tr1', { method: 'PATCH', body: [] }],
+    ['event_ticket_transfers?ticket_id=eq.' + TK_ID, { method: 'GET', body: [] }],
+  ]);
+  const jw = await (await run({ action: 'claim_transfer', token: TOKEN, name: '이영희', phone: '01099998888' })).json();
+  chk('claim(통째): 마지막 1장 → 원 예매 명의·번호 변경(새 코드) + 좌석 1번 코드 재발급 + 응답은 새 명의', jw.ok === true && whole && whole.buyer_name === '이영희' && whole.buyer_phone === '01099998888'
+    && /^[A-HJ-NP-Z2-9]{6}$/.test(whole.code) && whole.code !== 'ABCXYZ' && whole.transferred_from_name === '홍길동' && wseat && wseat.code === whole.code && wseat.seat_no === 1
+    && jw.ticket.buyer_name === '이영희', JSON.stringify(whole));
+  whole = null;
+  // 13f. 양도받은 티켓은 받는 사람이 직접 취소 불가
+  mockFetch([['event_ticket_seats?code=eq.ZZ9PQR&select', { method: 'GET', body: [{ code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: null, transferred_from_name: '홍길동',
+    event_tickets: { id: TK_ID, code: 'ABCXYZ', buyer_phone: '01099998888', qty: 2, status: 'confirmed', checked_in_at: null, events: { id: EV_ID, title: '공연', starts_at: FUTURE } } }] }]]);
+  chk('cancel_seat: 양도받은 좌석 → 409 transferred', (await (await run({ action: 'cancel_seat', code: 'ZZ9PQR', phone: '01099998888' })).json()).error === 'transferred');
+  mockFetch([ticketLookup({ transferred_from_name: '홍길동', buyer_phone: '01099998888' })]);
+  chk('cancel: 양도받은 예매 → 409 transferred', (await (await run({ action: 'cancel', code: 'ABCXYZ', phone: '01099998888' })).json()).error === 'transferred');
+  mockFetch([ticketLookup({ buyer_phone: '01099998888' }), seatsGet([SEATS2[0], { ...SEATS2[1], transferred_from_name: '홍길동' }])]);
+  chk('cancel: 합쳐진 양도 좌석이 포함된 예매 → 409 transferred', (await (await run({ action: 'cancel', code: 'ABCXYZ', phone: '01099998888' })).json()).error === 'transferred');
+}
+
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
 process.exit(fail ? 1 : 0);

@@ -245,6 +245,74 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   }));
   chk('취소: cancel 호출(code+phone) + 칩 갱신 + 버튼 제거', s.call && s.call.action === 'cancel' && s.call.code === 'AB3XKP' && s.call.phone === '01012345678' && s.chip && s.noCancelBtn);
 
+  // ── 4b. 티켓 양도(링크 방식, 2026-10-20): 확정 예매 2장 → [양도] → 링크 → [링크 취소] / 받는 사람 #shows/claim/<토큰> → 새 티켓 / 원 예매자 화면의 양도 완료 블록
+  const TOKEN = 'ABCDEFGHJKMNPQRSTUVWXYZ2';
+  const F7ISO = new Date(Date.now() + 7 * 86400e3).toISOString();
+  await p.evaluate(({ EV1, F7ISO }) => {
+    window.__apiQueue.push({ ok: true,
+      ticket: { id: 't1', event_id: EV1, code: 'AB3XKP', buyer_name: '홍길동', buyer_phone: '01012345678', qty: 2, status: 'confirmed', checked_in_at: null },
+      event: { id: EV1, title: '한여름 밤의 락', host_name: '밴드 스컬', venue: '게더 올 어라운드', starts_at: F7ISO, price: 15000, bank_info: 'x' },
+      seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null, cancelled_at: null }, { code: 'ZZ9PQR', seat_no: 2, checked_in_at: null, cancelled_at: null }], transfers: [] });
+    showShowsSection(['find']);
+  }, { EV1, F7ISO });
+  await p.fill('#findCode', 'AB3XKP'); await p.fill('#findPhone', '010-1234-5678'); await p.click('#shows-container button:has-text("조회하기")'); await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ btns: [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '양도').length, hash: location.hash }));
+  chk('확정 예매 티켓 화면: 좌석마다 [양도] 버튼', s.btns === 2 && s.hash === '#shows/ticket/AB3XKP', JSON.stringify(s));
+  await p.evaluate((TOKEN) => { const x = new Date(Date.now() + 48 * 3600e3).toISOString(); window.__apiQueue.push({ ok: true, token: TOKEN, expires_at: x, seat_no: 2, transfers: [{ seat_code: 'ZZ9PQR', seat_no: 2, status: 'pending', expires_at: x }] }); }, TOKEN);
+  await p.click('#shows-container button:has-text("양도") >> nth=1'); await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ sheet: !!document.getElementById('gtSheet'), title: document.querySelector('#gtSheet h3')?.textContent, rules: document.getElementById('transferSheetBody')?.textContent.includes('48시간') }));
+  chk('[양도] → 양도 시트(규칙 안내 + [양도 링크 만들기])', s.sheet && s.title === '티켓 양도' && s.rules, JSON.stringify(s));
+  await p.click('#transferMakeBtn'); await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({
+    call: window.__apiCalls.filter(c => c.action === 'create_transfer').pop(), url: document.getElementById('transferUrl')?.textContent,
+    pend: document.getElementById('shows-container').textContent.includes('양도 대기 중'),
+    cancelBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '링크 취소'),
+    tBtns: [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '양도').length,
+  }));
+  chk('링크 만들기: create_transfer(code·phone·seat_code) → #shows/claim/<토큰> 링크 + 뒤 화면 「양도 대기 중」·[링크 취소], 그 좌석 [양도] 숨김', s.call && s.call.code === 'AB3XKP' && s.call.phone === '01012345678'
+    && s.call.seat_code === 'ZZ9PQR' && s.url === `${new URL(p.url()).origin}/#shows/claim/${TOKEN}` && s.pend && s.cancelBtn && s.tBtns === 1, JSON.stringify(s));
+  await p.evaluate(() => gtSheetClose());
+  await p.evaluate(() => { window.__apiQueue.push({ ok: true, transfers: [] }); });
+  await p.click('#shows-container button:has-text("링크 취소")'); await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ call: window.__apiCalls.filter(c => c.action === 'cancel_transfer').pop(), pend: document.getElementById('shows-container').textContent.includes('양도 대기 중'),
+    tBtns: [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '양도').length }));
+  chk('[링크 취소] → cancel_transfer → 대기 표시 사라지고 [양도] 복귀', s.call && s.call.seat_code === 'ZZ9PQR' && !s.pend && s.tBtns === 2, JSON.stringify(s));
+  // 받는 사람 화면
+  await p.evaluate(({ TOKEN, F7ISO }) => {
+    window.__apiQueue.push({ ok: true, status: 'pending', event: { id: 'e', title: '한여름 밤의 락', venue: '게더 올 어라운드', starts_at: F7ISO, price: 15000 }, from_name: '홍*동', seat_no: 2, expires_at: new Date(Date.now() + 40 * 3600e3).toISOString() });
+    showShowsSection(['claim', TOKEN]);
+  }, { TOKEN, F7ISO });
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ hash: location.hash, text: document.getElementById('shows-container').textContent, form: !!document.getElementById('claimName') && !!document.getElementById('claimPhone') && !!document.getElementById('claimPrivacyAgree'),
+    call: window.__apiCalls.filter(c => c.action === 'transfer_info').pop() }));
+  chk('양도받기 화면: #shows/claim/<토큰> → transfer_info, 가려진 이름·공연·티켓 번호 + 이름·연락처·동의 폼', s.hash === '#shows/claim/' + TOKEN && s.call && s.call.token === TOKEN
+    && s.text.includes('홍*동') && s.text.includes('티켓 2') && s.text.includes('한여름 밤의 락') && s.form, s.text.slice(0, 80));
+  await p.click('#claimBtn'); await p.waitForTimeout(100);
+  s = await p.evaluate(() => ({ err: document.getElementById('claimResult').textContent, calls: window.__apiCalls.filter(c => c.action === 'claim_transfer').length }));
+  chk('빈 폼 제출: 인라인 오류 + API 미호출', s.err.includes('이름') && s.calls === 0, s.err);
+  await p.fill('#claimName', '이영희'); await p.fill('#claimPhone', '010-9999-8888'); await p.check('#claimPrivacyAgree');
+  await p.evaluate((F7ISO) => { window.__apiQueue.push({ ok: true,
+    ticket: { id: 't9', code: 'NEWCQD', buyer_name: '이영희', buyer_phone: '01099998888', qty: 1, status: 'confirmed', checked_in_at: null, transferred_from: 't1', transferred_from_name: '홍길동' },
+    event: { id: 'e', title: '한여름 밤의 락', host_name: '밴드 스컬', venue: '게더 올 어라운드', starts_at: F7ISO, price: 15000, bank_info: 'x' },
+    seats: [{ code: 'NEWCQD', seat_no: 1, checked_in_at: null, cancelled_at: null, transferred_from_name: '홍길동' }], transfers: [] }); }, F7ISO);
+  await p.click('#claimBtn'); await p.waitForTimeout(300);
+  s = await p.evaluate(() => ({ hash: location.hash, call: window.__apiCalls.filter(c => c.action === 'claim_transfer').pop(), text: document.getElementById('shows-container').textContent,
+    noCancel: ![...document.querySelectorAll('#shows-container button')].some(b => /예매 취소|이 티켓만 취소/.test(b.textContent)), qrs: document.querySelectorAll('#shows-container [id^="ticketQrSlot-"] svg').length,
+    tBtns: [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '양도').length }));
+  chk('[양도받기] → claim_transfer(token·name·phone) → 새 티켓 화면(NEWCQD, 양도받은 표식, 취소 버튼 없음, QR 1장, 다시 양도는 가능)', s.call && s.call.token === TOKEN && s.call.name === '이영희'
+    && s.call.phone === '010-9999-8888' && s.hash === '#shows/ticket/NEWCQD' && s.text.includes('NEWCQD') && s.text.includes('홍길동님에게서 양도받은') && s.noCancel && s.qrs === 1 && s.tBtns === 1,
+    JSON.stringify({ hash: s.hash, noCancel: s.noCancel, qrs: s.qrs, tBtns: s.tBtns }));
+  // 원 예매자 화면: 양도 완료 좌석
+  await p.evaluate((EV1) => {
+    _showsState.ticket = { id: 't1', event_id: EV1, code: 'AB3XKP', buyer_name: '홍길동', buyer_phone: '01012345678', qty: 1, status: 'confirmed', checked_in_at: null,
+      seats: [{ code: 'AB3XKP', seat_no: 1, checked_in_at: null, cancelled_at: null }], transfers: [{ seat_code: 'ZZ9PQR', seat_no: 2, status: 'claimed', to_name: '이*희', claimed_at: new Date().toISOString() }] };
+    renderTicketView();
+  }, EV1);
+  s = await p.evaluate(() => ({ text: document.getElementById('shows-container').textContent, qrs: document.querySelectorAll('#shows-container [id^="ticketQrSlot-"] svg').length }));
+  chk('원 예매자 화면: 양도 완료 좌석은 「양도 완료 → 이*희」 블록(QR 없음), 남은 1장만 QR', s.text.includes('양도 완료 → 이*희') && s.qrs === 1, `${s.qrs}개 QR`);
+  s = await p.evaluate((TOKEN) => { const t = (h) => { history.replaceState(null, '', h); return _pageFromHash(); }; const a = t('#shows/claim/' + TOKEN.toLowerCase()); const b = t('#shows/claim/short'); t('#shows'); return { a, b }; }, TOKEN);
+  chk('라우트 파서: #shows/claim/<토큰> 인식(대문자 정규화), 형식 틀리면 shows', s.a === 'shows/claim/' + TOKEN && s.b === 'shows', JSON.stringify(s));
+
   // ── 5. 티켓 새로고침 진입(메모리 없음) → 코드 프리필 조회 폼
   await p.evaluate(() => { _showsState.ticket = null; _routeToPage('shows/ticket/QQ7MNP'); });
   await p.waitForTimeout(200);
