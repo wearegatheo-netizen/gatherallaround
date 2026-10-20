@@ -314,6 +314,23 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   chk('타인 작품 삭제 → 403', (await jrun({ action: 'work_delete', session: S, work_id: WID })).status === 403);
   mockFetch([SESSION_OK(ADMIN), ['wappen_works?id=eq.', { method: 'GET', body: [{ id: WID, author_id: OTHER }] }], ['wappen_works?id=eq.', { method: 'DELETE', body: [] }]]);
   chk('관리자는 타인 작품 삭제 가능', (await jrun({ action: 'work_delete', session: S, work_id: WID })).status === 200);
+
+  // 이름만 바꾸기(work_rename) — 같은 프로젝트 안 중복 409, 본인·관리자만, title 만 PATCH
+  const MINE = { id: WID, author_id: UID, project_id: PID, title: '옛 이름' };
+  mockFetch([SESSION_OK(), ['wappen_works?id=eq.', { method: 'GET', body: [MINE] }], ['wappen_works?select=id,title&title=ilike.', { body: [{ id: OTHER, title: '새 이름' }] }]]);
+  ({ status, out } = await jrun({ action: 'work_rename', session: S, work_id: WID, title: '새  이름' }));
+  chk('work_rename: 같은 프로젝트 다른 작품과 겹치면(공백 차이 무시) 409 dup_title', status === 409 && out.error === 'dup_title' && !calls.some(c => c.method === 'PATCH'));
+  mockFetch([SESSION_OK(), ['wappen_works?id=eq.', { method: 'GET', body: [MINE] }], ['wappen_works?select=id,title&title=ilike.', { body: [] }],
+    ['wappen_works?id=eq.', { method: 'PATCH', body: (rec) => { patched = rec.json; return [{ ...MINE, ...rec.json }]; } }]]);
+  ({ status, out } = await jrun({ action: 'work_rename', session: S, work_id: WID, title: ' 새 이름 ' }));
+  chk('work_rename: 본인 작품 → title 만 PATCH(trim)·같은 프로젝트 범위로 중복 조회', status === 200 && out.work.title === '새 이름' && Object.keys(patched).sort().join() === 'title,updated_at'
+    && calls.some(c => c.url.includes('title=ilike.') && c.url.includes(`project_id=eq.${PID}`)));
+  mockFetch([SESSION_OK(), ['wappen_works?id=eq.', { method: 'GET', body: [MINE] }], ['wappen_works?id=eq.', { method: 'PATCH', body: [{ ...MINE, title: '옛 이름' }] }]]);
+  ({ status, out } = await jrun({ action: 'work_rename', session: S, work_id: WID, title: '옛  이름' }));
+  chk('work_rename: 같은 이름(공백만 다름)은 중복 조회 없이 저장', status === 200 && !calls.some(c => c.url.includes('title=ilike.')));
+  mockFetch([SESSION_OK(), ['wappen_works?id=eq.', { method: 'GET', body: [{ ...MINE, author_id: OTHER }] }]]);
+  chk('work_rename: 타인 작품 → 403', (await jrun({ action: 'work_rename', session: S, work_id: WID, title: '새' })).status === 403);
+  chk('work_rename: 빈 이름 → 400', (await jrun({ action: 'work_rename', session: S, work_id: WID, title: '   ' })).status === 400);
 }
 // ── 8. 반응
 {

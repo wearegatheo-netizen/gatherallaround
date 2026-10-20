@@ -525,6 +525,21 @@ export async function onRequest(context) {
             return json({ ok: true, work: (await r.json())[0] });
         }
 
+        // 작품 이름만 바꾸기(2026-10-20) — 에디터를 거치지 않고 ⋯ 시트에서. 같은 프로젝트 안 중복은 work_save 와 같은 규칙(409 dup_title)
+        if (action === 'work_rename') {
+            if (!isUuid(body.work_id)) return fail(400, 'bad_id', '작품 id 가 올바르지 않습니다.');
+            const title = str(body.title, LIMITS.title);
+            if (!title) return fail(400, 'bad_title', '작품 이름을 입력해주세요.');
+            const w = await getOne(env, 'wappen_works', body.work_id, 'id,author_id,project_id,title');
+            if (!w) return fail(404, 'not_found', '작품을 찾을 수 없습니다.');
+            if (w.author_id !== me.id && !isAdmin) return fail(403, 'forbidden', '본인 작품만 수정할 수 있습니다.');
+            if (titleKey(title) !== titleKey(w.title) && await titleTaken(env, 'wappen_works', title, { extra: `&project_id=eq.${w.project_id}`, exclude: w.id })) return fail(409, 'dup_title', DUP_WORK);
+            const r = await sbFetch(env, `wappen_works?id=eq.${w.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ title, updated_at: nowIso() }) });
+            if (r.status === 409) return fail(409, 'dup_title', DUP_WORK);
+            if (!r.ok) return fail(500, 'db', '저장하지 못했습니다.', { detail: await sbDetail(r) });
+            return json({ ok: true, work: (await r.json())[0] });
+        }
+
         if (action === 'work_delete') {
             if (!isUuid(body.work_id)) return fail(400, 'bad_id', '작품 id 가 올바르지 않습니다.');
             const w = await getOne(env, 'wappen_works', body.work_id, 'id,author_id');

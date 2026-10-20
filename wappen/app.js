@@ -1092,6 +1092,7 @@ async function viewWork(r) {
         let act = b.dataset.act;
         if (act === 'more') {
             act = await moreSheet([
+                ...(mine || admin ? [{ key: 'rename', label: '이름 바꾸기', icon: 'edit' }] : []),
                 ...(p && (mine || admin) ? [{ key: 'edit', label: '작품 수정', icon: 'edit' }] : []),
                 { key: 'copy', label: '링크 복사', icon: 'link' },
                 ...(!mine ? [{ key: 'report', label: '신고', icon: 'flag' }] : []),
@@ -1101,6 +1102,14 @@ async function viewWork(r) {
         }
         if (act === 'share') shareSheet({ title: `${w.title} · 포스터 꾸미기`, text: `${w.author_name}님이 꾸민 작품을 구경해보세요`, url: shareUrl('work', id), imageUrl: w.preview_url });
         if (act === 'copy') copyText(shareUrl('work', id));
+        if (act === 'rename') {   // 에디터 없이 이름만 — 같은 프로젝트 안 중복은 서버가 409 dup_title
+            const title = await promptModal({ title: '작품 이름 바꾸기', value: w.title, max: LIMITS.title, okLabel: '저장', hint: '같은 프로젝트 안에서는 작품 이름이 겹칠 수 없어요.' });
+            if (title == null) return;
+            if (!title) return showToast('작품 이름을 입력해주세요.');
+            if (titleKey(title) === titleKey(w.title)) return;
+            const out = await api('work_rename', { work_id: id, title });
+            if (out.ok) { showToast('이름을 바꿨어요.'); render(); } else showToast(out.message || '이름을 바꾸지 못했어요.');
+        }
         if (act === 'edit' && p) navigate(`#/edit/${p.id}?work=${id}`);
         if (act === 'report') reportModal('work', id);
         if (act === 'download') downloadSheet(w, p);

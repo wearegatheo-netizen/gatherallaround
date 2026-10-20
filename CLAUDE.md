@@ -278,6 +278,8 @@
   서버 `admin_items_delete {item_ids≤500 | category}` — 작품 레이아웃이 참조하는 와펜은 숨김, 나머지 삭제(단건과 같은 규칙). 사용 여부는 `usedItemIds()` 가
   `or=(layout.cs.{"items":[{"id":…}]},…)` 로 30개씩 한 요청(단일 항목 JSON 엔 쉼표가 없어 or 파서에 안전) — 와펜 수만큼 count 를 돌리지 말 것(Workers 서브리퀘스트 한도).
 - 반응 5종(love/cool/lol/wow/fire, 작품당 1인 1개) · 리믹스(`remix_of`) · 신고/숨김/차단 · 와펜 요청(관리자 승인 시 등록 와펜 연결). 댓글 없음.
+  **작품 이름 바꾸기(2026-10-20)**: 작품 페이지 ⋯ 시트 「이름 바꾸기」(작성자·관리자) → `promptModal` → `work_rename {work_id, title}`(본인/관리자, 같은 프로젝트 안 중복은 409 `dup_title`, title·updated_at 만 PATCH) → `render()`.
+  에디터의 「작품 수정」은 미리보기 재업로드까지 하므로 이름만 바꿀 땐 이쪽.
   와펜 등록 폼(`itemFormModal`)은 PNG·JPG·WebP 를 받아 **클라이언트에서 PNG 로 변환**(투명 유지, MIME 대신 디코드 성공으로 판정 — iOS 는 type 이 비기도 함).
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.
 - **기본 와펜 세트 = 자수 패치 30개(래스터, SEED_VERSION 3)**. 코드로 그린 벡터 84개는 2026-10-07 요청으로 목록·`wappen/seed/` 에서 제거(옵트인: `build.mjs` 를 돌리면 다시 렌더·포함).

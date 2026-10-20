@@ -66,6 +66,7 @@ window.fetch = async (url, opts = {}) => {
       case 'my_reactions': return ok({ reactions: {} });
       case 'upload_sign': return ok({ path: body.kind + '/x.jpg', token: 'T', content_type: 'image/jpeg', upload_url: '${BASE}/__upload?token=T', public_url: '${SB}/' + body.kind + 's/${UID}/x.jpg' });
       case 'work_save': return ok({ work: { ...${JSON.stringify(WORK)}, id: '${WID}', title: body.title, layout: body.layout } });
+      case 'work_rename': { const w = TABLES.wappen_works.find(x => x.id === body.work_id); if (w) w.title = body.title; return ok({ work: { ...w } }); }
       case 'react': return ok({ mine: body.kind, reaction_count: body.kind ? 3 : 2, reaction_counts: body.kind ? { love: 2, [body.kind]: (body.kind === 'love' ? 3 : 1) } : { love: 2 } });
       default: return ok({});
     }
@@ -275,7 +276,15 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('작품: 주 동작이 한 줄', actionRowTop === 1);
     await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item');
     const workSheet = await p.$$eval('.sheet-item', els => els.map(e => e.dataset.more));
-    chk('작품: ⋯ 시트(작성자) = 작품 수정·링크 복사·삭제', workSheet.join() === 'edit,copy,delete', workSheet.join());
+    chk('작품: ⋯ 시트(작성자) = 이름 바꾸기·작품 수정·링크 복사·삭제', workSheet.join() === 'rename,edit,copy,delete', workSheet.join());
+    // 이름 바꾸기: 프롬프트 기본값 = 현재 제목 → 저장 → work_rename → 화면 제목 갱신
+    await p.click('.sheet-item[data-more="rename"]'); await p.waitForSelector('.modal input');
+    chk('작품: 이름 바꾸기 프롬프트 기본값 = 현재 제목', (await p.inputValue('.modal input')) === '내 작품');
+    await p.fill('.modal input', '바뀐 작품'); await p.click('.modal [data-ok]');
+    await p.waitForFunction(() => window.__apiCalls.some(c => c.action === 'work_rename' && c.title === '바뀐 작품'));
+    await p.waitForFunction(() => document.body.innerText.includes('바뀐 작품'));
+    chk('작품: work_rename 호출·새 이름 표시', true);
+    await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item');
     await p.keyboard.press('Escape'); await p.waitForSelector('.modal-backdrop', { state: 'detached' });
     const emojiBtns = await p.$$eval('.gaa-btn', els => els.map(e => e.textContent.trim()).filter(t => /\p{Extended_Pictographic}/u.test(t)));
     chk('일관성: 버튼 텍스트에 이모지 없음', emojiBtns.length === 0, emojiBtns.join(' | '));
