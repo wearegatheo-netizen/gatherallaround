@@ -1388,12 +1388,15 @@ function itemFormModal({ item = null, prefill = {} } = {}, onDone) {
 async function adminItems(body, ui = { q: '', cat: '' }) {
     const [out, seed] = await Promise.all([api('admin_items'), api('admin_seed_status')]);
     if (!out.ok) { body.innerHTML = errorHTML(out.message); return; }
+    out.items = (out.items || []).filter(i => i.status !== 'deleted');   // 영구 삭제(묘비) 행은 목록에 없음 — 기본 세트 카드 [복원]으로만
     const seedCard = seed.ok ? `<div class="card-box" style="margin-bottom:12px"><div class="row between">
             <div><b>기본 와펜 세트</b> <span class="status-badge sm ${seed.missing ? 'status-pending' : 'status-approved'}">${seed.missing ? `${num(seed.missing)}개 미설치` : '설치됨'}</span>
                 <div class="muted" style="margin-top:4px">${num(seed.total)}개 · 자수 패치 세트(운영자가 준 이미지를 잘라 등록). 설치된 것은 건너뛰어요.</div>
-                ${seed.stale ? `<div class="muted" style="margin-top:4px">현재 목록에 없는 이전 기본 세트 와펜 ${num(seed.stale)}개가 남아 있어요.</div>` : ''}</div>
+                ${seed.stale ? `<div class="muted" style="margin-top:4px">현재 목록에 없는 이전 기본 세트 와펜 ${num(seed.stale)}개가 남아 있어요.</div>` : ''}
+                ${seed.deleted ? `<div class="muted" style="margin-top:4px">영구 삭제한 기본 와펜 ${num(seed.deleted)}개 — 불러오기에서 제외돼요.</div>` : ''}</div>
             <div class="gaa-btn-row">${seed.missing ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="seed">${icon('download')} ${num(seed.missing)}개 불러오기</button>` : ''}
-            ${seed.stale ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" data-act="seed-prune">${icon('trash')} 이전 세트 ${num(seed.stale)}개 삭제</button>` : ''}</div></div></div>`
+            ${seed.stale ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" data-act="seed-prune">${icon('trash')} 이전 세트 ${num(seed.stale)}개 삭제</button>` : ''}
+            ${seed.deleted ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="seed-restore">${icon('remix')} 삭제한 ${num(seed.deleted)}개 복원</button>` : ''}</div></div></div>`
         : `<div class="card-box" style="margin-bottom:12px"><div class="row between"><div><b>기본 와펜 세트</b> <span class="status-badge sm status-rejected">상태 확인 실패</span>
             <div class="muted" style="margin-top:4px">${esc(seed.message || '')}${seed.error === 'unknown_action' ? ' — 서버 배포가 아직 반영되지 않았어요. 잠시 후 다시 시도해주세요.' : ''}</div></div>
             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="seed-retry">${icon('remix')} 다시 확인</button></div></div>`;
@@ -1423,12 +1426,13 @@ async function adminItems(body, ui = { q: '', cat: '' }) {
     };
     renderList();
     const refresh = () => adminItems(body, { q: ($('#itSearch', body) || {}).value || '', cat });
-    const BULK_BODY = '작품에 사용 중인 와펜은 삭제 대신 숨김 처리되고, 나머지는 바로 삭제돼요. 되돌릴 수 없습니다.';
+    const BULK_BODY = '작품에 사용 중인 와펜은 삭제 대신 숨김 처리되고, 나머지는 바로 삭제돼요. 기본 세트 와펜은 영구 삭제되어 [불러오기]로도 돌아오지 않아요(기본 세트 카드 [복원]으로만).';
+    const MIGRATION_NOTE = ' · DB 마이그레이션(20261020_wappen_item_deleted.sql) 전이라 [불러오기]를 누르면 다시 받아질 수 있어요.';
     const bulkDelete = async (payload, title) => {
         if (!await confirmModal({ title, body: BULK_BODY, okLabel: '삭제', danger: true })) return;
         const o = await api('admin_items_delete', payload);
         if (!o.ok) return showToast(o.message || '삭제하지 못했습니다.');
-        showToast(`${num(o.deleted || 0)}개 삭제${o.hidden ? ` · ${num(o.hidden)}개는 작품에 사용 중이라 숨김 처리` : ''}`);
+        showToast(`${num((o.deleted || 0) + (o.tombstoned || 0))}개 삭제${o.tombstoned ? `(기본 세트 ${num(o.tombstoned)}개 영구)` : ''}${o.hidden ? ` · ${num(o.hidden)}개는 작품에 사용 중이라 숨김 처리` : ''}${o.needs_migration ? MIGRATION_NOTE : ''}`);
         await fetchItems(true).catch(() => {}); refresh();
     };
     const search = $('#itSearch', body);
@@ -1454,6 +1458,12 @@ async function adminItems(body, ui = { q: '', cat: '' }) {
             if (o.ok) { showToast(o.added ? `기본 와펜 ${num(o.added)}개를 등록했어요.` : '이미 모두 설치되어 있어요.'); await fetchItems(true).catch(() => {}); refresh(); }
             else { showToast(o.message || '등록하지 못했습니다.'); b.disabled = false; }
         }
+        else if (b.dataset.act === 'seed-restore') {   // 영구 삭제(묘비)한 기본 세트 와펜 되살리기
+            b.disabled = true;
+            const o = await api('admin_seed_restore');
+            if (o.ok) { showToast(`기본 와펜 ${num(o.restored || 0)}개를 복원했어요.`); await fetchItems(true).catch(() => {}); refresh(); }
+            else { showToast(o.message || '복원하지 못했습니다.'); b.disabled = false; }
+        }
         else if (b.dataset.act === 'seed-prune') {   // 현재 목록에 없는 이전 기본 세트 행 정리 (작품에 쓰인 것은 숨김)
             if (!await confirmModal({ title: `이전 기본 세트 와펜 ${num(seed.stale)}개를 삭제할까요?`, body: BULK_BODY, okLabel: '삭제', danger: true })) return;
             b.disabled = true;
@@ -1464,8 +1474,10 @@ async function adminItems(body, ui = { q: '', cat: '' }) {
         else if (b.dataset.edit) itemFormModal({ item }, refresh);
         else if (b.dataset.hide) { const o = await api('admin_item_update', { item_id: item.id, status: b.dataset.status === 'hidden' ? 'active' : 'hidden' }); if (o.ok) { await fetchItems(true); refresh(); } else showToast(o.message); }
         else if (b.dataset.del) {
-            if (!await confirmModal({ title: `'${item.name}' 와펜을 삭제할까요?`, body: '작품에 사용 중이면 삭제 대신 숨김 처리됩니다.', okLabel: '삭제', danger: true })) return;
-            const o = await api('admin_item_delete', { item_id: item.id }); if (o.ok) { showToast(o.hidden ? `작품 ${o.used}개에 사용 중이라 숨김 처리했습니다.` : '삭제했습니다.'); await fetchItems(true); refresh(); } else showToast(o.message);
+            const isSeed = String(item.image_url || '').includes('/wappen/seed/');
+            if (!await confirmModal({ title: `'${item.name}' 와펜을 삭제할까요?`, body: isSeed ? '기본 세트 와펜은 영구 삭제되어 [불러오기]로도 돌아오지 않아요(기본 세트 카드 [복원]으로만). 작품에 사용 중이면 숨김 처리됩니다.' : '작품에 사용 중이면 삭제 대신 숨김 처리됩니다.', okLabel: '삭제', danger: true })) return;
+            const o = await api('admin_item_delete', { item_id: item.id });
+            if (o.ok) { showToast(o.hidden ? `작품 ${o.used}개에 사용 중이라 숨김 처리했습니다.` : (o.tombstoned ? '영구 삭제했어요. 기본 세트 불러오기에서도 제외돼요.' : '삭제했습니다.') + (o.needs_migration ? MIGRATION_NOTE : '')); await fetchItems(true); refresh(); } else showToast(o.message);
         }
     };
 }

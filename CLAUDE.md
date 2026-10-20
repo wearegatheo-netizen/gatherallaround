@@ -282,6 +282,10 @@
   요청 승인은 같은 폼을 `prefill.request` 모드로 열어 요청자의 참고 이미지를 기본 선택 → [승인하고 등록] 한 번으로 등록+`admin_request_resolve(approved)`.
 - **기본 와펜 세트 = 자수 패치 30개(래스터, SEED_VERSION 3)**. 코드로 그린 벡터 84개는 2026-10-07 요청으로 목록·`wappen/seed/` 에서 제거(옵트인: `build.mjs` 를 돌리면 다시 렌더·포함).
   DB 에 남은 이전 세트 행은 관리자 카드 [이전 세트 N개 삭제] → `admin_seed_prune`(seed 경로지만 manifest 에 없는 행만 `removeItems()`: 작품에 쓰인 것은 숨김·나머지 삭제; `admin_seed_status.stale`).
+  **기본 세트 와펜 영구 삭제(2026-10-20)**: 관리자가 seed 경로 와펜을 삭제하면(단건 `admin_item_delete`·선택/분류 `admin_items_delete`) 행을 지우지 않고 **`status='deleted'` 묘비**로 남긴다
+  (`removeItems(…, {tombstoneSeed:true})`) — [불러오기](`admin_seed_items`)는 image_url 이 있으면 건너뛰므로 다시 받아지지 않는다. 마이그레이션 `20261020_wappen_item_deleted.sql`(status 체크에 'deleted' 추가) 전이면
+  체크 위반(23514)을 잡아 종전처럼 삭제하고 `needs_migration:true` 를 돌려주며 화면이 토스트로 알린다. 작품에 쓰인 것은 종전처럼 숨김(hidden 행도 image_url 이 있어 재등록 안 됨), 업로드 와펜(items/)은 행 삭제.
+  관리자 목록은 `status!=='deleted'` 만 보이고, 기본 세트 카드에 「영구 삭제한 N개」 + [복원](`admin_seed_restore`: 현재 manifest 에 있는 묘비만 active 로). `admin_seed_status` 는 `select=id,image_url,status`, 응답에 `deleted`.
   벡터 파이프라인(7 카테고리 — 과일 18개는 얼굴 없는 입체 표현: `vol()` 방사 그라데이션+클립 그늘+하이라이트, `ribbon()` 곡선 띠): `tools/wappen-seed/designs.mjs` 에서 코드로 그린 원본 SVG(CC0) → `build.mjs`(Playwright 렌더) + `finish.py`(여백 자르기·256색 팔레트) →
   `wappen/seed/*.png` + `manifest.js`(생성 파일, 서버·클라 공용 import). 관리자 와펜 탭 [기본 와펜 세트 불러오기] → `admin_seed_items`: `image_url` 이
   `https://gatherallaround.com/wappen/seed/<file>` 인 행만 삽입(스토리지 복사 없음, 이미 있으면 건너뜀). `_headers` 가 `/wappen/seed/*` 에 CORS `*`(캔버스 오염 방지).
@@ -317,6 +321,8 @@
 - 모바일(≤640px)은 헤더 메뉴 대신 **하단 탭바**(`.wp-bottom-nav`, SVG 아이콘, 편집 화면에선 숨김). 설치형(PWA, 상태바 black-translucent)·노치 대응은
   `--wp-safe-top/--wp-safe-bottom`(env(safe-area-inset-*))을 헤더·에디터·탭바·시트가 공유. `label.dropzone` 은 반드시 `display:block`(inline 이면 점선 테두리가 깨짐).
   이미지 업로드 UI 가 추가되면 같은 `.dropzone` 클래스를 쓸 것.
+  **iOS 입력 포커스 자동 확대(2026-10-20 "화면이 조금씩 확대됨")**: Safari 는 글자 16px 미만 입력칸에 포커스하면 페이지를 확대하고 되돌리지 않는다 — `@media (hover:none) and (pointer:coarse)` 에서
+  모든 input/select/textarea(`.wp-input`·검색창·`.ed-nudge` X/Y 칸 포함)를 16px 로. 새 입력칸을 더해도 이 규칙이 덮지만 인라인 font-size 는 쓰지 말 것. 캔버스 핀치는 `gesturestart` preventDefault 로 이미 막음.
   **에디터 서랍 타일은 고정 px 정사각(2026-10-20, 세 번 실패 끝)**: iOS Safari 실기기에서 `<button>`+aspect-ratio → `::before { padding-top:100% }` → `div`+aspect-ratio 모두 타일이 주저앉아
   그림·이름이 겹쳤다(Chromium 은 셋 다 정상이라 재현 불가, Playwright WebKit 은 다운로드 차단). 지금은 `.ed-items { --ed-tile: 72px(≤640px 64px) }` 로 열(`repeat(auto-fill, var(--ed-tile))`
   + `justify-content: space-between`)·행(`grid-auto-rows`)·타일(width/height)·그림(width/height = 타일 − 14/26px)을 전부 px 로 못 박고, 타일은 `div[role=button][tabindex=0]`(Enter/Space 는 grid keydown 이 click 으로).

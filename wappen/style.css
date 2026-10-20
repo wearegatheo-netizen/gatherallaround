@@ -398,6 +398,12 @@ body.editing .wp-footer { display: none; }
 .wp-bottom-nav a.primary svg.ico { background: var(--wds-primary); color: #fff; border-radius: 50%; width: 30px; height: 30px; padding: 6px; }
 body.editing .wp-bottom-nav { display: none !important; }
 
+/* iOS Safari 는 글자가 16px 보다 작은 입력칸에 포커스하면 페이지를 확대하고 되돌리지 않는다(2026-10-20 "화면이 조금씩 확대됨" 원인 — 검색창·X/Y 칸·제목 입력 등 0.84~0.92rem).
+   터치 기기에서는 모든 입력칸 글자를 16px 로 — 레이아웃(높이·폭)은 그대로 */
+@media (hover: none) and (pointer: coarse) {
+    input, select, textarea, .wp-input, .wp-textarea, .wp-select, .search-box input, .ed-nudge input.wp-input { font-size: 16px; }
+}
+
 @media (max-width: 640px) {
     :root { --wp-bottom-nav-h: 56px; }
     .wp-header-inner { gap: 8px; padding: 0 12px; }

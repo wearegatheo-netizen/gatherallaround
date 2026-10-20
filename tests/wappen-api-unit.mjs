@@ -366,15 +366,27 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 2), ['wappen_items?id=eq.', { method: 'PATCH', body: [] }]]);
   ({ status, out } = await jrun({ action: 'admin_item_delete', session: S, item_id: IT1 }));
   chk('사용 중인 와펜 삭제 → 숨김 대체', status === 200 && out.hidden === true && out.used === 2);
-  mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 0), ['wappen_items?id=eq.', { method: 'DELETE', body: [] }]]);
+  const UP = 'https://sb.test/storage/v1/object/public/wappen/items/x.png', SEED_URL = 'https://gatherallaround.com/wappen/seed/p-cherry.png';
+  mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 0), ['wappen_items?id=in.(', { method: 'GET', body: [{ id: IT1, image_url: UP }] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
   ({ status, out } = await jrun({ action: 'admin_item_delete', session: S, item_id: IT1 }));
-  chk('미사용 와펜은 삭제', status === 200 && out.hidden === false);
+  chk('미사용 업로드 와펜은 행 삭제', status === 200 && out.hidden === false && out.tombstoned === false && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT1})`)));
+  // 기본 세트 와펜은 행을 지우지 않고 status='deleted' 묘비 — [불러오기]가 다시 넣지 않는다(2026-10-20)
+  mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 0), ['wappen_items?id=in.(', { method: 'GET', body: [{ id: IT1, image_url: SEED_URL }] }], ['wappen_items?id=in.(', { method: 'PATCH', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_item_delete', session: S, item_id: IT1 }));
+  chk('미사용 기본 세트 와펜 → 묘비(status deleted), DELETE 없음', status === 200 && out.tombstoned === true && !out.needs_migration
+    && calls.some(c => c.method === 'PATCH' && c.url.includes(`id=in.(${IT1})`) && c.json.status === 'deleted') && !calls.some(c => c.method === 'DELETE'));
+  mockFetch([SESSION_OK(ADMIN), count('wappen_works?layout=cs.', 0), ['wappen_items?id=in.(', { method: 'GET', body: [{ id: IT1, image_url: SEED_URL }] }],
+    ['wappen_items?id=in.(', { method: 'PATCH', status: 400, body: { code: '23514', message: 'new row for relation "wappen_items" violates check constraint "wappen_items_status_check"' } }],
+    ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_item_delete', session: S, item_id: IT1 }));
+  chk('마이그레이션 전(체크 제약 23514) → 종전처럼 삭제 + needs_migration', status === 200 && out.tombstoned === false && out.needs_migration === true && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT1})`)));
 
   // 일괄 삭제 — 선택 id / 분류 전체. 작품이 참조하는 것은 숨김, 나머지 삭제
   mockFetch([SESSION_OK()]);
   chk('admin_items_delete: 일반 사용자 403', (await jrun({ action: 'admin_items_delete', session: S, item_ids: [IT1] })).status === 403);
   const USED_Q = 'wappen_works?select=layout&or=(';
   mockFetch([SESSION_OK(ADMIN), [USED_Q, { body: [{ layout: { v: 1, items: [{ id: IT1, x: 0.5 }, { id: OTHER }] } }] }],
+    ['wappen_items?id=in.(', { method: 'GET', body: [{ id: IT2, image_url: 'https://sb.test/storage/v1/object/public/wappen/items/y.png' }] }],
     ['wappen_items?id=in.(', { method: 'PATCH', body: [] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
   ({ status, out } = await jrun({ action: 'admin_items_delete', session: S, item_ids: [IT1, IT2.toUpperCase(), IT1] }));
   chk('선택 삭제: 사용 중(IT1) 숨김·미사용(IT2) 삭제·중복 id 제거', status === 200 && out.deleted === 1 && out.hidden === 1 && out.used_ids.join() === IT1
@@ -419,7 +431,7 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK()]);
   chk('일반 사용자 admin_seed_items → 403', (await jrun({ action: 'admin_seed_items', session: S })).status === 403);
   let inserted;
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url&limit=5000', { body: [{ image_url: SEED_BASE + SEED_ITEMS[0].file }, { image_url: SEED_BASE + SEED_ITEMS[1].file }, { image_url: 'https://sb.test/storage/v1/object/public/wappen/items/x.png' }] }],
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url', { body: [{ image_url: SEED_BASE + SEED_ITEMS[0].file }, { image_url: SEED_BASE + SEED_ITEMS[1].file }, { image_url: 'https://sb.test/storage/v1/object/public/wappen/items/x.png' }] }],
     ['wappen_items', { method: 'POST', body: (rec) => { inserted = rec.json; return []; } }]]);
   let { status, out } = await jrun({ action: 'admin_seed_status', session: S });
   chk('admin_seed_status: 설치 2·미설치 N-2', status === 200 && out.total === SEED_ITEMS.length && out.installed === 2 && out.missing === SEED_ITEMS.length - 2);
@@ -427,12 +439,12 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   chk('admin_seed_items: 없는 것만 한 번에 insert', status === 200 && out.added === SEED_ITEMS.length - 2 && out.skipped === 2 && Array.isArray(inserted) && inserted.length === SEED_ITEMS.length - 2);
   chk('seed 행: 정적 URL·크기·태그·작성자', inserted.every(r => r.image_url.startsWith(SEED_BASE) && r.width_px > 0 && r.height_px > 0 && Array.isArray(r.tags) && r.created_by === ADM && r.name && r.category)
     && !inserted.some(r => r.image_url === SEED_BASE + SEED_ITEMS[0].file));
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url&limit=5000', { body: SEED_ITEMS.map(it => ({ image_url: SEED_BASE + it.file })) }]]);
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url', { body: SEED_ITEMS.map(it => ({ image_url: SEED_BASE + it.file })) }]]);
   ({ status, out } = await jrun({ action: 'admin_seed_items', session: S }));
   chk('모두 설치됨 → insert 없이 added 0', status === 200 && out.added === 0 && !calls.some(c => c.method === 'POST' && c.url.endsWith('/wappen_items')));
   // 이전 기본 세트 정리 — seed 경로지만 현재 목록에 없는 행만 (사용 중은 숨김), 현재 세트·업로드 와펜은 무관
   const ROWS = [{ id: IT1, image_url: SEED_BASE + 'old-star.png' }, { id: IT2, image_url: SEED_BASE + 'old-heart.png' }, { id: OTHER, image_url: SEED_BASE + SEED_ITEMS[0].file }, { id: PID, image_url: 'https://sb.test/storage/v1/object/public/wappen/items/x.png' }];
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url&limit=5000', { body: ROWS }], ['wappen_works?select=layout&or=(', { body: [{ layout: { v: 1, items: [{ id: IT1 }] } }] }],
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url', { body: ROWS }], ['wappen_works?select=layout&or=(', { body: [{ layout: { v: 1, items: [{ id: IT1 }] } }] }],
     ['wappen_items?id=in.(', { method: 'PATCH', body: [] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
   ({ status, out } = await jrun({ action: 'admin_seed_status', session: S }));
   chk('admin_seed_status: 이전 세트 stale 2·설치 1', status === 200 && out.stale === 2 && out.installed === 1);
@@ -440,8 +452,24 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   chk('admin_seed_prune: 사용 중 1 숨김·1 삭제, 현재 세트·업로드 와펜은 안 건드림', status === 200 && out.deleted === 1 && out.hidden === 1
     && calls.some(c => c.method === 'PATCH' && c.url.includes(`id=in.(${IT1})`)) && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT2})`))
     && !calls.some(c => c.url.includes(OTHER) || c.url.includes(PID)));
-  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url&limit=5000', { body: [ROWS[2]] }]]);
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url', { body: [ROWS[2]] }]]);
   chk('이전 세트 없음 → 0건, 삭제 요청 없음', (await jrun({ action: 'admin_seed_prune', session: S })).out.deleted === 0 && calls.length === 2);
+  // 영구 삭제(묘비) — status 'deleted' 인 현재 세트 행은 설치된 것으로 세어 [불러오기]가 건너뛰고, 카드엔 deleted 로 따로 보이며 [복원]이 active 로 되돌린다
+  const TOMB = [{ id: IT1, image_url: SEED_BASE + SEED_ITEMS[0].file, status: 'deleted' }, { id: IT2, image_url: SEED_BASE + SEED_ITEMS[1].file, status: 'active' }, { id: OTHER, image_url: SEED_BASE + 'old-star.png', status: 'deleted' }];
+  mockFetch([SESSION_OK(ADMIN), ['wappen_items?select=id,image_url', { body: TOMB }], ['wappen_items?id=in.(', { method: 'PATCH', body: [] }], ['wappen_items', { method: 'POST', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_seed_status', session: S }));
+  chk('admin_seed_status: 묘비 1(현재 세트만)·설치 2·이전 세트 1', status === 200 && out.deleted === 1 && out.installed === 2 && out.stale === 1 && out.missing === SEED_ITEMS.length - 2);
+  ({ status, out } = await jrun({ action: 'admin_seed_items', session: S }));
+  chk('admin_seed_items: 묘비 행은 다시 넣지 않음', status === 200 && !calls.some(c => c.method === 'POST' && c.json && c.json.some(r => r.image_url === SEED_BASE + SEED_ITEMS[0].file)));
+  ({ status, out } = await jrun({ action: 'admin_seed_restore', session: S }));
+  chk('admin_seed_restore: 현재 세트 묘비만 active 로', status === 200 && out.restored === 1 && calls.some(c => c.method === 'PATCH' && c.url.includes(`id=in.(${IT1})`) && c.json.status === 'active') && !calls.some(c => c.url.includes(OTHER)));
+  // 일괄 삭제에 기본 세트·업로드 와펜이 섞이면: 세트는 묘비, 업로드는 삭제
+  mockFetch([SESSION_OK(ADMIN), ['wappen_works?select=layout&or=(', { body: [] }],
+    ['wappen_items?id=in.(', { method: 'GET', body: [{ id: IT1, image_url: SEED_BASE + SEED_ITEMS[0].file }, { id: IT2, image_url: 'https://sb.test/storage/v1/object/public/wappen/items/y.png' }] }],
+    ['wappen_items?id=in.(', { method: 'PATCH', body: [] }], ['wappen_items?id=in.(', { method: 'DELETE', body: [] }]]);
+  ({ status, out } = await jrun({ action: 'admin_items_delete', session: S, item_ids: [IT1, IT2] }));
+  chk('선택 삭제: 기본 세트 1 묘비·업로드 1 삭제', status === 200 && out.tombstoned === 1 && out.deleted === 1 && out.hidden === 0
+    && calls.some(c => c.method === 'PATCH' && c.url.includes(`id=in.(${IT1})`) && c.json.status === 'deleted') && calls.some(c => c.method === 'DELETE' && c.url.includes(`id=in.(${IT2})`)));
 }
 // ── 11. 기타
 {

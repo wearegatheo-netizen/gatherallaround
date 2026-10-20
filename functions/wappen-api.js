@@ -225,18 +225,41 @@ async function usedItemIds(env, ids) {
 }
 
 // 와펜 여러 개 제거 — 작품 레이아웃이 참조하는 것은 숨김, 나머지 삭제 (일괄 삭제·이전 기본 세트 정리 공용). 실패는 throw.
-async function removeItems(env, ids) {
-    const used = await usedItemIds(env, ids);
-    const toHide = ids.filter(id => used.has(id)), toDel = ids.filter(id => !used.has(id));
+// tombstoneSeed: 기본 세트(seed 경로) 와펜은 행을 지우지 않고 status='deleted' 묘비로 남긴다(2026-10-20) — [불러오기]가 같은 image_url 을 보고 다시 넣지 않도록.
+//   status 체크 제약이 아직 'deleted' 를 모르면(마이그레이션 20261020_wappen_item_deleted.sql 미적용, 23514) 종전처럼 삭제하고 needs_migration 을 돌려준다.
+async function removeItems(env, ids, { tombstoneSeed = false, urls = null, skipUsedCheck = false } = {}) {
+    const used = skipUsedCheck ? new Set() : await usedItemIds(env, ids);
+    const toHide = ids.filter(id => used.has(id)), rest = ids.filter(id => !used.has(id));
     for (let i = 0; i < toHide.length; i += 50) {
         const r = await sbFetch(env, `wappen_items?id=in.(${toHide.slice(i, i + 50).join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'hidden' }) });
         if (!r.ok) throw new Error('hide failed: ' + r.status + ' ' + await sbDetail(r));
+    }
+    let toDel = rest, toTomb = [], needsMigration = false;
+    if (tombstoneSeed && rest.length) {
+        if (!urls) {
+            urls = new Map();
+            for (let i = 0; i < rest.length; i += 50) {
+                const r = await sbFetch(env, `wappen_items?id=in.(${rest.slice(i, i + 50).join(',')})&select=id,image_url`);
+                if (!r.ok) throw new Error('items lookup failed: ' + r.status + ' ' + await sbDetail(r));
+                for (const x of await r.json()) urls.set(x.id, x.image_url);
+            }
+        }
+        toTomb = rest.filter(id => String(urls.get(id) || '').startsWith(SEED_BASE)); toDel = rest.filter(id => !toTomb.includes(id));
+        for (let i = 0; i < toTomb.length; i += 50) {
+            const part = toTomb.slice(i, i + 50);
+            const r = await sbFetch(env, `wappen_items?id=in.(${part.join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'deleted' }) });
+            if (r.ok) continue;
+            const detail = await sbDetail(r);
+            if (!/23514|status_check/.test(detail)) throw new Error('tombstone failed: ' + r.status + ' ' + detail);
+            needsMigration = true; toDel = toDel.concat(part);   // 제약이 'deleted' 를 모름 → 종전처럼 삭제
+        }
+        if (needsMigration) toTomb = toTomb.filter(id => !toDel.includes(id));
     }
     for (let i = 0; i < toDel.length; i += 50) {
         const r = await sbFetch(env, `wappen_items?id=in.(${toDel.slice(i, i + 50).join(',')})`, { method: 'DELETE' });
         if (!r.ok) throw new Error('delete failed: ' + r.status + ' ' + await sbDetail(r));
     }
-    return { deleted: toDel.length, hidden: toHide.length, used_ids: toHide };
+    return { deleted: toDel.length, hidden: toHide.length, tombstoned: toTomb.length, needs_migration: needsMigration, used_ids: toHide };
 }
 
 async function getOne(env, table, id, select = '*') {
@@ -606,19 +629,28 @@ export async function onRequest(context) {
             return json({ ok: true, pending_requests: pending, open_reports: open, users, items });
         }
 
-        if (action === 'admin_seed_status' || action === 'admin_seed_prune') {
-            const r = await sbFetch(env, 'wappen_items?select=id,image_url&limit=5000');
+        if (action === 'admin_seed_status' || action === 'admin_seed_prune' || action === 'admin_seed_restore') {
+            const r = await sbFetch(env, 'wappen_items?select=id,image_url,status&limit=5000');
             if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
             const rows = await r.json(), have = new Set(rows.map(x => x.image_url)), files = new Set(SEED_ITEMS.map(it => SEED_BASE + it.file));
             const missing = SEED_ITEMS.filter(it => !have.has(SEED_BASE + it.file)).length;
             // 이전 기본 세트: 우리 seed 경로의 이미지지만 현재 목록(manifest)에 없는 행 — [이전 세트 삭제](admin_seed_prune)로 정리. 업로드 와펜(items/)은 무관.
             const stale = rows.filter(x => String(x.image_url || '').startsWith(SEED_BASE) && !files.has(x.image_url)).map(x => x.id);
+            // 영구 삭제(묘비): 현재 목록의 seed 행인데 status='deleted' — [불러오기]가 건너뛴다. [복원](admin_seed_restore)으로 되살림.
+            const deleted = rows.filter(x => x.status === 'deleted' && files.has(x.image_url)).map(x => x.id);
             if (action === 'admin_seed_prune') {
                 if (!stale.length) return json({ ok: true, deleted: 0, hidden: 0, used_ids: [] });
                 try { return json({ ok: true, ...(await removeItems(env, stale)) }); }
                 catch (e) { return fail(500, 'db', '삭제하지 못했습니다.', { detail: String(e.message || e) }); }
             }
-            return json({ ok: true, version: SEED_VERSION, total: SEED_ITEMS.length, installed: SEED_ITEMS.length - missing, missing, stale: stale.length });
+            if (action === 'admin_seed_restore') {
+                for (let i = 0; i < deleted.length; i += 50) {
+                    const p = await sbFetch(env, `wappen_items?id=in.(${deleted.slice(i, i + 50).join(',')})`, { method: 'PATCH', body: JSON.stringify({ status: 'active' }) });
+                    if (!p.ok) return fail(500, 'db', '복원하지 못했습니다.', { detail: await sbDetail(p) });
+                }
+                return json({ ok: true, restored: deleted.length });
+            }
+            return json({ ok: true, version: SEED_VERSION, total: SEED_ITEMS.length, installed: SEED_ITEMS.length - missing, missing, stale: stale.length, deleted: deleted.length });
         }
 
         if (action === 'admin_seed_items') {
@@ -678,25 +710,25 @@ export async function onRequest(context) {
                 if (!r.ok) return fail(500, 'db', '처리하지 못했습니다.', { detail: await sbDetail(r) });
                 return json({ ok: true, hidden: true, used });
             }
-            const r = await sbFetch(env, `wappen_items?id=eq.${body.item_id}`, { method: 'DELETE' });
-            if (!r.ok) return fail(500, 'db', '삭제하지 못했습니다.', { detail: await sbDetail(r) });
-            return json({ ok: true, hidden: false });
+            // 기본 세트 와펜은 묘비(status 'deleted')로 영구 삭제, 업로드 와펜은 행 삭제
+            try { const o = await removeItems(env, [body.item_id], { tombstoneSeed: true, skipUsedCheck: true }); return json({ ok: true, hidden: false, tombstoned: o.tombstoned > 0, needs_migration: o.needs_migration }); }
+            catch (e) { return fail(500, 'db', '삭제하지 못했습니다.', { detail: String(e.message || e) }); }
         }
 
-        // 여러 와펜 한 번에 — 선택한 id 목록 또는 분류 전체. 작품에 쓰인 것은 숨김, 나머지는 삭제 (단건 admin_item_delete 와 같은 규칙)
+        // 여러 와펜 한 번에 — 선택한 id 목록 또는 분류 전체. 작품에 쓰인 것은 숨김, 기본 세트는 묘비(영구 삭제), 나머지는 삭제 (단건 admin_item_delete 와 같은 규칙)
         if (action === 'admin_items_delete') {
-            let ids;
+            let ids, urls = null;
             const category = body.category != null ? str(body.category, LIMITS.category) : '';
             if (category) {
-                const r = await sbFetch(env, `wappen_items?category=eq.${encodeURIComponent(category)}&select=id&limit=1000`);
+                const r = await sbFetch(env, `wappen_items?category=eq.${encodeURIComponent(category)}&status=neq.deleted&select=id,image_url&limit=1000`);
                 if (!r.ok) return fail(500, 'db', '불러오지 못했습니다.', { detail: await sbDetail(r) });
-                ids = (await r.json()).map(x => x.id);
+                const rows = await r.json(); ids = rows.map(x => x.id); urls = new Map(rows.map(x => [x.id, x.image_url]));
             } else {
                 ids = Array.isArray(body.item_ids) ? [...new Set(body.item_ids.map(x => String(x || '').toLowerCase()))] : [];
                 if (!ids.length || ids.length > 500 || !ids.every(isUuid)) return fail(400, 'bad_ids', '삭제할 와펜을 선택해주세요. (한 번에 500개까지)');
             }
-            if (!ids.length) return json({ ok: true, deleted: 0, hidden: 0, used_ids: [] });
-            try { return json({ ok: true, ...(await removeItems(env, ids)) }); }
+            if (!ids.length) return json({ ok: true, deleted: 0, hidden: 0, tombstoned: 0, used_ids: [] });
+            try { return json({ ok: true, ...(await removeItems(env, ids, { tombstoneSeed: true, urls })) }); }
             catch (e) { return fail(500, 'db', '삭제하지 못했습니다.', { detail: String(e.message || e) }); }
         }
 
