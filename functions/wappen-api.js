@@ -212,6 +212,13 @@ async function uniqueTitle(env, table, base, { extra = '', exclude = null } = {}
     for (let n = 2; n < 1000; n++) { const cand = `${base.slice(0, LIMITS.title - String(n).length - 3)} (${n})`; if (!taken.has(titleKey(cand))) return cand; }
     return `${base.slice(0, LIMITS.title - 7)} ${Date.now() % 1e6}`;
 }
+// 작성자 표시명 복제 컬럼(프로젝트·작품 author_name) 동기화 — 닉네임이 바뀔 때(관리자 직접 변경·일반 사용자 카카오 동기화). 실패는 무시(다음 변경 때 다시 맞춰짐)
+async function syncAuthorName(env, userId, nickname) {
+    await Promise.all([
+        sbFetch(env, `wappen_projects?owner_id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ author_name: nickname }) }),
+        sbFetch(env, `wappen_works?author_id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ author_name: nickname }) }),
+    ]).catch(() => {});
+}
 // 작품 레이아웃이 참조하는 와펜 id 들 — or=(layout.cs.{…},…) 로 한 요청에 30개씩 (단일 항목 JSON 엔 쉼표·괄호가 없어 or 파서에 안전)
 async function usedItemIds(env, ids) {
     const used = new Set(), want = new Set(ids);
@@ -334,11 +341,14 @@ export async function onRequest(context) {
             if (!r0.ok) return fail(500, 'db', '로그인 처리에 실패했습니다.', { detail: await sbDetail(r0) });
             let user = (await r0.json())[0];
             if (user) {
-                // 사용자가 바꾼 닉네임은 유지, 프로필 사진·마지막 로그인만 갱신
+                // 일반 사용자의 이름은 카카오 프로필을 그대로 따른다(2026-10-20, 로그인마다 동기화) — 직접 바꾼 이름을 유지하는 건 관리자(is_admin·백스톱 ID)뿐. 프로필 사진·마지막 로그인도 갱신
                 const patch = { last_login_at: nowIso() };
                 if (kk.avatar && kk.avatar !== user.avatar_url) patch.avatar_url = kk.avatar;
+                const kkName = str(kk.nickname, LIMITS.nickname);
+                if (!(user.is_admin || kk.id === ADMIN_KAKAO_ID) && kkName && kkName !== user.nickname) patch.nickname = kkName;
                 const r1 = await sbFetch(env, `wappen_users?id=eq.${user.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch) });
                 if (r1.ok) user = (await r1.json())[0] || user;
+                if (patch.nickname && r1.ok) await syncAuthorName(env, user.id, patch.nickname);
             } else {
                 const nickname = str(kk.nickname, LIMITS.nickname) || '와펜 친구';
                 const r1 = await sbFetch(env, 'wappen_users', {
@@ -375,15 +385,13 @@ export async function onRequest(context) {
         }
 
         if (action === 'me_update') {
+            // 이름 직접 변경은 관리자만(2026-10-20) — 일반 사용자는 카카오 프로필 이름을 그대로(로그인 때 동기화)
+            if (!isAdmin) return fail(403, 'forbidden', '이름은 카카오 프로필을 그대로 사용해요. 카카오에서 이름을 바꾸면 다음 로그인 때 반영됩니다.');
             const nickname = str(body.nickname, LIMITS.nickname);
             if (nickname.length < 1) return fail(400, 'bad_nickname', `닉네임은 1~${LIMITS.nickname}자로 입력해주세요.`);
             const r = await sbFetch(env, `wappen_users?id=eq.${me.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ nickname }) });
             if (!r.ok) return fail(500, 'db', '저장하지 못했습니다.', { detail: await sbDetail(r) });
-            // 표시용 복제 동기화
-            await Promise.all([
-                sbFetch(env, `wappen_projects?owner_id=eq.${me.id}`, { method: 'PATCH', body: JSON.stringify({ author_name: nickname }) }),
-                sbFetch(env, `wappen_works?author_id=eq.${me.id}`, { method: 'PATCH', body: JSON.stringify({ author_name: nickname }) }),
-            ]).catch(() => {});
+            await syncAuthorName(env, me.id, nickname);
             return json({ ok: true, user: pubUser((await r.json())[0] || { ...me, nickname }) });
         }
 

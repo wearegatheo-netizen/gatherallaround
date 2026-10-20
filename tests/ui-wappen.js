@@ -315,6 +315,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     chk('카탈로그: 와펜 2개·카테고리 칩', await p.locator('.item-card').count() === 2 && await p.locator('.chips .chip').count() === 3);
     await p.goto(`${BASE}/wappen/#/me`); await p.waitForSelector('.tabs');
     chk('내 페이지: my_content 호출', await p.evaluate(() => window.__apiCalls.some(c => c.action === 'my_content')));
+    chk('내 페이지: 일반 사용자는 닉네임 변경 버튼 없음 + 카카오 프로필 안내', await p.locator('[data-act="nick"]').count() === 0 && (await p.locator('.profile-name').locator('..').innerText()).includes('카카오 프로필'));
     await p.goto(`${BASE}/wappen/#/admin`); await p.waitForSelector('.empty');
     chk('관리자: 일반 사용자 접근 거절', (await p.locator('.empty').innerText()).includes('관리자만'));
     // 쿼리 진입 → 해시 치환

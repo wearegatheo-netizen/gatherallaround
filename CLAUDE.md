@@ -237,6 +237,8 @@
 - **계정**: 전용 `wappen_users`(카카오 로그인 즉시 이용, 승인 없음). 관리자 = 카카오 ID `4883868250` 백스톱 + `is_admin`.
   **세션**: `login {kakao_token}` 1회 kapi 검증 → 서버 발급 토큰 30일(DB 엔 sha256 해시, `wappen_sessions`) → `localStorage.wappen_session`.
   인앱 브라우저 리다이렉트 복귀는 `sessionStorage.wappen_return` 마커로 자동 로그인.
+  **이름(닉네임)은 카카오 프로필 그대로(2026-10-20)**: `login` 이 기존 일반 사용자의 nickname 을 카카오 이름과 다르면 동기화(+`syncAuthorName` 으로 프로젝트·작품 `author_name` 복제 갱신),
+  `me_update` 는 관리자(is_admin·백스톱 ID)만 허용(403) — 관리자만 직접 바꾼 이름을 유지. 내 페이지의 닉네임 변경 버튼도 관리자에게만, 일반 사용자는 「이름은 카카오 프로필을 따라요」 안내.
 - **쓰기는 전부 `functions/wappen-api.js`**(service role, `{action, session}`; 우리 출처 아니면 403). 읽기는 anon(RLS `status='active'`) + RPC `wappen_ranking`.
   `wappen_users/sessions/reactions/item_requests/reports` 는 anon 정책 없음. 작성자 표시명은 `author_name/author_avatar` 복제(뷰 join 없음, 닉네임 변경 시 서버가 함께 PATCH).
   집계는 트리거(`reaction_count/reaction_counts`, `works_count`) — 클라 read-then-write 금지.

@@ -115,17 +115,33 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   const sess = calls.find(c => c.method === 'POST' && c.url.endsWith('/wappen_sessions'));
   chk('세션 행은 sha256 해시만 저장', sess && sess.json.token_hash === await sha(o1.session) && sess.json.user_id === UID);
 
-  // 기존 사용자: PATCH 만 (닉네임 유지), 차단은 403
+  // 기존 일반 사용자: 이름은 카카오 프로필을 따른다(2026-10-20) — 다르면 nickname 동기화 + 복제 컬럼(author_name) 갱신, insert 없음
   let patched;
+  const SYNC_ROUTES = [['wappen_projects?owner_id=eq.', { method: 'PATCH', body: [] }], ['wappen_works?author_id=eq.', { method: 'PATCH', body: [] }]];
   mockFetch([RL, KAPI_OK,
     ['wappen_users?kakao_id=eq.777', { body: [{ ...USER, nickname: '내가바꾼이름' }] }],
     ['wappen_users?id=eq.', { method: 'PATCH', body: (rec) => { patched = rec.json; return [{ ...USER, nickname: '내가바꾼이름', ...rec.json }]; } }],
     ['wappen_sessions', { method: 'POST', body: [] }],
-    ['wappen_sessions?user_id=eq.', { method: 'DELETE', body: [] }],
+    ['wappen_sessions?user_id=eq.', { method: 'DELETE', body: [] }], ...SYNC_ROUTES,
   ]);
   ({ status: s1, out: o1 } = await jrun({ action: 'login', kakao_token: 'good' }));
-  chk('기존 사용자: PATCH 에 nickname 없음(사용자 설정 유지)', s1 === 200 && patched && !('nickname' in patched) && 'last_login_at' in patched && o1.user.nickname === '내가바꾼이름');
+  chk('기존 일반 사용자: 카카오 이름으로 동기화(nickname PATCH + author_name 복제 2건)', s1 === 200 && patched && patched.nickname === '길동' && 'last_login_at' in patched && o1.user.nickname === '길동'
+    && calls.some(c => c.method === 'PATCH' && c.url.includes('wappen_projects?owner_id=eq.') && c.json.author_name === '길동') && calls.some(c => c.method === 'PATCH' && c.url.includes('wappen_works?author_id=eq.')));
   chk('기존 사용자: POST insert 없음', !calls.some(c => c.method === 'POST' && c.url.endsWith('/wappen_users')));
+  mockFetch([RL, KAPI_OK,
+    ['wappen_users?kakao_id=eq.777', { body: [{ ...USER, nickname: '길동' }] }],
+    ['wappen_users?id=eq.', { method: 'PATCH', body: (rec) => { patched = rec.json; return [{ ...USER, ...rec.json }]; } }],
+    ['wappen_sessions', { method: 'POST', body: [] }], ['wappen_sessions?user_id=eq.', { method: 'DELETE', body: [] }],
+  ]);
+  await jrun({ action: 'login', kakao_token: 'good' });
+  chk('기존 일반 사용자: 이름이 같으면 nickname·복제 PATCH 없음', patched && !('nickname' in patched) && !calls.some(c => c.url.includes('wappen_projects?owner_id=eq.')));
+  mockFetch([RL, KAPI_OK,
+    ['wappen_users?kakao_id=eq.777', { body: [{ ...USER, nickname: '게더링 운영자', is_admin: true }] }],
+    ['wappen_users?id=eq.', { method: 'PATCH', body: (rec) => { patched = rec.json; return [{ ...USER, nickname: '게더링 운영자', is_admin: true, ...rec.json }]; } }],
+    ['wappen_sessions', { method: 'POST', body: [] }], ['wappen_sessions?user_id=eq.', { method: 'DELETE', body: [] }],
+  ]);
+  ({ status: s1, out: o1 } = await jrun({ action: 'login', kakao_token: 'good' }));
+  chk('기존 관리자: 직접 바꾼 이름 유지(nickname PATCH 없음)', s1 === 200 && patched && !('nickname' in patched) && o1.user.nickname === '게더링 운영자');
 
   mockFetch([RL, KAPI_OK, ['wappen_users?kakao_id=eq.777', { body: [{ ...USER, is_banned: true }] }], ['wappen_users?id=eq.', { method: 'PATCH', body: [{ ...USER, is_banned: true }] }]]);
   ({ status: s1, out: o1 } = await jrun({ action: 'login', kakao_token: 'good' }));
@@ -163,11 +179,13 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(), ['wappen_sessions?token_hash=eq.', { method: 'DELETE', body: [] }]]);
   chk('logout → 세션 DELETE', (await jrun({ action: 'logout', session: S })).status === 200 && calls.some(c => c.method === 'DELETE' && c.url.includes('wappen_sessions?token_hash=eq.')));
 
-  mockFetch([SESSION_OK(), ['wappen_users?id=eq.', { method: 'PATCH', body: (rec) => [{ ...USER, ...rec.json }] }],
+  mockFetch([SESSION_OK()]);
+  chk('me_update: 일반 사용자는 403(이름은 카카오 프로필 그대로)', (await jrun({ action: 'me_update', session: S, nickname: '새이름' })).status === 403 && !calls.some(c => c.method === 'PATCH'));
+  mockFetch([SESSION_OK(ADMIN), ['wappen_users?id=eq.', { method: 'PATCH', body: (rec) => [{ ...ADMIN, ...rec.json }] }],
     ['wappen_projects?owner_id=eq.', { method: 'PATCH', body: [] }], ['wappen_works?author_id=eq.', { method: 'PATCH', body: [] }]]);
   const mu = await jrun({ action: 'me_update', session: S, nickname: '  새이름  ' });
-  chk('me_update: 닉네임 trim·복제 컬럼 동기화', mu.out.user.nickname === '새이름' && calls.filter(c => c.method === 'PATCH').length === 3);
-  chk('me_update: 빈 닉네임 400', (await jrun({ action: 'me_update', session: S, nickname: '  ' })).status === 400);
+  chk('me_update(관리자): 닉네임 trim·복제 컬럼 동기화', mu.out.user.nickname === '새이름' && calls.filter(c => c.method === 'PATCH').length === 3);
+  chk('me_update(관리자): 빈 닉네임 400', (await jrun({ action: 'me_update', session: S, nickname: '  ' })).status === 400);
 }
 // ── 5. 업로드 서명
 {
