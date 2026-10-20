@@ -39,6 +39,45 @@ const normCode = v => {
     const c = String(v || '').trim().toUpperCase();
     return /^[A-HJ-NP-Z2-9]{6}$/.test(c) ? c : null;
 };
+// ── 티켓 양도 링크(2026-10-20): 토큰 24자(예매번호와 같은 charset), DB 에는 sha256 해시만. 48시간·1회용 ──
+const TRANSFER_TTL_MS = 48 * 3600e3;
+const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(24)); return [...b].map(x => CODE_CHARS[x % CODE_CHARS.length]).join(''); };
+const normToken = v => { const t = String(v || '').trim().toUpperCase(); return /^[A-HJ-NP-Z2-9]{24}$/.test(t) ? t : null; };
+async function sha256Hex(str) {
+    const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+const maskName = n => { const t = String(n || '').trim(); if (t.length <= 1) return t; if (t.length === 2) return t[0] + '*'; return t[0] + '*'.repeat(t.length - 2) + t[t.length - 1]; };
+const TRANSFER_SEL = 'seat_code,seat_no,status,to_name,expires_at,claimed_at,created_at';
+// 티켓의 양도 현황(대기·완료). 대기인데 만료가 지난 건 expired 로 표시(DB 는 lazy). 테이블이 없거나 실패하면 빈 배열(옛 데이터 호환).
+async function listTransfers(env, ticketId) {
+    try {
+        const r = await sbFetch(env, `event_ticket_transfers?ticket_id=eq.${ticketId}&status=in.(pending,claimed)&select=${TRANSFER_SEL}&order=created_at.desc`);
+        if (!r.ok) return [];
+        const now = Date.now();
+        return (await r.json()).map(x => ({ ...x, status: x.status === 'pending' && new Date(x.expires_at).getTime() < now ? 'expired' : x.status, to_name: x.to_name ? maskName(x.to_name) : null }));
+    } catch (_) { return []; }
+}
+// 좌석·예매 취소 때 걸려 있던 양도 링크 정리(best effort)
+function voidPendingTransfers(env, ticketId, seatCode) {
+    const q = `event_ticket_transfers?ticket_id=eq.${ticketId}&status=eq.pending` + (seatCode ? `&seat_code=eq.${seatCode}` : '');
+    return sbFetch(env, q, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }) }).catch(() => {});
+}
+// 양도로 원 예매 매수 −1 (조건부 PATCH 재시도). closeIfEmpty = 활성 좌석이 하나도 안 남는 합치기 경로 → qty 는 1 미만이 될 수 없어 예매를 닫는다
+async function decrementQtyForTransfer(env, ticketId, closeIfEmpty) {
+    const nowIso = new Date().toISOString();
+    if (closeIfEmpty) {
+        await sbFetch(env, `event_tickets?id=eq.${ticketId}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled', cancelled_at: nowIso, cancelled_by: 'buyer', transferred_at: nowIso }) }).catch(() => {});
+        return;
+    }
+    for (let i = 0; i < 3; i++) {
+        const qr = await sbFetch(env, `event_tickets?id=eq.${ticketId}&select=qty,status`);
+        const [cur] = qr.ok ? await qr.json() : [];
+        if (!cur || cur.qty <= 1) break;
+        const dq = await sbFetch(env, `event_tickets?id=eq.${ticketId}&qty=eq.${cur.qty}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ qty: cur.qty - 1 }) });
+        if (dq.ok && (await dq.json().catch(() => [])).length) break;
+    }
+}
 
 function sbFetch(env, pathQuery, opts = {}) {
     return fetch(`${env.SUPABASE_URL}/rest/v1/${pathQuery}`, {
@@ -66,7 +105,7 @@ async function findTicketByCodePhone(env, code, phone) {
 // ── 매수별 QR: 티켓(qty N)의 좌석 N개 보장 — 1번 좌석 코드 = 예매번호, 없거나 모자라면 생성 ──
 async function ensureSeats(env, ticket) {
     const fetchSeats = async () => {
-        const r = await sbFetch(env, `event_ticket_seats?ticket_id=eq.${ticket.id}&select=code,seat_no,checked_in_at,cancelled_at&order=seat_no.asc`);
+        const r = await sbFetch(env, `event_ticket_seats?ticket_id=eq.${ticket.id}&select=code,seat_no,checked_in_at,cancelled_at,transferred_from_name&order=seat_no.asc`);
         return r.ok ? await r.json() : [];
     };
     let seats = await fetchSeats();
@@ -92,6 +131,7 @@ async function cancelSeatFlow(env, seat, t, by) {
     if (t.status === 'cancelled') return { status: 409, body: { ok: false, error: 'cancelled', message: '이미 취소된 예매입니다.' } };
     if (seat.cancelled_at) return { status: 409, body: { ok: false, error: 'seat_cancelled', message: '이미 취소된 티켓입니다.' } };
     if (seat.checked_in_at) return { status: 409, body: { ok: false, error: 'checked_in', message: '입장한 티켓은 취소할 수 없습니다.' } };
+    if (seat.transferred_from_name && by === 'buyer') return { status: 409, body: { ok: false, error: 'transferred', message: '양도받은 티켓은 직접 취소할 수 없어요. 호스트에게 문의해주세요.' } };
     if (t.status !== 'pending_payment' && t.status !== 'confirmed') {
         return { status: 409, body: { ok: false, error: 'conflict', message: '취소할 수 없는 상태입니다.' } };
     }
@@ -114,6 +154,7 @@ async function cancelSeatFlow(env, seat, t, by) {
         }
         await sbFetch(env, `event_ticket_seats?code=eq.${seat.code}`, {
             method: 'PATCH', body: JSON.stringify({ cancelled_at: nowIso }) }).catch(() => {});
+        await voidPendingTransfers(env, t.id);
         return { status: 200, body: { ok: true, ...(await refetch()) } };
     }
     // 좌석 취소 표시 (미입장·미취소 조건부 — 경합 시 0행 → 409)
@@ -134,6 +175,7 @@ async function cancelSeatFlow(env, seat, t, by) {
             body: JSON.stringify({ qty: Math.max(1, cur.qty - 1) }),
         });
         if (dq.ok && (await dq.json().catch(() => [])).length) {
+            await voidPendingTransfers(env, t.id, seat.code);
             return { status: 200, body: { ok: true, ...(await refetch()) } };
         }
     }
@@ -429,7 +471,7 @@ export async function onRequest(context) {
             if (!t) return fail(404, 'not_found', '일치하는 예매가 없습니다. 예매번호와 전화번호를 확인해주세요.');
             const { events: ev, ...ticket } = t;
             const seats = await ensureSeats(env, ticket); // 매수별 QR — 과거 예매도 여기서 좌석 보충
-            return json({ ok: true, ticket, event: ev, seats });
+            return json({ ok: true, ticket, event: ev, seats, transfers: await listTransfers(env, ticket.id) });
         }
 
         // ── 공개: 관객 직접 취소 ───────────────────────────────────
@@ -443,6 +485,12 @@ export async function onRequest(context) {
             if (t.events && new Date(t.events.starts_at) <= new Date()) {
                 return fail(409, 'started', '공연 시작 후에는 취소할 수 없습니다. 호스트에게 문의해주세요.');
             }
+            // 양도받은 티켓(예매 단위·합쳐진 좌석)은 받는 사람이 직접 취소 불가 — 환불은 호스트와 (2026-10-20)
+            if (t.transferred_from_name) return fail(409, 'transferred', '양도받은 티켓은 직접 취소할 수 없어요. 호스트에게 문의해주세요.');
+            try {
+                const { events: _e, ...tk } = t;
+                if ((await ensureSeats(env, tk)).some(s => !s.cancelled_at && s.transferred_from_name)) return fail(409, 'transferred', '양도받은 티켓이 포함되어 있어 직접 취소할 수 없어요. 호스트에게 문의해주세요.');
+            } catch (_) { /* 좌석 조회 실패는 취소를 막지 않는다 */ }
             // 조건부 PATCH — 이미 취소된 건은 갱신 0행 → 409
             const r = await sbFetch(env,
                 `event_tickets?id=eq.${t.id}&status=in.(pending_payment,confirmed)&checked_in_at=is.null`,
@@ -452,6 +500,7 @@ export async function onRequest(context) {
                 detail: (await r.text().catch(() => '')).slice(0, 300) }, 502);
             const rows = await r.json().catch(() => []);
             if (!Array.isArray(rows) || rows.length === 0) return fail(409, 'not_cancellable', '취소할 수 없는 상태입니다.');
+            await voidPendingTransfers(env, t.id);
             return json({ ok: true, ticket: rows[0] });
         }
 
@@ -471,6 +520,124 @@ export async function onRequest(context) {
             }
             const out = await cancelSeatFlow(env, seat, t, 'buyer');
             return json(out.body, out.status);
+        }
+
+        // ── 공개: 티켓 양도(링크 방식, 2026-10-20) ─────────────────────────────
+        // 규칙: 입금 확정(confirmed)·공연 전·미입장·미취소 좌석만. 링크는 48시간·1회용. 받는 사람이 이름·연락처를 넣으면 그 사람 명의 예매로 —
+        //   원 예매에 다른 활성 좌석이 남으면 새 예매(1매·confirmed)로 분리(+원 qty −1) / 마지막 1장이면 원 예매 명의·예매번호를 통째로 변경 /
+        //   같은 공연에 받는 사람의 활성 예매가 있으면 그 예매에 좌석 합침(qty +1). 좌석 코드는 재발급(원 QR 무효). 양도받은 좌석은 받는 사람이 직접 취소 불가.
+        if (action === 'create_transfer' || action === 'cancel_transfer') {
+            const code = normCode(body.code), phone = normPhone(body.phone), seatCode = normCode(body.seat_code);
+            if (!code || !phone || !seatCode) return fail(400, 'bad_input', '예매번호·휴대폰 번호·티켓 코드를 확인해주세요.');
+            const t = await findTicketByCodePhone(env, code, phone);
+            if (!t) return fail(404, 'not_found', '일치하는 예매가 없습니다.');
+            if (action === 'cancel_transfer') {
+                const r = await sbFetch(env, `event_ticket_transfers?ticket_id=eq.${t.id}&seat_code=eq.${seatCode}&status=eq.pending`, {
+                    method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }) });
+                if (!r.ok) return fail(502, 'db', '취소 처리 중 오류가 발생했습니다.');
+                if (!(await r.json().catch(() => [])).length) return fail(404, 'no_transfer', '대기 중인 양도 링크가 없습니다.');
+                return json({ ok: true, transfers: await listTransfers(env, t.id) });
+            }
+            if (t.status !== 'confirmed') return fail(409, 'not_confirmed', '입금이 확정된 뒤에 양도할 수 있어요.');
+            if (t.events && new Date(t.events.starts_at) <= new Date()) return fail(409, 'started', '공연 시작 후에는 양도할 수 없어요.');
+            const { events: _ev, ...ticket } = t;
+            const seat = (await ensureSeats(env, ticket)).find(x => x.code === seatCode);
+            if (!seat) return fail(404, 'no_seat', '이 예매의 티켓이 아닙니다.');
+            if (seat.cancelled_at) return fail(409, 'seat_cancelled', '취소된 티켓은 양도할 수 없어요.');
+            if (seat.checked_in_at) return fail(409, 'checked_in', '입장한 티켓은 양도할 수 없어요.');
+            if ((await listTransfers(env, t.id)).some(x => x.seat_code === seatCode && x.status === 'pending')) {
+                return fail(409, 'pending', '이미 양도 링크가 있어요. 취소한 뒤 다시 만들어 주세요.');
+            }
+            const token = newToken();
+            const expiresAt = new Date(Date.now() + TRANSFER_TTL_MS).toISOString();
+            const ins = await sbFetch(env, 'event_ticket_transfers', { method: 'POST', headers: { Prefer: 'return=representation' },
+                body: JSON.stringify({ event_id: t.event_id, ticket_id: t.id, seat_code: seatCode, seat_no: seat.seat_no, token_hash: await sha256Hex(token), from_name: t.buyer_name, expires_at: expiresAt }) });
+            if (!ins.ok) return json({ ok: false, error: 'db', message: '양도 링크를 만들지 못했습니다. 잠시 후 다시 시도해주세요.',
+                detail: (await ins.text().catch(() => '')).slice(0, 200) }, 502); // 20261020 마이그레이션 미실행이면 여기서 실패
+            return json({ ok: true, token, expires_at: expiresAt, seat_no: seat.seat_no, transfers: await listTransfers(env, t.id) });
+        }
+        if (action === 'transfer_info' || action === 'claim_transfer') {
+            const token = normToken(body.token);
+            if (!token) return fail(400, 'bad_token', '유효하지 않은 양도 링크입니다.');
+            const sel = '*,events(id,title,host_name,venue,starts_at,price,bank_info,status)';
+            const tr0 = await sbFetch(env, `event_ticket_transfers?token_hash=eq.${await sha256Hex(token)}&select=${encodeURIComponent(sel)}&limit=1`);
+            if (!tr0.ok) return fail(502, 'db', '양도 정보를 확인하지 못했습니다.');
+            const [tr] = await tr0.json();
+            if (!tr) return fail(404, 'not_found', '유효하지 않은 양도 링크입니다.');
+            const ev = tr.events || {};
+            const pub = { id: ev.id, title: ev.title, host_name: ev.host_name, venue: ev.venue, starts_at: ev.starts_at, price: ev.price };
+            const info = (status) => json({ ok: true, status, event: pub, from_name: maskName(tr.from_name), seat_no: tr.seat_no, expires_at: tr.expires_at });
+            const isInfo = action === 'transfer_info';
+            if (tr.status !== 'pending') return isInfo ? info(tr.status) : fail(409, 'used', tr.status === 'claimed' ? '이미 양도가 완료된 링크입니다.' : '취소된 양도 링크입니다.');
+            if (new Date(tr.expires_at).getTime() < Date.now()) return isInfo ? info('expired') : fail(409, 'expired', '만료된 양도 링크입니다. 양도하는 분께 새 링크를 요청해주세요.');
+            if (ev.starts_at && new Date(ev.starts_at) <= new Date()) return isInfo ? info('started') : fail(409, 'started', '공연이 시작되어 양도할 수 없습니다.');
+            // 원 예매·좌석이 아직 유효한지(취소·입장·입금 취소 등)
+            const or = await sbFetch(env, `event_tickets?id=eq.${tr.ticket_id}&select=*`);
+            const [origin] = or.ok ? await or.json() : [];
+            const sr = await sbFetch(env, `event_ticket_seats?code=eq.${tr.seat_code}&ticket_id=eq.${tr.ticket_id}&select=*`);
+            const [seat] = sr.ok ? await sr.json() : [];
+            if (!(origin && origin.status === 'confirmed' && seat && !seat.cancelled_at && !seat.checked_in_at)) {
+                return isInfo ? info('unavailable') : fail(409, 'unavailable', '이 티켓은 더 이상 양도할 수 없는 상태입니다. (취소·입장 등)');
+            }
+            if (isInfo) return info('pending');
+
+            // ── 수락 ──
+            const name = String(body.name || '').trim();
+            const phone = normPhone(body.phone);
+            if (!name || name.length > 40) return fail(400, 'bad_name', '이름을 확인해주세요.');
+            if (!phone) return fail(400, 'bad_phone', '휴대폰 번호를 확인해주세요.');
+            if (origin.buyer_phone === phone) return fail(409, 'self', '본인 예매는 양도받을 수 없어요.');
+            const nowIso = new Date().toISOString();
+            // 토큰 선점 — pending 조건부 PATCH 로 두 사람이 동시에 받는 일을 막는다
+            const lock = await sbFetch(env, `event_ticket_transfers?id=eq.${tr.id}&status=eq.pending`, {
+                method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ status: 'claimed', claimed_at: nowIso, to_name: name }) });
+            if (!lock.ok || !(await lock.json().catch(() => [])).length) return fail(409, 'used', '방금 다른 분이 받았거나 취소된 링크입니다.');
+            const revert = () => sbFetch(env, `event_ticket_transfers?id=eq.${tr.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'pending', claimed_at: null, to_name: null }) }).catch(() => {});
+            const conflict = async () => { await revert(); return fail(409, 'conflict', '티켓 상태가 바뀌어 양도하지 못했습니다. 다시 시도해주세요.'); };
+            const code = newCode();
+            const moved = { transferred_from_name: origin.buyer_name };
+            const seatMove = (patch) => sbFetch(env, `event_ticket_seats?code=eq.${tr.seat_code}&ticket_id=eq.${origin.id}&cancelled_at=is.null&checked_in_at=is.null`, {
+                method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, ...moved, ...patch }) });
+            const activeCnt = (await ensureSeats(env, origin)).filter(x => !x.cancelled_at).length;
+            const exr = await sbFetch(env, `event_tickets?event_id=eq.${origin.event_id}&buyer_phone=eq.${phone}&status=in.(pending_payment,confirmed)&select=*&limit=1`);
+            const [ex] = exr.ok ? await exr.json() : [];
+            let targetId;
+            if (ex) {
+                // 받는 사람의 기존 예매에 좌석 합치기
+                const seatNo = (await ensureSeats(env, ex)).reduce((m, x) => Math.max(m, x.seat_no), 0) + 1;
+                const mv = await seatMove({ ticket_id: ex.id, seat_no: seatNo });
+                if (!mv.ok || !(await mv.json().catch(() => [])).length) return conflict();
+                await sbFetch(env, `event_tickets?id=eq.${ex.id}`, { method: 'PATCH', body: JSON.stringify({ qty: Math.min(10, ex.qty + 1) }) }).catch(() => {});
+                await decrementQtyForTransfer(env, origin.id, activeCnt <= 1);
+                targetId = ex.id;
+            } else if (activeCnt <= 1) {
+                // 마지막 1장 → 예매 통째 명의 변경 + 예매번호·QR 재발급
+                const up = await sbFetch(env, `event_tickets?id=eq.${origin.id}&status=eq.confirmed`, {
+                    method: 'PATCH', headers: { Prefer: 'return=representation' },
+                    body: JSON.stringify({ buyer_name: name, buyer_phone: phone, code, transferred_at: nowIso, ...moved }) });
+                if (!up.ok || !(await up.json().catch(() => [])).length) return conflict();
+                await sbFetch(env, `event_ticket_seats?code=eq.${tr.seat_code}&ticket_id=eq.${origin.id}`, { method: 'PATCH', body: JSON.stringify({ code, seat_no: 1, ...moved }) }).catch(() => {});
+                targetId = origin.id;
+            } else {
+                // 분리: 받는 사람 명의 새 예매(1매·confirmed) → 좌석 이동 → 원 예매 qty −1
+                const nt = await sbFetch(env, 'event_tickets', { method: 'POST', headers: { Prefer: 'return=representation' },
+                    body: JSON.stringify({ event_id: origin.event_id, code, buyer_name: name, buyer_phone: phone, qty: 1, status: 'confirmed', confirmed_at: nowIso,
+                        transferred_from: origin.id, transferred_at: nowIso, ...moved }) });
+                const [created] = nt.ok ? await nt.json().catch(() => []) : [];
+                if (!created) { await revert(); return json({ ok: false, error: 'db', message: '양도 처리 중 오류가 발생했습니다. 다시 시도해주세요.', detail: (await nt.text().catch(() => '')).slice(0, 200) }, 502); }
+                const mv = await seatMove({ ticket_id: created.id, seat_no: 1 });
+                if (!mv.ok || !(await mv.json().catch(() => [])).length) {
+                    await sbFetch(env, `event_tickets?id=eq.${created.id}`, { method: 'DELETE' }).catch(() => {});
+                    return conflict();
+                }
+                await decrementQtyForTransfer(env, origin.id, false);
+                targetId = created.id;
+            }
+            await sbFetch(env, `event_ticket_transfers?id=eq.${tr.id}`, { method: 'PATCH', body: JSON.stringify({ to_ticket_id: targetId }) }).catch(() => {});
+            const fr = await sbFetch(env, `event_tickets?id=eq.${targetId}&select=*`);
+            const [tk] = fr.ok ? await fr.json() : [];
+            if (!tk) return fail(502, 'db', '양도는 처리됐지만 티켓을 불러오지 못했습니다. 「내 티켓 조회」에서 확인해주세요.');
+            return json({ ok: true, ticket: tk, event: { ...pub, bank_info: ev.bank_info, status: ev.status }, seats: await ensureSeats(env, tk), transfers: await listTransfers(env, tk.id) });
         }
 
         // ── 호스트 액션 (카카오 토큰 검증 필수) ────────────────────
@@ -756,7 +923,7 @@ export async function onRequest(context) {
                 let seatRows = [];
                 if (tickets.length) {
                     const tids = tickets.map(t => t.id).join(',');
-                    const sr = await sbFetch(env, `event_ticket_seats?ticket_id=in.(${tids})&select=ticket_id,code,seat_no,checked_in_at,cancelled_at&order=seat_no.asc`);
+                    const sr = await sbFetch(env, `event_ticket_seats?ticket_id=in.(${tids})&select=ticket_id,code,seat_no,checked_in_at,cancelled_at,transferred_from_name&order=seat_no.asc`);
                     seatRows = sr.ok ? await sr.json() : [];
                 }
                 const byTicket = {};

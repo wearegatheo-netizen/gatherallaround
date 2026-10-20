@@ -16,6 +16,16 @@
   **공연 공유**는 경로형 `/show/<id>`(`functions/show/[id].js`) — 크롤러(kakaotalk-scrap 등)에는 포스터·제목·일시 OG 페이지, 사람에게는
   루트 셸에 `<base href="/">`+`history.replaceState('/#shows/<id>')` 를 넣어 200 으로(302+해시 금지, 인앱이 해시를 버림). 상세 [🔗 공유] = `shareShow(id)`
   (navigator.share → 클립보드 폴백). 숨김 공연은 기본 OG. index.html 머리 스크립트가 `/show/<id>` 정적 폴백도 해시로 치환. 셸 자산은 절대 경로만 쓸 것(`/vendor/…`).
+- **티켓 양도(링크 방식, 2026-10-20)** — 마이그레이션 `20261020_ticket_transfer.sql`(`event_ticket_transfers` + `event_tickets.transferred_from/transferred_from_name/transferred_at` + `event_ticket_seats.transferred_from_name`).
+  규칙: **입금 확정(confirmed)·공연 전·미입장·미취소 좌석만**, 링크는 **48시간·1회용**(토큰 24자, DB 엔 sha256 해시만 — 평문은 이 세션 `_showsState.transferLinks` 에만, 잃으면 취소 후 새로), 직접 지정 방식 없음.
+  서버(`event-api`, 전부 공개 액션): `create_transfer {code, phone, seat_code}` → `{token, expires_at}` / `cancel_transfer` / `transfer_info {token}`(상태 pending|claimed|cancelled|expired|started|unavailable, 가려진 이름 `maskName`, 계좌 없음) /
+  `claim_transfer {token, name, phone}`: 토큰을 `status=eq.pending` 조건부 PATCH 로 **선점** → ① 받는 사람의 같은 공연 활성 예매가 있으면 그 예매에 좌석 합침(qty+1, 원 예매는 qty−1 또는 활성 좌석이 없으면 `cancelled`+`transferred_at`로 닫음)
+  ② 원 예매 활성 좌석이 1장이면 **통째 명의 변경**(buyer_name/phone·예매번호 재발급) ③ 아니면 **새 예매(1매·confirmed, transferred_from)** 로 분리 + 좌석 이동 + 원 qty−1. 좌석 코드는 항상 **재발급**(원 QR 무효, 체크인은 좌석 코드라 추가 차단 불필요).
+  본인 번호 → 409 `self`, 실패 시 토큰 되돌림(`revert`). `lookup` 응답에 `transfers`(대기·완료, 만료는 lazy 로 `expired`), 좌석·예매 취소 시 대기 링크는 `voidPendingTransfers` 로 정리.
+  **양도받은 좌석·예매는 받는 사람이 직접 취소 불가**(`cancel_seat`/`cancel` 409 `transferred`, 호스트 취소는 가능) — 환불은 호스트와. 재양도는 같은 규칙으로 허용.
+  화면: 티켓 좌석 블록 [양도] → `openTransferSheet`(gtSheetOpen) → `createTransferLink` → 링크 `#shows/claim/<토큰>` 공유(`shareTransferLink` navigator.share → 복사)·[링크 취소](`cancelTransferLink`), 대기 중 좌석은 `.tk-pend`,
+  완료된 좌석은 「양도 완료 → 이*희」 블록(좌석 목록엔 없음, `transfers` 로 그림). 받는 사람 `renderTransferClaim(token)`(라우트 `shows/claim/<24자>`, `_TRANSFER_TOKEN_RE`) → `claimTransfer` → 바로 티켓 화면.
+  양도받은 티켓은 머리에 🎁 표식·취소 버튼 없음(`_ticketTransferred`), 호스트 명단은 「양도받음 · 원예매 OOO」 칩·좌석 번호에 `·양도`. 테스트 `tests/event-api-unit.mjs` 13절·`tests/ui-shows.js` 4b절, 캡처 scratchpad `shows/shoot-transfer.js`.
 - **공연 예매·공간 대관·호스트 센터 머리·레이아웃(2026-10-16, 커뮤니티·게더링 개편 반영 — 탭 성격별로 다르게)**: 세 화면 모두 큰 제목 헤더(`.perf-header`, 삭제됨) 대신
   **앱 바 `.sec-bar > .cm-bar`**(뒤로 `.cm-ib`·KkuBulLim 제목·`.cm-pill`·SVG 모드 버튼 `theme-toggle-svg` — `applyTheme` 가 textContent 를 건드리면 안 됨; 폭은 `.w1100`(대관)/기본 920(공연)/`.w720`(호스트)).
   **공연 예매**(두둥식 발견·전환): 포스터 격자 `.show-grid` 유지(2열/≥600px 3열/≥900px 4열) — 카드 칩은 포스터 왼쪽 위(`_sxChip`, `.cm-chip d/ok/warn/sold/closed`, `_seatInfo().cls`), 지난·마감은 `.closed` 흐림.
