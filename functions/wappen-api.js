@@ -391,6 +391,12 @@ export async function onRequest(context) {
         }
 
         // ── 프로젝트 ────────────────────────────────────────────────────
+        // 프로젝트 ↔ 공연 연결(2026-10-20): 공개(status≠hidden) 공연만 — 서비스 롤은 RLS 를 우회하므로 여기서 직접 거른다
+        const eventOk = async (id) => {
+            if (!isUuid(id)) return false;
+            const r = await sbFetch(env, `events?id=eq.${id}&status=neq.hidden&select=id&limit=1`);
+            return r.ok && (await r.json().catch(() => [])).length > 0;
+        };
         if (action === 'project_create') {
             const title = str(body.title, LIMITS.title);
             const description = str(body.description, LIMITS.description) || null;
@@ -405,10 +411,12 @@ export async function onRequest(context) {
             const n = await countRows(env, `wappen_projects?owner_id=eq.${me.id}&created_at=gte.${agoIso(DAY)}&select=id`);
             if (n >= LIMITS.perDay.projects) return fail(429, 'rate_limited', `프로젝트는 하루 ${LIMITS.perDay.projects}개까지 만들 수 있습니다.`);
             if (await titleTaken(env, 'wappen_projects', title)) return fail(409, 'dup_title', DUP_PROJECT);
+            let event_id = null;
+            if (body.event_id) { if (!(await eventOk(body.event_id))) return fail(400, 'bad_event', '연결할 공연을 찾을 수 없습니다.'); event_id = body.event_id; }
             const row = {
                 owner_id: me.id, author_name: me.nickname, author_avatar: me.avatar_url || null,
                 title, description, size_key, size_group: presetOf(size_key).group, orientation, width_px, height_px,
-                base_image_url: body.base_image_url, thumb_url: body.thumb_url || null,
+                base_image_url: body.base_image_url, thumb_url: body.thumb_url || null, event_id,
             };
             const r = await sbFetch(env, 'wappen_projects', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row) });
             if (r.status === 409) return fail(409, 'dup_title', DUP_PROJECT);   // DB 유일 인덱스(동시 요청)
@@ -435,6 +443,10 @@ export async function onRequest(context) {
                 patch.title = t;
             }
             if (body.description != null) patch.description = str(body.description, LIMITS.description) || null;
+            if (body.event_id !== undefined) { // null/'' = 연결 해제, uuid = 공개 공연만
+                if (body.event_id === null || body.event_id === '') patch.event_id = null;
+                else { if (!(await eventOk(body.event_id))) return fail(400, 'bad_event', '연결할 공연을 찾을 수 없습니다.'); patch.event_id = body.event_id; }
+            }
             if (body.status != null) { if (!['active', 'hidden'].includes(body.status)) return fail(400, 'bad_status', '상태 값이 올바르지 않습니다.'); patch.status = body.status; }
             const r = await sbFetch(env, `wappen_projects?id=eq.${p.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch) });
             if (r.status === 409) return fail(409, 'dup_title', DUP_PROJECT);

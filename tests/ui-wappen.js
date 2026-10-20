@@ -13,9 +13,13 @@ const SB = 'https://sb.test/storage/v1/object/public/wappen';
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
 
-const PROJECT = { id: PID, owner_id: UID, author_name: '길동', author_avatar: null, title: '테스트 프로젝트', description: '설명', size_key: 'ig_square', size_group: 'sns', orientation: 'portrait',
+// 공연 연결(2026-10-20): PROJECT 는 예매 중인 공연에 연결, 잔여 3석
+const EVID = '77777777-7777-4777-8777-777777777777';
+const EVENT = { id: EVID, title: '한여름 밤의 락', host_name: '밴드 스컬', venue: '게더 올 어라운드', starts_at: new Date(Date.now() + 7 * 86400e3).toISOString(), sales_open_at: null, price: 15000, status: 'published' };
+const SEAT = { event_id: EVID, capacity: 40, taken: 37 };
+const PROJECT = { id: PID, owner_id: UID, author_name: '길동', author_avatar: null, title: '테스트 프로젝트', description: '설명', size_key: 'ig_square', size_group: 'sns', orientation: 'portrait', event_id: EVID,
     width_px: 1080, height_px: 1080, base_image_url: BASE + '/icon-512.png', thumb_url: BASE + '/icon-192.png', works_count: 1, status: 'active', created_at: new Date().toISOString() };
-const PROJECT2 = { ...PROJECT, id: '33333333-3333-4333-8333-333333333334', title: 'A4 포스터', size_key: 'a4', size_group: 'print', width_px: 2480, height_px: 3508 };
+const PROJECT2 = { ...PROJECT, id: '33333333-3333-4333-8333-333333333334', title: 'A4 포스터', event_id: null, size_key: 'a4', size_group: 'print', width_px: 2480, height_px: 3508 };
 const ITEMS = [
     { id: IT1, name: '별', category: '기호', tags: ['반짝'], image_url: BASE + '/icon-192.png', width_px: 192, height_px: 192, sort_order: 0, status: 'active', created_at: new Date().toISOString() },
     { id: IT2, name: '고양이', category: '동물', tags: ['귀여움'], image_url: BASE + '/icon-192.png', width_px: 192, height_px: 192, sort_order: 0, status: 'active', created_at: new Date().toISOString() },
@@ -26,19 +30,21 @@ const WORK = { id: WID, project_id: PID, author_id: UID, author_name: '길동', 
 // 페이지에 주입되는 가짜 supabase 쿼리빌더 — eq/ilike/order/range/limit/maybeSingle/rpc 지원
 const FAKE = `
 window.__sbCalls = []; window.__apiCalls = []; window.__blobs = []; window.__downloads = [];
-const TABLES = ${JSON.stringify({ wappen_projects: [PROJECT, PROJECT2], wappen_items: ITEMS, wappen_works: [WORK] })};
+const TABLES = ${JSON.stringify({ wappen_projects: [PROJECT, PROJECT2], wappen_items: ITEMS, wappen_works: [WORK], events: [EVENT], event_seats: [SEAT] })};
 window.TABLES = TABLES;   // 테스트에서 "다른 사람이 올린 데이터"를 흉내낼 때 접근
 const RANK = [{ rank: 1, id: '${WID}', title: '내 작품', preview_url: '${BASE}/icon-512.png', preview_w: 1080, preview_h: 1080, author_name: '길동', author_avatar: null, project_id: '${PID}', project_title: '테스트 프로젝트', size_key: 'ig_square', orientation: 'portrait', score: 2, total: 2 }];
 function builder(table) {
   const st = { table, filters: [], single: false, range: null };
   const b = {
-    select() { return b; }, eq(k, v) { st.filters.push([k, v]); return b; }, ilike(k, v) { st.filters.push(['~' + k, v]); return b; },
+    select() { return b; }, eq(k, v) { st.filters.push([k, v]); return b; }, ilike(k, v) { st.filters.push(['~' + k, v]); return b; }, gte(k, v) { st.filters.push(['>=' + k, v]); return b; },
     order() { return b; }, limit(n) { st.range = [0, n - 1]; return b; }, range(a, z) { st.range = [a, z]; return b; }, maybeSingle() { st.single = true; return b; }, single() { st.single = true; return b; },
     then(res) {
       window.__sbCalls.push({ table, filters: st.filters.slice() });
       let rows = (TABLES[table] || []).map(r => ({ ...r }));
-      for (const [k, v] of st.filters) { if (k.startsWith('~')) { const t = v.replace(/%/g, '').toLowerCase(); rows = rows.filter(r => String(r[k.slice(1)]).toLowerCase().includes(t)); } else rows = rows.filter(r => r[k] === v); }
-      if (table === 'wappen_works') rows.forEach(r => { r.wappen_projects = TABLES.wappen_projects.find(p => p.id === r.project_id) || null; });
+      for (const [k, v] of st.filters) { if (k.startsWith('~')) { const t = v.replace(/%/g, '').toLowerCase(); rows = rows.filter(r => String(r[k.slice(1)]).toLowerCase().includes(t)); } else if (k.startsWith('>=')) rows = rows.filter(r => String(r[k.slice(2)]) >= v); else rows = rows.filter(r => r[k] === v); }
+      const withEv = (pr) => pr ? { ...pr, events: TABLES.events.find(e => e.id === pr.event_id) || null } : null; // 임베드 events(…) 흉내
+      if (table === 'wappen_projects') rows = rows.map(withEv);
+      if (table === 'wappen_works') rows.forEach(r => { r.wappen_projects = withEv(TABLES.wappen_projects.find(p => p.id === r.project_id) || null); });
       if (st.range) rows = rows.slice(st.range[0], st.range[1] + 1);
       res({ data: st.single ? (rows[0] || null) : rows, error: null });
     },
@@ -88,6 +94,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.goto(`${BASE}/wappen/#/`);
     await p.waitForSelector('.card-grid .card', { timeout: 15000 });
     chk('홈: 프로젝트 카드 2개', await p.locator('.card-grid .card').count() === 2);
+    chk('홈: 공연이 연결된 프로젝트 카드에 공연명 칩(연결 없는 카드엔 없음)', await p.locator('.card-grid .card .card-ev').count() === 1 && (await p.locator('.card-grid .card .card-ev').innerText()).includes('한여름 밤의 락'));
     chk('홈: 인기 작품 스트립(랭킹 RPC)', await p.locator('#popStrip .card').count() === 1);
     await p.waitForSelector('#newStrip .card');
     chk('홈: 방금 올라온 작품 스트립', await p.locator('#newStrip .card').count() === 1);
@@ -109,6 +116,8 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
 
     // 1b. 새 프로젝트 화면 (사이즈 선택·업로드 영역) + 모바일 하단 탭바
     await p.goto(`${BASE}/wappen/#/new`); await p.waitForSelector('.size-opt');
+    await p.waitForFunction(() => document.querySelectorAll('#pEvent option').length >= 2);
+    chk('새 프로젝트: 「연결할 공연」 셀렉트에 예매 중 공연(제목 · 일시) + 기본 「연결 안 함」', (await p.locator('#pEvent option').allInnerTexts()).join('|').includes('연결 안 함|한여름 밤의 락 · ') && await p.evaluate(() => window.__sbCalls.some(c => c.table === 'events' && c.filters.some(f => f[0] === 'status' && f[1] === 'published'))));
     chk('새 프로젝트: 인쇄 사이즈 7개·A4 기본 선택', await p.locator('.size-opt').count() === 7 && (await p.locator('.size-opt.active b').innerText()) === 'A4');
     await p.click('.size-opt[data-k="a3"]'); await p.click('#orientRow [data-o="landscape"]');
     chk('새 프로젝트: A3 가로 → 4961×3508px 안내', (await p.locator('#sizeHelp').innerText()).includes('4961×3508px'));
@@ -137,12 +146,26 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.goto(`${BASE}/wappen/#/project/${PID}`); await p.waitForSelector('.action-row');
     const metaText = await p.locator('.detail-info .meta-line').innerText();
     chk('프로젝트: 사이즈 메타에 이름은 배지 한 번만', (metaText.match(/인스타그램 정방형/g) || []).length === 1 && metaText.includes('1080×1080px'));
+    await p.waitForFunction(() => /잔여 3석/.test((document.querySelector('#evCard') || {}).textContent || ''));
+    const evCard = await p.evaluate(() => { const c = document.querySelector('#evCard .ev-card'); const a = c?.querySelector('a[data-ev-link]'); return { text: c?.textContent || '', href: a?.getAttribute('href'), label: a?.textContent.trim(), primary: a?.classList.contains('gaa-btn-primary') }; });
+    chk('프로젝트: 공연 카드(이 포스터의 공연 · 제목 · 일시·장소·가격 · 잔여 3석) + [예매하러 가기] → /show/<id>', evCard.text.includes('이 포스터의 공연') && evCard.text.includes('한여름 밤의 락') && evCard.text.includes('게더 올 어라운드') && evCard.text.includes('₩15,000')
+        && evCard.href === `${new URL(BASE).origin}/show/${EVID}` && evCard.label === '예매하러 가기' && evCard.primary, JSON.stringify(evCard));
     const projBtnHeights = await p.$$eval('.action-row .gaa-btn', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
     chk('프로젝트: 주 동작 버튼 3개·높이 38px', projBtnHeights.length === 3 && projBtnHeights.every(h => Math.abs(h - 38) <= 1), projBtnHeights.join(','));
     await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item');
     const projSheet = await p.$$eval('.sheet-item', els => els.map(e => e.dataset.more));
-    chk('프로젝트: ⋯ 시트(소유자) = 정보 수정·숨기기·링크 복사·삭제', projSheet.join() === 'edit,hide,copy,delete');
+    chk('프로젝트: ⋯ 시트(소유자) = 정보 수정·공연 연결·숨기기·링크 복사·삭제', projSheet.join() === 'edit,event,hide,copy,delete', projSheet.join());
     await p.keyboard.press('Escape'); await p.waitForSelector('.modal-backdrop', { state: 'detached' });
+    // 공연 연결 변경: ⋯ › 공연 연결 변경 → 예매 중 공연 목록(현재 연결 체크) → 고르면 project_update(event_id)
+    await p.click('.action-row [data-act="more"]'); await p.waitForSelector('.sheet-item[data-more="event"]');
+    chk('프로젝트: 이미 연결돼 있으면 「공연 연결 변경」', (await p.locator('.sheet-item[data-more="event"]').innerText()).includes('공연 연결 변경'));
+    await p.click('.sheet-item[data-more="event"]'); await p.waitForSelector('.ev-opt');
+    chk('공연 고르기: 예매 중 공연 목록 + 현재 연결 표시 + [연결 해제]', await p.locator('.ev-opt').count() === 1 && (await p.locator('.ev-opt').getAttribute('class')).includes('active') && await p.locator('[data-unlink]').count() === 1);
+    await p.fill('#evSearch', '없는공연'); await p.waitForFunction(() => document.querySelectorAll('.ev-opt').length === 0);
+    await p.fill('#evSearch', '한여름'); await p.waitForSelector('.ev-opt');
+    await p.click('.ev-opt'); await p.waitForFunction(() => window.__apiCalls.some(c => c.action === 'project_update' && c.event_id));
+    chk('공연 고르기: 검색 → 선택 → project_update(event_id)', await p.evaluate((EVID) => window.__apiCalls.some(c => c.action === 'project_update' && c.event_id === EVID), EVID));
+    await p.waitForSelector('.modal-backdrop', { state: 'detached' }); await p.waitForSelector('.action-row');
     await shot(p, 'project');
 
     // 2. 에디터
@@ -243,6 +266,8 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await shot(p, 'work');
     chk('작품: 반응 → react API·활성 표시', (await p.locator('.reaction-btn[data-react="fire"]').getAttribute('class')).includes('active'));
 
+    const strip = await p.evaluate(() => { const a = document.querySelector('#evStrip .ev-strip'); return { href: a?.getAttribute('href'), text: a?.textContent || '' }; });
+    chk('작품: 연결된 공연 띠(제목·일시·잔여석) 전체가 예매 링크', strip.href === `${new URL(BASE).origin}/show/${EVID}` && strip.text.includes('한여름 밤의 락') && /잔여 3석|예매 가능/.test(strip.text), JSON.stringify(strip));
     // 4. 다운로드 (실제 캔버스 렌더)
     const workBtnHeights = await p.$$eval('.action-row .gaa-btn', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
     chk('작품: 주 동작 버튼 4개(다운로드·공유·이어 꾸미기·⋯) 높이 38px', workBtnHeights.length === 4 && workBtnHeights.every(h => Math.abs(h - 38) <= 1), workBtnHeights.join(','));

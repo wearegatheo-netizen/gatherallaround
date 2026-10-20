@@ -205,6 +205,30 @@ body.dark .status-info { background: #172554; color: #93C5FD; }
 .progress > div { height: 100%; background: var(--wds-primary); width: 0; transition: width 0.3s; }
 
 /* ── 모달·시트 ────────────────────────────────────── */
+/* 공연 연결(2026-10-20): 프로젝트 카드·작품 띠·목록 칩·고르기 모달 */
+.ev-card { margin: 10px 0 2px; padding: 12px 14px; border: 1px solid var(--wds-gray-200); border-radius: 14px; background: var(--wds-gray-100); }
+.ev-head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; color: var(--wds-gray-600); margin-bottom: 4px; }
+.ev-head svg.ico { width: 16px; height: 16px; color: var(--wds-primary); }
+.ev-title { font-size: var(--fs-body); font-weight: 800; color: var(--wds-black); line-height: 1.35; }
+.ev-meta { font-size: var(--fs-xs); color: var(--wds-gray-700); margin: 2px 0 10px; }
+.ev-card .gaa-btn { width: 100%; }
+.chip-st { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; margin-left: auto; white-space: nowrap; }
+.chip-st.ok { background: #E6F6EF; color: #1E8A5A; } .chip-st.warn { background: #FEF3C7; color: #92400E; } .chip-st.sold { background: #FEE2E2; color: #991B1B; } .chip-st.closed { background: var(--wds-gray-200); color: var(--wds-gray-600); }
+body.dark .chip-st.ok { background: #17302A; color: #5ED4A0; } body.dark .chip-st.warn { background: #3A2E12; color: #F5C76A; } body.dark .chip-st.sold { background: #3B1B1B; color: #FF9B9B; }
+.ev-strip { display: flex; align-items: center; gap: 8px; margin: 6px 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--wds-gray-100); font-size: var(--fs-xs); color: var(--wds-gray-700); text-decoration: none; min-width: 0; }
+.ev-strip b { color: var(--wds-black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ev-strip > span:not(.chip-st) { white-space: nowrap; }
+.ev-strip svg.ico { width: 16px; height: 16px; flex: none; color: var(--wds-primary); }
+.ev-strip .go { color: var(--wds-primary); font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
+.ev-strip .go svg.ico { width: 14px; height: 14px; }
+.card-ev { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--wds-primary); font-weight: 700; min-width: 0; }
+.card-ev svg.ico { width: 14px; height: 14px; flex: none; } .card-ev span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-list { max-height: 50vh; overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ev-opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--wds-gray-300); border-radius: 10px; background: var(--wds-white); font-family: inherit; cursor: pointer; color: var(--wds-black); }
+.ev-opt > div { flex: 1; min-width: 0; }
+.ev-opt b { display: block; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ev-opt small { display: block; color: var(--wds-gray-600); font-size: var(--fs-xs); }
+.ev-opt.active { border-color: var(--wds-primary); background: var(--wds-primary-light); }
+.ev-opt svg.ico { width: 18px; height: 18px; color: var(--wds-primary); flex: none; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal-backdrop.sheet { align-items: flex-end; padding: 0; }
 .modal { background: var(--wds-white); border-radius: 18px; width: 100%; max-width: 440px; padding: 20px; box-shadow: var(--wds-shadow-lg); max-height: 90vh; overflow: auto; font-size: var(--fs-body); }

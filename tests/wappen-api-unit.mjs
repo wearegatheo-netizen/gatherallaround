@@ -214,6 +214,16 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 20)]);
   chk('하루 20개 한도 → 429', (await jrun(ok)).status === 429);
 
+  // 공연 연결(2026-10-20): event_id 는 공개 공연(status≠hidden)만, 아니면 400 bad_event
+  const EVID = '77777777-7777-4777-8777-777777777777';
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [] }], ['events?id=eq.' + EVID + '&status=neq.hidden', { body: [{ id: EVID }] }],
+    ['wappen_projects', { method: 'POST', body: (rec) => { inserted = rec.json; return [{ id: PID, ...rec.json }]; } }]]);
+  chk('project_create: event_id(공개 공연) 저장', (await jrun({ ...ok, event_id: EVID })).status === 200 && inserted.event_id === EVID);
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [] }], ['events?id=eq.', { body: [] }]]);
+  chk('project_create: 없는/숨긴 공연 → 400 bad_event', (await jrun({ ...ok, event_id: EVID })).out.error === 'bad_event');
+  mockFetch([SESSION_OK(), count('wappen_projects?owner_id=eq.', 3), [TITLE_Q, { body: [] }]]);
+  chk('project_create: uuid 아닌 event_id → 400 bad_event(조회 없음)', (await jrun({ ...ok, event_id: 'nope' })).out.error === 'bad_event' && !calls.some(c => c.url.includes('events?id=eq.')));
+
   // update/delete 권한
   const PROJ = { id: PID, owner_id: UID, title: 'p', status: 'active' };
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [{ ...PROJ, owner_id: OTHER }] }]]);
@@ -227,6 +237,14 @@ const KAPI_OK = ['kapi.kakao.com', { body: { id: 777, kakao_account: { profile: 
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['wappen_projects?id=eq.', { method: 'PATCH', body: (rec) => [{ ...PROJ, ...rec.json }] }]]);
   ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, title: ' P ' }));
   chk('자기 제목과 같은 키(대소문자·공백만 다름)면 조회 없이 저장', status === 200 && out.project.title === 'P' && !calls.some(c => c.url.includes('title=ilike.')));
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['events?id=eq.' + EVID, { body: [{ id: EVID }] }], ['wappen_projects?id=eq.', { method: 'PATCH', body: (rec) => [{ ...PROJ, ...rec.json }] }]]);
+  ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, event_id: EVID }));
+  chk('project_update: 공연 연결(event_id) 저장', status === 200 && out.project.event_id === EVID);
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [{ ...PROJ, event_id: EVID }] }], ['wappen_projects?id=eq.', { method: 'PATCH', body: (rec) => [{ ...PROJ, ...rec.json }] }]]);
+  ({ status, out } = await jrun({ action: 'project_update', session: S, project_id: PID, event_id: null }));
+  chk('project_update: event_id null → 연결 해제(조회 없음)', status === 200 && out.project.event_id === null && !calls.some(c => c.url.includes('events?id=eq.')));
+  mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], ['events?id=eq.', { body: [] }]]);
+  chk('project_update: 숨긴/없는 공연 → 400 bad_event', (await jrun({ action: 'project_update', session: S, project_id: PID, event_id: EVID })).out.error === 'bad_event');
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], count('wappen_works?project_id=eq.', 2)]);
   chk('타인 작품 있는 프로젝트 삭제 → 409', (await jrun({ action: 'project_delete', session: S, project_id: PID })).out.error === 'has_works');
   mockFetch([SESSION_OK(), ['wappen_projects?id=eq.', { method: 'GET', body: [PROJ] }], count('wappen_works?project_id=eq.', 0), ['wappen_projects?id=eq.', { method: 'DELETE', body: [] }]]);

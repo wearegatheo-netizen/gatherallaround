@@ -28,6 +28,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const app = $('#app');
 // 16px 단색 선 아이콘(24 viewBox, currentColor). 버튼·시트·탭에서 이모지 대신 쓴다 — 기기마다 모양이 같고 글자색을 따른다.
 const ICONS = {
+    ticket: '<path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><path d="M13 7v2M13 11v2M13 15v2"/>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
     upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
@@ -267,21 +268,96 @@ async function q(builder) {
     if (error) { console.error('[supabase]', error); throw new Error(error.message || 'db'); }
     return data;
 }
+// 공연 연결(2026-10-20): 프로젝트에 events 를 임베드해 읽는다. 마이그레이션(event_id FK) 전엔 관계가 없어 오류 → 임베드 없는 조회로 폴백
+const EV_SEL = 'id,title,host_name,venue,starts_at,sales_open_at,price,status';
+async function qEmbed(withEmbed, plain) {
+    const { data, error } = await withEmbed();
+    if (!error) return data;
+    console.warn('[supabase] embed fallback:', error.message); return q(plain());
+}
 function fetchProjects({ group, size, text, sort = 'new', page = 0 } = {}) {
-    let b = sb.from('wappen_projects').select('*').eq('status', 'active');
-    if (size) b = b.eq('size_key', size); else if (group) b = b.eq('size_group', group);
-    if (text) b = b.ilike('title', `%${text.replace(/[%_,()]/g, ' ').trim()}%`);
-    b = sort === 'popular' ? b.order('works_count', { ascending: false }).order('created_at', { ascending: false }) : b.order('created_at', { ascending: false });
-    return q(b.range(page * PAGE, page * PAGE + PAGE));   // PAGE+1 개 받아 다음 페이지 유무 판단
+    const build = (sel) => {
+        let b = sb.from('wappen_projects').select(sel).eq('status', 'active');
+        if (size) b = b.eq('size_key', size); else if (group) b = b.eq('size_group', group);
+        if (text) b = b.ilike('title', `%${text.replace(/[%_,()]/g, ' ').trim()}%`);
+        b = sort === 'popular' ? b.order('works_count', { ascending: false }).order('created_at', { ascending: false }) : b.order('created_at', { ascending: false });
+        return b.range(page * PAGE, page * PAGE + PAGE);   // PAGE+1 개 받아 다음 페이지 유무 판단
+    };
+    return qEmbed(() => build('*, events(id,title,starts_at,status)'), () => build('*'));
 }
-const fetchProject = (id) => q(sb.from('wappen_projects').select('*').eq('id', id).maybeSingle());
+const fetchProject = (id) => qEmbed(() => sb.from('wappen_projects').select(`*, events(${EV_SEL})`).eq('id', id).maybeSingle(), () => sb.from('wappen_projects').select('*').eq('id', id).maybeSingle());
 function fetchWorks({ project_id, sort = 'popular', page = 0, limit = PAGE } = {}) {
-    let b = sb.from('wappen_works').select('*, wappen_projects(id,title,size_key,size_group,orientation)').eq('status', 'active');
-    if (project_id) b = b.eq('project_id', project_id);
-    b = sort === 'popular' ? b.order('reaction_count', { ascending: false }).order('created_at', { ascending: false }) : b.order('created_at', { ascending: false });
-    return q(b.range(page * limit, page * limit + limit));
+    const build = (sel) => {
+        let b = sb.from('wappen_works').select(sel).eq('status', 'active');
+        if (project_id) b = b.eq('project_id', project_id);
+        b = sort === 'popular' ? b.order('reaction_count', { ascending: false }).order('created_at', { ascending: false }) : b.order('created_at', { ascending: false });
+        return b.range(page * limit, page * limit + limit);
+    };
+    return qEmbed(() => build('*, wappen_projects(id,title,size_key,size_group,orientation,event_id,events(id,title,starts_at,status))'), () => build('*, wappen_projects(id,title,size_key,size_group,orientation)'));
 }
-const fetchWork = (id) => q(sb.from('wappen_works').select('*, wappen_projects(*)').eq('id', id).maybeSingle());
+const fetchWork = (id) => qEmbed(() => sb.from('wappen_works').select(`*, wappen_projects(*, events(${EV_SEL}))`).eq('id', id).maybeSingle(), () => sb.from('wappen_works').select('*, wappen_projects(*)').eq('id', id).maybeSingle());
+// 공연 상태·잔여석(본 사이트 _seatInfo 와 같은 규칙) — event_seats 뷰는 anon 읽기 가능, 실패하면 잔여석 없이 표시
+async function fetchSeats(eventId) {
+    try { const { data } = await sb.from('event_seats').select('*').eq('event_id', eventId).maybeSingle(); return data || null; } catch (_) { return null; }
+}
+async function fetchUpcomingEvents() {
+    try {
+        const { data } = await sb.from('events').select('id,title,venue,starts_at,status').eq('status', 'published').gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true }).limit(60);
+        return data || [];
+    } catch (_) { return []; }
+}
+const showUrl = (id) => `${location.origin}/show/${id}`; // 경로형 공유 주소 — 본 사이트 함수가 OG 를 넣고 #shows/<id> 로 보낸다
+function fmtShowDate(iso) { const d = new Date(iso); if (isNaN(d)) return ''; return `${d.getMonth() + 1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function showState(ev, seats) {
+    if (new Date(ev.starts_at) <= new Date()) return { label: '공연 종료', cls: 'closed', bookable: false };
+    if (ev.status !== 'published') return { label: '예매 마감', cls: 'closed', bookable: false };
+    if (ev.sales_open_at && new Date(ev.sales_open_at) > new Date()) return { label: '오픈 예정', cls: 'warn', bookable: false };
+    if (!seats) return { label: '예매 가능', cls: 'ok', bookable: true };
+    const rem = Math.max(0, (seats.capacity || 0) - (seats.taken || 0));
+    if (rem <= 0) return { label: '매진', cls: 'sold', bookable: false };
+    if (rem <= 10) return { label: `잔여 ${rem}석`, cls: 'warn', bookable: true };
+    return { label: '예매 가능', cls: 'ok', bookable: true };
+}
+const evVisible = (ev) => !!(ev && ev.id && ev.status !== 'hidden');
+// 프로젝트 페이지 카드: 공연명·일시·장소·가격·상태 칩 + [예매하러 가기]
+function eventCardHTML(ev, seats) {
+    if (!evVisible(ev)) return '';
+    const st = showState(ev, seats);
+    return `<div class="ev-card">
+        <div class="ev-head">${icon('ticket')}<span>이 포스터의 공연</span><span class="chip-st ${st.cls}">${esc(st.label)}</span></div>
+        <div class="ev-title">${esc(ev.title)}</div>
+        <div class="ev-meta">${fmtShowDate(ev.starts_at)}${ev.venue ? ' · ' + esc(ev.venue) : ''} · ${ev.price > 0 ? '₩' + num(ev.price) : '무료'}${ev.host_name ? ' · ' + esc(ev.host_name) : ''}</div>
+        <a class="gaa-btn gaa-btn-sm ${st.bookable ? 'gaa-btn-primary' : 'gaa-btn-secondary'}" href="${showUrl(ev.id)}" data-ev-link>${icon('ticket')}<span class="lbl">${st.bookable ? '예매하러 가기' : '공연 보기'}</span></a>
+    </div>`;
+}
+// 작품 페이지 띠: 한 줄(공연명 · 일시 · 상태) 전체가 예매 링크
+function eventStripHTML(ev, seats) {
+    if (!evVisible(ev)) return '';
+    const st = showState(ev, seats);
+    return `<a class="ev-strip" href="${showUrl(ev.id)}" data-ev-link>${icon('ticket')}<b>${esc(ev.title)}</b><span>${fmtShowDate(ev.starts_at)}</span><span class="chip-st ${st.cls}">${esc(st.label)}</span><span class="go">${st.bookable ? '예매' : '보기'} ${icon('chevron')}</span></a>`;
+}
+// 공연 고르기(⋯ › 공연 연결): 예매 중(published·시작 전) 공연 목록 + 검색. 되돌림: undefined = 취소, null = 연결 해제, id = 연결
+function eventPickModal(currentId) {
+    return new Promise(async (resolve) => {
+        let result;
+        const m = openModal(`<h3>공연 연결</h3><p class="muted" style="margin:-6px 0 10px">예매 중인 공연을 고르면 프로젝트·작품 페이지와 공유 미리보기에 공연 정보와 [예매하러 가기] 가 붙어요.</p>
+            <input class="wp-input" id="evSearch" placeholder="공연명 검색"><div class="ev-list" id="evList">${loadingHTML()}</div>
+            <div class="modal-actions">${currentId ? '<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-ghost-danger" data-unlink>연결 해제</button>' : ''}<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-close>취소</button></div>`, { onClose: () => resolve(result) });
+        const list = await fetchUpcomingEvents();
+        const draw = (qs = '') => {
+            const el = $('#evList', m.el); if (!el) return;
+            const rows = list.filter(e => !qs || String(e.title).toLowerCase().includes(qs.toLowerCase()));
+            el.innerHTML = rows.length ? rows.map(e => `<button type="button" class="ev-opt ${e.id === currentId ? 'active' : ''}" data-ev="${esc(e.id)}"><div><b>${esc(e.title)}</b><small>${fmtShowDate(e.starts_at)}${e.venue ? ' · ' + esc(e.venue) : ''}</small></div>${e.id === currentId ? icon('check') : ''}</button>`).join('')
+                : `<div class="empty" style="padding:18px">${qs ? '검색 결과가 없어요.' : '예매 중인 공연이 없어요. 호스트 센터에서 공연을 먼저 등록해주세요.'}</div>`;
+        };
+        draw();
+        $('#evSearch', m.el).addEventListener('input', (e) => draw(e.target.value.trim()));
+        m.el.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-ev]'); if (b) { result = b.dataset.ev; m.close(); return; }
+            if (e.target.closest('[data-unlink]')) { result = null; m.close(); }
+        });
+    });
+}
 async function fetchItems(force = false) {
     if (state.items && !force) return state.items;
     const items = await q(sb.from('wappen_items').select('*').eq('status', 'active').order('category').order('sort_order').order('created_at'));
@@ -416,6 +492,7 @@ function projectCardHTML(p) {
         <div class="card-thumb"><img src="${esc(p.thumb_url || p.base_image_url)}" alt="" loading="lazy">
             <div class="badge-tl">${sizeBadge(p)}</div><div class="badge-br"><span class="count-badge">🧩 ${num(p.works_count)}</span></div></div>
         <div class="card-body"><div class="card-title">${esc(p.title)}</div>
+            ${evVisible(p.events) ? `<div class="card-ev">${icon('ticket')}<span>${esc(p.events.title)}</span></div>` : ''}
             <div class="card-meta">${avatarHTML(p.author_name, p.author_avatar)}<span>${esc(p.author_name)}</span><span>·</span><span>${timeAgo(p.created_at)}</span></div></div></a>`;
 }
 function workCardHTML(w, { showProject = true } = {}) {
@@ -424,6 +501,7 @@ function workCardHTML(w, { showProject = true } = {}) {
         <div class="card-thumb"><img src="${esc(w.preview_url)}" alt="" loading="lazy">
             ${p ? `<div class="badge-tl">${sizeBadge(p)}</div>` : ''}<div class="badge-br"><span class="count-badge">❤️ ${num(w.reaction_count)}</span></div></div>
         <div class="card-body"><div class="card-title">${esc(w.title)}</div>
+            ${showProject && p && evVisible(p.events) ? `<div class="card-ev">${icon('ticket')}<span>${esc(p.events.title)}</span></div>` : ''}
             <div class="card-meta">${avatarHTML(w.author_name, w.author_avatar)}<span>${esc(w.author_name)}</span>${showProject && p ? `<span>·</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</span>` : ''}</div></div></a>`;
 }
 function pagerHTML(page, hasMore, makeHash) {
@@ -585,6 +663,7 @@ async function viewProject(r) {
                 <h1>${esc(p.title)}</h1>
                 <div class="author-line">${avatarHTML(p.author_name, p.author_avatar, 'xs')}<b>${esc(p.author_name)}</b><span class="sep">·</span><span>${fmtDate(p.created_at)}</span><span class="sep">·</span><span>작품 ${num(p.works_count)}개</span></div>
                 ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
+                <div id="evCard">${eventCardHTML(p.events, null)}</div>
                 <div class="action-row">
                     <a class="gaa-btn gaa-btn-sm gaa-btn-primary" href="#/edit/${id}">${icon('brush')}<span class="lbl">꾸미기 시작</span></a>
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" data-act="share" title="공유" aria-label="공유">${icon('share')}<span class="lbl">공유</span></button>
@@ -596,6 +675,7 @@ async function viewProject(r) {
             <div class="seg"><a class="${sort === 'popular' ? 'active' : ''}" href="${mk({ sort: '' })}">인기</a><a class="${sort === 'new' ? 'active' : ''}" href="${mk({ sort: 'new' })}">최신</a></div></div>
         <div id="worksGrid">${loadingHTML()}</div>`;
 
+    if (evVisible(p.events)) fetchSeats(p.events.id).then(seats => { const el = $('#evCard'); if (el) el.innerHTML = eventCardHTML(p.events, seats); }); // 잔여석 칩은 뒤에 채운다
     let worksSig = null;
     async function loadWorks(quiet = false) {
         const grid = $('#worksGrid'); if (!grid) return;
@@ -619,14 +699,19 @@ async function viewProject(r) {
         if (act === 'more') {
             // 부가 동작은 한 시트에 — 소유자/관리자: 정보 수정·숨기기·삭제, 모두: 링크 복사·신고
             act = await moreSheet([
-                ...(mine || admin ? [{ key: 'edit', label: '정보 수정', icon: 'edit' }, { key: 'hide', label: '숨기기', icon: 'eye-off' }] : []),
+                ...(mine || admin ? [{ key: 'edit', label: '정보 수정', icon: 'edit' }, { key: 'event', label: p.event_id ? '공연 연결 변경' : '공연 연결', icon: 'ticket' }, { key: 'hide', label: '숨기기', icon: 'eye-off' }] : []),
                 { key: 'copy', label: '링크 복사', icon: 'link' },
                 ...(!mine ? [{ key: 'report', label: '신고', icon: 'flag' }] : []),
                 ...(mine || admin ? [{ key: 'delete', label: '프로젝트 삭제', icon: 'trash', danger: true }] : []),
             ]);
             if (!act) return;
         }
-        if (act === 'share') shareSheet({ title: `${p.title} · 포스터 꾸미기`, text: `${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: shareUrl('project', id), imageUrl: p.thumb_url || p.base_image_url });
+        if (act === 'share') shareSheet({ title: `${p.title} · 포스터 꾸미기`, text: `${evVisible(p.events) ? p.events.title + ' 공연 포스터 — ' : ''}${presetLabel(p.size_key, p.orientation)} 프로젝트 — 와펜을 붙여 꾸며보세요`, url: shareUrl('project', id), imageUrl: p.thumb_url || p.base_image_url });
+        if (act === 'event') { // 공연 연결/변경/해제(2026-10-20)
+            const picked = await eventPickModal(p.event_id || null); if (picked === undefined) return;
+            const out = await api('project_update', { project_id: id, event_id: picked });
+            if (out.ok) { showToast(picked ? '공연을 연결했어요.' : '공연 연결을 해제했어요.'); render(); } else showToast(out.message || '저장하지 못했습니다.');
+        }
         if (act === 'copy') copyText(shareUrl('project', id));
         if (act === 'report') reportModal('project', id);
         if (act === 'edit') {
@@ -669,6 +754,8 @@ async function viewNew() {
             <div class="help" id="imgHelp"></div></div>
         <div class="card-box"><div class="wp-label head">3. 정보</div>
             <label class="wp-label" for="pTitle">제목</label><input class="wp-input" id="pTitle" maxlength="${LIMITS.title}" placeholder="예: 여름 페스티벌 포스터">
+            <label class="wp-label" for="pEvent">연결할 공연 (선택)</label><select class="wp-select" id="pEvent"><option value="">연결 안 함</option></select>
+            <div class="help" style="margin-bottom:10px">예매 중인 공연을 고르면 프로젝트에 공연 정보와 [예매하러 가기] 가 붙어요.</div>
             <label class="wp-label" for="pDesc">설명 (선택)</label><textarea class="wp-textarea" id="pDesc" maxlength="${LIMITS.description}" placeholder="어떤 프로젝트인지, 어떻게 꾸미면 좋을지 알려주세요"></textarea></div>
         <div class="progress hidden" id="prog" style="margin-top:14px"><div></div></div>
         <div class="form-result" id="newResult"></div>
@@ -709,6 +796,7 @@ async function viewNew() {
     drop.addEventListener('dragleave', () => drop.classList.remove('over'));
     drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); takeFile(e.dataTransfer.files[0]); });
     renderSizes();
+    fetchUpcomingEvents().then(list => { const sel = $('#pEvent'); if (!sel) return; list.forEach(ev => { const o = document.createElement('option'); o.value = ev.id; o.textContent = `${ev.title} · ${fmtShowDate(ev.starts_at)}`; sel.appendChild(o); }); });
 
     $('#createBtn').addEventListener('click', async (e) => {
         const btn = e.currentTarget; res.textContent = ''; res.className = 'form-result';
@@ -730,7 +818,7 @@ async function viewNew() {
             step(70, '썸네일 업로드 중…');
             const thumb_url = await uploadBlob('thumb', thumb.blob, 'jpg');
             step(90, '프로젝트 저장 중…');
-            const out = await api('project_create', { title, description, size_key: s.size, orientation: s.orientation, width_px: base.w, height_px: base.h, base_image_url, thumb_url });
+            const out = await api('project_create', { title, description, size_key: s.size, orientation: s.orientation, width_px: base.w, height_px: base.h, base_image_url, thumb_url, event_id: ($('#pEvent') && $('#pEvent').value) || null });
             if (!out.ok) throw new Error(out.message || '저장하지 못했습니다.');
             step(100, '완료!'); showToast('프로젝트를 만들었어요. 이제 꾸며보세요!');
             navigate(`#/project/${out.project.id}`);
@@ -945,6 +1033,7 @@ async function viewWork(r) {
                 <div class="author-line">${avatarHTML(w.author_name, w.author_avatar, 'xs')}<b>${esc(w.author_name)}</b><span class="sep">·</span><span>${timeAgo(w.created_at)}</span>
                     <span class="sep">·</span><span>와펜 ${num((w.layout && w.layout.items || []).length)}개</span><span class="sep">·</span><span>반응 <span id="reactTotal">${num(w.reaction_count)}</span></span>
                     ${w.remix_of ? `<span class="sep">·</span><a href="#/work/${w.remix_of}">원작 보기 ${icon('chevron')}</a>` : ''}</div>
+                ${p && evVisible(p.events) ? `<div id="evStrip">${eventStripHTML(p.events, null)}</div>` : ''}
                 <div class="reaction-bar" id="reactBar"></div>
                 <div class="action-row">
                     <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" data-act="download">${icon('download')}<span class="lbl">다운로드</span></button>
@@ -960,6 +1049,7 @@ async function viewWork(r) {
         $('#reactBar').innerHTML = REACTIONS.map(x => `<button type="button" class="reaction-btn ${mineKind === x.key ? 'active' : ''}" data-react="${x.key}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${x.emoji} <span class="lbl">${esc(x.label)}</span> <span class="n">${num(counts[x.key] || 0)}</span></button>`).join('');
     }
     renderReactions();
+    if (p && evVisible(p.events)) fetchSeats(p.events.id).then(seats => { const el = $('#evStrip'); if (el) el.innerHTML = eventStripHTML(p.events, seats); });
     let busy = false;
     $('#reactBar').addEventListener('click', async (e) => {
         const b = e.target.closest('[data-react]'); if (!b || busy) return;
