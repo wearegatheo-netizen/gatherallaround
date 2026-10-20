@@ -1,7 +1,7 @@
 // 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
 // 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
 // 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 export const SEED_ITEMS = [
     {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 235, "h": 209, "kind": "raster"},
     {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 242, "h": 230, "kind": "raster"},
@@ -67,4 +67,21 @@ export const SEED_ITEMS = [
     {"key": "p4-heart-glasses", "name": "하트 선글라스", "category": "도형·기호", "tags": ["선글라스", "하트", "빨강", "반짝", "자수"], "file": "p4-heart-glasses.png", "w": 363, "h": 168, "kind": "raster"},
     {"key": "p5-club-ff", "name": "CLUB FF 라벨", "category": "글자", "tags": ["club ff", "영문", "검정", "라벨", "공연장", "자수"], "file": "p5-club-ff.png", "w": 324, "h": 129, "kind": "raster"},
     {"key": "p5-date-261121", "name": "26/11/21(Sat) 5PM 라벨", "category": "글자", "tags": ["날짜", "시간", "공연", "검정", "라벨", "자수"], "file": "p5-date-261121.png", "w": 464, "h": 99, "kind": "raster"},
+    {"key": "p6-01-genjou", "name": "現状ディストラクション", "category": "게더링", "tags": ["TEAM 용석", "SPYAIR", "현상 디스트럭션", "일본어", "셋리스트", "라벨", "자수"], "file": "p6-01-genjou.png", "w": 657, "h": 270, "kind": "raster"},
+    {"key": "p6-02-sinkhole", "name": "SINK HOLE", "category": "게더링", "tags": ["TEAM 용석", "국카스텐", "Guckkasten", "영문", "셋리스트", "라벨", "자수"], "file": "p6-02-sinkhole.png", "w": 364, "h": 241, "kind": "raster"},
+    {"key": "p6-03-kickout", "name": "KICK OUT", "category": "게더링", "tags": ["TEAM 용석", "국카스텐", "Guckkasten", "영문", "셋리스트", "라벨", "자수"], "file": "p6-03-kickout.png", "w": 652, "h": 190, "kind": "raster"},
+    {"key": "p6-04-marigold", "name": "マリーゴールド", "category": "게더링", "tags": ["TEAM 인혜", "아이묭", "aimyon", "마리골드", "일본어", "셋리스트", "라벨", "자수"], "file": "p6-04-marigold.png", "w": 736, "h": 176, "kind": "raster"},
+    {"key": "p6-05-longwalk", "name": "A long walk", "category": "게더링", "tags": ["TEAM 인혜", "Jill Scott", "질 스콧", "영문", "셋리스트", "라벨", "자수"], "file": "p6-05-longwalk.png", "w": 524, "h": 176, "kind": "raster"},
+    {"key": "p6-06-7000rpm", "name": "7000RPM", "category": "게더링", "tags": ["TEAM 인혜", "카디", "Kardi", "영문", "셋리스트", "라벨", "자수"], "file": "p6-06-7000rpm.png", "w": 582, "h": 162, "kind": "raster"},
+    {"key": "p6-07-gobaek", "name": "고백", "category": "게더링", "tags": ["TEAM 경수", "다다다", "dadada", "한글", "셋리스트", "라벨", "자수"], "file": "p6-07-gobaek.png", "w": 204, "h": 148, "kind": "raster"},
+    {"key": "p6-08-narak", "name": "나락", "category": "게더링", "tags": ["TEAM 경수", "shimisland", "한글", "셋리스트", "라벨", "자수"], "file": "p6-08-narak.png", "w": 195, "h": 149, "kind": "raster"},
+    {"key": "p6-09-youngman", "name": "Young Man", "category": "게더링", "tags": ["TEAM 경수", "혁오", "hyukoh", "영문", "셋리스트", "라벨", "자수"], "file": "p6-09-youngman.png", "w": 508, "h": 175, "kind": "raster"},
+    {"key": "p6-10-yosulwangja", "name": "요술왕자", "category": "게더링", "tags": ["TEAM 경수", "술탄 오브 더 디스코", "Sultan of the Disco", "한글", "셋리스트", "라벨", "자수"], "file": "p6-10-yosulwangja.png", "w": 446, "h": 166, "kind": "raster"},
+    {"key": "p6-11-happyday", "name": "HAPPY DAY", "category": "게더링", "tags": ["TEAM 예은", "체리필터", "Cherry Filter", "영문", "셋리스트", "라벨", "자수"], "file": "p6-11-happyday.png", "w": 623, "h": 185, "kind": "raster"},
+    {"key": "p6-12-happyending", "name": "My Happy Ending", "category": "게더링", "tags": ["TEAM 예은", "Avril Lavigne", "에이브릴 라빈", "영문", "셋리스트", "라벨", "자수"], "file": "p6-12-happyending.png", "w": 467, "h": 294, "kind": "raster"},
+    {"key": "p6-13-sk8erboi", "name": "SK8ER BOI", "category": "게더링", "tags": ["TEAM 예은", "Avril Lavigne", "에이브릴 라빈", "영문", "셋리스트", "라벨", "자수"], "file": "p6-13-sk8erboi.png", "w": 606, "h": 169, "kind": "raster"},
+    {"key": "p6-14-henbou", "name": "変貌", "category": "게더링", "tags": ["TEAM 정은", "네기시오", "negishio", "일본어", "셋리스트", "라벨", "자수"], "file": "p6-14-henbou.png", "w": 283, "h": 175, "kind": "raster"},
+    {"key": "p6-15-mihak", "name": "사랑의 미학", "category": "게더링", "tags": ["TEAM 다희", "레도어", "redoor", "한글", "셋리스트", "라벨", "자수"], "file": "p6-15-mihak.png", "w": 475, "h": 142, "kind": "raster"},
+    {"key": "p6-16-neowana", "name": "너와 나", "category": "게더링", "tags": ["TEAM 다희", "한로로", "hanroro", "한글", "셋리스트", "라벨", "자수"], "file": "p6-16-neowana.png", "w": 379, "h": 161, "kind": "raster"},
+    {"key": "p6-17-eoryeoundal", "name": "어려운 달", "category": "게더링", "tags": ["TEAM 다희", "쏜애플", "Thornapple", "한글", "셋리스트", "라벨", "자수"], "file": "p6-17-eoryeoundal.png", "w": 490, "h": 181, "kind": "raster"},
 ];

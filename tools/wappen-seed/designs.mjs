@@ -521,4 +521,4 @@ add('e-rockon', 'ROCK ON!', '글자', ['rock', '록', '영문', '자수'], embWr
     + embText(500, 480, 'ROCK', 150, E.yellow, { bw: 10, extra: 'letter-spacing="6"' }) + embText(500, 640, 'ON!', 150, E.white, { bw: 10, extra: 'letter-spacing="6"' }) + '</g>'));
 
 export const DESIGNS = D;
-export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연', '과일'];
+export const CATEGORIES = ['도형·기호', '동물', '음악', '음식', '글자', '캐릭터·자연', '과일', '게더링'];   // 게더링 = 팀 셋리스트 라벨 등 게더링 전용(2026-10-20)

@@ -775,6 +775,380 @@
      ]
     }
    ]
+  },
+  {
+   "src": "team-2026-10-20-01-genjou.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 01_TEAM용석_spyair_genjou_destruction.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-01-genjou",
+     "name": "現状ディストラクション",
+     "category": "게더링",
+     "tags": [
+      "TEAM 용석",
+      "SPYAIR",
+      "현상 디스트럭션",
+      "일본어",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-02-sinkhole.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 02_TEAM용석_guckkasten_sink_hole.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-02-sinkhole",
+     "name": "SINK HOLE",
+     "category": "게더링",
+     "tags": [
+      "TEAM 용석",
+      "국카스텐",
+      "Guckkasten",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-03-kickout.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 03_TEAM용석_guckkasten_kick_out.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-03-kickout",
+     "name": "KICK OUT",
+     "category": "게더링",
+     "tags": [
+      "TEAM 용석",
+      "국카스텐",
+      "Guckkasten",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-04-marigold.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 04_TEAM인혜_aimyon_marigold.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-04-marigold",
+     "name": "マリーゴールド",
+     "category": "게더링",
+     "tags": [
+      "TEAM 인혜",
+      "아이묭",
+      "aimyon",
+      "마리골드",
+      "일본어",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-05-longwalk.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 05_TEAM인혜_jill_scott_a_long_walk.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-05-longwalk",
+     "name": "A long walk",
+     "category": "게더링",
+     "tags": [
+      "TEAM 인혜",
+      "Jill Scott",
+      "질 스콧",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-06-7000rpm.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 06_TEAM인혜_kardi_7000rpm.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-06-7000rpm",
+     "name": "7000RPM",
+     "category": "게더링",
+     "tags": [
+      "TEAM 인혜",
+      "카디",
+      "Kardi",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-07-gobaek.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 07_TEAM경수_dadada_gobaek.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-07-gobaek",
+     "name": "고백",
+     "category": "게더링",
+     "tags": [
+      "TEAM 경수",
+      "다다다",
+      "dadada",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-08-narak.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 08_TEAM경수_shimisland_narak.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-08-narak",
+     "name": "나락",
+     "category": "게더링",
+     "tags": [
+      "TEAM 경수",
+      "shimisland",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-09-youngman.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 09_TEAM경수_hyukoh_young_man.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-09-youngman",
+     "name": "Young Man",
+     "category": "게더링",
+     "tags": [
+      "TEAM 경수",
+      "혁오",
+      "hyukoh",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-10-yosulwangja.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 10_TEAM경수_sultan_yosul_wangja.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-10-yosulwangja",
+     "name": "요술왕자",
+     "category": "게더링",
+     "tags": [
+      "TEAM 경수",
+      "술탄 오브 더 디스코",
+      "Sultan of the Disco",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-11-happyday.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 11_TEAM예은_cherryfilter_happy_day.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-11-happyday",
+     "name": "HAPPY DAY",
+     "category": "게더링",
+     "tags": [
+      "TEAM 예은",
+      "체리필터",
+      "Cherry Filter",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-12-happyending.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 12_TEAM예은_avril_my_happy_ending.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-12-happyending",
+     "name": "My Happy Ending",
+     "category": "게더링",
+     "tags": [
+      "TEAM 예은",
+      "Avril Lavigne",
+      "에이브릴 라빈",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-13-sk8erboi.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 13_TEAM예은_avril_sk8er_boi.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-13-sk8erboi",
+     "name": "SK8ER BOI",
+     "category": "게더링",
+     "tags": [
+      "TEAM 예은",
+      "Avril Lavigne",
+      "에이브릴 라빈",
+      "영문",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-14-henbou.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 14_TEAM정은_negishio_henbou.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-14-henbou",
+     "name": "変貌",
+     "category": "게더링",
+     "tags": [
+      "TEAM 정은",
+      "네기시오",
+      "negishio",
+      "일본어",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-15-mihak.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 15_TEAM다희_redoor_sarangui_mihak.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-15-mihak",
+     "name": "사랑의 미학",
+     "category": "게더링",
+     "tags": [
+      "TEAM 다희",
+      "레도어",
+      "redoor",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-16-neowana.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 16_TEAM다희_hanroro_neowa_na.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-16-neowana",
+     "name": "너와 나",
+     "category": "게더링",
+     "tags": [
+      "TEAM 다희",
+      "한로로",
+      "hanroro",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
+  },
+  {
+   "src": "team-2026-10-20-17-eoryeoundal.png",
+   "rows": 1,
+   "cols": 1,
+   "note": "2026-10-20 게더링 팀 셋리스트 라벨(투명 PNG 1장 = 1칸, 원본 파일 17_TEAM다희_thornapple_eoryeoun_dal.png) — 제공자 소유 저작물",
+   "items": [
+    {
+     "key": "p6-17-eoryeoundal",
+     "name": "어려운 달",
+     "category": "게더링",
+     "tags": [
+      "TEAM 다희",
+      "쏜애플",
+      "Thornapple",
+      "한글",
+      "셋리스트",
+      "라벨",
+      "자수"
+     ]
+    }
+   ]
   }
  ]
 }
