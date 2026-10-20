@@ -529,7 +529,7 @@ function shareSheet({ title, text, url, imageUrl }) {
         const b = e.target.closest('[data-s]'); if (!b) return;
         const s = b.dataset.s;
         if (s === 'copy') { await copyText(url); m.close(); }
-        if (s === 'native') { try { await navigator.share({ title, text, url }); m.close(); } catch (err) { if (err && err.name !== 'AbortError') copyText(url); } }
+        if (s === 'native') { try { await navigator.share({ url }); m.close(); } catch (err) { if (err && err.name !== 'AbortError') copyText(url); } }
         if (s === 'kakao') {
             initKakao();
             const shareApi = window.Kakao && (Kakao.Share || Kakao.Link);
@@ -1159,7 +1159,7 @@ function downloadSheet(w, p) {
             if (isPrint && out.dpi < maxDpi) showToast(`이 기기 한계로 ${out.dpi}dpi 로 저장했어요. PC 에서는 더 높은 해상도로 저장할 수 있어요.`, 5000);
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 status.insertAdjacentHTML('afterend', `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary gaa-btn-block" id="dlShare" style="margin-top:8px">${icon('phone')} 사진 앱에 저장 / 공유</button>`);
-                $('#dlShare', m.el).addEventListener('click', async () => { try { await navigator.share({ files: [file], title: w.title }); } catch (_) {} });
+                $('#dlShare', m.el).addEventListener('click', async () => { try { await navigator.share({ files: [file] }); } catch (_) {} });
             }
         } catch (err) { console.error(err); status.textContent = err.message || '저장하지 못했어요.'; status.className = 'form-result err'; }
         go.disabled = false;

@@ -9402,7 +9402,7 @@
             const shareUrl = `${location.origin}${location.pathname}?news=${encodeURIComponent(fileId)}`;
             if (navigator.share) {
                 try {
-                    await navigator.share({ title: '어제 하루, 밴드씬에서 생긴 일?! - ' + title, url: shareUrl });
+                    await navigator.share({ url: shareUrl });
                     return;
                 } catch(e) {}
             }
@@ -11067,7 +11067,7 @@
             const m = state.communityMeetings.find(x => x.id === id);
             const url = `${location.origin}${location.pathname}#community/meeting/${id}`;
             if (navigator.share) {
-                try { await navigator.share({ title: m ? m.title : '모임', url }); return; }
+                try { await navigator.share({ url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
             }
             try {
@@ -15583,10 +15583,9 @@
         async function shareShow(id) {
             const ev = (_showsState.event && _showsState.event.id === id) ? _showsState.event : (_showsState.events || []).find(e => e.id === id);
             const url = `${location.origin}/show/${id}`;
-            const title = ev ? ev.title : '공연 예매';
-            const text = ev ? [_showDateStr(ev.starts_at), ev.venue].filter(Boolean).join(' · ') : '';
+            // 링크만 넘긴다(2026-10-20) — title/text 를 주면 카톡 등이 그 글까지 메시지에 써 넣는다. 미리보기 카드는 /show/<id> 의 OG 가 만든다.
             if (navigator.share) {
-                try { await navigator.share({ title, text, url }); return; }
+                try { await navigator.share({ url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
             }
             try {
@@ -15945,9 +15944,8 @@
         }
         async function shareTransferLink(seatCode) {
             const l = _showsState.transferLinks[seatCode]; if (!l) return;
-            const ev = _showsState.tEvent, title = ev ? ev.title : '공연';
             if (navigator.share) {
-                try { await navigator.share({ title: `${title} 티켓 양도`, text: `${title} 티켓 1장을 양도합니다. 링크에서 이름·연락처를 입력하면 받을 수 있어요. (48시간 안에)`, url: l.url }); return; }
+                try { await navigator.share({ url: l.url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; }
             }
             copyTransferLink(seatCode);

@@ -230,6 +230,8 @@
   `margin:0 calc(-1*var(--b-card-pad))`, 관리 팀은 `.admin` 파란 톤)가 되어 팀 경계를 소제목 구분선과 구별한다(팀 관리·현황표 카드 공통). 가입 신청 목록은 단순 구분선 리스트. 시드 표식 메모 "시트 이관"은 DB엔 두고 화면에서만 `_bandDisplayNote()`로 숨김.
   `.band-form-grid`는 `minmax(0,1fr)` 열 + `label{min-width:0}` — date/number 입력은 `appearance:none`으로 모바일 고유 폭 넘침 방지.
 - 민감정보(도어락 번호 등)는 관리자 UI에서만 노출, 공개 화면 금지.
+- **공유는 링크만(2026-10-20)**: `navigator.share` 에 `title`/`text` 를 주면 카카오톡 등이 그 글을 메시지 본문에 같이 써 넣으므로 모든 공유(공연·모임·밴드 뉴스·티켓 양도·포스터 꾸미기 「다른 앱으로 공유」·파일 공유)는 `{ url }`(파일은 `{ files }`)만 넘긴다.
+  미리보기 카드는 경로형 URL 의 OG 가 담당. 포스터 꾸미기 카카오 버튼(`sendDefault` 피드 카드)의 title/description 은 카드 내용이라 그대로.
 
 ## 포스터 꾸미기 (`/wappen/`, 2026-10-06 — 서비스명은 2026-10-12 「와펜 꾸미기」→「포스터 꾸미기」로 변경, URL 경로·코드 식별자(wappen)는 그대로)
 - **별도 페이지** `wappen/`(index.html·style.css·app.js·editor.js·render.js·presets.js, ESM) — index.html 과 독립. 같은 카카오 앱·Supabase.
