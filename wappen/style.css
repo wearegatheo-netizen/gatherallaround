@@ -280,10 +280,12 @@ body.editing .wp-footer { display: none; }
 .ed-drawer-chips { padding: 0 10px 6px; flex: none; }
 .ed-items { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; padding: 4px 10px 12px; align-content: start; }
 /* 서랍 타일: 높이는 항상 정사각(폭 기준) — 이미지는 절대 배치로 타일 안에 contain(길쭉한 와펜도 타일을 키우지 않음, 2026-10-08) */
-/* 타일은 정사각 — aspect-ratio 를 <button> 에 주면 iOS Safari 가 무시해 타일이 주저앉고 그림이 겹쳐 보였다(2026-10-20) → ::before 의 padding-top 100% 로 높이를 만든다 */
-.ed-item { border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); display: block; width: 100%; cursor: pointer; padding: 0; position: relative; overflow: hidden; min-height: 0; -webkit-appearance: none; appearance: none; }
+/* 타일(div[role=button]) 은 정사각 — <button> 이면 iOS Safari 가 aspect-ratio 도 padding 스페이서도 무시해 타일이 주저앉고 그림이 겹쳤다(2026-10-20).
+   div 에 aspect-ratio + ::before padding-top 100% 를 함께 둔다(둘 다 border-box 기준으로 같은 높이, 하나가 무시돼도 정사각 유지) */
+.ed-item { box-sizing: border-box; border: 1px solid var(--wds-gray-200); border-radius: 10px; background: var(--wp-check); display: block; width: 100%; aspect-ratio: 1 / 1; cursor: pointer; padding: 0; position: relative; overflow: hidden; min-height: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .ed-item::before { content: ''; display: block; padding-top: 100%; }
 .ed-item:hover { border-color: var(--wds-primary); }
+.ed-item:focus-visible { outline: 2px solid var(--wds-primary); outline-offset: 1px; }
 .ed-item img { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 24px); max-width: calc(100% - 12px); max-height: calc(100% - 24px); object-fit: contain; pointer-events: none; }
 .ed-item span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.62rem; text-align: center; background: rgba(255,255,255,0.85); color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 0 0 9px 9px; }
 /* 에디터 서랍 탭(와펜/레이어) + 레이어 패널 */

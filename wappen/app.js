@@ -869,12 +869,14 @@ async function viewEdit(r) {
     function renderItems() {
         const t = text.toLowerCase();
         const list = items.filter(i => (!cat || i.category === cat) && (!t || i.name.toLowerCase().includes(t) || (i.tags || []).some(x => x.toLowerCase().includes(t)) || i.category.toLowerCase().includes(t)));
-        grid.innerHTML = list.length ? list.map(i => `<button type="button" class="ed-item" data-item="${i.id}" title="${esc(i.name)}"><img src="${esc(i.image_url)}" alt="" loading="lazy" crossorigin="anonymous"><span>${esc(i.name)}</span></button>`).join('')
+        // 타일은 <button> 이 아니라 div[role=button] — iOS Safari 는 button 안에서 aspect-ratio 도 padding 스페이서도 높이를 못 만들어 타일이 주저앉는다(2026-10-20)
+        grid.innerHTML = list.length ? list.map(i => `<div class="ed-item" role="button" tabindex="0" data-item="${i.id}" title="${esc(i.name)}"><img src="${esc(i.image_url)}" alt="" loading="lazy" crossorigin="anonymous"><span>${esc(i.name)}</span></div>`).join('')
             : `<div class="empty" style="grid-column:1/-1;padding:20px">${items.length ? '검색 결과가 없어요.' : '아직 등록된 와펜이 없어요. <a href="#/request" target="_blank">와펜을 요청</a>해보세요.'}</div>`;
     }
     renderChips(); renderItems();
     chips.addEventListener('click', (e) => { const b = e.target.closest('[data-cat]'); if (!b) return; cat = b.dataset.cat; renderChips(); renderItems(); });
     $('#edSearch').addEventListener('input', debounce((e) => { text = e.target.value.trim(); renderItems(); }, 200));
+    grid.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-item]')) { e.preventDefault(); e.target.closest('[data-item]').click(); } });
     grid.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-item]'); if (!b) return;
         const meta = state.itemsById.get(b.dataset.item); if (!meta) return;
