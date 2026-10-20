@@ -322,6 +322,12 @@
         .sx-host { display: flex; gap: 12px; align-items: flex-start; background: var(--wds-gray-100); border-radius: 14px; padding: 12px 14px; font-size: 0.84rem; color: var(--wds-gray-700); line-height: 1.6; }
         .sx-host b { display: block; color: var(--wds-black); font-size: 0.9rem; margin-bottom: 2px; }
         .sx-host a { color: var(--wds-primary); text-decoration: none; font-weight: 700; }
+        /* 공연 상세 ↔ 포스터 꾸미기 프로젝트(2026-10-20) */
+        .sx-wp { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .sx-wp-card { flex: none; width: 124px; text-decoration: none; color: inherit; }
+        .sx-wp-card img { width: 124px; height: 124px; object-fit: contain; background: var(--wds-gray-100); border-radius: 12px; display: block; padding: 6px; box-sizing: border-box; }
+        .sx-wp-card b { display: block; font-size: 0.8rem; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--wds-black); }
+        .sx-wp-card small { display: block; color: var(--wds-gray-500); font-size: 0.72rem; }
         #shows-page .cm-lower, #shows-page .cm-form { max-width: 640px; }
         #shows-page .cm-form, #host-page .cm-form { margin: 0 auto; }
         /* 공간 대관: 단계 표시·달력 카드·요금 띠·접이식 안내·선택 요약 고정 바 */
@@ -15675,6 +15681,7 @@
             if (hasCoords) html += `<div class="cm-sec"><h2>오시는 길</h2><div id="showMap" style="height:200px;border-radius:14px;background:var(--wds-gray-100)"></div>
                 <div style="font-size:0.8rem;margin-top:8px;display:flex;justify-content:space-between;gap:10px;color:var(--wds-gray-600)"><span style="white-space:pre-line">${escapeHtml(ev.venue_address || ev.venue)}</span><a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--wds-primary);text-decoration:none;font-weight:700;flex:none">카카오맵에서 보기 →</a></div></div>`;
             if (descHtml) html += `<div class="cm-sec"><h2>공연 소개</h2><div class="cm-desc docs-card-content">${descHtml}</div></div>`;
+            html += `<div class="cm-sec" id="showPosterProjects" hidden></div>`; // 연결된 포스터 꾸미기 프로젝트(2026-10-20) — 렌더 뒤 채움
             html += `</div>`; // .cm-lower
             if (seat.bookable) {
                 const qtyOpts = Array.from({ length: maxQty }, (_, i) => `<option value="${i + 1}">${i + 1}매</option>`).join('');
@@ -15706,6 +15713,19 @@
             c.innerHTML = html;
             window.scrollTo({ top: 0, behavior: 'instant' });
             if (hasCoords) _renderShowMap(ev);
+            _renderShowPosterProjects(ev.id);
+        }
+        // 포스터 꾸미기 연결(2026-10-20): 이 공연에 연결된 프로젝트(wappen_projects.event_id, anon 읽기)가 있으면 상세 아래에 — 없거나 실패(마이그레이션 전)면 숨긴 채
+        async function _renderShowPosterProjects(eventId) {
+            try {
+                const { data } = await supabaseClient.from('wappen_projects').select('id,title,thumb_url,base_image_url,works_count,author_name').eq('status', 'active').eq('event_id', eventId).limit(6);
+                const rows = (data || []).filter(p => p && p.id && p.title);
+                const el = document.getElementById('showPosterProjects'); if (!el || !rows.length) return;
+                el.hidden = false;
+                el.innerHTML = `<h2>포스터 꾸미기</h2><div class="sx-wp">${rows.map(p => `<a class="sx-wp-card" href="/wappen/#/project/${p.id}">
+                        <img src="${escapeHtml(p.thumb_url || p.base_image_url || '')}" alt="" loading="lazy"><b>${escapeHtml(p.title)}</b><small>작품 ${p.works_count || 0}개${p.author_name ? ' · ' + escapeHtml(p.author_name) : ''}</small></a>`).join('')}</div>
+                    <div class="sx-note" style="margin-top:6px">이 공연 포스터에 와펜을 붙여 나만의 포스터를 만들 수 있어요.</div>`;
+            } catch (_) { /* 선택 기능 — 조용히 생략 */ }
         }
 
         // 예매 작성 바텀시트 열기/닫기

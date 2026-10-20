@@ -11,6 +11,9 @@ export function isCrawler(request) {
     return !ua || BOT_RE.test(ua);
 }
 const DEFAULT_IMAGE = `${SITE}/icon.jpg`;
+// 연결된 공연(2026-10-20)이 공개 상태면 OG 설명 앞에 「공연명 (10/23(금) 19:30) 공연 포스터 · 」 를 붙인다
+const fmtShow = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; return `${d.getMonth() + 1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const showPrefix = (ev) => ev && ev.title && ev.status !== 'hidden' ? `${ev.title}${ev.starts_at ? ` (${fmtShow(ev.starts_at)})` : ''} 공연 포스터 · ` : '';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -28,15 +31,18 @@ async function fetchRow(env, pathQuery) {
 export async function shareOg(env, kind, id) {
     const url = SITE + sharePath(kind, id);
     if (kind === 'work') {
-        const row = await fetchRow(env, `wappen_works?id=eq.${id}&status=eq.active&select=title,author_name,preview_url,preview_w,preview_h,wappen_projects(title,status)&limit=1`);
+        const row = await fetchRow(env, `wappen_works?id=eq.${id}&status=eq.active&select=title,author_name,preview_url,preview_w,preview_h,wappen_projects(title,status,events(title,starts_at,status))&limit=1`)
+            || await fetchRow(env, `wappen_works?id=eq.${id}&status=eq.active&select=title,author_name,preview_url,preview_w,preview_h,wappen_projects(title,status)&limit=1`); // 마이그레이션 전(event_id 없음) 폴백
         if (!row) return null;
         const proj = row.wappen_projects && row.wappen_projects.status === 'active' ? row.wappen_projects.title : '';
-        return { title: `${row.title} — ${row.author_name}님의 와펜 작품`, desc: `${proj ? proj + ' 프로젝트 · ' : ''}와펜을 붙여 꾸민 작품을 구경하고 반응을 남겨보세요`,
+        const evp = row.wappen_projects && row.wappen_projects.status === 'active' ? showPrefix(row.wappen_projects.events) : '';
+        return { title: `${row.title} — ${row.author_name}님의 와펜 작품`, desc: `${evp}${proj ? proj + ' 프로젝트 · ' : ''}와펜을 붙여 꾸민 작품을 구경하고 반응을 남겨보세요`,
             image: row.preview_url || DEFAULT_IMAGE, w: row.preview_w, h: row.preview_h, url };
     }
-    const row = await fetchRow(env, `wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count&limit=1`);
+    const row = await fetchRow(env, `wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count,events(title,starts_at,status)&limit=1`)
+        || await fetchRow(env, `wappen_projects?id=eq.${id}&status=eq.active&select=title,author_name,description,thumb_url,base_image_url,works_count&limit=1`); // 마이그레이션 전 폴백
     if (!row) return null;
-    return { title: `${row.title} — 포스터 꾸미기 프로젝트`, desc: row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`,
+    return { title: `${row.title} — 포스터 꾸미기 프로젝트`, desc: showPrefix(row.events) + (row.description || `${row.author_name}님의 프로젝트 · 작품 ${row.works_count || 0}개 · 와펜을 붙여 나만의 작품을 만들어보세요`),
         image: row.thumb_url || row.base_image_url || DEFAULT_IMAGE, w: null, h: null, url };
 }
 

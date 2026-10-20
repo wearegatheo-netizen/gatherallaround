@@ -37,6 +37,9 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
         { id: EV3, host_id: 'h2', host_name: '재즈 콜렉티브', title: '재즈의 밤 (매진)', description: '', poster_url: '', venue: '게더', starts_at: F7, capacity: 20, price: 10000, bank_info: 'x', max_per_booking: 4, status: 'published' },
         { id: '44444444-4444-4444-8444-444444444444', host_id: 'h2', host_name: '지난팀', title: '지난 공연', description: '', poster_url: '', venue: '게더', starts_at: PAST, capacity: 20, price: 0, bank_info: null, max_per_booking: 4, status: 'published' },
       ],
+      wappen_projects: [ // 공연에 연결된 포스터 꾸미기 프로젝트(2026-10-20) — 상세 아래 카드
+        { id: 'p1', title: '한여름 포스터', event_id: EV1, status: 'active', thumb_url: '', base_image_url: '', works_count: 3, author_name: '길동' },
+      ],
       event_seats: [
         { event_id: EV1, capacity: 40, taken: 37 },
         { event_id: EV2, capacity: 30, taken: 4 },
@@ -150,6 +153,9 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   chk('상세: 지도 영역 + 카카오맵 링크 + 주소', s.mapDiv && s.mapLink.includes('37.5559') && s.addr, s.mapLink.slice(0, 60));
   s = await p.evaluate(() => document.getElementById('shows-container').textContent.includes('2층 초록 문으로 입장'));
   chk('상세: 장소 상세설명 둘째 줄 표시', s === true);
+  await p.waitForTimeout(300);
+  s = await p.evaluate(() => { const el = document.getElementById('showPosterProjects'); const a = el?.querySelector('a.sx-wp-card'); return { shown: !!el && !el.hidden, href: a?.getAttribute('href'), text: el?.textContent || '' }; });
+  chk('상세: 연결된 포스터 꾸미기 프로젝트 카드 → /wappen/#/project/<id>', s.shown && s.href === '/wappen/#/project/p1' && s.text.includes('한여름 포스터') && s.text.includes('작품 3개'), JSON.stringify(s));
   // 공유 버튼 — 경로형 /show/<id> 를 복사(navigator.share 없음 → 클립보드 폴백), 카톡 미리보기용 OG 는 서버 함수가 넣는다
   s = await p.evaluate(async (EV1) => {
     const btn = document.getElementById('showShareBtn');

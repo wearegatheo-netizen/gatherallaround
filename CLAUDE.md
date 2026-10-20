@@ -263,6 +263,13 @@
   **원인 확정(2026-10-08 실측)**: 카톡 카드를 누르면 `gatherallaround.pages.dev` 루트(포털)가 열렸다 = 카카오가 공유 링크 도메인이 [플랫폼 → Web 사이트 도메인]
   등록값과 정확히(https·www 포함) 일치하지 않으면 **등록된 첫 번째 도메인 루트로 바꿔 연다**. 코드로는 못 막는다 — 카카오 디벨로퍼스에서
   `https://gatherallaround.com` 을 사이트 도메인에(가능하면 첫 번째로) 등록하면 끝 — **2026-10-08 등록 후 해결 확인**. 서버 쪽(/wp·/ww 셸·302·OG)은 `share-diag` 로 매번 정상이었다.
+- **프로젝트 ↔ 공연 연결(2026-10-20)** — 마이그레이션 `20261020_wappen_project_event.sql`(`wappen_projects.event_id` → `events` FK, on delete set null). 쓰기는 `project_create/project_update` 의 `event_id`
+  (공개 공연만 — 서비스 롤은 RLS 를 우회하므로 `eventOk()` 가 `status=neq.hidden` 으로 직접 거름, 아니면 400 `bad_event`; `null`/`''` 은 해제). 읽기는 anon 임베드 `wappen_projects(…, events(id,title,host_name,venue,starts_at,sales_open_at,price,status))`
+  — **마이그레이션 전엔 관계가 없어 임베드 조회가 실패**하므로 `qEmbed(withEmbed, plain)` 이 임베드 없는 조회로 폴백(홈·프로젝트·작품·공유 OG 모두). 잔여석은 `event_seats` 뷰(anon), 상태 칩은 본 사이트 `_seatInfo` 와 같은 규칙(`showState`).
+  화면: 홈·작품 카드에 `.card-ev`(공연명), 프로젝트 페이지 `#evCard`(`eventCardHTML`: 이 포스터의 공연·제목·일시·장소·가격·상태 칩 + [예매하러 가기] = `showUrl(id)` 경로형 `/show/<id>`),
+  작품 페이지 `#evStrip`(`eventStripHTML`, 띠 전체가 링크), 새 프로젝트 폼 `#pEvent`(예매 중 공연 `fetchUpcomingEvents`: published·시작 전, 60개), ⋯ 시트 「공연 연결/변경」 → `eventPickModal`(검색·현재 체크·[연결 해제]; undefined=취소/null=해제/id).
+  공유 OG(`share-page.js showPrefix`)는 「공연명 (일시) 공연 포스터 · 」 접두. 본 사이트 공연 상세엔 연결된 프로젝트 카드 `#showPosterProjects`(`_renderShowPosterProjects`, anon `wappen_projects.event_id` 조회, 없으면 숨김) → `/wappen/#/project/<id>`.
+  아이콘 `icon('ticket')` 추가. 테스트 `tests/wappen-api-unit.mjs`(event_id 6개)·`tests/ui-wappen.js`(카드·폼·프로젝트 카드·고르기·작품 띠)·`tests/ui-shows.js`(상세 카드). `app.js?v=19`.
 - **이름 중복 방지(2026-10-07)**: 프로젝트 제목은 전체에서, 작품 제목은 같은 프로젝트 안에서 유일 — 키는 `titleKey()`(앞뒤·연속 공백, 대소문자 무시).
   서버가 저장 전 `titleTaken()`(ilike 후보 → 정확 비교)로 검사해 **409 `dup_title`**, 비워 보낸 작품 기본 제목(프로젝트명)은 `uniqueTitle()` 이 "이름 (2)" 번호를 붙인다.
   클라는 프로젝트 생성 전 anon 사전 확인(`projectTitleTaken`, 공개 행만 보임), 작품 저장 프롬프트 기본값은 `suggestWorkTitle()` 로 비어 있는 번호 제안.
