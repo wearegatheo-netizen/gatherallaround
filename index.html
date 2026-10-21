@@ -1078,9 +1078,13 @@
         .docs-card-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--wds-gray-100); }
         .docs-card-content { font-size: 0.92rem; line-height: 1.65; color: var(--wds-gray-900); word-break: break-word; }
         .docs-card-content h1, .docs-card-content h2, .docs-card-content h3 { margin: 12px 0 6px; font-weight: 700; }
-        .docs-card-content h1 { font-size: 1.2rem; }
-        .docs-card-content h2 { font-size: 1.1rem; }
-        .docs-card-content h3 { font-size: 1rem; }
+        .docs-card-content h1 { font-size: 1.55rem; line-height: 1.3; }
+        .docs-card-content h2 { font-size: 1.3rem; line-height: 1.35; }
+        .docs-card-content h3 { font-size: 1.08rem; }
+        /* 붙여넣기로 남은 인라인 색은 무시(다크 모드 고정색 방지, 2026-10-21) — 크기·정렬만 존중 */
+        .docs-card-content [style], .cm-desc [style], .rte-body [style] { color: inherit !important; background: transparent !important; }
+        .docs-card-content font, .cm-desc font { color: inherit; }
+        .docs-card-content :is(h1,h2,h3), .docs-card-content :is(h1,h2,h3)[style], .cm-desc :is(h1,h2,h3), .cm-desc :is(h1,h2,h3)[style] { color: var(--wds-black) !important; }
         .docs-card-content p { margin: 6px 0; }
         .docs-card-content ul, .docs-card-content ol { padding-left: 22px; margin: 6px 0; }
         .docs-card-content li { margin: 3px 0; }
@@ -1103,8 +1107,10 @@
                     font-size: 0.92rem; line-height: 1.7; color: var(--wds-gray-900); }
         .rte-body:empty::before { content: attr(data-placeholder); color: var(--wds-gray-500); }
         .rte-body:focus { box-shadow: inset 0 0 0 2px var(--wds-primary-light); }
-        .rte-body h2 { font-size: 1.15rem; font-weight: 700; margin: 12px 0 6px; }
-        .rte-body h3 { font-size: 1.02rem; font-weight: 700; margin: 10px 0 5px; }
+        .rte-body h1 { font-size: 1.55rem; font-weight: 800; line-height: 1.3; margin: 16px 0 8px; }
+        .rte-body h2 { font-size: 1.3rem; font-weight: 700; line-height: 1.35; margin: 12px 0 6px; }
+        .rte-body h3 { font-size: 1.08rem; font-weight: 700; margin: 10px 0 5px; }
+        .rte-size { height: 30px; padding: 0 6px; border: 1px solid var(--wds-gray-300); border-radius: 5px; background: var(--wds-white); color: var(--wds-gray-900); font-size: 0.82rem; font-family: inherit; }
         .rte-body p { margin: 5px 0; }
         .rte-body ul, .rte-body ol { padding-left: 22px; margin: 6px 0; }
         .rte-body a { color: var(--wds-primary); text-decoration: underline; }
@@ -1803,7 +1809,7 @@
         .cm-sec { padding:22px 0 0; }
         .cm-sec h2 { margin:0 0 10px; font-size:1rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-desc { font-size:0.92rem; line-height:1.75; color:var(--wds-gray-800); word-break:keep-all; overflow-wrap:anywhere; }
-        .cm-desc p { margin:0 0 8px; } .cm-desc h2 { font-size:1.08rem; margin:14px 0 6px; font-family:inherit; } .cm-desc h3 { font-size:0.98rem; margin:12px 0 4px; }
+        .cm-desc p { margin:0 0 8px; } .cm-desc h1 { font-size:1.55rem; line-height:1.3; margin:18px 0 8px; font-family:inherit; color:var(--wds-black); } .cm-desc h2 { font-size:1.3rem; line-height:1.35; margin:16px 0 6px; font-family:inherit; color:var(--wds-black); } .cm-desc h3 { font-size:1.08rem; margin:12px 0 4px; color:var(--wds-black); }
         .cm-desc ul, .cm-desc ol { padding-left:22px; margin:6px 0; } .cm-desc a { color:var(--wds-primary); text-decoration:underline; }
         .cm-desc blockquote { border-left:3px solid var(--wds-primary); padding-left:12px; margin:8px 0; color:var(--wds-gray-700); }
         .cm-desc img, .rte-body img { display:block; max-width:100%; height:auto; border-radius:10px; margin:8px 0; }
@@ -14343,9 +14349,13 @@
                         ${b('<u>U</u>', 'underline', '', '밑줄')}
                         ${b('<s>S</s>', 'strikeThrough', '', '취소선')}
                         <div class="rte-sep"></div>
+                        ${b('제목', 'formatBlock', 'h1', '제목(가장 큼)')}
                         ${b('큰제목', 'formatBlock', 'h2', '큰 제목')}
                         ${b('소제목', 'formatBlock', 'h3', '소제목')}
                         ${b('본문', 'formatBlock', 'p', '본문')}
+                        <select class="rte-size" title="글자 크기" onmousedown="event.stopPropagation()" onchange="rteFontSize('${id}', this.value); this.value=''">
+                            <option value="">글자 크기</option><option value="0.85em">작게</option><option value="1em">보통</option><option value="1.2em">크게</option><option value="1.45em">아주 크게</option><option value="1.8em">최대</option>
+                        </select>
                         <div class="rte-sep"></div>
                         ${b('• 목록', 'insertUnorderedList', '', '글머리 기호')}
                         ${b('1. 목록', 'insertOrderedList', '', '번호 매기기')}
@@ -14374,6 +14384,36 @@
                 if (cur === val) val = 'p';
             }
             document.execCommand(cmd, false, val || null);
+        }
+
+        // 글자 크기(2026-10-21): execCommand('fontSize', 7) 가 남기는 <font size="7"> 을 <span style="font-size:…"> 로 바꾼다(<font> 는 저장하지 않음)
+        function rteFontSize(id, em) {
+            const el = document.getElementById(id); if (!el || !em) return;
+            el.focus();
+            try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
+            document.execCommand('fontSize', false, '7');
+            el.querySelectorAll('font[size="7"]').forEach(f => {
+                const sp = document.createElement('span');
+                sp.style.fontSize = em; // '1em' = 보통(상속 크기) — 저장 시 _rteScrubStyles 가 font-size 만 남긴다
+                while (f.firstChild) sp.appendChild(f.firstChild);
+                f.replaceWith(sp);
+            });
+        }
+        // 저장 전 인라인 style 정리: font-size·text-align 만 남긴다 — 붙여넣기로 딸려온 color/background 는 다크 모드에서 고정 색으로 남아 보기 흉하다(2026-10-21)
+        function _rteScrubStyles(html) {
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                doc.body.querySelectorAll('[style]').forEach(n => {
+                    const fs = n.style.fontSize, ta = n.style.textAlign;
+                    n.removeAttribute('style');
+                    if (fs) n.style.fontSize = fs;
+                    if (ta) n.style.textAlign = ta;
+                    if (!n.getAttribute('style')) n.removeAttribute('style');
+                });
+                doc.body.querySelectorAll('font').forEach(f => { const sp = doc.createElement('span'); while (f.firstChild) sp.appendChild(f.firstChild); f.replaceWith(sp); });
+                doc.body.querySelectorAll('[color],[bgcolor]').forEach(n => { n.removeAttribute('color'); n.removeAttribute('bgcolor'); });
+                return doc.body.innerHTML;
+            } catch (_) { return html; }
         }
 
         function rteLink(id) {
@@ -14436,10 +14476,11 @@
             if (!el) return '';
             const raw = el.innerHTML.trim();
             if (!raw || raw === '<br>' || !el.textContent.trim()) return '';
-            if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(raw);
+            const clean = _rteScrubStyles(raw);
+            if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(clean);
             // DOMPurify 미로드(CDN 지연·차단) 시에도 위험 요소는 남기지 않는다.
             // 표시 경로에도 폴백 이스케이프가 있지만, 애초에 저장하지 않는 편이 안전하다.
-            return _htmlSanitizeFallback(raw);
+            return _htmlSanitizeFallback(clean);
         }
         // DOMPurify 없이 쓰는 최소 살균(저장·표시 공용): 위험 태그 제거, on* 속성·javascript: 주소 제거
         function _htmlSanitizeFallback(raw) {
