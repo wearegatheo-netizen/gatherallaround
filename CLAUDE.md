@@ -99,6 +99,8 @@
   textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
   상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
   지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 글 상자 높이의 정방형.
+  **모임 공유는 경로형 `/meet/<id>`**(2026-10-27, `functions/meet/[id].js` = `/show/<id>` 와 같은 구조: 크롤러엔 대표 이미지·제목·일시·장소·참여비 OG, 사람에겐 루트 셸 + `<base href="/">` + `replaceState('/#community/meeting/<id>')`, pending/rejected 는 기본 OG) —
+  인스타 프로필 링크·카톡 인앱이 `#community/meeting/<id>` 의 해시를 버려 포털에서 멈추던 문제. `shareCommunityMeeting` 이 이 경로를 공유하고 index.html 머리 스크립트가 `/meet/<id>` 정적 폴백도 해시로 치환. 테스트 `tests/meet-share-unit.mjs`.
   **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
   상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
   `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →

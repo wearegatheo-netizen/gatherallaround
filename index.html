@@ -15,6 +15,9 @@
             // 공연 예매 공유 링크 /show/<id> (functions/show/[id].js 가 OG 와 함께 이 셸을 내준다) — 함수가 못 돈 정적 폴백에서도 상세로 라우팅
             var sm = location.pathname.match(/^\/show\/([0-9a-f-]{36})\/?$/i);
             if (sm && re.test(sm[1]) && !location.hash) history.replaceState({ page: 'shows/' + sm[1].toLowerCase() }, '', '/#shows/' + sm[1].toLowerCase());
+            // 커뮤니티 모임 공유 링크 /meet/<id> (functions/meet/[id].js) — 인스타·카톡 인앱이 #해시를 버려서 경로형으로(2026-10-27)
+            var mm = location.pathname.match(/^\/meet\/([0-9a-f-]{36})\/?$/i);
+            if (mm && re.test(mm[1]) && !location.hash) history.replaceState({ page: 'community/meeting/' + mm[1].toLowerCase() }, '', '/#community/meeting/' + mm[1].toLowerCase());
         } catch (e) {}
     })();
     </script>
@@ -11068,10 +11071,10 @@
             showToast(`멤버 ${members.length}명 목록을 다운로드했습니다.`);
         };
 
-        // ── 모임 공유: 모임별 딥링크(#community/meeting/<id>) 복사·공유
+        // ── 모임 공유: 경로형 /meet/<id> 를 공유한다(2026-10-27). 인스타 프로필 링크·카톡 인앱은 #해시를 버려 포털에서 멈췄고
+        // 크롤러도 해시 뒤를 못 보므로, 서버 함수(functions/meet/[id].js)가 이 경로에서 대표 이미지·제목·일시를 OG 로 넣고 사람은 상세로 라우팅한다.
         async function shareCommunityMeeting(id) {
-            const m = state.communityMeetings.find(x => x.id === id);
-            const url = `${location.origin}${location.pathname}#community/meeting/${id}`;
+            const url = `${location.origin}/meet/${id}`;
             if (navigator.share) {
                 try { await navigator.share({ url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
