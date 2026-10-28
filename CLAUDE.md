@@ -89,6 +89,8 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+  **RLS(2026-10-28, `20261028_rls_band_polls.sql`)**: `band_members/band_comments/band_notices` 는 authenticated 전용 — 본인 팀(`band_profile_id = auth.uid()`, profiles.id = auth 사용자 id) + 운영 계정(`band_is_admin()` security definer: instruments 또는 이메일 접두 `wearegatheo`), 공지 쓰기는 운영 계정만.
+  `polls/poll_votes` 는 카카오 멤버(anon)라 서버가 사람을 못 가려 종전 범위(anon 전부 허용) 그대로 RLS 만 켬 — 실질 보호는 없음, 잠그려면 쓰기를 서버 함수로. 마이그레이션은 기존 정책을 전부 지우고 다시 만든다. 로컬 검증: `/usr/lib/postgresql/16/bin` 으로 임시 DB 를 띄워(`runuser -u nobody`, /tmp, TCP 5499) auth.uid() 스텁 + 역할별 시나리오.
 - 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
