@@ -61,6 +61,12 @@
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
   다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 사진이 없거나 실패하면 숨기지 않고 `.noimg` 어두운 배경(워드마크·버튼·헤드라인은 남아야 함). 대관 사진을 추가하면 webp 도 같이 넣을 것.
   히어로 클릭 = 공간 대관(`role=button`, Enter/Space — `event.target===this` 로 버튼에서 올라온 키는 무시, 버튼은 click/keydown 전파 차단).
+- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크).
+  비로그인으로 `#gatheo/…` 에 들어오면 `_routeToPage` 가 `_pendingGatheoSub`(메모리) + `sessionStorage.gaa_return_to`(`_saveReturnTo`)에 경로를 남기고, `handleLogin` 도 카카오 로그인 직전에 저장한다
+  (인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 해시·메모리가 날아감 — 호스트 센터 `gaa_return_host` 와 같은 이유). `initSession` 머리에서 `gaa_return_to` 가 있으면 해시를 복원하고, 카카오 토큰이 살아 있고
+  `gaa_kakao_uid` 가 아직 없으면 `_completeKakaoLogin()`(handleLogin 성공 처리를 분리한 것)으로 로그인을 마저 한다. `loginUI` 가 `_takeReturnTo()` 로 소비해 탭·글(`gtOpenPost`)로 이동, `location.search` 를 지울 때 해시는 남긴다.
+- **게시판 상단 고정(2026-10-29)**: `comments.pinned/pinned_at`(마이그레이션 `20261029_comments_pinned.sql`) — 관리자(`isAdminUser`)만 글 액션 줄 [📌 상단 고정|고정 해제](`togglePinComment`, 기존 UPDATE 정책 경로).
+  `renderComments` 가 고정 글을 `pinned_at` 순으로 맨 위(`.board-row-wrap.pinned` 호박색 띠 + 📌). 컬럼이 없으면 토스트로 마이그레이션 안내.
 - 부팅 로딩 스크린(`#portalLoadingScreen[data-boot]`)은 `<body>` 머리에 **정적**으로 있고 바로 앞 인라인 스크립트가 저장된 다크 모드(`gaa_theme`)를
   body 에 즉시 적용(2026-10-08, 포털이 먼저 보였다 가려지는·라이트→다크 깜빡임 제거). 걷기는 `hideBootOverlay()` 한 곳 — 첫 페인트(`__bootT0`) 후
   최소 `BOOT_MIN_MS`(0.9s) 노출 + 글꼴 준비(≤0.5s) 뒤 페이드, 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen/공유·초대 진입)이 부르고
