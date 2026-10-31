@@ -61,6 +61,12 @@
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
   다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 사진이 없거나 실패하면 숨기지 않고 `.noimg` 어두운 배경(워드마크·버튼·헤드라인은 남아야 함). 대관 사진을 추가하면 webp 도 같이 넣을 것.
   히어로 클릭 = 공간 대관(`role=button`, Enter/Space — `event.target===this` 로 버튼에서 올라온 키는 무시, 버튼은 click/keydown 전파 차단).
+- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크).
+  비로그인으로 `#gatheo/…` 에 들어오면 `_routeToPage` 가 `_pendingGatheoSub`(메모리) + `sessionStorage.gaa_return_to`(`_saveReturnTo`)에 경로를 남기고, `handleLogin` 도 카카오 로그인 직전에 저장한다
+  (인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 해시·메모리가 날아감 — 호스트 센터 `gaa_return_host` 와 같은 이유). `initSession` 머리에서 `gaa_return_to` 가 있으면 해시를 복원하고, 카카오 토큰이 살아 있고
+  `gaa_kakao_uid` 가 아직 없으면 `_completeKakaoLogin()`(handleLogin 성공 처리를 분리한 것)으로 로그인을 마저 한다. `loginUI` 가 `_takeReturnTo()` 로 소비해 탭·글(`gtOpenPost`)로 이동, `location.search` 를 지울 때 해시는 남긴다.
+- **게시판 상단 고정(2026-10-29)**: `comments.pinned/pinned_at`(마이그레이션 `20261029_comments_pinned.sql`) — 관리자(`isAdminUser`)만 글 액션 줄 [📌 상단 고정|고정 해제](`togglePinComment`, 기존 UPDATE 정책 경로).
+  `renderComments` 가 고정 글을 `pinned_at` 순으로 맨 위(`.board-row-wrap.pinned` 호박색 띠 + 📌). 컬럼이 없으면 토스트로 마이그레이션 안내.
 - 부팅 로딩 스크린(`#portalLoadingScreen[data-boot]`)은 `<body>` 머리에 **정적**으로 있고 바로 앞 인라인 스크립트가 저장된 다크 모드(`gaa_theme`)를
   body 에 즉시 적용(2026-10-08, 포털이 먼저 보였다 가려지는·라이트→다크 깜빡임 제거). 걷기는 `hideBootOverlay()` 한 곳 — 첫 페인트(`__bootT0`) 후
   최소 `BOOT_MIN_MS`(0.9s) 노출 + 글꼴 준비(≤0.5s) 뒤 페이드, 인증 판단이 끝나는 곳(loginUI/logoutUI/_finishBoot/showPendingScreen/공유·초대 진입)이 부르고
@@ -89,6 +95,8 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+  **RLS(2026-10-28, `20261028_rls_band_polls.sql`)**: `band_members/band_comments/band_notices` 는 authenticated 전용 — 본인 팀(`band_profile_id = auth.uid()`, profiles.id = auth 사용자 id) + 운영 계정(`band_is_admin()` security definer: instruments 또는 이메일 접두 `wearegatheo`), 공지 쓰기는 운영 계정만.
+  `polls/poll_votes` 는 카카오 멤버(anon)라 서버가 사람을 못 가려 종전 범위(anon 전부 허용) 그대로 RLS 만 켬 — 실질 보호는 없음, 잠그려면 쓰기를 서버 함수로. 마이그레이션은 기존 정책을 전부 지우고 다시 만든다. 로컬 검증: `/usr/lib/postgresql/16/bin` 으로 임시 DB 를 띄워(`runuser -u nobody`, /tmp, TCP 5499) auth.uid() 스텁 + 역할별 시나리오.
 - 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
 - 공간 대관: 예약번호 6자리 `booking_code`(예매번호와 동일 charset, 클라 생성+unique 충돌 재시도),
   [예약 조회]는 anon select 후 연락처 대조. 4시간 자동취소는 크론 없이 lazy —
@@ -99,6 +107,8 @@
   textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
   상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
   지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 글 상자 높이의 정방형.
+  **모임 공유는 경로형 `/meet/<id>`**(2026-10-27, `functions/meet/[id].js` = `/show/<id>` 와 같은 구조: 크롤러엔 대표 이미지·제목·일시·장소·참여비 OG, 사람에겐 루트 셸 + `<base href="/">` + `replaceState('/#community/meeting/<id>')`, pending/rejected 는 기본 OG) —
+  인스타 프로필 링크·카톡 인앱이 `#community/meeting/<id>` 의 해시를 버려 포털에서 멈추던 문제. `shareCommunityMeeting` 이 이 경로를 공유하고 index.html 머리 스크립트가 `/meet/<id>` 정적 폴백도 해시로 치환. 테스트 `tests/meet-share-unit.mjs`.
   **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
   상세(`renderCommunityDetail`): `.cm-top`([‹ 목록으로]·[공유]·[수정]) → `.cm-hero`(사진 `.cm-cover` 16:9 / 데스크톱 ≥768px 은 사진 왼쪽·정보 오른쪽 2단) →
   `.cm-eyebrow`(모집중/모집 마감 칩 + "M월 D일 (요일) 시간") → `.cm-title` → `.cm-place` → 요약 띠 `.cm-stats`(참여비·정원·신청 마감, 마감일 없으면 "모임 당일") →
@@ -230,6 +240,11 @@
   `margin:0 calc(-1*var(--b-card-pad))`, 관리 팀은 `.admin` 파란 톤)가 되어 팀 경계를 소제목 구분선과 구별한다(팀 관리·현황표 카드 공통). 가입 신청 목록은 단순 구분선 리스트. 시드 표식 메모 "시트 이관"은 DB엔 두고 화면에서만 `_bandDisplayNote()`로 숨김.
   `.band-form-grid`는 `minmax(0,1fr)` 열 + `label{min-width:0}` — date/number 입력은 `appearance:none`으로 모바일 고유 폭 넘침 방지.
 - 민감정보(도어락 번호 등)는 관리자 UI에서만 노출, 공개 화면 금지.
+- **서식 편집기(`docEditorHTML`, 2026-10-21)**: 블록은 제목(h1 1.55rem)·큰제목(h2 1.3rem)·소제목(h3 1.08rem) + 「글자 크기」 셀렉트(`.rte-size` → `rteFontSize`: execCommand fontSize 7 의 `<font>` 를 `<span style="font-size:…em">` 로 치환).
+  저장(`rteValue`) 전 `_rteScrubStyles` 가 인라인 style 에서 **font-size·text-align 만 남기고 color/background 제거**(붙여넣기 색이 다크 모드에서 고정색으로 남던 문제), `<font>`·color 속성도 제거.
+  표시 쪽(`.docs-card-content/.cm-desc [style]`)도 `color:inherit !important` 로 옛 글의 인라인 색을 무시하고 제목은 `--wds-black` 으로 고정.
+- **공유는 링크만(2026-10-20)**: `navigator.share` 에 `title`/`text` 를 주면 카카오톡 등이 그 글을 메시지 본문에 같이 써 넣으므로 모든 공유(공연·모임·밴드 뉴스·티켓 양도·포스터 꾸미기 「다른 앱으로 공유」·파일 공유)는 `{ url }`(파일은 `{ files }`)만 넘긴다.
+  미리보기 카드는 경로형 URL 의 OG 가 담당. 포스터 꾸미기 카카오 버튼(`sendDefault` 피드 카드)의 title/description 은 카드 내용이라 그대로.
 
 ## 포스터 꾸미기 (`/wappen/`, 2026-10-06 — 서비스명은 2026-10-12 「와펜 꾸미기」→「포스터 꾸미기」로 변경, URL 경로·코드 식별자(wappen)는 그대로)
 - **별도 페이지** `wappen/`(index.html·style.css·app.js·editor.js·render.js·presets.js, ESM) — index.html 과 독립. 같은 카카오 앱·Supabase.

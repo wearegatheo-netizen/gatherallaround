@@ -15,6 +15,9 @@
             // 공연 예매 공유 링크 /show/<id> (functions/show/[id].js 가 OG 와 함께 이 셸을 내준다) — 함수가 못 돈 정적 폴백에서도 상세로 라우팅
             var sm = location.pathname.match(/^\/show\/([0-9a-f-]{36})\/?$/i);
             if (sm && re.test(sm[1]) && !location.hash) history.replaceState({ page: 'shows/' + sm[1].toLowerCase() }, '', '/#shows/' + sm[1].toLowerCase());
+            // 커뮤니티 모임 공유 링크 /meet/<id> (functions/meet/[id].js) — 인스타·카톡 인앱이 #해시를 버려서 경로형으로(2026-10-27)
+            var mm = location.pathname.match(/^\/meet\/([0-9a-f-]{36})\/?$/i);
+            if (mm && re.test(mm[1]) && !location.hash) history.replaceState({ page: 'community/meeting/' + mm[1].toLowerCase() }, '', '/#community/meeting/' + mm[1].toLowerCase());
         } catch (e) {}
     })();
     </script>
@@ -944,6 +947,10 @@
         .board-row-chevron.open { transform: rotate(180deg); color: var(--wds-primary); }
         .board-row-title { flex: 1; min-width: 0; font-size: 0.95rem; font-weight: 600; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .board-row-replies { flex-shrink: 0; font-size: 0.72rem; color: var(--wds-primary); font-weight: 700; }
+        .board-row-pin { flex-shrink: 0; font-size: 0.8rem; line-height: 1; }
+        .board-row-wrap.pinned { border-color: #F59E0B; background: #FFFBEB; }
+        .board-row-wrap.pinned .board-row-title { font-weight: 700; }
+        body.dark .board-row-wrap.pinned { background: #2a2410; border-color: #B45309; }
         .board-row-meta { display: flex; align-items: center; gap: 9px; font-size: 0.74rem; color: var(--wds-gray-500); flex-shrink: 0; white-space: nowrap; }
         .board-row-author { font-weight: 600; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
         .board-post-expand { padding: 4px 16px 14px; background: var(--wds-gray-100); color: var(--wds-black); border-top: 1px solid var(--wds-gray-300); }
@@ -1078,9 +1085,13 @@
         .docs-card-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--wds-gray-100); }
         .docs-card-content { font-size: 0.92rem; line-height: 1.65; color: var(--wds-gray-900); word-break: break-word; }
         .docs-card-content h1, .docs-card-content h2, .docs-card-content h3 { margin: 12px 0 6px; font-weight: 700; }
-        .docs-card-content h1 { font-size: 1.2rem; }
-        .docs-card-content h2 { font-size: 1.1rem; }
-        .docs-card-content h3 { font-size: 1rem; }
+        .docs-card-content h1 { font-size: 1.55rem; line-height: 1.3; }
+        .docs-card-content h2 { font-size: 1.3rem; line-height: 1.35; }
+        .docs-card-content h3 { font-size: 1.08rem; }
+        /* 붙여넣기로 남은 인라인 색은 무시(다크 모드 고정색 방지, 2026-10-21) — 크기·정렬만 존중 */
+        .docs-card-content [style], .cm-desc [style], .rte-body [style] { color: inherit !important; background: transparent !important; }
+        .docs-card-content font, .cm-desc font { color: inherit; }
+        .docs-card-content :is(h1,h2,h3), .docs-card-content :is(h1,h2,h3)[style], .cm-desc :is(h1,h2,h3), .cm-desc :is(h1,h2,h3)[style] { color: var(--wds-black) !important; }
         .docs-card-content p { margin: 6px 0; }
         .docs-card-content ul, .docs-card-content ol { padding-left: 22px; margin: 6px 0; }
         .docs-card-content li { margin: 3px 0; }
@@ -1103,8 +1114,10 @@
                     font-size: 0.92rem; line-height: 1.7; color: var(--wds-gray-900); }
         .rte-body:empty::before { content: attr(data-placeholder); color: var(--wds-gray-500); }
         .rte-body:focus { box-shadow: inset 0 0 0 2px var(--wds-primary-light); }
-        .rte-body h2 { font-size: 1.15rem; font-weight: 700; margin: 12px 0 6px; }
-        .rte-body h3 { font-size: 1.02rem; font-weight: 700; margin: 10px 0 5px; }
+        .rte-body h1 { font-size: 1.55rem; font-weight: 800; line-height: 1.3; margin: 16px 0 8px; }
+        .rte-body h2 { font-size: 1.3rem; font-weight: 700; line-height: 1.35; margin: 12px 0 6px; }
+        .rte-body h3 { font-size: 1.08rem; font-weight: 700; margin: 10px 0 5px; }
+        .rte-size { height: 30px; padding: 0 6px; border: 1px solid var(--wds-gray-300); border-radius: 5px; background: var(--wds-white); color: var(--wds-gray-900); font-size: 0.82rem; font-family: inherit; }
         .rte-body p { margin: 5px 0; }
         .rte-body ul, .rte-body ol { padding-left: 22px; margin: 6px 0; }
         .rte-body a { color: var(--wds-primary); text-decoration: underline; }
@@ -1803,7 +1816,7 @@
         .cm-sec { padding:22px 0 0; }
         .cm-sec h2 { margin:0 0 10px; font-size:1rem; font-weight:800; letter-spacing:-0.02em; color:var(--wds-black); }
         .cm-desc { font-size:0.92rem; line-height:1.75; color:var(--wds-gray-800); word-break:keep-all; overflow-wrap:anywhere; }
-        .cm-desc p { margin:0 0 8px; } .cm-desc h2 { font-size:1.08rem; margin:14px 0 6px; font-family:inherit; } .cm-desc h3 { font-size:0.98rem; margin:12px 0 4px; }
+        .cm-desc p { margin:0 0 8px; } .cm-desc h1 { font-size:1.55rem; line-height:1.3; margin:18px 0 8px; font-family:inherit; color:var(--wds-black); } .cm-desc h2 { font-size:1.3rem; line-height:1.35; margin:16px 0 6px; font-family:inherit; color:var(--wds-black); } .cm-desc h3 { font-size:1.08rem; margin:12px 0 4px; color:var(--wds-black); }
         .cm-desc ul, .cm-desc ol { padding-left:22px; margin:6px 0; } .cm-desc a { color:var(--wds-primary); text-decoration:underline; }
         .cm-desc blockquote { border-left:3px solid var(--wds-primary); padding-left:12px; margin:8px 0; color:var(--wds-gray-700); }
         .cm-desc img, .rte-body img { display:block; max-width:100%; height:auto; border-radius:10px; margin:8px 0; }
@@ -2807,10 +2820,26 @@
                 return;
             }
             if (!Kakao.isInitialized()) initKakao();
+            // 일부 인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 페이지가 새로 뜬다(해시·메모리 유실, 2026-10-29).
+            // 돌아갈 경로를 sessionStorage 에 남겨 initSession 이 토큰으로 로그인을 마저 하고 그 화면으로 보낸다.
+            _saveReturnTo();
 
             Kakao.Auth.login({
                 success: function(auth) {
                     console.log("카카오 인증 성공:", auth);
+                    _completeKakaoLogin();
+                },
+                fail: function(err) {
+                    console.error("카카오 인증 실패:", err);
+                    alert("로그인 실패: " + (err.error_description || err.error || "알 수 없는 오류"));
+                }
+            });
+        }
+
+        // 카카오 토큰이 있는 상태에서 프로필 조회 → 승인 상태 분기 → loginUI. 팝업 성공 콜백과
+        // 리다이렉트 복귀(initSession, gaa_return_to) 양쪽이 쓴다.
+        function _completeKakaoLogin() {
+            return new Promise((resolve) => {
                     Kakao.API.request({
                         url: '/v2/user/me',
                         success: async function(res) {
@@ -2836,17 +2865,33 @@
                                 state.user = { nickname, kakaoId };
                             }
                             loginUI(state.user.nickname);
+                            resolve(true);
                         },
                         fail: function(err) {
                             alert("사용자 정보 요청 실패: " + JSON.stringify(err));
+                            resolve(false);
                         }
                     });
-                },
-                fail: function(err) {
-                    console.error("카카오 인증 실패:", err);
-                    alert("로그인 실패: " + (err.error_description || err.error || "알 수 없는 오류"));
-                }
             });
+        }
+
+        // ── 로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의) ──
+        // 공지 링크(#gatheo/board/<글 id> 등)로 들어와 로그인하면 홈이 아니라 그 화면으로. 메모리(_pendingGatheoSub)와
+        // sessionStorage(gaa_return_to) 둘 다에 두어 카카오 리다이렉트 로그인·새로고침에도 살아남는다.
+        const _RETURN_TO_KEY = 'gaa_return_to';
+        function _saveReturnTo(path) {
+            let p = path;
+            if (!p && Array.isArray(_pendingGatheoSub) && _pendingGatheoSub.length) p = 'gatheo/' + _pendingGatheoSub.join('/');
+            if (!p) { const h = (history.state && history.state.page) || _pageFromHash(); if (String(h).startsWith('gatheo/')) p = h; }
+            try { if (p) sessionStorage.setItem(_RETURN_TO_KEY, p); } catch (_) {}
+        }
+        function _takeReturnTo() {
+            let p = null;
+            try { p = sessionStorage.getItem(_RETURN_TO_KEY); sessionStorage.removeItem(_RETURN_TO_KEY); } catch (_) {}
+            if (!p || !/^gatheo(\/|$)/.test(p)) return null;
+            const segs = p.split('/').filter(Boolean);
+            if (segs[1] && !_GATHEO_TABS.includes(segs[1])) return null;
+            return p;
         }
 
         async function handleLogout() {
@@ -2872,7 +2917,7 @@
             if (window.__shareEntryMode) return; // 공유 링크 진입 시 GatheO 화면 노출 차단
             // 로그아웃 표식 해제 — 로그아웃 뒤 새로고침 없이 다시 로그인하면 표식이 남아 다음 새로고침 때 세션을 지우던 버그(2026-10-08)
             try { localStorage.removeItem('gaa_portal_required'); } catch(e) {}
-            if (location.search) history.replaceState({}, '', location.pathname);
+            if (location.search) history.replaceState(history.state || {}, '', location.pathname + location.hash); // 해시(#gatheo/…)는 남긴다
             hideBootOverlay();
             document.body.classList.add('portal-view');
             document.body.classList.remove('fullwidth-view');
@@ -2890,12 +2935,16 @@
             // 내 예약은 마이 탭(gtMypageSub('res'))과 예약 탭 머리 줄에서 — 달력 안쪽 탭은 월간/주간만(2026-10-15)
             // 비로그인 상태로 #gatheo/... 딥링크 진입했다가 로그인한 경우 — 그 탭으로 이어간다
             {
-                const sub = Array.isArray(_pendingGatheoSub) && _pendingGatheoSub.length ? _pendingGatheoSub : null;
+                let sub = Array.isArray(_pendingGatheoSub) && _pendingGatheoSub.length ? _pendingGatheoSub : null;
                 _pendingGatheoSub = null;
+                const saved = _takeReturnTo(); // 리다이렉트 로그인·새로고침으로 메모리가 비었으면 sessionStorage 의 경로
+                if (!sub && saved) sub = saved.split('/').slice(1);
                 let initTab = sub && _GATHEO_TABS.includes(sub[0]) ? sub[0] : 'home';
                 if (initTab === 'admin' && !isAdminUser()) initTab = 'home';
                 setGatheOTab(initTab);
                 if (initTab === 'member' && sub && _MEMBER_SUBTABS.includes(sub[1])) setMemberTab(sub[1]);
+                if (initTab === 'board' && sub && _UUID_RE.test(sub[1] || '')) gtOpenPost(sub[1].toLowerCase()); // 글 딥링크 #gatheo/board/<id>
+                if (sub) _pushNav('gatheo/' + sub.filter(Boolean).join('/'));
             }
             fetchReservations();
             fetchComments();
@@ -4549,6 +4598,22 @@
                     return;
                 }
             } catch (e) {}
+            // 게더링 카카오 로그인이 리다이렉트로 돌아온 경우(인앱 브라우저) — 토큰이 살아 있으면 로그인을 마저 하고 원래 페이지로(2026-10-29)
+            try {
+                const back = sessionStorage.getItem(_RETURN_TO_KEY);
+                if (back && /^gatheo(\/|$)/.test(back)) {
+                    // 리다이렉트로 해시가 지워졌으면 저장된 경로를 딥링크로 복원(세션이 이미 있으면 아래 복구 경로가 그대로 그 화면으로 간다)
+                    if (!_pendingRoute) { _pendingRoute = back; history.replaceState({ page: back }, '', '#' + back); }
+                    let token = null;
+                    try { if (typeof Kakao !== 'undefined' && Kakao.Auth) { if (!Kakao.isInitialized()) initKakao(); token = Kakao.Auth.getAccessToken && Kakao.Auth.getAccessToken(); } } catch (_) {}
+                    if (token && supabaseClient && !localStorage.getItem('gaa_kakao_uid')) {
+                        _pendingRoute = null; // loginUI 가 gaa_return_to 를 소비해 그 탭·글로 간다
+                        const ok = await _completeKakaoLogin();
+                        if (ok) return;
+                        _pendingRoute = back; // 실패 → 로그인 폼(경로는 _routeToPage 가 다시 저장)
+                    }
+                }
+            } catch (e) { console.warn('로그인 복귀 처리 실패:', e); }
             // 명시적 로그아웃 후에는 자동 로그인 건너뜀
             const portalRequired = localStorage.getItem('gaa_portal_required');
             if (portalRequired) {
@@ -7982,6 +8047,8 @@
                 if (!_GATHEO_TABS.includes(segs[1])) return 'gatheo';
                 if (segs[1] === 'member' && segs[2])
                     return _MEMBER_SUBTABS.includes(segs[2]) ? segs.slice(0, 3).join('/') : 'gatheo/member';
+                if (segs[1] === 'board' && segs[2]) // 게시글 딥링크(공지에 붙이는 링크, 2026-10-29)
+                    return _UUID_RE.test(segs[2]) ? 'gatheo/board/' + segs[2].toLowerCase() : 'gatheo/board';
                 return segs.slice(0, 2).join('/');
             }
             if (segs[0] === 'community' && segs[1]) {
@@ -8031,9 +8098,11 @@
                         if (tab) {
                             setGatheOTab(tab);
                             if (tab === 'member' && _MEMBER_SUBTABS.includes(segs[2])) setMemberTab(segs[2]);
+                            if (tab === 'board' && _UUID_RE.test(segs[2] || '')) gtOpenPost(segs[2].toLowerCase());
                         }
                     } else {
                         _pendingGatheoSub = segs.slice(1); // 로그인 후 loginUI가 이어감
+                        _saveReturnTo(path); // 리다이렉트 로그인·새로고침 대비(2026-10-29)
                         showGatheoSection();
                     }
                 }
@@ -9402,7 +9471,7 @@
             const shareUrl = `${location.origin}${location.pathname}?news=${encodeURIComponent(fileId)}`;
             if (navigator.share) {
                 try {
-                    await navigator.share({ title: '어제 하루, 밴드씬에서 생긴 일?! - ' + title, url: shareUrl });
+                    await navigator.share({ url: shareUrl });
                     return;
                 } catch(e) {}
             }
@@ -11062,12 +11131,12 @@
             showToast(`멤버 ${members.length}명 목록을 다운로드했습니다.`);
         };
 
-        // ── 모임 공유: 모임별 딥링크(#community/meeting/<id>) 복사·공유
+        // ── 모임 공유: 경로형 /meet/<id> 를 공유한다(2026-10-27). 인스타 프로필 링크·카톡 인앱은 #해시를 버려 포털에서 멈췄고
+        // 크롤러도 해시 뒤를 못 보므로, 서버 함수(functions/meet/[id].js)가 이 경로에서 대표 이미지·제목·일시를 OG 로 넣고 사람은 상세로 라우팅한다.
         async function shareCommunityMeeting(id) {
-            const m = state.communityMeetings.find(x => x.id === id);
-            const url = `${location.origin}${location.pathname}#community/meeting/${id}`;
+            const url = `${location.origin}/meet/${id}`;
             if (navigator.share) {
-                try { await navigator.share({ title: m ? m.title : '모임', url }); return; }
+                try { await navigator.share({ url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
             }
             try {
@@ -14343,9 +14412,13 @@
                         ${b('<u>U</u>', 'underline', '', '밑줄')}
                         ${b('<s>S</s>', 'strikeThrough', '', '취소선')}
                         <div class="rte-sep"></div>
+                        ${b('제목', 'formatBlock', 'h1', '제목(가장 큼)')}
                         ${b('큰제목', 'formatBlock', 'h2', '큰 제목')}
                         ${b('소제목', 'formatBlock', 'h3', '소제목')}
                         ${b('본문', 'formatBlock', 'p', '본문')}
+                        <select class="rte-size" title="글자 크기" onmousedown="event.stopPropagation()" onchange="rteFontSize('${id}', this.value); this.value=''">
+                            <option value="">글자 크기</option><option value="0.85em">작게</option><option value="1em">보통</option><option value="1.2em">크게</option><option value="1.45em">아주 크게</option><option value="1.8em">최대</option>
+                        </select>
                         <div class="rte-sep"></div>
                         ${b('• 목록', 'insertUnorderedList', '', '글머리 기호')}
                         ${b('1. 목록', 'insertOrderedList', '', '번호 매기기')}
@@ -14374,6 +14447,36 @@
                 if (cur === val) val = 'p';
             }
             document.execCommand(cmd, false, val || null);
+        }
+
+        // 글자 크기(2026-10-21): execCommand('fontSize', 7) 가 남기는 <font size="7"> 을 <span style="font-size:…"> 로 바꾼다(<font> 는 저장하지 않음)
+        function rteFontSize(id, em) {
+            const el = document.getElementById(id); if (!el || !em) return;
+            el.focus();
+            try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
+            document.execCommand('fontSize', false, '7');
+            el.querySelectorAll('font[size="7"]').forEach(f => {
+                const sp = document.createElement('span');
+                sp.style.fontSize = em; // '1em' = 보통(상속 크기) — 저장 시 _rteScrubStyles 가 font-size 만 남긴다
+                while (f.firstChild) sp.appendChild(f.firstChild);
+                f.replaceWith(sp);
+            });
+        }
+        // 저장 전 인라인 style 정리: font-size·text-align 만 남긴다 — 붙여넣기로 딸려온 color/background 는 다크 모드에서 고정 색으로 남아 보기 흉하다(2026-10-21)
+        function _rteScrubStyles(html) {
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                doc.body.querySelectorAll('[style]').forEach(n => {
+                    const fs = n.style.fontSize, ta = n.style.textAlign;
+                    n.removeAttribute('style');
+                    if (fs) n.style.fontSize = fs;
+                    if (ta) n.style.textAlign = ta;
+                    if (!n.getAttribute('style')) n.removeAttribute('style');
+                });
+                doc.body.querySelectorAll('font').forEach(f => { const sp = doc.createElement('span'); while (f.firstChild) sp.appendChild(f.firstChild); f.replaceWith(sp); });
+                doc.body.querySelectorAll('[color],[bgcolor]').forEach(n => { n.removeAttribute('color'); n.removeAttribute('bgcolor'); });
+                return doc.body.innerHTML;
+            } catch (_) { return html; }
         }
 
         function rteLink(id) {
@@ -14436,10 +14539,11 @@
             if (!el) return '';
             const raw = el.innerHTML.trim();
             if (!raw || raw === '<br>' || !el.textContent.trim()) return '';
-            if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(raw);
+            const clean = _rteScrubStyles(raw);
+            if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(clean);
             // DOMPurify 미로드(CDN 지연·차단) 시에도 위험 요소는 남기지 않는다.
             // 표시 경로에도 폴백 이스케이프가 있지만, 애초에 저장하지 않는 편이 안전하다.
-            return _htmlSanitizeFallback(raw);
+            return _htmlSanitizeFallback(clean);
         }
         // DOMPurify 없이 쓰는 최소 살균(저장·표시 공용): 위험 태그 제거, on* 속성·javascript: 주소 제거
         function _htmlSanitizeFallback(raw) {
@@ -15035,7 +15139,13 @@
             const likedKey = state.user ? 'liked_' + state.user.kakaoId : '';
             const liked = likedKey ? (() => { try { return JSON.parse(localStorage.getItem(likedKey) || '[]'); } catch(e) { return []; } })() : [];
 
-            const parents = comments.filter(c => !c.parent_id).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            // 고정 글(관리자가 📌, comments.pinned) 먼저 — 고정한 순(pinned_at) 뒤 최신순
+            const parents = comments.filter(c => !c.parent_id).sort((a,b) => {
+                const pa = a.pinned ? 1 : 0, pb = b.pinned ? 1 : 0;
+                if (pa !== pb) return pb - pa;
+                if (pa && pb) return new Date(b.pinned_at || b.created_at) - new Date(a.pinned_at || a.created_at);
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
             const replyMap = {};
             comments.filter(c => c.parent_id).forEach(c => {
                 (replyMap[c.parent_id] = replyMap[c.parent_id] || []).push(c);
@@ -15083,6 +15193,8 @@
                                 <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="likeComment('${c.id}')">${isLiked ? '♥' : '♡'} 좋아요 ${likesCount}</button>
                                 ${!isReply ? `<button class="reply-btn" onclick="toggleReplyForm('${c.id}')">답글 달기</button>` : ''}
                                 ${canEdit ? `<button class="reply-btn" onclick="startEditComment('${c.id}')">수정</button>` : ''}
+                                ${!isReply ? `<button class="reply-btn" onclick="copyBoardPostLink('${c.id}')">🔗 링크 복사</button>` : ''}
+                                ${(!isReply && isAdminUser()) ? `<button class="reply-btn" onclick="togglePinComment('${c.id}', ${c.pinned ? 'false' : 'true'})">${c.pinned ? '📌 고정 해제' : '📌 상단 고정'}</button>` : ''}
                                 ${footDateHtml}
                             </div>
                             ${!isReply ? `<div id="reply-form-${c.id}" class="reply-form hidden">
@@ -15100,10 +15212,11 @@
                 const bodyOneLine = body.replace(/\s+/g, ' ').trim();
                 const displayTitle = title || bodyOneLine.slice(0, 40) || '(제목 없음)';
                 const shortDate = new Date(p.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
-                return `<div class="board-row-wrap">
+                return `<div class="board-row-wrap${p.pinned ? ' pinned' : ''}">
                     <div class="board-row" onclick="toggleBoardPost('${p.id}')">
                         <div class="board-row-head">
                             <span class="board-row-chevron" id="board-chevron-${p.id}">▾</span>
+                            ${p.pinned ? '<span class="board-row-pin" title="상단 고정">📌</span>' : ''}
                             <span class="board-row-title">${escapeHtml(displayTitle)}</span>
                             ${replies.length>0?`<span class="board-row-replies">답글 ${replies.length}</span>`:''}
                         </div>
@@ -15301,6 +15414,30 @@
                 alert('삭제 권한이 없습니다.\nSupabase SQL Editor에서 실행 필요:\nCREATE POLICY "allow delete comments" ON comments FOR DELETE USING (true);');
                 return;
             }
+            fetchComments();
+        }
+
+        // 게시글 링크 복사 — 카톡 공지에 붙이는 딥링크(#gatheo/board/<id>, 로그인 뒤 이 글로 복귀)
+        function copyBoardPostLink(id) {
+            const url = location.origin + location.pathname.replace(/[^/]*$/, '') + '#gatheo/board/' + id;
+            const done = () => showToast('글 링크를 복사했습니다. 로그인이 필요한 멤버도 이 링크로 바로 글을 볼 수 있어요.');
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt('링크를 복사하세요', url));
+            else prompt('링크를 복사하세요', url);
+        }
+
+        // 게시글 상단 고정/해제(관리자, 2026-10-29) — comments.pinned/pinned_at(마이그레이션 20261029_comments_pinned.sql)
+        async function togglePinComment(id, pin) {
+            if (!isAdminUser()) return;
+            const { data, error } = await supabaseClient.from('comments')
+                .update({ pinned: !!pin, pinned_at: pin ? new Date().toISOString() : null }).eq('id', id).select('id');
+            if (error) {
+                console.error('고정 실패:', error);
+                const col = /pinned/.test(error.message || '') && /column|schema/i.test(error.message || '');
+                showToast(col ? '고정 기능을 쓰려면 DB 마이그레이션(20261029_comments_pinned.sql)이 필요합니다.' : '고정 상태를 바꾸지 못했습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            if (!data || !data.length) { showToast('고정 권한이 없습니다.'); return; }
+            showToast(pin ? '📌 글을 상단에 고정했습니다.' : '고정을 해제했습니다.');
             fetchComments();
         }
 
@@ -15583,10 +15720,9 @@
         async function shareShow(id) {
             const ev = (_showsState.event && _showsState.event.id === id) ? _showsState.event : (_showsState.events || []).find(e => e.id === id);
             const url = `${location.origin}/show/${id}`;
-            const title = ev ? ev.title : '공연 예매';
-            const text = ev ? [_showDateStr(ev.starts_at), ev.venue].filter(Boolean).join(' · ') : '';
+            // 링크만 넘긴다(2026-10-20) — title/text 를 주면 카톡 등이 그 글까지 메시지에 써 넣는다. 미리보기 카드는 /show/<id> 의 OG 가 만든다.
             if (navigator.share) {
-                try { await navigator.share({ title, text, url }); return; }
+                try { await navigator.share({ url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; /* 미지원·실패 → 복사 폴백 */ }
             }
             try {
@@ -15945,9 +16081,8 @@
         }
         async function shareTransferLink(seatCode) {
             const l = _showsState.transferLinks[seatCode]; if (!l) return;
-            const ev = _showsState.tEvent, title = ev ? ev.title : '공연';
             if (navigator.share) {
-                try { await navigator.share({ title: `${title} 티켓 양도`, text: `${title} 티켓 1장을 양도합니다. 링크에서 이름·연락처를 입력하면 받을 수 있어요. (48시간 안에)`, url: l.url }); return; }
+                try { await navigator.share({ url: l.url }); return; }
                 catch (e) { if (e && e.name === 'AbortError') return; }
             }
             copyTransferLink(seatCode);
