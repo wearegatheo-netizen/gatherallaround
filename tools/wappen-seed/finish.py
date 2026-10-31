@@ -46,7 +46,7 @@ if os.path.exists(raster_cfg):
 lines = ["// 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.",
          "// 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.",
          "// 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.",
-         "export const SEED_VERSION = 7;",
+         "export const SEED_VERSION = 8;",
          "export const SEED_ITEMS = ["]
 for it in items:
     keys = ('key', 'name', 'category', 'tags', 'file', 'w', 'h') + (('kind',) if it.get('kind') else ())

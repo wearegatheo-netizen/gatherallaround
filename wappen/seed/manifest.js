@@ -1,7 +1,7 @@
 // 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
 // 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
 // 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 8;
 export const SEED_ITEMS = [
     {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 235, "h": 209, "kind": "raster"},
     {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 242, "h": 230, "kind": "raster"},
@@ -104,4 +104,18 @@ export const SEED_ITEMS = [
     {"key": "p7-18-witch-boots", "name": "마녀 부츠", "category": "캐릭터·자연", "tags": ["부츠", "신발", "마녀", "줄무늬", "할로윈", "자수"], "file": "p7-18-witch-boots.png", "w": 428, "h": 351, "kind": "raster"},
     {"key": "p7-19-owl-moon", "name": "달 위 부엉이", "category": "동물", "tags": ["부엉이", "달", "마녀 모자", "밤", "할로윈", "자수"], "file": "p7-19-owl-moon.png", "w": 345, "h": 391, "kind": "raster"},
     {"key": "p7-20-candy-bucket", "name": "호박 사탕 바구니", "category": "음식", "tags": ["호박", "바구니", "사탕", "주황", "할로윈", "자수"], "file": "p7-20-candy-bucket.png", "w": 325, "h": 390, "kind": "raster"},
+    {"key": "p8-01-purple-bat", "name": "보라 박쥐", "category": "동물", "tags": ["박쥐", "보라", "밤", "할로윈", "자수"], "file": "p8-01-purple-bat.png", "w": 492, "h": 267, "kind": "raster"},
+    {"key": "p8-02-bone", "name": "뼈다귀", "category": "캐릭터·자연", "tags": ["뼈", "해골", "흰색", "할로윈", "자수"], "file": "p8-02-bone.png", "w": 370, "h": 391, "kind": "raster"},
+    {"key": "p8-03-cross", "name": "보라 십자가", "category": "도형·기호", "tags": ["십자가", "보라", "할로윈", "자수"], "file": "p8-03-cross.png", "w": 274, "h": 394, "kind": "raster"},
+    {"key": "p8-04-spider", "name": "거미", "category": "동물", "tags": ["거미", "검정", "할로윈", "자수"], "file": "p8-04-spider.png", "w": 367, "h": 302, "kind": "raster"},
+    {"key": "p8-05-web", "name": "거미줄", "category": "캐릭터·자연", "tags": ["거미줄", "베이지", "할로윈", "자수"], "file": "p8-05-web.png", "w": 404, "h": 406, "kind": "raster"},
+    {"key": "p8-06-potion", "name": "독약 유리병", "category": "캐릭터·자연", "tags": ["독약", "물약", "보라", "초록", "할로윈", "자수"], "file": "p8-06-potion.png", "w": 273, "h": 399, "kind": "raster"},
+    {"key": "p8-07-candy", "name": "줄무늬 사탕", "category": "음식", "tags": ["사탕", "캔디", "주황", "보라", "할로윈", "자수"], "file": "p8-07-candy.png", "w": 387, "h": 394, "kind": "raster"},
+    {"key": "p8-08-skull", "name": "해골", "category": "캐릭터·자연", "tags": ["해골", "흰색", "할로윈", "자수"], "file": "p8-08-skull.png", "w": 372, "h": 377, "kind": "raster"},
+    {"key": "p8-09-cauldron", "name": "초록 가마솥", "category": "캐릭터·자연", "tags": ["가마솥", "솥", "초록", "마법", "할로윈", "자수"], "file": "p8-09-cauldron.png", "w": 322, "h": 373, "kind": "raster"},
+    {"key": "p8-10-bucket", "name": "호박 양동이", "category": "캐릭터·자연", "tags": ["호박", "양동이", "잭오랜턴", "주황", "할로윈", "자수"], "file": "p8-10-bucket.png", "w": 328, "h": 377, "kind": "raster"},
+    {"key": "p8-11-sparkles", "name": "반짝이 세 개", "category": "도형·기호", "tags": ["반짝", "초록", "보라", "별", "할로윈", "자수"], "file": "p8-11-sparkles.png", "w": 322, "h": 385, "kind": "raster"},
+    {"key": "p8-12-broom", "name": "노란 빗자루", "category": "캐릭터·자연", "tags": ["빗자루", "마녀", "노랑", "할로윈", "자수"], "file": "p8-12-broom.png", "w": 357, "h": 407, "kind": "raster"},
+    {"key": "p8-13-skeleton-hand", "name": "해골 손", "category": "캐릭터·자연", "tags": ["해골", "손", "뼈", "흰색", "할로윈", "자수"], "file": "p8-13-skeleton-hand.png", "w": 317, "h": 397, "kind": "raster"},
+    {"key": "p8-14-eyeball", "name": "눈알", "category": "캐릭터·자연", "tags": ["눈알", "눈", "초록", "빨강", "할로윈", "자수"], "file": "p8-14-eyeball.png", "w": 334, "h": 335, "kind": "raster"},
 ];
