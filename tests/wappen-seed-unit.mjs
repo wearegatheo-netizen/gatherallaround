@@ -10,7 +10,7 @@ const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [
 const pngSize = (buf) => ({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });   // IHDR
 
 const VEC = SEED_ITEMS.filter(i => i.kind !== 'raster');   // 벡터 세트는 2026-10-07 부터 기본 목록에서 제외(build.mjs 를 돌리면 다시 포함되는 옵트인)
-chk('버전·개수(래스터 + 선택 벡터)', SEED_VERSION === 6 && SEED_ITEMS.length >= 81 && SEED_ITEMS.length === VEC.length + RASTER.length, String(SEED_ITEMS.length));
+chk('버전·개수(래스터 + 선택 벡터)', SEED_VERSION === 7 && SEED_ITEMS.length >= 101 && SEED_ITEMS.length === VEC.length + RASTER.length, String(SEED_ITEMS.length));
 chk('벡터 항목이 있다면 designs.mjs 의 key 여야 함', VEC.every(v => DESIGNS.some(d => d.key === v.key)));
 chk('래스터 항목: kind 표시·raster.json 과 key 일치·시트 격자 수 = 항목 수', SEED_ITEMS.filter(i => i.kind === 'raster').map(i => i.key).join() === RASTER.map(i => i.key).join()
     && JSON.parse(readFileSync(new URL('../tools/wappen-seed/raster.json', import.meta.url), 'utf8')).sheets.every(s => s.items.length === s.rows * s.cols && existsSync(new URL('../tools/wappen-seed/raster/' + s.src, import.meta.url))));
