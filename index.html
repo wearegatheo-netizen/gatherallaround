@@ -3665,6 +3665,13 @@
         }
         // ── 외부인 참여 신청(2026-11-02): 멤버가 슬롯마다 「몇 명·누구」 한 줄 — state.scheduleGuests[date] = 행 배열(slot_key = slotAttKey)
         function _dateGuests(date) { return ((state.scheduleGuests || {})[date] || []); }
+        // 날짜별 「외부인 참여 신청 받기」(schedules.allow_guests, 2026-11-02) — 컬럼이 없으면(마이그레이션 전) 허용, 있으면 그 날짜 행 중 하나라도 true 일 때
+        function _guestsAllowed(date) {
+            const rows = (state.schedules || []).filter(x => x.date === date);
+            if (!rows.length) return false;
+            if (rows.every(x => x.allow_guests === undefined)) return true;
+            return rows.some(x => x.allow_guests === true);
+        }
         function _slotGuests(date, key) { return _dateGuests(date).filter(g => (g.slot_key || '') === key); }
         function _guestTotal(list) { return (list || []).reduce((n, g) => n + (Number(g.guest_count) || 0), 0); }
         function _guestChipsHTML(list, myId) {
@@ -3683,6 +3690,7 @@
             if (state._guestsUnavailable) { showToast('외부인 참여 기능을 쓰려면 Supabase 에서 20261102_schedule_guests.sql 을 실행해주세요.'); return; }
             const key = slotAttKey(gn, startTime);
             const mine = _slotGuests(date, key).find(g => g.host_profile_id === me.id) || null;
+            if (!mine && !_guestsAllowed(date)) { showToast('이 일정은 외부인 참여 신청을 받지 않아요.'); return; }
             if (!mine) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
             const opts = Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${mine && Number(mine.guest_count) === n ? 'selected' : ''}>${n}명</option>`).join('');
             gtSheetOpen(`외부인 참여 신청 · ${_gtFmtDate(date)} ${escapeHtml(startTime || '')}`, `
@@ -5386,6 +5394,7 @@
                 ? [{ name: '', entries: [{ startTime: '', endTime: '', teamId: '', customName: '', note: '' }] }]
                 : groupOrder.map(gn => ({ name: gn, entries: groupMap[gn] }));
             state.scheduleEditorShowBanner = entries.some(s => s.show_banner);
+            state.scheduleEditorAllowGuests = entries.some(s => s.allow_guests === true); // 새 날짜는 끔(2026-11-02)
             const first = entries[0] || {};
             state.scheduleEditorSignupOpen  = isoToLocalInput(first.signup_open);
             state.scheduleEditorSignupClose = isoToLocalInput(first.signup_close);
@@ -5468,6 +5477,12 @@
                             onchange="state.scheduleEditorShowBanner=this.checked"
                             style="width:15px;height:15px;accent-color:var(--wds-primary);cursor:pointer">
                         공지 위 배너에 표시
+                    </label>
+                    <label style="display:flex;align-items:center;gap:7px;margin-bottom:12px;cursor:pointer;user-select:none;font-size:0.83rem;font-weight:600;color:var(--wds-gray-700)">
+                        <input type="checkbox" id="schedGuestToggle" ${state.scheduleEditorAllowGuests?'checked':''}
+                            onchange="state.scheduleEditorAllowGuests=this.checked"
+                            style="width:15px;height:15px;accent-color:var(--wds-primary);cursor:pointer">
+                        외부인 참여 신청 받기 <span style="font-weight:500;color:var(--wds-gray-500)">— 멤버가 슬롯마다 데려올 인원·이름을 적을 수 있어요</span>
                     </label>
                     <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">참여 신청 기간</div>
                     <div style="background:var(--wds-primary-light);border:1px solid color-mix(in srgb,var(--wds-primary) 25%,transparent);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
@@ -5552,6 +5567,8 @@
             if (!date) { alert('날짜를 선택해주세요.'); return; }
             const showBanner = !!(document.getElementById('schedBannerToggle')?.checked ?? state.scheduleEditorShowBanner);
             state.scheduleEditorShowBanner = showBanner;
+            const allowGuests = !!(document.getElementById('schedGuestToggle')?.checked ?? state.scheduleEditorAllowGuests);
+            state.scheduleEditorAllowGuests = allowGuests;
             const signupOpen  = localInputToIso((document.getElementById('schedSignupOpen')?.value  || state.scheduleEditorSignupOpen  || '').trim());
             const signupClose = localInputToIso((document.getElementById('schedSignupClose')?.value || state.scheduleEditorSignupClose || '').trim());
             const memberMap = {};
@@ -5570,7 +5587,7 @@
                         team_name: teamName || null,
                         members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, leader: !!s.leader, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
-                        show_banner: showBanner,
+                        show_banner: showBanner, allow_guests: allowGuests,
                         signup_open: signupOpen, signup_close: signupClose,
                         created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
                     });
@@ -5579,7 +5596,12 @@
             const { error: delErr } = await supabaseClient.from('schedules').delete().eq('date', date);
             if (delErr) { alert('저장 실패: ' + delErr.message); return; }
             if (records.length > 0) {
-                const { error: insErr } = await supabaseClient.from('schedules').insert(records);
+                let { error: insErr } = await supabaseClient.from('schedules').insert(records);
+                if (insErr && insErr.code === '42703' && /allow_guests/.test(insErr.message || '')) {
+                    // allow_guests 컬럼 전(마이그레이션 미실행) — 빼고 다시 저장, 안내
+                    ({ error: insErr } = await supabaseClient.from('schedules').insert(records.map(r => { const { allow_guests, ...rest } = r; return rest; })));
+                    if (!insErr) showToast('외부인 참여 설정은 Supabase 에서 20261102_schedules_allow_guests.sql 을 실행한 뒤 저장돼요.', 5000);
+                }
                 if (insErr) { alert('저장 실패: ' + insErr.message); return; }
             }
             showToast('일정이 저장되었습니다.');
@@ -5671,6 +5693,8 @@
                     sigStatus === 'open'   ? openBadge :
                     sigStatus === 'before' ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fff8e6;color:#e07000">🕐 신청 시작 ${fmtDT(sigOpen)}</span>` :
                                             `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:#fdf2f2;color:#e74c3c">🔒 신청 마감 ${fmtDT(sigClose)}</span>`;
+                const guestsOn = _guestsAllowed(date); // 날짜별 외부인 신청 허용(2026-11-02) — 꺼진 날짜는 이미 적은 줄만 수정·삭제 가능
+                const guestChip = guestsOn && !isPastDate && !state._guestsUnavailable ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:10px;background:var(--wds-gray-100);color:var(--wds-gray-700)">👥 외부인 참여 가능</span>` : '';
                 const gMap = {}, gOrder = [];
                 [...entries].sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||'')).forEach(s => {
                     const gn = s.group_name || '';
@@ -5725,7 +5749,7 @@
                             ${slotBlocked ? 'disabled' : ''}>${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
                         // 외부인 참여 신청(2026-11-02) — 내 줄이 있으면 「👥 외부 N」(수정), 없으면 「+ 외부」; 신청 기간 밖이면 새 신청만 막힘
                         const guestBlocked = !myGuest && sigStatus !== null && sigStatus !== 'open';
-                        const guestBtn = (state.user && myId && !isPastDate && !state._guestsUnavailable) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary gt-guest-btn${myGuest ? ' mine' : ''}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 8px" title="외부인 참여 신청" onclick="gtGuestSheet('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
+                        const guestBtn = (state.user && myId && !isPastDate && !state._guestsUnavailable && (guestsOn || myGuest)) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary gt-guest-btn${myGuest ? ' mine' : ''}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 8px" title="외부인 참여 신청" onclick="gtGuestSheet('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
                             ${guestBlocked ? 'disabled' : ''}>${myGuest ? `👥 외부 ${myGuest.guest_count}` : '+ 외부'}</button>` : '';
                         return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
                             <div style="display:flex;align-items:center;gap:6px">
@@ -5783,7 +5807,7 @@
                             <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-danger" style="${isToday?'background:rgba(255,100,100,0.15);border-color:rgba(255,100,100,0.5);color:#ffb3b3':''}" onclick="deleteScheduleDate('${date}')">삭제</button>
                         </div>` : ''}
                     </div>
-                    ${sigBadge ? `<div style="padding:7px 14px;border-bottom:1px solid var(--wds-gray-100)">${sigBadge}</div>` : ''}
+                    ${(sigBadge || guestChip) ? `<div style="padding:7px 14px;border-bottom:1px solid var(--wds-gray-100);display:flex;gap:6px;flex-wrap:wrap">${sigBadge}${guestChip}</div>` : ''}
                     <div style="padding:10px 12px">${groupsHtml}</div>
                     ${attendeeSection}
                 </div>`;

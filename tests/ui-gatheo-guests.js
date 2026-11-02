@@ -11,7 +11,7 @@ const TABLES = {
     { id: ME, kakao_id: 'k-me', name: '홍길동', status: 'approved', role: '일반', instruments: '기타', created_at: '2026-01-01T00:00:00Z' },
     { id: OTHER, kakao_id: 'k-other', name: '김영희', status: 'approved', role: '일반', instruments: '보컬', created_at: '2026-01-01T00:00:00Z' },
   ],
-  schedules: [{ id: 's1', date: DATE, group_name: '1부', start_time: '19:00', end_time: '20:00', team_name: '', members: [], songs: [], note: '' }],
+  schedules: [{ id: 's1', date: DATE, group_name: '1부', start_time: '19:00', end_time: '20:00', team_name: '', members: [], songs: [], note: '', allow_guests: true }],
   schedule_attendees: [
     { id: 'a1', schedule_date: DATE, profile_id: ME, group_name: KEY },
     { id: 'a2', schedule_date: DATE, profile_id: OTHER, group_name: KEY },
@@ -38,7 +38,7 @@ const FAKE_SB = `
       window.__sbCalls.push({ table, op: st.op, payload: st.payload, n: hit.length });
       let data = null, error = null;
       if (st.op === 'select') data = st.single ? (hit[0] || null) : hit;
-      else if (st.op === 'insert') { const row = Object.assign({ id: 'new-' + Math.random().toString(36).slice(2, 8), created_at: new Date().toISOString() }, st.payload); rows.push(row); data = st.single ? row : [row]; }
+      else if (st.op === 'insert') { const mk = (pl) => Object.assign({ id: 'new-' + Math.random().toString(36).slice(2, 8), created_at: new Date().toISOString() }, pl); const added = (Array.isArray(st.payload) ? st.payload : [st.payload]).map(mk); added.forEach(r => rows.push(r)); data = st.single ? added[0] : added; }
       else if (st.op === 'update') { hit.forEach(r => Object.assign(r, st.payload)); data = hit; }
       else if (st.op === 'delete') { hit.forEach(r => rows.splice(rows.indexOf(r), 1)); data = hit; }
       return Promise.resolve({ data, error }).then(res, rej);
@@ -115,6 +115,27 @@ const FAKE_SB = `
   chk('schedule_guests delete 호출', await p.evaluate(() => window.__sbCalls.some(c => c.table === 'schedule_guests' && c.op === 'delete' && c.n === 1)));
   t = await slotBtnText();
   chk('삭제 후 4명 · 외부 2 로 복귀, 버튼은 [+ 외부]', /4명/.test(t) && /외부 2/.test(t) && await p.evaluate(() => document.querySelector('.gt-guest-btn').textContent.trim() === '+ 외부'), t);
+
+  // 4b. 날짜별 「외부인 참여 신청 받기」(schedules.allow_guests, 2026-11-02)
+  chk('허용 날짜: 머리줄 「👥 외부인 참여 가능」 칩', await p.evaluate(() => /외부인 참여 가능/.test(document.querySelector('[id^="schedDay-"]').textContent)));
+  await p.evaluate(() => { state.schedules.forEach(x => x.allow_guests = false); renderMemberPanel(); });
+  await p.waitForTimeout(900);
+  chk('받지 않는 날짜: [+ 외부] 버튼·칩 없음, 기존 외부 2명은 그대로 합산', await p.evaluate(() => { const d = document.querySelector('[id^="schedDay-"]'); return !document.querySelector('.gt-guest-btn') && !/외부인 참여 가능/.test(d.textContent) && /4명/.test(d.querySelector('.status-badge').textContent); }));
+  await p.evaluate(() => { state.schedules.forEach(x => delete x.allow_guests); renderMemberPanel(); });
+  await p.waitForTimeout(900);
+  chk('컬럼 없음(마이그레이션 전): 종전처럼 허용', await p.evaluate(() => !!document.querySelector('.gt-guest-btn')));
+  // 편집기(관리자): 체크박스 + 저장 payload
+  await p.evaluate(() => { state.user.role = '총괄'; state.schedules.forEach(x => x.allow_guests = true); renderMemberPanel(); });
+  await p.waitForTimeout(900);
+  await p.evaluate(() => schedEditorInit('2026-11-20'));
+  await p.waitForTimeout(300);
+  chk('편집기에 「외부인 참여 신청 받기」 체크박스(기존 값 켜짐)', await p.evaluate(() => { const c = document.getElementById('schedGuestToggle'); return !!c && c.checked; }));
+  await p.evaluate(() => { document.getElementById('schedGuestToggle').checked = false; state.scheduleEditorAllowGuests = false; });
+  await p.evaluate(() => saveScheduleForDate());
+  await p.waitForTimeout(900);
+  const savedRows = await p.evaluate(() => { const c = [...window.__sbCalls].reverse().find(x => x.table === 'schedules' && x.op === 'insert'); return c && c.payload; });
+  chk('저장 payload 에 allow_guests:false', Array.isArray(savedRows) && savedRows.length === 1 && savedRows[0].allow_guests === false, JSON.stringify(savedRows && savedRows[0] && savedRows[0].allow_guests));
+  await p.evaluate(() => { state.user.role = '일반'; state.schedules.forEach(x => x.allow_guests = true); });
 
   // 5. 표가 없는 환경(42P01) → 버튼 숨김·조용히
   await p.evaluate(() => { const orig = window.__fakeSb.from; window.__fakeSb.from = (t) => { if (t !== 'schedule_guests') return orig(t); const b = orig(t); b.then = (res) => Promise.resolve({ data: null, error: { code: '42P01', message: 'relation does not exist' } }).then(res); return b; }; state._attLoaded = new Set(); state._guestsUnavailable = false; });
