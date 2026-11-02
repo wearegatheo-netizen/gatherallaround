@@ -5593,16 +5593,28 @@
                     });
                 }
             }
-            const { error: delErr } = await supabaseClient.from('schedules').delete().eq('date', date);
-            if (delErr) { alert('저장 실패: ' + delErr.message); return; }
+            // ── 저장 순서: 새 행 insert → 성공하면 옛 행 삭제(id 로). 2026-11-02 일정 유실 사고의 교훈 —
+            //    예전엔 날짜로 먼저 지우고 insert 했는데, insert 가 실패하면(모르는 컬럼 등) 그 날짜 일정이 통째로 사라졌다.
+            //    insert 를 먼저 하면 실패해도 기존 행은 그대로 남는다. 잠깐 두 벌이 공존하지만 화면은 다시 그리기 전까지 안 읽는다.
+            const oldRows = (state.schedules || []).filter(r => r.date === date && r.id);
+            const { data: oldFetched } = await supabaseClient.from('schedules').select('id').eq('date', date);
+            const oldIds = [...new Set([...(oldFetched || []).map(r => r.id), ...oldRows.map(r => r.id)])];
+            const stripGuests = (rs) => rs.map(r => { const { allow_guests, ...rest } = r; return rest; });
+            // allow_guests 컬럼이 아직 없으면(마이그레이션 전) 처음부터 빼고 보낸다 — PostgREST 는 모르는 컬럼을 PGRST204 로 거절한다
+            const colMissing = (state.schedules || []).length > 0 && (state.schedules || []).every(r => r.allow_guests === undefined);
             if (records.length > 0) {
-                let { error: insErr } = await supabaseClient.from('schedules').insert(records);
-                if (insErr && insErr.code === '42703' && /allow_guests/.test(insErr.message || '')) {
-                    // allow_guests 컬럼 전(마이그레이션 미실행) — 빼고 다시 저장, 안내
-                    ({ error: insErr } = await supabaseClient.from('schedules').insert(records.map(r => { const { allow_guests, ...rest } = r; return rest; })));
-                    if (!insErr) showToast('외부인 참여 설정은 Supabase 에서 20261102_schedules_allow_guests.sql 을 실행한 뒤 저장돼요.', 5000);
+                let payload = colMissing ? stripGuests(records) : records;
+                let { error: insErr } = await supabaseClient.from('schedules').insert(payload);
+                if (insErr && payload === records && /allow_guests/.test(insErr.message || '')) {
+                    payload = stripGuests(records);
+                    ({ error: insErr } = await supabaseClient.from('schedules').insert(payload));
                 }
-                if (insErr) { alert('저장 실패: ' + insErr.message); return; }
+                if (insErr) { alert('저장 실패: ' + insErr.message + '\n(기존 일정은 그대로 남아 있습니다)'); return; }
+                if (payload !== records && allowGuests) showToast('외부인 참여 설정은 Supabase 에서 20261102_schedules_allow_guests.sql 을 실행한 뒤 저장돼요.', 5000);
+            }
+            if (oldIds.length) {
+                const { error: delErr } = await supabaseClient.from('schedules').delete().in('id', oldIds);
+                if (delErr) { console.error('schedules old rows delete error:', delErr); alert('새 일정은 저장됐지만 이전 일정을 지우지 못했습니다. 화면에 두 벌이 보이면 [편집]으로 다시 저장해주세요.'); }
             }
             showToast('일정이 저장되었습니다.');
             await fetchSchedules();

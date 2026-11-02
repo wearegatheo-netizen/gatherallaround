@@ -135,6 +135,18 @@ const FAKE_SB = `
   await p.waitForTimeout(900);
   const savedRows = await p.evaluate(() => { const c = [...window.__sbCalls].reverse().find(x => x.table === 'schedules' && x.op === 'insert'); return c && c.payload; });
   chk('저장 payload 에 allow_guests:false', Array.isArray(savedRows) && savedRows.length === 1 && savedRows[0].allow_guests === false, JSON.stringify(savedRows && savedRows[0] && savedRows[0].allow_guests));
+  chk('저장 뒤 옛 행은 id 로 삭제(날짜 전체 삭제 아님), 일정 1건 유지', await p.evaluate(() => { const d = window.__sbCalls.filter(c => c.table === 'schedules' && c.op === 'delete'); return d.length >= 1 && d.every(x => x.n === 1) && state.schedules.filter(x => x.date === '2026-11-20').length === 1; }));
+  // 4c. 2026-11-02 유실 사고 재현: 컬럼이 없는 DB(PGRST204) 에서 저장 — 일정이 사라지면 안 되고, allow_guests 를 빼고 다시 저장돼야 한다
+  await p.evaluate(() => {
+    const orig = window.__fakeSb.from; window.__pgrstHits = 0;
+    window.__fakeSb.from = (tb) => { const b = orig(tb); if (tb !== 'schedules') return b; const ins = b.insert; b.insert = (rows) => { const arr = Array.isArray(rows) ? rows : [rows]; if (arr.some(r => 'allow_guests' in r)) { window.__pgrstHits++; b.then = (res) => Promise.resolve({ data: null, error: { code: 'PGRST204', message: "Could not find the 'allow_guests' column of 'schedules' in the schema cache" } }).then(res); return b; } return ins(rows); }; return b; };
+    state.schedules.forEach(x => { x.allow_guests = true; }); // 상태엔 값이 있어 "컬럼 있음"으로 보이는 상황(옛 탭) — 서버가 거절
+    schedEditorInit('2026-11-20');
+  });
+  await p.waitForTimeout(300);
+  await p.evaluate(() => saveScheduleForDate());
+  await p.waitForTimeout(900);
+  chk('컬럼 없는 DB: PGRST204 를 받으면 allow_guests 빼고 재저장, 일정 1건 그대로', await p.evaluate(() => window.__pgrstHits === 1 && state.schedules.filter(x => x.date === '2026-11-20').length === 1 && document.querySelector('#schedDay-2026-11-20') !== null));
   await p.evaluate(() => { state.user.role = '일반'; state.schedules.forEach(x => x.allow_guests = true); });
 
   // 5. 표가 없는 환경(42P01) → 버튼 숨김·조용히

@@ -166,7 +166,9 @@
   `fetchScheduleAttendees` 가 같은 날짜 범위로 함께 받아 `state.scheduleGuests[date]`(행 배열); 표가 없으면(42P01) `state._guestsUnavailable=true` 로 버튼을 숨기고 조용히 빈 값. 슬롯 줄 [+ 외부]/[👥 외부 N](내 줄, `.gt-guest-btn.mine`) → `gtGuestSheet` 바닥 시트(인원 수 셀렉트 1~10 + 누구 입력) → `gtGuestSave`(update/insert)·`gtGuestDelete`.
   **합산**: 슬롯 `🙋 N명 · 외부 M`, 명단 패널 맨 아래 `.gt-att-guests`(모드 전환과 무관, 칩 `.gt-att-chip.guest` 「👤 이름 N명 · 초대 멤버」), 날짜 「전체 참여 N명 · 멤버 a · 외부 g」, 홈 카드 「N명 참석 (외부 g)」. **참여 횟수(멤버 출석)에는 넣지 않음.** 새 신청은 신청 기간(`checkSignupPeriod`) 안에서만, 수정·삭제는 언제나(지난 날짜 제외).
   **날짜별 받기/안 받기**(`schedules.allow_guests`, 마이그레이션 `20261102_schedules_allow_guests.sql`, 기본 false): 일정 편집기 체크박스 「외부인 참여 신청 받기」(`#schedGuestToggle` → `state.scheduleEditorAllowGuests`, 그 날짜 행 전부에 저장; 컬럼 없으면 42703 을 잡아 빼고 재저장 + 안내 토스트).
-  `_guestsAllowed(date)` = 행에 컬럼이 없으면(마이그레이션 전) 허용, 있으면 하나라도 true — 켠 날짜만 [+ 외부] 버튼·머리줄 「👥 외부인 참여 가능」 칩, 꺼도 이미 적은 줄은 합산·수정·삭제 유지. 테스트 `tests/ui-gatheo-guests.js`(22, 포트 8765; 가짜 builder 는 배열 insert 지원).
+  `_guestsAllowed(date)` = 행에 컬럼이 없으면(마이그레이션 전) 허용, 있으면 하나라도 true — 켠 날짜만 [+ 외부] 버튼·머리줄 「👥 외부인 참여 가능」 칩, 꺼도 이미 적은 줄은 합산·수정·삭제 유지. 테스트 `tests/ui-gatheo-guests.js`(24, 포트 8765; 가짜 builder 는 배열 insert 지원).
+  **⚠️ 2026-11-02 일정 유실 사고**: `saveScheduleForDate` 가 「날짜로 delete → insert」 순서였는데 insert 가 모르는 컬럼(allow_guests, 마이그레이션 전)으로 실패해 그 날짜 일정이 통째로 사라졌다. PostgREST 는 모르는 컬럼을 **42703 이 아니라 `PGRST204`**("Could not find the '…' column … schema cache")로 거절하므로 코드가 아닌 메시지로 판정할 것.
+  지금은 **insert 먼저 → 성공 후 옛 행을 id 로 delete**(실패해도 기존 일정 보존), `state.schedules` 에 컬럼이 없으면 처음부터 빼고 보낸다. 새 컬럼을 쓰는 저장 경로는 반드시 같은 순서로.
     **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
   `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
   로 바꾸고 날짜 카드 `#schedDay-<date>` 로 / 홈 새 글 `gtOpenPost` 는 게시판 fetch 를 기다려 글을 펼치고 `.board-row-wrap` 으로 / 팀 [팀 수정]·[새 팀] → 목록 위 폼 `#teamFormContainer` 로 + `#teamName` 포커스, 저장 뒤엔 그 팀 카드 `#team-<id>` 강조 + 토스트 /
