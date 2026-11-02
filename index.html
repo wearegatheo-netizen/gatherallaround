@@ -797,6 +797,14 @@
         .gt-att-chips { display: flex; flex-wrap: wrap; gap: 4px; }
         .gt-att-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--wds-white); border: 1px solid var(--wds-gray-300); border-radius: 999px; padding: 2px 8px 2px 2px; font-size: 0.72rem; font-weight: 600; color: var(--wds-gray-800); }
         .gt-att-chip .ga-avatar { width: 18px; height: 18px; font-size: 0.6rem; box-shadow: none; }
+        /* 외부인 참여(2026-11-02): 점선 칩 — 「👤 이름 · 초대한 멤버」, 패널 맨 아래 묶음 */
+        .gt-att-chip.guest { border-style: dashed; padding-left: 7px; color: var(--wds-gray-700); background: var(--wds-gray-50); }
+        .gt-att-chip.guest small { font-weight: 600; color: var(--wds-gray-500); }
+        .gt-att-guests { margin-top: 8px; }
+        .gt-guest-form .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .gt-guest-form label { font-size: 0.84rem; font-weight: 700; color: var(--wds-gray-800); flex: none; width: 64px; }
+        .gt-guest-form select, .gt-guest-form input[type=text] { flex: 1; height: 44px !important; border: 1px solid var(--wds-gray-300); border-radius: 10px; padding: 0 12px; font: inherit; font-size: 0.92rem; background: var(--wds-white); color: var(--wds-black); min-width: 0; }
+        .gt-guest-form .hint { font-size: 0.78rem; color: var(--wds-gray-500); margin: -4px 0 12px 72px; }
         .gt-att-chip.me { background: var(--wds-primary); border-color: var(--wds-primary); color: #fff; }
         /* 이동 뒤 포커스 강조(2026-10-19) — gtFocus() 가 1.7초 동안 파란 테두리를 깜빡여 어디로 왔는지 알려준다 */
         .gt-flash { animation: gtFlash 1.6s ease-out; }
@@ -3652,7 +3660,76 @@
         function _attPanelHTML(ids, opts) {
             const mode = state.attMode || 'session';
             const seg = `<div class="gt-att-seg">${_ATT_MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${mode === k ? 'on' : ''}" onclick="event.stopPropagation();gtAttMode('${k}')">${l}</button>`).join('')}</div>`;
-            return `<div class="gt-att" data-ids="${ids.join(',')}" data-team="${opts.teamId || ''}" data-my="${opts.myId || ''}">${seg}<div class="gt-att-body">${_attBodyHTML(ids, opts)}</div></div>`;
+            const guests = opts.guests && opts.guests.length ? `<div class="gt-att-guests"><div class="gt-att-h">👥 외부 참여<b>${_guestTotal(opts.guests)}</b></div><div class="gt-att-chips">${_guestChipsHTML(opts.guests, opts.myId)}</div></div>` : '';
+            return `<div class="gt-att" data-ids="${ids.join(',')}" data-team="${opts.teamId || ''}" data-my="${opts.myId || ''}">${ids.length ? seg + `<div class="gt-att-body">${_attBodyHTML(ids, opts)}</div>` : ''}${guests}</div>`;
+        }
+        // ── 외부인 참여 신청(2026-11-02): 멤버가 슬롯마다 「몇 명·누구」 한 줄 — state.scheduleGuests[date] = 행 배열(slot_key = slotAttKey)
+        function _dateGuests(date) { return ((state.scheduleGuests || {})[date] || []); }
+        function _slotGuests(date, key) { return _dateGuests(date).filter(g => (g.slot_key || '') === key); }
+        function _guestTotal(list) { return (list || []).reduce((n, g) => n + (Number(g.guest_count) || 0), 0); }
+        function _guestChipsHTML(list, myId) {
+            return (list || []).map(g => {
+                const host = _gtMemberById(g.host_profile_id); const hn = host ? host.name.replace(/\s*\(.*?\)\s*$/, '') : '멤버';
+                const names = (g.guest_names || '').trim();
+                const label = names ? escapeHtml(names) : `외부 ${g.guest_count}명`;
+                const cnt = names && Number(g.guest_count) > 1 ? ` <b style="font-weight:800">${g.guest_count}명</b>` : '';
+                return `<span class="gt-att-chip guest${g.host_profile_id === myId ? ' me' : ''}" title="${escapeHtml(hn)} 님이 데려오는 외부 참여자">👤 ${label}${cnt} <small>· ${escapeHtml(hn)}</small></span>`;
+            }).join('');
+        }
+        // 슬롯의 외부인 신청 시트 — 내 줄이 있으면 수정·삭제, 없으면 새로
+        function gtGuestSheet(date, gn, startTime) {
+            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            const me = _gtMe(); if (!me) { alert('승인된 멤버만 외부인 참여를 신청할 수 있습니다.'); return; }
+            if (state._guestsUnavailable) { showToast('외부인 참여 기능을 쓰려면 Supabase 에서 20261102_schedule_guests.sql 을 실행해주세요.'); return; }
+            const key = slotAttKey(gn, startTime);
+            const mine = _slotGuests(date, key).find(g => g.host_profile_id === me.id) || null;
+            if (!mine) { const p = checkSignupPeriod(date); if (!p.ok) { alert(p.msg); return; } }
+            const opts = Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${mine && Number(mine.guest_count) === n ? 'selected' : ''}>${n}명</option>`).join('');
+            gtSheetOpen(`외부인 참여 신청 · ${_gtFmtDate(date)} ${escapeHtml(startTime || '')}`, `
+                <form class="gt-guest-form" id="gtGuestForm" onsubmit="event.preventDefault();gtGuestSave('${date}','${(gn || '').replace(/'/g, "\\'")}','${startTime || ''}')">
+                    <div class="row"><label for="gtGuestCount">인원 수</label><select id="gtGuestCount">${opts}</select></div>
+                    <div class="row"><label for="gtGuestNames">누구</label><input type="text" id="gtGuestNames" maxlength="80" placeholder="예: 김민수, 박지영(친구)" value="${escapeHtml(mine ? mine.guest_names || '' : '')}"></div>
+                    <div class="hint">내 신청과 별도로 데려오는 사람입니다. 전체 참여자 수에 합산되고, 참여 횟수에는 들어가지 않아요.</div>
+                    <div id="gtGuestResult" style="font-size:0.84rem;min-height:20px;color:#e74c3c;margin-bottom:6px"></div>
+                    <div style="display:flex;gap:8px">
+                        ${mine ? `<button type="button" class="gaa-btn gaa-btn-danger" style="flex:1" onclick="gtGuestDelete('${mine.id}','${date}')">삭제</button>` : ''}
+                        <button type="submit" class="gaa-btn gaa-btn-primary" style="flex:2">${mine ? '수정 저장' : '신청'}</button>
+                    </div>
+                </form>`);
+            setTimeout(() => { const f = document.getElementById('gtGuestNames'); if (f && (!window.matchMedia || matchMedia('(hover:hover)').matches)) f.focus(); }, 250);
+        }
+        async function gtGuestSave(date, gn, startTime) {
+            const me = _gtMe(); if (!me || !supabaseClient) return;
+            const key = slotAttKey(gn, startTime);
+            const count = Math.max(1, Math.min(30, parseInt(document.getElementById('gtGuestCount').value, 10) || 1));
+            const names = (document.getElementById('gtGuestNames').value || '').trim().slice(0, 80);
+            const res = document.getElementById('gtGuestResult');
+            const mine = _slotGuests(date, key).find(g => g.host_profile_id === me.id) || null;
+            const payload = { guest_count: count, guest_names: names, updated_at: new Date().toISOString() };
+            let error, row;
+            if (mine) { ({ error } = await supabaseClient.from('schedule_guests').update(payload).eq('id', mine.id)); row = Object.assign({}, mine, payload); }
+            else {
+                const ins = { schedule_date: date, slot_key: key, host_profile_id: me.id, ...payload };
+                const r = await supabaseClient.from('schedule_guests').insert(ins).select().single(); error = r.error; const d = Array.isArray(r.data) ? r.data[0] : r.data; row = d || Object.assign({ id: 'tmp-' + Date.now() }, ins);
+            }
+            if (error) {
+                console.error('schedule_guests save error:', error);
+                if (error.code === '42P01') { state._guestsUnavailable = true; if (res) res.textContent = 'Supabase 에서 20261102_schedule_guests.sql 을 먼저 실행해주세요.'; }
+                else if (res) res.textContent = '저장하지 못했습니다. 잠시 후 다시 시도해주세요.';
+                return;
+            }
+            if (!state.scheduleGuests) state.scheduleGuests = {};
+            state.scheduleGuests[date] = _dateGuests(date).filter(g => g.id !== row.id).concat([row]);
+            gtSheetClose(); showToast(mine ? '외부인 참여 내용을 수정했어요.' : `외부인 ${count}명 참여를 신청했어요.`);
+            renderMemberPanel(); gtHomeRefresh();
+        }
+        async function gtGuestDelete(id, date) {
+            if (!supabaseClient || !confirm('외부인 참여 신청을 삭제할까요?')) return;
+            const { error } = await supabaseClient.from('schedule_guests').delete().eq('id', id);
+            if (error) { console.error('schedule_guests delete error:', error); showToast('삭제하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+            if (state.scheduleGuests) state.scheduleGuests[date] = _dateGuests(date).filter(g => g.id !== id);
+            gtSheetClose(); showToast('외부인 참여 신청을 삭제했어요.');
+            renderMemberPanel(); gtHomeRefresh();
         }
         function gtAttMode(mode) {
             state.attMode = mode;
@@ -3753,7 +3830,8 @@
                 // 상태 줄: 참석 확정은 아래 줄에서 한 번만 말하고, 여기엔 메모와 신청 상태만
                 const status = mine ? '' : closed ? '신청 마감' : before ? '신청 전' : dd ? `신청 마감 ${dd}` : '신청 가능';
                 const pLine = [first.note ? escapeHtml(first.note) : '', status].filter(Boolean).join(' · ');
-                const info = att.length ? `${att.length}명 참석${mine ? ' · 참석 확정 ✓' : ''}` : (mine ? '참석 확정 ✓' : '아직 참석 신청이 없어요');
+                const guestN = _guestTotal(_dateGuests(date)), totalN = att.length + guestN; // 외부인 합산(2026-11-02)
+                const info = totalN ? `${totalN}명 참석${guestN ? ` (외부 ${guestN})` : ''}${mine ? ' · 참석 확정 ✓' : ''}` : (mine ? '참석 확정 ✓' : '아직 참석 신청이 없어요');
                 bigHtml = `<div class="gt-big" id="gtNextSched">
                     <div class="eb">다음 합주 · ${_gtFmtDate(date)} ${escapeHtml(timeRange)}</div>
                     <h3 title="${escapeHtml(title)}">${escapeHtml(title)}</h3>
@@ -5162,13 +5240,17 @@
             let all = [...new Set([...(dates || []), ...prev])];
             if (all.length > 120) all = [...new Set(dates || [])];
             if (!supabaseClient || all.length === 0) {
-                state.scheduleAttendees = {}; state.scheduleGroupAttendees = {}; state.scheduleSlotAttendees = {}; state._attLoaded = new Set(all);
+                state.scheduleAttendees = {}; state.scheduleGroupAttendees = {}; state.scheduleSlotAttendees = {}; state.scheduleGuests = {}; state._attLoaded = new Set(all);
                 return;
             }
-            const { data } = await supabaseClient
-                .from('schedule_attendees')
-                .select('schedule_date, profile_id, group_name')
-                .in('schedule_date', all);
+            // 외부인 참여(schedule_guests)도 같은 날짜 범위로 함께 — 표가 없으면(마이그레이션 전) 조용히 빈 값
+            const [{ data }, gRes] = await Promise.all([
+                supabaseClient.from('schedule_attendees').select('schedule_date, profile_id, group_name').in('schedule_date', all),
+                state._guestsUnavailable ? Promise.resolve({ data: [] }) : supabaseClient.from('schedule_guests').select('id, schedule_date, slot_key, host_profile_id, guest_count, guest_names').in('schedule_date', all),
+            ]);
+            if (gRes && gRes.error) { if (gRes.error.code === '42P01') state._guestsUnavailable = true; else console.error('schedule_guests fetch error:', gRes.error); }
+            const Gs = {};
+            ((gRes && gRes.data) || []).forEach(g => { (Gs[g.schedule_date] = Gs[g.schedule_date] || []).push(g); });
             const A = {}, G = {}, S = {};
             (data || []).forEach(r => {
                 const d = r.schedule_date;
@@ -5189,7 +5271,7 @@
                     if (!G[d][gn].includes(r.profile_id)) G[d][gn].push(r.profile_id);
                 }
             });
-            state.scheduleAttendees = A; state.scheduleGroupAttendees = G; state.scheduleSlotAttendees = S;
+            state.scheduleAttendees = A; state.scheduleGroupAttendees = G; state.scheduleSlotAttendees = S; state.scheduleGuests = Gs;
             state._attLoaded = new Set(all);
         }
 
@@ -5628,21 +5710,29 @@
                         const slotChipData = slotAttendees.map(pid => { const p = memberMap[pid]; return p ? { name: p.name.replace(/\s*\(.*?\)\s*$/, ''), me: pid === myId } : null; }).filter(Boolean);
                         // 본인을 맨 앞으로 정렬 (긴 명단에서 내 신청 여부 즉시 확인)
                         slotChipData.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0));
-                        const attCount = slotChipData.length;
+                        const slotGuests = _slotGuests(date, slotKey), slotGuestN = _guestTotal(slotGuests);
+                        const myGuest = myId ? slotGuests.find(g => g.host_profile_id === myId) : null;
+                        const attCount = slotChipData.length + slotGuestN; // 멤버 + 외부인 합산(2026-11-02)
                         const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
                         const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'};letter-spacing:0.02em">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
                         // 참여자수 버튼 — 시간과 같은 라인에 배치
-                        const slotCountBtn = attCount ? `<button type="button" class="status-badge sm ${isMeInSlot?'status-info':'status-neutral'}" style="border:none;cursor:pointer;flex-shrink:0;font-family:inherit" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()">🙋 ${attCount}명</button>` : '';
-                        // 참여자 명단 — 기본 항상 닫힘
-                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:6px">${_attPanelHTML(slotAttendees.filter(pid => memberMap[pid]), { myId, teamId: s.team_id || null })}</div>` : '';
+                        const slotCountBtn = attCount ? `<button type="button" class="status-badge sm ${isMeInSlot?'status-info':'status-neutral'}" style="border:none;cursor:pointer;flex-shrink:0;font-family:inherit" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()">🙋 ${attCount}명${slotGuestN ? `<small style="font-weight:600;opacity:0.75"> · 외부 ${slotGuestN}</small>` : ''}</button>` : '';
+                        // 참여자 명단 — 기본 항상 닫힘(외부인 칩은 맨 아래 묶음)
+                        const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:6px">${_attPanelHTML(slotAttendees.filter(pid => memberMap[pid]), { myId, teamId: s.team_id || null, guests: slotGuests })}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
-                        const slotBtn = (state.user && !isPastDate) ? `<button type="button" class="gaa-btn gaa-btn-xs ${isMeInSlot?'gaa-btn-danger':'gaa-btn-primary'}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 9px" onclick="toggleSlotAttendance('${date}','${(gn||'').replace(/'/g,"\\'")}','${s.start_time||''}');event.stopPropagation()"
+                        const gnArg = (gn||'').replace(/'/g,"\\'");
+                        const slotBtn = (state.user && !isPastDate) ? `<button type="button" class="gaa-btn gaa-btn-xs ${isMeInSlot?'gaa-btn-danger':'gaa-btn-primary'}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 9px" onclick="toggleSlotAttendance('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
                             ${slotBlocked ? 'disabled' : ''}>${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
+                        // 외부인 참여 신청(2026-11-02) — 내 줄이 있으면 「👥 외부 N」(수정), 없으면 「+ 외부」; 신청 기간 밖이면 새 신청만 막힘
+                        const guestBlocked = !myGuest && sigStatus !== null && sigStatus !== 'open';
+                        const guestBtn = (state.user && myId && !isPastDate && !state._guestsUnavailable) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary gt-guest-btn${myGuest ? ' mine' : ''}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 8px" title="외부인 참여 신청" onclick="gtGuestSheet('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
+                            ${guestBlocked ? 'disabled' : ''}>${myGuest ? `👥 외부 ${myGuest.guest_count}` : '+ 외부'}</button>` : '';
                         return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
                             <div style="display:flex;align-items:center;gap:6px">
                                 <span style="font-size:0.81rem;font-weight:800;color:var(--wds-primary);white-space:nowrap;background:rgba(51,102,255,0.1);padding:2px 8px;border-radius:6px;letter-spacing:0.03em">${escapeHtml(timeStr)}</span>
                                 ${slotCountBtn}
                                 <span style="flex:1"></span>
+                                ${guestBtn}
                                 ${slotBtn}
                             </div>
                             ${(s.team_name||members||songs.length) ? `<div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--wds-gray-200)">
@@ -5667,13 +5757,16 @@
                     return p ? p.name.replace(/\s*\(.*?\)\s*$/, '') : null;
                 }).filter(Boolean);
                 const dateAttId = 'date-att-' + date;
-                const attendeeSection = allAttendeeIds.size > 0
+                const dayGuests = _dateGuests(date), dayGuestN = _guestTotal(dayGuests);
+                const totalN = allAttendeeIds.size + dayGuestN; // 멤버 + 외부인(2026-11-02)
+                const attendeeSection = totalN > 0
                     ? `<div style="padding:0 12px 8px">
                         <button class="gaa-btn gaa-btn-xs gaa-btn-block gaa-btn-secondary" style="text-align:left;display:flex;justify-content:space-between;align-items:center" type="button" onclick="const el=document.getElementById('${dateAttId}');el.classList.toggle('hidden');this.querySelector('.att-arrow').textContent=el.classList.contains('hidden')?'▾':'▴'">
-                            <span>👥 전체 참여 멤버 <strong style="color:var(--wds-primary)">${allAttendeeIds.size}명</strong></span><span class="att-arrow">▾</span>
+                            <span>👥 전체 참여 <strong style="color:var(--wds-primary)">${totalN}명</strong>${dayGuestN ? `<small style="color:var(--wds-gray-500);font-weight:600"> · 멤버 ${allAttendeeIds.size} · 외부 ${dayGuestN}</small>` : ''}</span><span class="att-arrow">▾</span>
                         </button>
                         <div id="${dateAttId}" class="hidden" style="padding:6px 8px 4px;background:var(--wds-primary-light);border-radius:0 0 6px 6px;margin-top:2px;display:flex;flex-wrap:wrap;gap:3px">
                             ${allAttendeeNames.map(n=>`<span style="background:white;border-radius:4px;padding:1px 7px;font-size:0.72rem;color:var(--wds-primary);font-weight:600">${escapeHtml(n)}</span>`).join('')}
+                            ${_guestChipsHTML(dayGuests, myId)}
                         </div>
                       </div>`
                     : '';

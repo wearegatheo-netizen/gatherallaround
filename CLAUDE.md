@@ -162,7 +162,10 @@
   알약 `.gt-att-seg` [이름|세션별|팀장별](`state.attMode`, 기본 세션별) 을 누르면 `gtAttMode()` 가 **모든 `.gt-att` 패널을 data-ids 로 제자리에서 다시 그림**(재요청 없음).
   세션별 = 프로필 `instruments` 첫 악기(보컬·기타·베이스·키보드·드럼 순, 없으면 「미지정」), 팀장별 = 진행 중 팀(`isPastTeam` 제외)별 「👑 팀장 · 팀명 N」(슬롯의 `team_id` 팀 먼저, 여러 팀이면 각각 표시, 나머지 「소속 팀 없음」).
   칩 `.gt-att-chip`(아바타+이름, 나는 `.me` 파란 채움). 캡처 `gatheo/shoot-att.js`.
-  **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
+  **외부인 참여 신청(2026-11-02, 마이그레이션 `20261102_schedule_guests.sql`)**: 멤버가 본인 신청과 별도로 데려오는 외부인을 **슬롯마다 한 줄**(`schedule_guests`: schedule_date·`slot_key`=`slotAttKey`·host_profile_id·guest_count 1~30·guest_names 메모, unique(date, slot_key, host))로 적는다.
+  `fetchScheduleAttendees` 가 같은 날짜 범위로 함께 받아 `state.scheduleGuests[date]`(행 배열); 표가 없으면(42P01) `state._guestsUnavailable=true` 로 버튼을 숨기고 조용히 빈 값. 슬롯 줄 [+ 외부]/[👥 외부 N](내 줄, `.gt-guest-btn.mine`) → `gtGuestSheet` 바닥 시트(인원 수 셀렉트 1~10 + 누구 입력) → `gtGuestSave`(update/insert)·`gtGuestDelete`.
+  **합산**: 슬롯 `🙋 N명 · 외부 M`, 명단 패널 맨 아래 `.gt-att-guests`(모드 전환과 무관, 칩 `.gt-att-chip.guest` 「👤 이름 N명 · 초대 멤버」), 날짜 「전체 참여 N명 · 멤버 a · 외부 g」, 홈 카드 「N명 참석 (외부 g)」. **참여 횟수(멤버 출석)에는 넣지 않음.** 새 신청은 신청 기간(`checkSignupPeriod`) 안에서만, 수정·삭제는 언제나(지난 날짜 제외). 테스트 `tests/ui-gatheo-guests.js`(17, 포트 8765).
+    **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
   `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
   로 바꾸고 날짜 카드 `#schedDay-<date>` 로 / 홈 새 글 `gtOpenPost` 는 게시판 fetch 를 기다려 글을 펼치고 `.board-row-wrap` 으로 / 팀 [팀 수정]·[새 팀] → 목록 위 폼 `#teamFormContainer` 로 + `#teamName` 포커스, 저장 뒤엔 그 팀 카드 `#team-<id>` 강조 + 토스트 /
   관리자 일정 [편집]·[+ 새 일정 추가] → `#schedEditor`, 저장 뒤엔 저장한 날짜 카드 / 예약 탭은 월간 날짜 클릭 → 주간 시간표(`#viewContainer`)가 화면 밖이면 거기로, 시작·끝 칸으로 범위를 완성하면 `#participantSection` 이 화면 밖일 때만 가운데로.
