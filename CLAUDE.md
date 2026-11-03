@@ -167,7 +167,10 @@
   **합산**: 슬롯 `🙋 N명 · 외부 M`, 명단 패널 맨 아래 `.gt-att-guests`(모드 전환과 무관, 칩 `.gt-att-chip.guest` 「👤 이름 N명 · 초대 멤버」), 날짜 「전체 참여 N명 · 멤버 a · 외부 g」, 홈 카드 「N명 참석 (외부 g)」. **참여 횟수(멤버 출석)에는 넣지 않음.** 새 신청은 신청 기간(`checkSignupPeriod`) 안에서만, 수정·삭제는 언제나(지난 날짜 제외).
   **날짜별 받기/안 받기**(`schedules.allow_guests`, 마이그레이션 `20261102_schedules_allow_guests.sql`, 기본 false): 일정 편집기 체크박스 「외부인 참여 신청 받기」(`#schedGuestToggle` → `state.scheduleEditorAllowGuests`, 그 날짜 행 전부에 저장; 컬럼 없으면 42703 을 잡아 빼고 재저장 + 안내 토스트).
   `_guestsAllowed(date)` = 행에 컬럼이 없으면(마이그레이션 전) 허용, 있으면 하나라도 true — 켠 날짜만 [+ 외부] 버튼·머리줄 「👥 외부인 참여 가능」 칩, 꺼도 이미 적은 줄은 합산·수정·삭제 유지. 테스트 `tests/ui-gatheo-guests.js`(24, 포트 8765; 가짜 builder 는 배열 insert 지원).
-  **⚠️ 2026-11-02 일정 유실 사고**: `saveScheduleForDate` 가 「날짜로 delete → insert」 순서였는데 insert 가 모르는 컬럼(allow_guests, 마이그레이션 전)으로 실패해 그 날짜 일정이 통째로 사라졌다. PostgREST 는 모르는 컬럼을 **42703 이 아니라 `PGRST204`**("Could not find the '…' column … schema cache")로 거절하므로 코드가 아닌 메시지로 판정할 것.
+  **팀으로 신청(2026-11-03)**: 슬롯 줄 [👥 팀](`.gt-team-btn`, 내가 속한 진행 중 팀 `_myActiveTeams(myId)` 가 있을 때만) → `gtTeamApplySheet` 바닥 시트 — 팀마다 카드(`.gt-team-apply`: 👑 팀장 먼저 칩, 신청된 팀원 ✓, 「n/N명 신청됨」)
+  + [팀 전체 신청 (+미신청 수)](`gtTeamApply`: 미신청 팀원만 `schedule_attendees` 에 배열 insert, 슬롯 키 동일 — 개인 신청과 같은 행이라 마이그레이션 없음) / [팀 전체 취소](`gtTeamCancel`: 확인창 → 팀원 전원의 이 슬롯 행 `.in('profile_id')` delete).
+  팀원 누구나 할 수 있고(팀장 제한 없음), 새 신청은 신청 기간 안에서만·취소는 언제나. 슬롯 줄 버튼 3개([팀][+ 외부][신청])는 `margin-left:auto` 묶음으로 폭이 모자라면 둘째 줄로 내려간다(flex-wrap). 테스트 `tests/ui-gatheo-team-apply.js`(14).
+    **⚠️ 2026-11-02 일정 유실 사고**: `saveScheduleForDate` 가 「날짜로 delete → insert」 순서였는데 insert 가 모르는 컬럼(allow_guests, 마이그레이션 전)으로 실패해 그 날짜 일정이 통째로 사라졌다. PostgREST 는 모르는 컬럼을 **42703 이 아니라 `PGRST204`**("Could not find the '…' column … schema cache")로 거절하므로 코드가 아닌 메시지로 판정할 것.
   지금은 **insert 먼저 → 성공 후 옛 행을 id 로 delete**(실패해도 기존 일정 보존), `state.schedules` 에 컬럼이 없으면 처음부터 빼고 보낸다. 새 컬럼을 쓰는 저장 경로는 반드시 같은 순서로.
     **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
   `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
