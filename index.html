@@ -4513,18 +4513,20 @@
                 console.warn("Supabase가 초기화되지 않아 예약을 불러올 수 없습니다.");
                 return;
             }
+            // 공간 대관은 확정(approved)뿐 아니라 **입금 대기(pending)도 자리를 차지**한다(2026-11-04) — 대관 달력과 같은 규칙.
+            // 4시간이 지난 대기 건은 sweep 전이라도 만료로 보고 뺀다(_pbExpired, lazy 자동취소).
             const [resResult, perfResult] = await Promise.all([
                 supabaseClient.from('reservations').select('*'),
-                supabaseClient.from('performance_bookings').select('id,date,start_time,end_time,status').eq('status', 'approved'),
+                supabaseClient.from('performance_bookings').select('id,date,start_time,end_time,status,created_at').in('status', ['approved', 'pending']),
             ]);
             if (resResult.error) { console.error('Fetch error:', resResult.error); return; }
-            const perfVirtual = (perfResult.data || []).map(b => ({
+            const perfVirtual = (perfResult.data || []).filter(b => !_pbExpired(b)).map(b => ({
                 id: 'perf-' + b.id,
                 res_date: b.date,
                 start_time: b.start_time,
                 end_time: b.end_time,
-                user_name: '공간 대관',
-                status: 'approved',
+                user_name: b.status === 'pending' ? '공간 대관(입금 대기)' : '공간 대관',
+                status: b.status === 'pending' ? 'pending' : 'approved',
                 __perf: true,
             }));
             state.reservations = [...(resResult.data || []), ...perfVirtual];
@@ -7833,13 +7835,13 @@
                             if (isSuper()) {
                                 const realId = occupiedRes.id.replace(/^perf-/, '');
                                 s.style.cursor = 'pointer';
-                                s.title = '공간 대관 예약 — 클릭하여 취소';
+                                s.title = (occupiedRes.status === 'pending' ? '공간 대관 입금 대기' : '공간 대관 예약') + ' — 클릭하여 취소';
                                 s.onclick = () => { if (confirm(`공간 대관 예약(${d.toLocaleDateString('ko-KR')} ${time})을 취소하시겠습니까?`)) cancelPerfReservation(realId); };
                             } else {
                                 s.style.cursor = 'not-allowed';
-                                s.title = '공간 대관 예약';
+                                s.title = occupiedRes.status === 'pending' ? '공간 대관 입금 대기 중 — 예약할 수 없어요' : '공간 대관 예약';
                             }
-                            s.textContent = '🎭 공간 대관';
+                            s.textContent = occupiedRes.status === 'pending' ? '🎭 대관 대기' : '🎭 공간 대관';
                         } else if (isSuper()) {
                             s.style.cursor = 'pointer';
                             const weekPNames = participantNames(occupiedRes);
@@ -7904,7 +7906,7 @@
                     if (occupiedRes.__perf) {
                         const realId = occupiedRes.id.replace(/^perf-/, '');
                         const perfCancelBtn = isSuper() ? `<button class="gaa-btn gaa-btn-xs gaa-btn-danger" style="margin-left:8px;vertical-align:middle" type="button" onclick="event.stopPropagation();if(confirm('공간 대관 예약을 취소하시겠습니까?'))cancelPerfReservation('${realId}')">취소</button>` : '';
-                        s.innerHTML = `🎭 공간 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(외부 예약)</span>${perfCancelBtn}`;
+                        s.innerHTML = `🎭 공간 대관 <span style="color:var(--wds-gray-500);font-size:0.82rem">(${occupiedRes.status === 'pending' ? '외부 예약 · 입금 대기' : '외부 예약'})</span>${perfCancelBtn}`;
                     } else {
                         const etcNote = canApproveRes() && occupiedRes.participant_etc ? `<div style="font-size:0.72rem;color:#e07b00;margin-top:2px;white-space:normal;text-align:left">기타: ${escapeHtml(occupiedRes.participant_etc)}</div>` : '';
                         const dayPNames = canApproveRes() ? participantNames(occupiedRes) : '';

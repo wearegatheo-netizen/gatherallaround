@@ -146,7 +146,9 @@
   내가 신청했으면 「참석 확정」 칩, 버튼은 `openScheduleForDate`) + 내가 신청한 다른 날짜가 있으면 「내 다음 참여 일정」 줄 → 내 다음 예약 `#gtNextRes`(멤버 아바타·[멤버 수정]) → 공지 한 줄 `#gtNotice`(접힘, 누르면 전부)
   → 바로가기 4(`.gt-qa`) → 게시판 새 글 3(`gtOpenPost`). 데이터 갱신은 `gtHomeRefresh()`(render()/공지/일정/댓글 fetch 끝에서 호출, 60ms 디바운스). 옛 `#notice_container`·`#schedule_banner` 는
   숨긴 채 데이터만 유지(renderNotices 가 다시 보이게 하지 않음; 공지 편집은 관리자 탭).
-  **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
+  **대관 대기도 자리 차지(2026-11-04)**: `fetchReservations` 가 `performance_bookings` 를 approved **+ pending**(`_pbExpired` 로 4시간 지난 대기 제외)으로 받아 가상 예약 행(`__perf`, status pending/approved)으로 합친다 — 대관 달력(`loadPerfRangeConflicts`)과 같은 규칙. 종전엔 approved 만 받아 입금 대기 시간에 멤버가 겹쳐 예약할 수 있었다.
+  주간 칸 「🎭 대관 대기」/「🎭 공간 대관」, 일 보기 「(외부 예약 · 입금 대기)」, 제출 충돌 검사(rejected/cancelled 만 제외)는 그대로 pending 을 막는다. 테스트 `tests/ui-gatheo-perf-block.js`(4).
+    **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
   → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
   **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,
   팀 카드는 수정/삭제 버튼 대신 `.team-more` ⋯ → `gtTeamMenu` 시트, 멤버 아바타 묶음 `.gt-stack`. **게시판**: 제목은 앱 바, `#main-content #comments_container` 평면, 글쓴이 아바타(`_gtMemberByKakao`).
