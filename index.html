@@ -1631,6 +1631,56 @@
             padding-right: 4px;
         }
         .band-notice-item { padding: 12px 14px; border: 1px solid var(--wds-gray-300); border-radius: 12px; margin-bottom: 8px; background: var(--wds-gray-100); }
+        /* 실시간 시간 띠 표(가입 신청·관리자 시간 띠 탭) — 요일 줄 + 띠 칩, 상태별 색 */
+        .band-signup-slots { text-align: left; }
+        .band-signup-start { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: var(--wds-gray-700); margin-bottom: 8px; }
+        .band-signup-start input[type="date"] { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background: var(--wds-white); color: var(--wds-black); -webkit-appearance: none; appearance: none; }
+        .band-avail { display: flex; flex-direction: column; gap: 6px; }
+        .band-avail-row { display: flex; align-items: flex-start; gap: 8px; }
+        .band-avail-day { flex: 0 0 22px; font-weight: 700; font-size: 0.86rem; color: var(--wds-gray-700); padding-top: 9px; text-align: center; }
+        .band-avail-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+        .band-slot-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-black); font-family: inherit; text-align: left; cursor: pointer; min-width: 104px; }
+        .band-slot-chip .t { font-size: 0.82rem; font-weight: 700; line-height: 1.3; }
+        .band-slot-chip .s { font-size: 0.74rem; font-weight: 600; line-height: 1.3; color: var(--wds-gray-500); }
+        .band-slot-chip.ok { border-color: #a7f3d0; background: #ecfdf5; } .band-slot-chip.ok .s { color: #047857; }
+        .band-slot-chip.skip { border-color: #fde68a; background: #fffbeb; } .band-slot-chip.skip .s { color: #b45309; }
+        .band-slot-chip.later { border-color: #bfdbfe; background: #eff6ff; } .band-slot-chip.later .s { color: #1d4ed8; }
+        .band-slot-chip.taken { border-color: #fecaca; background: #fef2f2; } .band-slot-chip.taken .s { color: #b91c1c; }
+        .band-slot-chip.off, .band-slot-chip.wait { background: var(--wds-gray-100); color: var(--wds-gray-500); }
+        .band-slot-chip:disabled { cursor: default; opacity: 0.85; }
+        .band-slot-chip.sel { border-color: var(--wds-primary); background: var(--wds-primary); color: #fff; box-shadow: 0 0 0 2px var(--wds-primary-light); }
+        .band-slot-chip.sel .s { color: rgba(255,255,255,0.9); }
+        .band-avail-legend { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+        .band-avail-detail { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--wds-gray-100); font-size: 0.84rem; line-height: 1.55; text-align: left; color: var(--wds-gray-800); }
+        .band-avail-skips { margin: 6px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.6; color: var(--wds-gray-700); }
+        .band-ba-claim { padding: 8px 0; border-top: 1px dashed var(--wds-gray-300); font-size: 0.88rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+        .band-ba-claim:first-child { border-top: 0; }
+        .band-ba-claim .band-avail-skips { flex-basis: 100%; margin-top: 0; }
+        .band-slot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--wds-gray-200); font-size: 0.88rem; }
+        .band-slot-row:last-of-type { border-bottom: 0; }
+        .band-slot-row > span:first-child { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
+        .band-slot-row > .gaa-btn { flex: 0 0 auto; white-space: nowrap; }
+        .band-skip-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--wds-gray-200); font-size: 0.9rem; line-height: 1.5; }
+        .band-skip-row:first-of-type { border-top: 0; }
+        .band-skip-row.past { opacity: 0.7; }
+        .band-skip-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+        .band-skip-right { flex: 0 0 auto; display: flex; align-items: center; }
+        .band-skip-past { margin-top: 8px; } .band-skip-past summary { cursor: pointer; font-size: 0.84rem; }
+        .band-def-row { padding: 10px 0; border-top: 1px solid var(--wds-gray-200); }
+        .band-def-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.9rem; margin-bottom: 6px; }
+        .band-def-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .band-def-ctl .band-input, #band-main-content .band-def-ctl input.band-input, #band-main-content .band-def-ctl select.band-input { height: 36px; width: auto; flex: 1 1 120px; min-width: 0; font-size: 0.86rem; padding: 0 8px; }
+        .band-def-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 0.84rem; white-space: nowrap; }
+        .band-sub-day { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-top: 1px solid var(--wds-gray-200); font-size: 0.9rem; }
+        .band-sub-day:first-of-type { border-top: 0; }
+        .band-sub-day .d { flex: 0 0 84px; padding-top: 4px; } .band-sub-day .chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+        @media (max-width: 480px) { .band-skip-row { flex-wrap: wrap; } .band-skip-right { flex-basis: 100%; } .band-slot-chip { min-width: 0; flex: 1 1 calc(50% - 3px); } }
+        body.dark .band-slot-chip.ok { border-color: #065f46; background: #052e22; } body.dark .band-slot-chip.ok .s { color: #6ee7b7; }
+        body.dark .band-slot-chip.skip { border-color: #92400e; background: #2d1b05; } body.dark .band-slot-chip.skip .s { color: #fcd34d; }
+        body.dark .band-slot-chip.later { border-color: #1e40af; background: #0f1f45; } body.dark .band-slot-chip.later .s { color: #93c5fd; }
+        body.dark .band-slot-chip.taken { border-color: #991b1b; background: #2d0a0a; } body.dark .band-slot-chip.taken .s { color: #fca5a5; }
+        body.dark .band-slot-chip.sel { background: var(--wds-primary); border-color: var(--wds-primary); }
+        body.dark .band-avail-detail { background: var(--wds-gray-100); color: var(--wds-gray-800); }
         .band-empty { color: var(--wds-gray-500); font-size: 0.9rem; text-align: center; padding: 16px 0; line-height: 1.5; }
         .band-muted { color: var(--wds-gray-500); font-size: var(--b-muted); line-height: 1.5; }
         /* 팀 항목 = 구분선 리스트 (중첩 카드 없음) */
@@ -2414,9 +2464,14 @@
                 <input type="password" id="bandSignupPasswordConfirm" placeholder="비밀번호 확인" autocomplete="new-password">
 
                 <div style="text-align:left;margin-bottom:8px;margin-top:4px">
-                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">타임 선택</label>
+                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">합주 타임 선택 <span style="color:#e74c3c">*</span></label>
                 </div>
-                <div class="band-timeslot-grid" style="margin-bottom:4px">
+                <!-- 실시간 가능 타임(band_slot_defs + 예약·대관·차단 계산). 표가 없으면(마이그레이션 전) 아래 종전 체크박스로 폴백 -->
+                <div id="bandSignupSlots" class="band-signup-slots hidden">
+                    <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandSignupStart" onchange="bandSignupAvailRefresh()"></label>
+                    <div id="bandSignupAvailBody"><div class="band-empty">불러오는 중…</div></div>
+                </div>
+                <div id="bandSignupLegacySlots" class="band-timeslot-grid" style="margin-bottom:4px">
                     <div class="band-timeslot-header"></div>
                     <div class="band-timeslot-header">월</div>
                     <div class="band-timeslot-header">화</div>
@@ -2479,6 +2534,9 @@
                 <div class="band-section-title">🎵 밴드 정보</div>
             </div>
 
+            <!-- 내 고정 시간·건너뛰기권 (renderBandSlotSection — 관리자 팀·내용 없음이면 숨김) -->
+            <div id="bandSlotSection" class="band-section-card hidden"></div>
+
             <!-- 관리자 (게더링 팀 전용) -->
             <div id="bandAdminSection" class="band-section-card hidden">
                 <div class="band-section-head" style="margin-bottom:6px">
@@ -2488,6 +2546,7 @@
                 <div class="admin-subtabs" style="border-bottom:2px solid var(--wds-gray-300);margin-bottom:12px">
                     <div class="admin-subtab active" data-tab="pending" onclick="setBandAdminTab('pending')">가입 신청</div>
                     <div class="admin-subtab" data-tab="teams" onclick="setBandAdminTab('teams')">팀 관리</div>
+                    <div class="admin-subtab" data-tab="slots" onclick="setBandAdminTab('slots')">⏱️ 시간 띠</div>
                     <div class="admin-subtab" data-tab="roster" onclick="setBandAdminTab('roster')">📋 현황표</div>
                     <div class="admin-subtab" data-tab="test" onclick="setBandAdminTab('test')">🧪 알림 테스트</div>
                 </div>
@@ -3994,7 +4053,7 @@
         function gtSheetClose() { const w = document.getElementById('gtSheet'); if (!w) return; w.remove(); document.body.classList.remove('cm-sheet-open'); }
         function gtRulesSheet() {
             gtSheetOpen('예약 전 확인해주세요', `<ul style="margin:4px 0 8px;padding-left:18px;font-size:0.9rem;line-height:1.9;color:var(--wds-gray-800)">
-                <li>예약 가능 시간: <strong>오전 10시 ~ 오후 11시</strong></li>
+                <li>예약 가능 시간: <strong>오전 8시 ~ 오후 11시</strong></li>
                 <li><strong>2시간 초과</strong> 예약은 관리자 승인이 필요합니다</li>
                 <li>합주실 사용 후 <strong>정리 및 원상복구</strong>는 필수입니다</li>
                 <li>참여 멤버를 정확히 등록해주세요 <span style="color:var(--wds-gray-500)">(참여 횟수 집계에 반영됩니다)</span></li>
@@ -4497,7 +4556,8 @@
             }
         }
 
-        const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+        // 예약 그리드 슬롯(시작 시각). 2026-11-05 08:00~23:00 으로 확장(종전 10:00~) — 끝 시각 표시는 TIMES[i+1] || '23:00'
+        const TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
 
         // --- 권한 헬퍼 ---
         function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '운영 총괄'); }
@@ -7150,6 +7210,8 @@
                     else if (b.end_date) period = `~ ${b.end_date}`;
                     else period = '영구';
                     sub = `${b.start_time} ~ ${endDisplay} · ${period}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
+                    const skips = (b.skip_dates || []).filter(d => d >= todayStr).sort();
+                    if (skips.length) sub += ` · <span style="color:#b45309">건너뜀 ${skips.map(d => d.slice(5).replace('-', '/')).join(', ')}</span>`;
                 }
                 const selStart = TIMES.map(t => `<option value="${t}"${t===b.start_time?' selected':''}>${t}</option>`).join('');
                 const selEnd   = TIMES.map((t, i) => `<option value="${t}"${t===b.end_time?' selected':''}>${TIMES[i + 1] || '23:00'}</option>`).join('');
@@ -7302,6 +7364,10 @@
             // 적용 기간 겹침 (null = 무기한). 한쪽이 다른 쪽보다 완전히 앞/뒤면 미겹침
             if (a.end_date && b.start_date && a.end_date < b.start_date) return false;
             if (b.end_date && a.start_date && b.end_date < a.start_date) return false;
+            // 고정팀이 건너뛰는 날짜(skip_dates)에 거는 1회 차단은 그 반복 차단과 겹치지 않는다
+            const onceDate = (x) => (x.start_date && x.start_date === x.end_date ? x.start_date : null);
+            if (onceDate(a) && _blockSkipped(b, onceDate(a))) return false;
+            if (onceDate(b) && _blockSkipped(a, onceDate(b))) return false;
             return true;
         }
 
@@ -7741,6 +7807,7 @@
                     if (b.day_of_week !== dow) return false;
                     if (b.start_date && dateStr < b.start_date) return false;
                     if (b.end_date && dateStr > b.end_date) return false;
+                    if (_blockSkipped(b, dateStr)) return false;
                     return true;
                 });
 
@@ -7974,10 +8041,13 @@
                 if (!(tIdx >= sIdx && tIdx <= eIdx)) return false;
                 if (b.start_date && dateStr < b.start_date) return false;
                 if (b.end_date && dateStr > b.end_date) return false;
+                if (_blockSkipped(b, dateStr)) return false;
                 return true;
             }) || null;
         }
         function isBlocked(date, time) { return !!getBlock(date, time); }
+        // 고정팀 건너뛰기(time_blocks.skip_dates): 그 날짜엔 반복 차단이 적용되지 않는다 — 날짜 범위 검사와 항상 같이 쓸 것
+        function _blockSkipped(b, dateStr) { return Array.isArray(b.skip_dates) && b.skip_dates.includes(dateStr); }
 
         async function fetchBlocks() {
             if (!supabaseClient) return;
@@ -8420,6 +8490,7 @@
                 if (b.day_of_week !== dow) return false;
                 if (b.start_date && dateStr < b.start_date) return false;
                 if (b.end_date && dateStr > b.end_date) return false;
+                if (_blockSkipped(b, dateStr)) return false;
                 return true;
             });
         }
@@ -9862,6 +9933,7 @@
                 if (b.day_of_week !== dow) continue;
                 if (b.start_date && dateStr < b.start_date) continue;
                 if (b.end_date && dateStr > b.end_date) continue;
+                if (_blockSkipped(b, dateStr)) continue;
                 const bSIdx = TIMES.indexOf(b.start_time);
                 const bEIdx = TIMES.indexOf(b.end_time);
                 if (sIdx <= bEIdx && eIdx >= bSIdx) {
@@ -12510,6 +12582,7 @@
             document.getElementById('band-signup-form').classList.remove('hidden');
             const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
+            bandSignupAvailInit().catch(e => console.error('band signup avail:', e)); // 실시간 가능 타임 표(마이그레이션 전엔 체크박스 폴백)
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -12552,12 +12625,18 @@
             const password = document.getElementById('bandSignupPassword').value;
             const confirm = document.getElementById('bandSignupPasswordConfirm').value;
             const consent = document.getElementById('bandPrivacyConsent').checked;
-            const timeslots = Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
+            // 실시간 타임표(새)에서 고른 띠 → timeslots(종전 표기 월_야간)·band_slot_claims. 표가 없으면 종전 체크박스 값.
+            const picked = bandSignupSelection();
+            const timeslots = picked ? picked.defs.map(bandSlotLegacyKey) : Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
             const res = document.getElementById('bandSignupResult');
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
 
             if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { showErr('모든 항목을 입력해주세요.'); return; }
+            if (picked) {
+                if (!picked.defs.length) { showErr('합주 타임을 1개 이상 선택해주세요.'); return; }
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(picked.start) || picked.start < bandTodayStr()) { showErr('희망 시작일을 오늘 이후로 선택해주세요.'); return; }
+            }
             if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
             if (rawId.length < 4 || rawId.length > 20) { showErr('아이디는 4~20자 사이여야 합니다.'); return; }
             if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { showErr('올바른 전화번호를 입력해주세요.'); return; }
@@ -12589,10 +12668,16 @@
                         status: 'pending',
                         role: '일반'
                     };
+                    if (picked) meta.band_start_date = picked.start; // 희망 시작일(현황표 「등록 예정일」, 승인 때 확정)
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
+                    if (picked && picked.defs.length) { // 타임 신청 행 — 승인 때 달력(time_blocks)에 반영된다
+                        const { error: cErr } = await supabaseClient.from('band_slot_claims').insert(picked.defs.map(d => ({
+                            profile_id: data.user.id, def_id: d.id, day_of_week: d.day_of_week, start_time: d.start_time, end_time: d.end_time, start_date: picked.start, status: 'pending' })));
+                        if (cErr) console.error('band_slot_claims insert error:', cErr);
+                    }
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
-                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}`).catch(() => {}), 400);
+                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망' : ''}`).catch(() => {}), 400);
                 }
                 showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
@@ -12654,6 +12739,7 @@
             }
             renderBandInfo(profile);
             renderBandCycleNotice(profile);
+            renderBandSlotSection(profile).catch(e => console.error('band slot section:', e));
             fetchAndRenderBandNotices();
             fetchAndRenderBandTeamList();
             fetchAndRenderBandMembers();
@@ -12690,7 +12776,7 @@
         function bandSlotSheetText(slots) {
             const days = ['월','화','수','목','금','토','일'];
             const s = slots || [];
-            return ['주간','야간'].map(time => {
+            return ['오전','주간','야간'].map(time => {
                 const active = days.filter(d => s.includes(d + '_' + time));
                 return active.length ? `${active.join(',')} ${time}` : null;
             }).filter(Boolean).join(' · ') || '미정';
@@ -12707,6 +12793,12 @@
             const pendingTab = document.querySelector('#bandAdminSection .admin-subtab[data-tab="pending"]');
             if (pendingTab) pendingTab.textContent = pendingCount ? `가입 신청 (${pendingCount})` : '가입 신청';
             if (tab === 'test') { view.innerHTML = bandTestTabHTML(); return; }
+            if (tab === 'slots') { await renderBandSlotsTab(view); return; }
+            // 타임 신청(가입 신청·승인 팀)·시간 띠 — 가입 승인 폼과 팀 카드가 쓴다
+            const allIds = teams.map(t => t.id);
+            const [claimsAll, defs] = await Promise.all([fetchBandSlotClaims(allIds), fetchBandSlotDefs()]);
+            const claimsMap = {}; claimsAll.forEach(c => { (claimsMap[c.profile_id] = claimsMap[c.profile_id] || []).push(c); });
+            state.bandAdminCache = { ...(state.bandAdminCache || {}), teams, claimsMap, defs };
             if (tab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
                 if (!pending.length) { view.innerHTML = _bandEmptyHTML('대기 중인 가입 신청이 없습니다.'); return; }
@@ -12715,8 +12807,9 @@
             }
             const approved = teams.filter(t => t.status === 'approved');
             const ids = teams.filter(t => t.status === 'approved' || t.band_ended_at).map(t => t.id);
-            const [paymentsMap, remindersMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids)]);
-            state.bandAdminCache = { teams, paymentsMap, remindersMap };
+            const [paymentsMap, remindersMap, skipsMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids), fetchBandSkips(ids)]);
+            teams.forEach(t => { t._ext = bandExtDates(skipsMap[t.id] || []); }); // 1주 연장 → 회차 경계(bandCycleInfo)에 반영
+            state.bandAdminCache = { teams, paymentsMap, remindersMap, claimsMap, skipsMap, defs };
             if (tab === 'roster') { renderBandRosterTab(view, teams, paymentsMap, remindersMap); return; }
             // 관리 팀(게더링 운영 계정)은 계약·회차·문자 대상이 아니므로 계약 팀 목록과 분리해 보여준다
             const adminTeams = approved.filter(t => _isAdminBandProfile(t));
@@ -12734,14 +12827,36 @@
         // 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전), 등록(n=0)은 시작일 당일. 문자는 입금일 당일 + 미납 시 시작 전날.
         const BAND_CYCLE_DAYS = 28;
         const _bandAddDays = (ymd, n) => new Date(Date.parse(ymd) + n * 86400e3).toISOString().slice(0, 10);
-        const bandCycleStart = (start, n) => _bandAddDays(start, BAND_CYCLE_DAYS * n);
-        const bandCycleEnd = (start, n) => _bandAddDays(start, BAND_CYCLE_DAYS * n + 21);
+        // 1주 무료 연장(건너뛰기권 extend, 2026-11-05): ext = 연장이 적용되는 건너뛴 날짜 목록(YYYY-MM-DD).
+        // 그 날짜 뒤에 오는 회차 경계(시작일·입금일)가 날짜마다 7일씩 밀린다 — 시작일_n = start + 28n + 7×|{d ∈ ext : start ≤ d < 시작일_n}|
+        // (밀린 뒤에 새로 포함되는 날짜가 있으면 다시 센다). functions/send-reminders.js · check-band-payments 와 동일.
+        const bandExtOffset = (start, n, ext) => {
+            if (!ext || !ext.length) return 0;
+            let off = 0;
+            for (let i = 0; i < 60; i++) {
+                const s = _bandAddDays(start, BAND_CYCLE_DAYS * n + off);
+                const cnt = ext.filter(d => d >= start && d < s).length * 7;
+                if (cnt === off) break;
+                off = cnt;
+            }
+            return off;
+        };
+        const bandCycleStart = (start, n, ext) => _bandAddDays(start, BAND_CYCLE_DAYS * n + bandExtOffset(start, n, ext));
+        const bandCycleEnd = (start, n, ext) => _bandAddDays(bandCycleStart(start, n + 1, ext), -7); // 마지막 주 첫 합주일(= 다음 시작일 − 7)
         const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (functions/send-reminders.js BAND_DUE_OFFSET 와 동일)
-        const bandCycleDue = (start, n) => (n <= 0 ? start : _bandAddDays(start, BAND_CYCLE_DAYS * n - BAND_DUE_OFFSET));
+        const bandCycleDue = (start, n, ext) => (n <= 0 ? start : _bandAddDays(bandCycleStart(start, n, ext), -BAND_DUE_OFFSET));
         const bandDiffDays = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400e3);
-        const bandNextCycle = (start, today) => { const d = bandDiffDays(today, start); return d < 0 ? 0 : Math.floor(d / BAND_CYCLE_DAYS) + 1; };
+        const bandNextCycle = (start, today, ext) => {
+            if (today < start) return 0;
+            let n = 0; while (n < 400 && bandCycleStart(start, n + 1, ext) <= today) n++;
+            return n + 1;
+        };
         // 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7)
-        const bandInferCycle = (start, paidAt) => Math.max(0, Math.floor((bandDiffDays(paidAt, start) + 21) / BAND_CYCLE_DAYS));
+        const bandInferCycle = (start, paidAt, ext) => {
+            let n = 0; while (n < 400 && _bandAddDays(bandCycleStart(start, n + 1, ext), -21) <= paidAt) n++;
+            return n;
+        };
+        const _bandExtOf = (team) => (team && Array.isArray(team._ext) ? team._ext : []);
         const bandTodayStr = () => new Date().toLocaleDateString('en-CA'); // 로컬(KST) 기준 YYYY-MM-DD
         const bandCycleLabel = (n) => (n === 0 ? '등록' : `${n}차`);
         const bandMD = (ymd) => { if (!ymd) return '-'; const [, m, d] = ymd.split('-').map(Number); return `${m}/${d}`; };
@@ -12752,7 +12867,7 @@
         // 납부 행의 회차: cycle_no 우선, 구형 행(없음)은 납부 창([시작일−21, 시작일+7))으로 귀속
         function bandPaymentCycle(team, p) {
             if (Number.isInteger(p.cycle_no)) return p.cycle_no;
-            return team.band_start_date && p.paid_at ? bandInferCycle(team.band_start_date, p.paid_at) : null;
+            return team.band_start_date && p.paid_at ? bandInferCycle(team.band_start_date, p.paid_at, _bandExtOf(team)) : null;
         }
         function bandPaidMap(team, payments) {
             const m = {};
@@ -12764,15 +12879,16 @@
         function bandCycleInfo(team, payments, today = bandTodayStr()) {
             const start = team.band_start_date;
             if (start) {
-                const n = bandNextCycle(start, today);
+                const ext = _bandExtOf(team); // 1주 연장(건너뛰기권) 날짜 — 회차 경계를 미룬다
+                const n = bandNextCycle(start, today, ext);
                 const paidMap = bandPaidMap(team, payments);
                 const cur = Math.max(0, n - 1);
                 // 다음 "미납" 회차: 다음 회차(n)가 이미 납부됐으면 그 뒤 첫 미납 회차 — 표·카드·요약의 "입금일" 표시는 이걸 따른다
                 let nextDueN = n; while (paidMap[nextDueN]) nextDueN++;
-                const info = { mode: 'cycle', n, cur, paidMap, start,
-                    startN: bandCycleStart(start, n), endN: bandCycleEnd(start, n), due: bandCycleDue(start, n),
-                    nextDueN, nextDue: bandCycleDue(start, nextDueN),
-                    curStart: bandCycleStart(start, cur), curEnd: bandCycleEnd(start, cur) };
+                const info = { mode: 'cycle', n, cur, paidMap, start, ext,
+                    startN: bandCycleStart(start, n, ext), endN: bandCycleEnd(start, n, ext), due: bandCycleDue(start, n, ext),
+                    nextDueN, nextDue: bandCycleDue(start, nextDueN, ext),
+                    curStart: bandCycleStart(start, cur, ext), curEnd: bandCycleEnd(start, cur, ext) };
                 if (n === 0) { info.status = 'normal'; info.paid = !!paidMap[0]; info.label = `${bandMD(start)} 시작 예정`; return info; }
                 info.paid = !!paidMap[n];
                 const diff = bandDiffDays(info.due, today); info.diff = diff;
@@ -12878,7 +12994,7 @@
                 const opts = [];
                 for (let n = 0; n <= maxN; n++) {
                     const paid = paidMap[n] && (!editRow || paidMap[n].id !== editRow.id);
-                    opts.push(`<option value="${n}"${n === defN ? ' selected' : ''}>${bandCycleLabel(n)} · 시작 ${bandMD(bandCycleStart(info.start, n))}${n > 0 ? ' · 입금일 ' + bandMD(bandCycleDue(info.start, n)) : ''}${paid ? ' (납부됨)' : ''}</option>`);
+                    opts.push(`<option value="${n}"${n === defN ? ' selected' : ''}>${bandCycleLabel(n)} · 시작 ${bandMD(bandCycleStart(info.start, n, info.ext))}${n > 0 ? ' · 입금일 ' + bandMD(bandCycleDue(info.start, n, info.ext)) : ''}${paid ? ' (납부됨)' : ''}</option>`);
                 }
                 cycleField = `<label>회차<select id="bp-cycle-${id}" class="band-input">${opts.join('')}</select></label>`;
             }
@@ -12964,6 +13080,655 @@
 
         // 관리자 문자 테스트 — 게더링 계정의 Supabase 세션 토큰으로 서버가 본인 확인 후, 관리자 본인 번호로만 샘플 문자를 보낸다
         // ── 알림 테스트 탭: 입금 안내 문자·관리자 푸시를 실제 발송과 같은 경로로 시험 (본인 번호·운영 총괄에게만) ──
+        // ══════════ 고정 합주팀: 실시간 시간 띠·타임 신청·건너뛰기권 (2026-11-05, 마이그레이션 20261105_band_slots.sql) ══════════
+        // 시간 표기: band_slot_defs/claims/skips 의 end_time 은 끝나는 시각(exclusive, '18:00'=18시까지),
+        //            time_blocks.end_time 은 종전처럼 마지막 슬롯 시작('17:00') — _bandBlockEnd/_bandBlockEndExcl 로 변환한다.
+        const BAND_DOW = ['일','월','화','수','목','금','토'];
+        const BAND_DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+        const BAND_AVAIL_DAYS = 182;          // 가용성·건너뛰기 계산 범위(시작일부터 26주)
+        const BAND_HARD_BLOCK_DAYS = 56;      // 이보다 오래 남은 반복 차단은 "사용 중"(건너뛰기 아님)
+        const BAND_SKIP_DEADLINE_DAYS = 7;    // 보상 선택 마감 = 건너뛰는 날 − 7일 · 대체 합주 범위 = [건너뛰는 날 − 7, 전날]
+        const _bandH = (t) => parseInt(String(t || '0'), 10);
+        const _bandRangeText = (s, e) => `${_bandH(s)}~${_bandH(e)}시`;
+        const _bandBlockEnd = (endExcl) => (endExcl >= '23:00' ? TIMES[TIMES.length - 1] : TIMES[TIMES.indexOf(endExcl) - 1]);
+        const _bandBlockEndExcl = (blockEnd) => TIMES[TIMES.indexOf(blockEnd) + 1] || '23:00';
+        const _bandSlotIdx = (startT, endExcl) => ({ s: TIMES.indexOf(startT), e: TIMES.indexOf(_bandBlockEnd(endExcl)) }); // inclusive 슬롯 인덱스
+        const _bandOverlapIdx = (aS, aE, bS, bE) => aS <= bE && aE >= bS;
+        const _bandLabelOf = (startT) => (_bandH(startT) < 12 ? '오전' : _bandH(startT) < 18 ? '주간' : '야간');
+        const bandDefText = (d) => `${BAND_DOW[d.day_of_week]} ${d.label || _bandLabelOf(d.start_time)} ${_bandRangeText(d.start_time, d.end_time)}`;
+        const bandSlotLegacyKey = (d) => `${BAND_DOW[d.day_of_week]}_${d.label || _bandLabelOf(d.start_time)}`;
+        const bandClaimText = (c) => `${BAND_DOW[c.day_of_week]} ${_bandRangeText(c.start_time, c.end_time)}`;
+        const bandClaimsText = (claims) => (claims || []).map(bandClaimText).join(' · ');
+        const _bandMDW = (ymd) => `${bandMD(ymd)}(${bandWD(ymd)})`;
+        // 건너뛰기권 보상의 실효 판정: 선택했으면 그 값, 마감(건너뛰는 날 − 7일)이 지났으면 1주 연장으로 간주 — send-reminders.js · check-band-payments 와 동일
+        const bandSkipDeadline = (s) => _bandAddDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS);
+        const bandSkipResolution = (s, today = bandTodayStr()) => s.resolution || (today > bandSkipDeadline(s) ? 'extend' : null);
+        const bandExtDates = (skips, today = bandTodayStr()) => (skips || []).filter(s => bandSkipResolution(s, today) === 'extend').map(s => s.skip_date).sort();
+        const BAND_KIND_CHIP = { ok: 'status-approved', skip: 'status-pending', later: 'status-info', wait: 'status-neutral', taken: 'status-rejected', off: 'status-neutral' };
+
+        let _bandSlotsUnavailable = false; // band_slot_defs 표가 없으면(마이그레이션 전) 가입 화면은 종전 체크박스 타임표로 폴백
+        async function fetchBandSlotDefs() {
+            if (!supabaseClient) return [];
+            const { data, error } = await supabaseClient.from('band_slot_defs').select('*');
+            if (error) {
+                if (error.code === '42P01' || /band_slot_defs|schema cache|does not exist/i.test(error.message || '')) _bandSlotsUnavailable = true;
+                console.error('band_slot_defs:', error); return [];
+            }
+            _bandSlotsUnavailable = false;
+            return (data || []).slice().sort((a, b) => BAND_DOW_ORDER.indexOf(a.day_of_week) - BAND_DOW_ORDER.indexOf(b.day_of_week) || String(a.start_time).localeCompare(String(b.start_time)));
+        }
+        async function fetchBandSlotClaims(profileIds) {
+            if (!supabaseClient) return [];
+            let q = supabaseClient.from('band_slot_claims').select('*').in('status', ['pending', 'approved']);
+            if (profileIds) q = q.in('profile_id', profileIds);
+            const { data, error } = await q;
+            if (error) { console.error('band_slot_claims:', error); return []; }
+            return (data || []).slice().sort((a, b) => BAND_DOW_ORDER.indexOf(a.day_of_week) - BAND_DOW_ORDER.indexOf(b.day_of_week) || String(a.start_time).localeCompare(String(b.start_time)));
+        }
+        // {profileId: [skip]} (날짜순)
+        async function fetchBandSkips(profileIds) {
+            if (!supabaseClient || !profileIds || !profileIds.length) return {};
+            const { data, error } = await supabaseClient.from('band_skips').select('*').in('profile_id', profileIds);
+            if (error) { console.error('band_skips:', error); return {}; }
+            const map = {};
+            (data || []).slice().sort((a, b) => String(a.skip_date).localeCompare(String(b.skip_date))).forEach(r => { (map[r.profile_id] = map[r.profile_id] || []).push(r); });
+            return map;
+        }
+        // 가용성 계산 자료 한 번에: 시간 띠·신청·차단 전체 + 기간 안 멤버 예약·공간 대관(확정+살아 있는 대기)
+        async function bandAvailLoad(startDate, days = BAND_AVAIL_DAYS) {
+            const endDate = _bandAddDays(startDate, days);
+            const sb = supabaseClient;
+            const [defs, claims, blocksR, resR, pbR] = await Promise.all([
+                fetchBandSlotDefs(), fetchBandSlotClaims(),
+                sb.from('time_blocks').select('*'),
+                sb.from('reservations').select('res_date,start_time,end_time,status').gte('res_date', startDate).lte('res_date', endDate),
+                sb.from('performance_bookings').select('id,date,start_time,end_time,status,created_at').gte('date', startDate).lte('date', endDate).in('status', ['approved', 'pending']),
+            ]);
+            return { startDate, endDate, defs, claims,
+                blocks: blocksR.data || [],
+                reservations: (resR.data || []).filter(r => r.status !== 'rejected' && r.status !== 'cancelled'),
+                bookings: (pbR.data || []).filter(b => !_pbExpired(b)) };
+        }
+        // 요일 띠의 합주 날짜들(시작일 이후 첫 해당 요일부터 범위 끝까지, 주 단위)
+        function bandDefDates(dow, startDate, endDate) {
+            const out = []; const d0 = new Date(startDate + 'T00:00:00');
+            const off = (dow - d0.getDay() + 7) % 7;
+            for (let d = new Date(d0.getTime() + off * 86400e3); ; d = new Date(d.getTime() + 7 * 86400e3)) {
+                const ymd = d.toLocaleDateString('en-CA'); if (ymd > endDate) break; out.push(ymd);
+            }
+            return out;
+        }
+        const _bandConflictReason = (b) => { const r = String(b.reason || ''); return r.startsWith('[고정팀 대체]') ? '다른 팀 대체 합주' : r.startsWith('[고정팀]') ? '다른 고정팀' : r.startsWith('[커뮤니티]') ? '커뮤니티 모임' : '게더링 차단'; };
+        // 특정 날짜·시간대(inclusive 슬롯 인덱스)와 겹치는 사유 — 예약·대관·1회 차단·기간 짧은 반복 차단(weeklyToo 면 반복 차단 전부)
+        function bandDateConflicts(ctx, dateStr, sIdx, eIdx, opts = {}) {
+            const out = [];
+            const dow = new Date(dateStr + 'T00:00:00').getDay();
+            for (const r of ctx.reservations) {
+                if (r.res_date !== dateStr) continue;
+                if (_bandOverlapIdx(sIdx, eIdx, TIMES.indexOf(r.start_time), TIMES.indexOf(r.end_time))) out.push('게더링 예약');
+            }
+            for (const b of ctx.bookings) {
+                if (b.date !== dateStr) continue;
+                if (_bandOverlapIdx(sIdx, eIdx, TIMES.indexOf(b.start_time), TIMES.indexOf(b.end_time))) out.push(b.status === 'pending' ? '공간 대관(입금 대기)' : '공간 대관');
+            }
+            for (const b of ctx.blocks) {
+                if (b.day_of_week !== dow) continue;
+                if (opts.skipBlockIds && opts.skipBlockIds.includes(b.id)) continue;
+                if (b.start_date && dateStr < b.start_date) continue;
+                if (b.end_date && dateStr > b.end_date) continue;
+                if (_blockSkipped(b, dateStr)) continue;
+                if (!_bandOverlapIdx(sIdx, eIdx, TIMES.indexOf(b.start_time), TIMES.indexOf(b.end_time))) continue;
+                const once = b.start_date && b.start_date === b.end_date;
+                if (opts.weeklyToo || once || (b.end_date && bandDiffDays(b.end_date, ctx.startDate) <= BAND_HARD_BLOCK_DAYS)) out.push(_bandConflictReason(b));
+            }
+            return [...new Set(out)];
+        }
+        // 시간 띠 하나의 상태. kind: off(신청 불가) / later(개방일 전) / wait(다른 팀 신청 대기) / taken(다른 고정팀·장기 차단) / skip(가능, N주 건너뛰기) / ok
+        function bandDefStatus(def, ctx, opts = {}) {
+            const { s: sIdx, e: eIdx } = _bandSlotIdx(def.start_time, def.end_time);
+            if (def.band_ok === false) return { kind: 'off', label: def.rental_ok === false ? '불가' : '대관만', skips: [] };
+            const other = (ctx.claims || []).filter(c => c.day_of_week === def.day_of_week && c.profile_id !== opts.excludeProfile && (!c.end_date || c.end_date >= ctx.startDate)
+                && _bandOverlapIdx(sIdx, eIdx, _bandSlotIdx(c.start_time, c.end_time).s, _bandSlotIdx(c.start_time, c.end_time).e));
+            if (other.some(c => c.status === 'pending')) return { kind: 'wait', label: '다른 팀 신청 중', skips: [] };
+            for (const b of ctx.blocks) { // 장기 반복 차단(다른 고정팀·운영 차단) → 사용 중(끝나는 날이 있으면 그다음 날부터 가능)
+                if (b.day_of_week !== def.day_of_week) continue;
+                if (b.start_date && b.start_date === b.end_date) continue;
+                if (opts.skipBlockIds && opts.skipBlockIds.includes(b.id)) continue;
+                if (b.end_date && b.end_date < ctx.startDate) continue;
+                if (b.start_date && b.start_date > ctx.endDate) continue;
+                if (!_bandOverlapIdx(sIdx, eIdx, TIMES.indexOf(b.start_time), TIMES.indexOf(b.end_time))) continue;
+                if (!b.end_date || bandDiffDays(b.end_date, ctx.startDate) > BAND_HARD_BLOCK_DAYS) {
+                    const from = b.end_date ? _bandAddDays(b.end_date, 1) : null;
+                    const who = String(b.reason || '').startsWith('[고정팀]') ? '고정팀 사용 중' : '차단 중';
+                    return { kind: 'taken', label: from ? `${bandMD(from)}부터` : who, who, from, skips: [] };
+                }
+            }
+            if (other.some(c => c.status === 'approved' && !c.block_id)) return { kind: 'taken', label: '고정팀 사용 중', who: '고정팀 사용 중', skips: [] }; // 승인됐지만 달력 미반영
+            if (def.open_from && def.open_from > ctx.startDate) return { kind: 'later', label: `${bandMD(def.open_from)}부터`, from: def.open_from, skips: [] }; // 개방일 전(사용 중·대기보다 뒤에 판정)
+            const skips = [];
+            for (const d of bandDefDates(def.day_of_week, ctx.startDate, ctx.endDate)) {
+                const reasons = bandDateConflicts(ctx, d, sIdx, eIdx, { skipBlockIds: opts.skipBlockIds });
+                if (reasons.length) skips.push({ date: d, reasons });
+            }
+            return skips.length ? { kind: 'skip', label: `${skips.length}주 건너뛰기`, skips } : { kind: 'ok', label: '가능', skips };
+        }
+        // 요일별 띠 표 — rows: [{def, st}] · opts.selectable/selected(Set)/onToggle(함수명)/publicView
+        function bandAvailTableHTML(rows, opts = {}) {
+            const byDow = {}; rows.forEach(r => (byDow[r.def.day_of_week] = byDow[r.def.day_of_week] || []).push(r));
+            const sel = opts.selected || new Set();
+            return `<div class="band-avail">${BAND_DOW_ORDER.map(dow => {
+                const list = byDow[dow] || [];
+                return `<div class="band-avail-row"><div class="band-avail-day">${BAND_DOW[dow]}</div><div class="band-avail-chips">${list.length ? list.map(({ def, st }) => {
+                    const can = opts.selectable && (st.kind === 'ok' || st.kind === 'skip');
+                    const on = sel.has(def.id);
+                    const title = !opts.publicView && def.note ? ` title="${escAttr(def.note)}"` : '';
+                    return `<button type="button" class="band-slot-chip ${st.kind}${on ? ' sel' : ''}" data-def="${def.id}"${can ? ` onclick="${opts.onToggle}('${def.id}')"` : ' disabled'}${title}>
+                        <span class="t">${escHtml(def.label || _bandLabelOf(def.start_time))} ${_bandRangeText(def.start_time, def.end_time)}</span><span class="s">${on ? '✓ 선택' : escHtml(st.label)}</span></button>`;
+                }).join('') : '<span class="band-muted">띠 없음</span>'}</div></div>`;
+            }).join('')}</div>`;
+        }
+        const _bandAvailLegend = () => `<div class="band-avail-legend"><span class="status-badge sm status-approved">가능</span><span class="status-badge sm status-pending">N주 건너뛰기</span><span class="status-badge sm status-info">개방일</span><span class="status-badge sm status-rejected">사용 중</span><span class="status-badge sm status-neutral">불가·대기</span></div>`;
+
+        // ── 가입 신청: 희망 시작일 기준 실시간 가능 타임 고르기 ──
+        let _bandSignupAvail = null; // {ctx, rows}
+        const _bandSignupSel = new Set();
+        const _bandSignupDefaultStart = () => _bandAddDays(bandTodayStr(), 7);
+        async function bandSignupAvailInit() {
+            const box = document.getElementById('bandSignupSlots'), legacy = document.getElementById('bandSignupLegacySlots');
+            if (!box) return;
+            const input = document.getElementById('bandSignupStart');
+            if (input) { input.min = bandTodayStr(); if (!input.value) input.value = _bandSignupDefaultStart(); }
+            await bandSignupAvailRefresh();
+            const fallback = _bandSlotsUnavailable || !supabaseClient;
+            box.classList.toggle('hidden', fallback);
+            if (legacy) legacy.classList.toggle('hidden', !fallback);
+        }
+        async function bandSignupAvailRefresh() {
+            const body = document.getElementById('bandSignupAvailBody');
+            if (!body || !supabaseClient) return;
+            const input = document.getElementById('bandSignupStart');
+            const start = input && /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : _bandSignupDefaultStart();
+            body.innerHTML = _bandLoadingHTML();
+            try {
+                const ctx = await bandAvailLoad(start);
+                if (_bandSlotsUnavailable) { _bandSignupAvail = null; return; }
+                const rows = ctx.defs.map(def => ({ def, st: bandDefStatus(def, ctx) }));
+                _bandSignupAvail = { ctx, rows };
+                [..._bandSignupSel].forEach(id => { const r = rows.find(x => x.def.id === id); if (!r || (r.st.kind !== 'ok' && r.st.kind !== 'skip')) _bandSignupSel.delete(id); });
+                bandSignupAvailRender();
+            } catch (e) { console.error('band avail:', e); body.innerHTML = _bandEmptyHTML('가능 시간을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); }
+        }
+        function bandSignupAvailRender() {
+            const body = document.getElementById('bandSignupAvailBody');
+            if (!body || !_bandSignupAvail) return;
+            const { rows, ctx } = _bandSignupAvail;
+            const picked = rows.filter(r => _bandSignupSel.has(r.def.id));
+            let detail;
+            if (picked.length) {
+                const skipItems = picked.flatMap(r => r.st.skips.map(s => ({ ...s, def: r.def }))).sort((a, b) => a.date.localeCompare(b.date));
+                detail = `<div class="band-avail-detail"><div><strong>선택한 타임</strong> · ${picked.map(r => escHtml(bandDefText(r.def))).join(' / ')}</div>`
+                    + (skipItems.length
+                        ? `<div style="margin-top:6px">이미 잡힌 일정과 겹치는 주가 <strong>${skipItems.length}주</strong> 있어요. 승인되면 그 주마다 <strong>건너뛰기권 1장</strong>이 발급되고, 팀 페이지에서 <strong>같은 길이의 대체 합주(그 주 7일 전~전날)</strong> 또는 <strong>1주 무료 연장</strong> 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div>
+                           <ul class="band-avail-skips">${skipItems.map(s => `<li>${_bandMDW(s.date)} ${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</li>`).join('')}</ul>`
+                        : `<div class="band-muted" style="margin-top:4px">${bandMD(ctx.startDate)} 시작 기준 26주 안에 겹치는 일정이 없어요.</div>`)
+                    + '</div>';
+            } else detail = '<div class="band-muted" style="margin-top:8px;text-align:left">원하는 타임을 눌러 선택해주세요(여러 개 가능). 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
+            body.innerHTML = _bandAvailLegend() + bandAvailTableHTML(rows, { selectable: true, selected: _bandSignupSel, onToggle: 'bandSignupToggleSlot', publicView: true }) + detail;
+        }
+        function bandSignupToggleSlot(id) { if (_bandSignupSel.has(id)) _bandSignupSel.delete(id); else _bandSignupSel.add(id); bandSignupAvailRender(); }
+        // 가입 신청 제출용: 새 표가 살아 있으면 {defs, start} / 폴백(종전 체크박스)이면 null
+        function bandSignupSelection() {
+            if (!_bandSignupAvail || _bandSlotsUnavailable) return null;
+            const start = document.getElementById('bandSignupStart')?.value || '';
+            return { start, defs: _bandSignupAvail.rows.filter(r => _bandSignupSel.has(r.def.id)).map(r => r.def) };
+        }
+
+        // ── 관리자: 승인(달력 반영)·고정 시간 등록·건너뛰기권 부여·해제 ──
+        const _bandBlockReason = (t) => `[고정팀] ${(t.band_name_kr || t.name || '').trim()}`;
+        const _bandSubReason = (t) => `[고정팀 대체] ${(t.band_name_kr || t.name || '').trim()}`;
+        const _bandCache = () => state.bandAdminCache || {};
+        // 반복 차단 생성(마이그레이션 전이면 새 컬럼 없이 재시도) → block id | null
+        async function _bandInsertBlock(row) {
+            let { data, error } = await supabaseClient.from('time_blocks').insert(row).select('id').single();
+            if (error && /band_claim_id|skip_dates/.test(error.message || '')) {
+                const { band_claim_id, skip_dates, ...plain } = row;
+                ({ data, error } = await supabaseClient.from('time_blocks').insert(plain).select('id').single());
+                if (!error) showToast('time_blocks 에 band_claim_id/skip_dates 컬럼이 없어 건너뛰기 없이 차단했습니다. 20261105 마이그레이션을 실행해주세요.', 6000);
+            }
+            if (error) throw error;
+            return data && data.id ? data.id : null;
+        }
+        function _bandClaimKeys(claims, defs) {
+            return [...new Set((claims || []).map(c => { const d = (defs || []).find(x => x.id === c.def_id); return bandSlotLegacyKey(d || c); }))];
+        }
+        // 승인 폼(가입 신청 카드 안): 시작일 + 신청 타임별 겹침 계산 결과
+        const _bandApprovalCtx = {};
+        async function openBandApproval(id) {
+            const box = document.getElementById(`ba-form-${id}`); if (!box) return;
+            if (!box.hidden) { box.hidden = true; return; }
+            const t = (_bandCache().teams || []).find(x => x.id === id) || {};
+            const claims = ((_bandCache().claimsMap || {})[id] || []).filter(c => c.status === 'pending');
+            const today = bandTodayStr();
+            const start = claims.map(c => c.start_date).filter(Boolean).sort()[0] || t.band_start_date || today;
+            box.innerHTML = `
+                <div class="band-form-grid">
+                    <label>시작일<input type="date" id="ba-start-${id}" class="band-input" value="${escAttr(start < today ? today : start)}" min="${today}" onchange="bandApprovalRecalc('${id}')"></label>
+                    <label>달력 반영<select id="ba-mode-${id}" class="band-input"><option value="1">차단 생성 + 건너뛰기권 발급</option><option value="0">승인만(달력 미반영)</option></select></label>
+                </div>
+                <div id="ba-claims-${id}">${_bandLoadingHTML()}</div>
+                <div id="ba-result-${id}" class="band-form-result"></div>
+                <div class="gaa-btn-row">
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandApproveWithSlots('${id}', this)">승인</button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="openBandApproval('${id}')">취소</button>
+                </div>`;
+            box.hidden = false;
+            await bandApprovalRecalc(id);
+        }
+        async function bandApprovalRecalc(id) {
+            const list = document.getElementById(`ba-claims-${id}`); if (!list) return;
+            const start = document.getElementById(`ba-start-${id}`)?.value;
+            if (!start) { list.innerHTML = _bandEmptyHTML('시작일을 선택해주세요.'); return; }
+            const claims = ((_bandCache().claimsMap || {})[id] || []).filter(c => c.status === 'pending');
+            list.innerHTML = _bandLoadingHTML();
+            const ctx = await bandAvailLoad(start);
+            const items = claims.map(c => {
+                const def = ctx.defs.find(d => d.id === c.def_id);
+                const st = bandDefStatus({ ...(def || {}), ...c, band_ok: true, open_from: def ? def.open_from : null }, ctx, { excludeProfile: id });
+                return { claim: c, def, st };
+            });
+            _bandApprovalCtx[id] = { ctx, items, start };
+            list.innerHTML = items.length ? items.map(({ claim, def, st }) => `
+                <div class="band-ba-claim">
+                    <label><input type="checkbox" id="ba-c-${claim.id}" checked> <strong>${escHtml(def ? bandDefText(def) : bandClaimText(claim))}</strong></label>
+                    <span class="status-badge sm ${BAND_KIND_CHIP[st.kind] || 'status-neutral'}">${escHtml(st.kind === 'ok' ? '겹침 없음' : st.label)}</span>
+                    ${st.skips.length ? `<ul class="band-avail-skips">${st.skips.map(s => `<li>${_bandMDW(s.date)} · ${escHtml(s.reasons.join(', '))} → 건너뛰기권</li>`).join('')}</ul>` : ''}
+                </div>`).join('') : _bandEmptyHTML('신청한 타임이 없습니다.');
+        }
+        async function bandApproveWithSlots(id, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const res = document.getElementById(`ba-result-${id}`);
+            const showErr = (m) => { if (res) { res.textContent = m; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const prep = _bandApprovalCtx[id];
+            const start = document.getElementById(`ba-start-${id}`)?.value;
+            if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) { showErr('시작일을 선택해주세요.'); return; }
+            if (!prep || prep.start !== start) { await bandApprovalRecalc(id); }
+            const { ctx, items } = _bandApprovalCtx[id] || { ctx: null, items: [] };
+            const makeBlocks = (document.getElementById(`ba-mode-${id}`)?.value || '1') === '1';
+            const t = (_bandCache().teams || []).find(x => x.id === id) || { id };
+            _bandBusy(btn, true, '승인 중…');
+            try {
+                const approved = [];
+                for (const { claim, st } of items) {
+                    const on = document.getElementById(`ba-c-${claim.id}`)?.checked !== false;
+                    if (!on) { await supabaseClient.from('band_slot_claims').update({ status: 'rejected' }).eq('id', claim.id); continue; }
+                    let blockId = null;
+                    if (makeBlocks) {
+                        blockId = await _bandInsertBlock({ day_of_week: claim.day_of_week, start_time: claim.start_time, end_time: _bandBlockEnd(claim.end_time),
+                            reason: _bandBlockReason(t), start_date: start, end_date: null, band_claim_id: claim.id, skip_dates: st.skips.map(s => s.date) });
+                    }
+                    const { error } = await supabaseClient.from('band_slot_claims').update({ status: 'approved', start_date: start, block_id: blockId, approved_at: new Date().toISOString() }).eq('id', claim.id);
+                    if (error) throw error;
+                    if (makeBlocks && st.skips.length) {
+                        const { error: sErr } = await supabaseClient.from('band_skips').insert(st.skips.map(s => ({ profile_id: id, claim_id: claim.id, skip_date: s.date, skip_start: claim.start_time, skip_end: claim.end_time, reason: s.reasons.join(', '), granted_by: 'signup' })));
+                        if (sErr) throw sErr;
+                    }
+                    approved.push(claim);
+                }
+                const upd = { status: 'approved' };
+                if (!t.band_start_date) upd.band_start_date = start;
+                if (approved.length) upd.timeslots = _bandClaimKeys(approved, ctx ? ctx.defs : []);
+                const { error: pErr } = await supabaseClient.from('profiles').update(upd).eq('id', id);
+                if (pErr) throw pErr;
+                showToast(approved.length ? `가입을 승인하고 고정 시간 ${approved.length}개를 달력에 반영했습니다.` : '가입을 승인했습니다.');
+                renderBandAdminTab();
+                fetchAndRenderBandTeamList();
+                if (typeof fetchBlocks === 'function') fetchBlocks().catch(() => {});
+            } catch (e) { console.error('band approve(slots):', e); showErr('승인 처리 중 오류가 났습니다. 다시 시도해주세요. (' + (e.message || e) + ')'); }
+            finally { _bandBusy(btn, false); }
+        }
+        // 승인된 팀 카드: 고정 시간·건너뛰기권 섹션
+        function bandSlotSectionHTML(t, claims, skips, defs) {
+            const today = bandTodayStr();
+            const approved = (claims || []).filter(c => c.status === 'approved');
+            const claimRows = approved.length ? approved.map(c => `
+                <div class="band-slot-row">
+                    <span><strong>${escHtml(bandClaimText(c))}</strong> <span class="band-muted">· ${bandMD(c.start_date)}부터</span> ${c.block_id ? '' : '<span class="status-badge sm status-pending">달력 미반영</span>'}</span>
+                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="bandEndClaim('${c.id}', this)">해제</button>
+                </div>`).join('')
+                : `<div class="band-muted">달력에 반영된 고정 시간이 없습니다${t.timeslots && t.timeslots.length ? ` (가입 때 타임: ${escHtml(bandSlotSheetText(t.timeslots))})` : ''}. [+ 고정 시간]으로 등록하면 멤버 예약·대관 달력에서 그 시간이 막힙니다.</div>`;
+            const upcoming = (skips || []).filter(s => s.skip_date >= today), past = (skips || []).filter(s => s.skip_date < today);
+            const skipRow = (s) => `<div class="band-slot-row"><span>${_bandMDW(s.skip_date)} ${_bandRangeText(s.skip_start, s.skip_end)}${s.reason ? ` <span class="band-muted">· ${escHtml(s.reason)}</span>` : ''} ${bandSkipStatusChip(s, today)}</span>
+                <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="bandSkipDelete('${s.id}', this)">삭제</button></div>`;
+            const defOpts = (defs || []).map(d => `<option value="${d.id}">${escHtml(bandDefText(d))}${d.band_ok === false ? ' (신청 불가)' : ''}</option>`).join('');
+            const grantOpts = _bandUpcomingSessions(approved, today, 10).map(o => `<option value="${o.date}|${o.claim.id}">${_bandMDW(o.date)} ${_bandRangeText(o.claim.start_time, o.claim.end_time)}</option>`).join('');
+            return `
+                <div class="band-card-section">
+                    <div class="band-card-head"><span>📅 고정 시간·건너뛰기권</span>
+                        <div class="gaa-btn-row">
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="toggleBandBox('bs-reg-${t.id}')">+ 고정 시간</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="toggleBandBox('bs-skip-${t.id}')"${approved.length ? '' : ' disabled'}>+ 건너뛰기권</button>
+                        </div></div>
+                    ${claimRows}
+                    ${upcoming.length ? `<div class="band-muted" style="margin-top:8px;font-weight:600">건너뛰기권 ${upcoming.length}장</div>${upcoming.map(skipRow).join('')}` : ''}
+                    ${past.length ? `<details class="band-skip-past"><summary class="band-muted">지난 건너뛰기 ${past.length}건</summary>${past.map(skipRow).join('')}</details>` : ''}
+                    <div id="bs-reg-${t.id}" class="band-inline-form" hidden>
+                        <div class="band-form-grid">
+                            <label>시간 띠<select id="bs-def-${t.id}" class="band-input">${defOpts || '<option value="">시간 띠가 없습니다</option>'}</select></label>
+                            <label>시작일<input type="date" id="bs-start-${t.id}" class="band-input" value="${escAttr(t.band_start_date && t.band_start_date > today ? t.band_start_date : today)}"></label>
+                        </div>
+                        <div class="band-muted" style="margin-bottom:6px">시작일부터 매주 그 시간이 달력에서 막히고, 이미 잡힌 예약·대관과 겹치는 주는 건너뛰기권으로 발급됩니다.</div>
+                        <div id="bs-reg-result-${t.id}" class="band-form-result"></div>
+                        <div class="gaa-btn-row">
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandRegisterSlot('${t.id}', this)">등록</button>
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="toggleBandBox('bs-reg-${t.id}')">취소</button>
+                        </div>
+                    </div>
+                    <div id="bs-skip-${t.id}" class="band-inline-form" hidden>
+                        <div class="band-form-grid">
+                            <label>건너뛸 합주일<select id="bg-date-${t.id}" class="band-input">${grantOpts || '<option value="">예정된 합주일이 없습니다</option>'}</select></label>
+                            <label>사유<input type="text" id="bg-reason-${t.id}" class="band-input" placeholder="예: 공연 대관 · 통화로 협의"></label>
+                        </div>
+                        <div class="band-muted" style="margin-bottom:6px">그날은 달력에서 열리고, 팀이 대체 합주(7일 전~전날, 같은 길이) 또는 1주 무료 연장 중 하나를 고릅니다(일주일 전까지 미선택이면 자동 연장).</div>
+                        <div id="bg-result-${t.id}" class="band-form-result"></div>
+                        <div class="gaa-btn-row">
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandGrantSkip('${t.id}', this)">부여</button>
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="toggleBandBox('bs-skip-${t.id}')">취소</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        function bandSkipStatusChip(s, today = bandTodayStr()) {
+            const r = bandSkipResolution(s, today);
+            if (r === 'substitute') return `<span class="status-badge sm status-approved">대체 ${_bandMDW(s.substitute_date)} ${_bandRangeText(s.substitute_start, s.substitute_end)}</span>`;
+            if (r === 'extend') return `<span class="status-badge sm status-info">${s.resolution ? '1주 연장' : '1주 자동 연장'}</span>`;
+            return `<span class="status-badge sm status-pending">미선택 · ${bandMD(bandSkipDeadline(s))}까지</span>`;
+        }
+        // 승인된 타임들의 앞으로 올 합주일(날짜순) — 건너뛰기권 부여 후보
+        function _bandUpcomingSessions(claims, today, n) {
+            const out = [];
+            for (const c of claims) {
+                if (!c.block_id && c.status !== 'approved') continue;
+                const from = c.start_date > today ? c.start_date : today;
+                for (const d of bandDefDates(c.day_of_week, from, _bandAddDays(from, 7 * n))) { if (!c.end_date || d <= c.end_date) out.push({ date: d, claim: c }); }
+            }
+            return out.sort((a, b) => a.date.localeCompare(b.date)).slice(0, n);
+        }
+        async function bandRegisterSlot(teamId, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const res = document.getElementById(`bs-reg-result-${teamId}`);
+            const showErr = (m) => { if (res) { res.textContent = m; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const defId = document.getElementById(`bs-def-${teamId}`)?.value, start = document.getElementById(`bs-start-${teamId}`)?.value;
+            if (!defId) { showErr('시간 띠를 선택해주세요.'); return; }
+            if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) { showErr('시작일을 선택해주세요.'); return; }
+            const t = (_bandCache().teams || []).find(x => x.id === teamId) || { id: teamId };
+            _bandBusy(btn, true, '등록 중…');
+            try {
+                const ctx = await bandAvailLoad(start);
+                const def = ctx.defs.find(d => d.id === defId);
+                if (!def) { showErr('시간 띠를 찾을 수 없습니다.'); return; }
+                const st = bandDefStatus({ ...def, band_ok: true, open_from: null }, ctx, { excludeProfile: teamId });
+                if (st.kind === 'taken' || st.kind === 'wait') { showErr(`이 시간은 ${st.kind === 'wait' ? '다른 팀이 신청 대기 중' : (st.who || '사용 중')}입니다${st.from ? ` (${bandMD(st.from)}부터 가능)` : ''}.`); return; }
+                const { data: claim, error } = await supabaseClient.from('band_slot_claims')
+                    .insert({ profile_id: teamId, def_id: def.id, day_of_week: def.day_of_week, start_time: def.start_time, end_time: def.end_time, start_date: start, status: 'approved', approved_at: new Date().toISOString() })
+                    .select().single();
+                if (error) throw error;
+                const blockId = await _bandInsertBlock({ day_of_week: def.day_of_week, start_time: def.start_time, end_time: _bandBlockEnd(def.end_time),
+                    reason: _bandBlockReason(t), start_date: start, end_date: null, band_claim_id: claim.id, skip_dates: st.skips.map(s => s.date) });
+                await supabaseClient.from('band_slot_claims').update({ block_id: blockId }).eq('id', claim.id);
+                if (st.skips.length) {
+                    const { error: sErr } = await supabaseClient.from('band_skips').insert(st.skips.map(s => ({ profile_id: teamId, claim_id: claim.id, skip_date: s.date, skip_start: def.start_time, skip_end: def.end_time, reason: s.reasons.join(', '), granted_by: 'signup' })));
+                    if (sErr) throw sErr;
+                }
+                const upd = { timeslots: [...new Set([...(t.timeslots || []), bandSlotLegacyKey(def)])] };
+                if (!t.band_start_date) upd.band_start_date = start;
+                await supabaseClient.from('profiles').update(upd).eq('id', teamId);
+                showToast(`고정 시간을 달력에 반영했습니다${st.skips.length ? ` · 건너뛰기권 ${st.skips.length}장 발급` : ''}.`);
+                renderBandAdminTab();
+                fetchAndRenderBandTeamList();
+            } catch (e) { console.error('band register slot:', e); showErr('등록하지 못했습니다. (' + (e.message || e) + ')'); }
+            finally { _bandBusy(btn, false); }
+        }
+        async function bandGrantSkip(teamId, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const res = document.getElementById(`bg-result-${teamId}`);
+            const showErr = (m) => { if (res) { res.textContent = m; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const v = document.getElementById(`bg-date-${teamId}`)?.value || '';
+            const [date, claimId] = v.split('|');
+            if (!date || !claimId) { showErr('건너뛸 합주일을 선택해주세요.'); return; }
+            const claim = ((_bandCache().claimsMap || {})[teamId] || []).find(c => c.id === claimId);
+            if (!claim) { showErr('고정 시간을 찾을 수 없습니다.'); return; }
+            const reason = (document.getElementById(`bg-reason-${teamId}`)?.value || '').trim();
+            _bandBusy(btn, true, '부여 중…');
+            try {
+                const { error } = await supabaseClient.from('band_skips').insert({ profile_id: teamId, claim_id: claim.id, skip_date: date, skip_start: claim.start_time, skip_end: claim.end_time, reason: reason || '운영자 부여', granted_by: 'admin' });
+                if (error) { showErr(error.code === '23505' ? '그날은 이미 건너뛰기권이 있습니다.' : '부여하지 못했습니다. (' + error.message + ')'); return; }
+                await _bandBlockSkipDates(claim.block_id, date, true);
+                showToast(`${_bandMDW(date)} 건너뛰기권을 부여했습니다.`);
+                renderBandAdminTab();
+            } finally { _bandBusy(btn, false); }
+        }
+        // 반복 차단의 skip_dates 에 날짜 추가/제거
+        async function _bandBlockSkipDates(blockId, date, add) {
+            if (!blockId || !supabaseClient) return;
+            const { data } = await supabaseClient.from('time_blocks').select('id,skip_dates').eq('id', blockId).maybeSingle();
+            if (!data) return;
+            const cur = Array.isArray(data.skip_dates) ? data.skip_dates : [];
+            const next = add ? [...new Set([...cur, date])].sort() : cur.filter(d => d !== date);
+            const { error } = await supabaseClient.from('time_blocks').update({ skip_dates: next }).eq('id', blockId);
+            if (error) console.error('skip_dates update:', error);
+            if (typeof fetchBlocks === 'function') fetchBlocks().catch(() => {});
+        }
+        async function bandSkipDelete(skipId, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const all = Object.values(_bandCache().skipsMap || {}).flat();
+            const s = all.find(x => x.id === skipId);
+            if (!s) return;
+            if (!confirm(`${_bandMDW(s.skip_date)} 건너뛰기권을 삭제할까요? 그날은 다시 고정 시간으로 막히고, 대체 합주가 있었다면 함께 취소됩니다.`)) return;
+            _bandBusy(btn, true);
+            try {
+                const { error } = await supabaseClient.from('band_skips').delete().eq('id', skipId);
+                if (error) { showToast('삭제하지 못했습니다.'); return; }
+                if (s.substitute_block_id) await supabaseClient.from('time_blocks').delete().eq('id', s.substitute_block_id);
+                const claim = ((_bandCache().claimsMap || {})[s.profile_id] || []).find(c => c.id === s.claim_id);
+                if (claim && claim.block_id) await _bandBlockSkipDates(claim.block_id, s.skip_date, false);
+                showToast('건너뛰기권을 삭제했습니다.');
+                renderBandAdminTab();
+            } finally { _bandBusy(btn, false); }
+        }
+        async function bandEndClaim(claimId, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const all = Object.values(_bandCache().claimsMap || {}).flat();
+            const c = all.find(x => x.id === claimId);
+            if (!c) return;
+            if (!confirm(`${bandClaimText(c)} 고정 시간을 해제할까요? 오늘 이후 달력에서 열립니다.`)) return;
+            _bandBusy(btn, true);
+            try { await _bandEndClaims([c], bandTodayStr()); showToast('고정 시간을 해제했습니다.'); renderBandAdminTab(); fetchAndRenderBandTeamList(); }
+            finally { _bandBusy(btn, false); }
+        }
+        // 타임 종료: 신청 ended + 반복 차단 end_date — 탈퇴 처리와 공유
+        async function _bandEndClaims(claims, endDate) {
+            for (const c of claims) {
+                await supabaseClient.from('band_slot_claims').update({ status: 'ended', end_date: endDate }).eq('id', c.id);
+                if (c.block_id) await supabaseClient.from('time_blocks').update({ end_date: endDate }).eq('id', c.block_id);
+            }
+            if (typeof fetchBlocks === 'function') fetchBlocks().catch(() => {});
+        }
+
+        // ── 관리자 탭 「⏱️ 시간 띠」: 정의 편집 + 기준 시작일로 본 실시간 상태 ──
+        async function renderBandSlotsTab(view) {
+            const today = bandTodayStr();
+            const start = state.bandSlotsStart && state.bandSlotsStart >= today ? state.bandSlotsStart : today;
+            state.bandSlotsStart = start;
+            const ctx = await bandAvailLoad(start);
+            if (_bandSlotsUnavailable) { view.innerHTML = _bandEmptyHTML('band_slot_defs 표가 없습니다. supabase/migrations/20261105_band_slots.sql 을 SQL Editor 에서 실행해주세요.'); return; }
+            const rows = ctx.defs.map(def => ({ def, st: bandDefStatus(def, ctx) }));
+            const timeOpt = (sel) => TIMES.map(t => `<option value="${t}"${t === sel ? ' selected' : ''}>${t}</option>`).join('');
+            const endOpt = (sel) => TIMES.map((t, i) => { const e = TIMES[i + 1] || '23:00'; return `<option value="${e}"${e === sel ? ' selected' : ''}>${e}</option>`; }).join('');
+            const defRow = (d) => `
+                <div class="band-def-row" id="def-row-${d.id}">
+                    <div class="band-def-main"><strong>${BAND_DOW[d.day_of_week]} ${_bandRangeText(d.start_time, d.end_time)}</strong> <span class="band-muted">${escHtml(d.label || '')}</span>
+                        <span class="status-badge sm ${BAND_KIND_CHIP[rows.find(r => r.def.id === d.id)?.st.kind] || 'status-neutral'}">${escHtml(rows.find(r => r.def.id === d.id)?.st.label || '')}</span></div>
+                    <div class="band-def-ctl">
+                        <label class="band-def-chk"><input type="checkbox" id="def-ok-${d.id}"${d.band_ok !== false ? ' checked' : ''}> 고정팀</label>
+                        <label class="band-def-chk"><input type="checkbox" id="def-rent-${d.id}"${d.rental_ok !== false ? ' checked' : ''}> 대관</label>
+                        <input type="date" id="def-from-${d.id}" class="band-input" value="${escAttr(d.open_from || '')}" title="이 날짜부터 신청 가능">
+                        <input type="text" id="def-note-${d.id}" class="band-input" value="${escAttr(d.note || '')}" placeholder="메모(운영자용)">
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandDefSave('${d.id}', this)">저장</button>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="bandDefDelete('${d.id}', this)">삭제</button>
+                    </div>
+                </div>`;
+            view.innerHTML = `
+                <div class="band-roster-toolbar">
+                    <label class="band-muted" style="display:flex;align-items:center;gap:6px">기준 시작일 <input type="date" class="band-input" style="width:auto;height:36px" value="${start}" min="${today}" onchange="state.bandSlotsStart=this.value;renderBandAdminTab()"></label>
+                    <span class="band-muted">가입 화면이 이 표를 실시간으로 보여줍니다</span>
+                </div>
+                ${_bandAvailLegend()}
+                ${bandAvailTableHTML(rows, { selectable: false })}
+                <div class="band-roster-title">시간 띠 정의 <span class="band-muted">${ctx.defs.length}개</span></div>
+                <div class="band-muted" style="margin:-4px 0 8px">고정팀 체크를 끄면 「대관만/불가」, 개방일을 넣으면 그 날짜부터 신청 가능. 다른 고정팀이 쓰는 띠는 달력 차단에서 자동으로 「사용 중」으로 보입니다.</div>
+                ${ctx.defs.map(defRow).join('') || _bandEmptyHTML('정의된 시간 띠가 없습니다.')}
+                <div class="band-inline-form">
+                    <div class="band-card-head"><span>+ 시간 띠 추가</span></div>
+                    <div class="band-def-ctl">
+                        <select id="def-new-dow" class="band-input">${BAND_DOW_ORDER.map(d => `<option value="${d}">${BAND_DOW[d]}</option>`).join('')}</select>
+                        <select id="def-new-start" class="band-input">${timeOpt('12:00')}</select>
+                        <span>~</span>
+                        <select id="def-new-end" class="band-input">${endOpt('18:00')}</select>
+                        <select id="def-new-label" class="band-input"><option value="오전">오전</option><option value="주간" selected>주간</option><option value="야간">야간</option></select>
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandDefAdd(this)">추가</button>
+                    </div>
+                    <div id="def-new-result" class="band-form-result"></div>
+                </div>`;
+        }
+        async function bandDefSave(id, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const upd = { band_ok: !!document.getElementById(`def-ok-${id}`)?.checked, rental_ok: !!document.getElementById(`def-rent-${id}`)?.checked,
+                open_from: document.getElementById(`def-from-${id}`)?.value || null, note: (document.getElementById(`def-note-${id}`)?.value || '').trim() || null };
+            _bandBusy(btn, true);
+            const { error } = await supabaseClient.from('band_slot_defs').update(upd).eq('id', id);
+            _bandBusy(btn, false);
+            if (error) { console.error(error); showToast('저장하지 못했습니다.'); return; }
+            showToast('시간 띠를 저장했습니다.'); renderBandAdminTab();
+        }
+        async function bandDefDelete(id, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            if (!confirm('이 시간 띠를 삭제할까요? 이미 승인된 팀의 차단은 그대로 남습니다.')) return;
+            _bandBusy(btn, true);
+            const { error } = await supabaseClient.from('band_slot_defs').delete().eq('id', id);
+            _bandBusy(btn, false);
+            if (error) { console.error(error); showToast('삭제하지 못했습니다.'); return; }
+            showToast('시간 띠를 삭제했습니다.'); renderBandAdminTab();
+        }
+        async function bandDefAdd(btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const res = document.getElementById('def-new-result');
+            const showErr = (m) => { if (res) { res.textContent = m; res.style.color = '#e74c3c'; } };
+            const dow = parseInt(document.getElementById('def-new-dow').value, 10), s = document.getElementById('def-new-start').value, e = document.getElementById('def-new-end').value, label = document.getElementById('def-new-label').value;
+            if (!(TIMES.indexOf(s) < TIMES.indexOf(_bandBlockEnd(e)) + 1)) { showErr('끝 시각이 시작보다 늦어야 합니다.'); return; }
+            _bandBusy(btn, true);
+            const { error } = await supabaseClient.from('band_slot_defs').insert({ day_of_week: dow, start_time: s, end_time: e, label, band_ok: true, rental_ok: true });
+            _bandBusy(btn, false);
+            if (error) { showErr(error.code === '23505' ? '같은 요일·시작 시각의 띠가 이미 있습니다.' : '추가하지 못했습니다. (' + error.message + ')'); return; }
+            showToast('시간 띠를 추가했습니다.'); renderBandAdminTab();
+        }
+
+        // ── 팀 본인 화면: 내 고정 시간·건너뛰기권(보상 선택) ──
+        async function renderBandSlotSection(profile) {
+            const sec = document.getElementById('bandSlotSection');
+            if (!sec) return;
+            if (!profile || !supabaseClient || _isAdminBandProfile(profile)) { sec.classList.add('hidden'); return; }
+            const [claims, skipsMap] = await Promise.all([fetchBandSlotClaims([profile.id]), fetchBandSkips([profile.id])]);
+            const skips = skipsMap[profile.id] || [];
+            state.bandMyClaims = claims; state.bandSkips = skips;
+            profile._ext = bandExtDates(skips);
+            const approved = claims.filter(c => c.status === 'approved'), pending = claims.filter(c => c.status === 'pending');
+            if (!claims.length && !skips.length) { sec.classList.add('hidden'); return; }
+            const today = bandTodayStr();
+            const upcoming = skips.filter(s => s.skip_date >= today), past = skips.filter(s => s.skip_date < today);
+            const skipRow = (s) => {
+                const r = bandSkipResolution(s, today);
+                let right;
+                if (r === 'substitute') right = `<span class="status-badge sm status-approved">대체 합주 ${_bandMDW(s.substitute_date)} ${_bandRangeText(s.substitute_start, s.substitute_end)}</span>`;
+                else if (r === 'extend') right = `<span class="status-badge sm status-info">${s.resolution ? '1주 무료 연장' : '1주 자동 연장'}</span>`;
+                else right = `<div class="gaa-btn-row"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandSubstituteSheet('${s.id}')">대체 합주 고르기</button><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandSkipExtend('${s.id}', this)">1주 연장</button></div>`;
+                return `<div class="band-skip-row${s.skip_date < today ? ' past' : ''}">
+                    <div><strong>${_bandMDW(s.skip_date)}</strong> ${_bandRangeText(s.skip_start, s.skip_end)} 건너뛰기${s.reason ? ` <span class="band-muted">· ${escHtml(s.reason)}</span>` : ''}
+                        ${!r ? `<div class="band-muted">${bandMD(bandSkipDeadline(s))}까지 고르지 않으면 1주 무료 연장으로 자동 처리돼요.</div>` : ''}</div>
+                    <div class="band-skip-right">${right}</div></div>`;
+            };
+            sec.classList.remove('hidden');
+            sec.innerHTML = `
+                <div class="band-section-title">📅 합주 시간·건너뛰기권</div>
+                ${approved.length ? `<div class="band-kv-grid">${approved.map(c => `<div class="band-kv"><span>매주 ${BAND_DOW[c.day_of_week]}요일</span><strong>${_bandRangeText(c.start_time, c.end_time)}<span class="band-muted" style="font-weight:400"> · ${bandMD(c.start_date)}부터</span></strong></div>`).join('')}</div>` : ''}
+                ${pending.length ? `<div class="band-muted" style="margin-top:6px">승인 대기 중인 타임: ${escHtml(bandClaimsText(pending))}</div>` : ''}
+                ${upcoming.length ? `<div class="band-card-section"><div class="band-card-head"><span>건너뛰기권 ${upcoming.length}장</span></div>
+                    <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 길이의 대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
+                    ${upcoming.map(skipRow).join('')}</div>` : (approved.length ? '<div class="band-muted" style="margin-top:8px">예정된 건너뛰기가 없어요.</div>' : '')}
+                ${past.length ? `<details class="band-skip-past"><summary class="band-muted">지난 건너뛰기 ${past.length}건</summary>${past.map(skipRow).join('')}</details>` : ''}`;
+        }
+        async function bandSkipExtend(skipId, btn) {
+            const s = (state.bandSkips || []).find(x => x.id === skipId);
+            if (!s || !supabaseClient || !state.bandProfile) return;
+            if (bandSkipResolution(s)) { showToast('이미 보상이 정해진 건너뛰기권입니다.'); return; }
+            if (!confirm(`${_bandMDW(s.skip_date)} 건너뛰기를 1주 무료 연장으로 받을까요? 선택 후에는 바꿀 수 없어요.`)) return;
+            _bandBusy(btn, true);
+            const { error } = await supabaseClient.from('band_skips').update({ resolution: 'extend', resolved_at: new Date().toISOString() }).eq('id', skipId);
+            _bandBusy(btn, false);
+            if (error) { console.error(error); showToast('저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+            showToast('1주 무료 연장으로 처리했습니다. 다음 회차 시작·입금일이 일주일 뒤로 밀립니다.');
+            await renderBandSlotSection(state.bandProfile); renderBandCycleNotice(state.bandProfile);
+        }
+        // 대체 합주 고르기: 건너뛰는 날 7일 전~전날 중 같은 길이로 비어 있는 시간대
+        async function bandSubstituteSheet(skipId) {
+            const s = (state.bandSkips || []).find(x => x.id === skipId);
+            if (!s || !supabaseClient) return;
+            if (bandSkipResolution(s)) { showToast('이미 보상이 정해진 건너뛰기권입니다.'); return; }
+            const today = bandTodayStr();
+            const dur = _bandSlotIdx(s.skip_start, s.skip_end).e - _bandSlotIdx(s.skip_start, s.skip_end).s + 1; // 슬롯 수
+            const from = _bandAddDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS), to = _bandAddDays(s.skip_date, -1);
+            gtSheetOpen(`대체 합주 고르기 · ${_bandMDW(s.skip_date)} 대신`, _bandLoadingHTML());
+            const ctx = await bandAvailLoad(from, BAND_SKIP_DEADLINE_DAYS);
+            const now = new Date();
+            const days = [];
+            for (let d = from; d <= to; d = _bandAddDays(d, 1)) {
+                if (d < today) continue;
+                const opts = [];
+                for (let i = 0; i + dur - 1 < TIMES.length; i++) {
+                    if (d === today && _bandH(TIMES[i]) <= now.getHours()) continue;
+                    if (!bandDateConflicts(ctx, d, i, i + dur - 1, { weeklyToo: true }).length) opts.push(i);
+                }
+                days.push({ d, opts });
+            }
+            const body = document.querySelector('#gtSheet .cm-sheet-body');
+            if (!body) return;
+            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">원래 합주와 같은 길이(${dur}시간)로, 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
+                + (days.length ? days.map(({ d, opts }) => `<div class="band-sub-day"><div class="d"><strong>${_bandMDW(d)}</strong></div><div class="chips">${opts.length
+                    ? opts.map(i => `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandSubstitutePick('${s.id}','${d}','${TIMES[i]}')">${_bandRangeText(TIMES[i], _bandBlockEndExcl(TIMES[i + dur - 1]))}</button>`).join('')
+                    : '<span class="band-muted">가능한 시간 없음</span>'}</div></div>`).join('')
+                : _bandEmptyHTML('대체 합주를 고를 수 있는 날짜가 지났어요.'));
+        }
+        async function bandSubstitutePick(skipId, date, startT) {
+            const s = (state.bandSkips || []).find(x => x.id === skipId);
+            if (!s || !supabaseClient || !state.bandProfile) return;
+            const dur = _bandSlotIdx(s.skip_start, s.skip_end).e - _bandSlotIdx(s.skip_start, s.skip_end).s + 1;
+            const endBlock = TIMES[TIMES.indexOf(startT) + dur - 1], endExcl = _bandBlockEndExcl(endBlock);
+            if (!confirm(`${_bandMDW(date)} ${_bandRangeText(startT, endExcl)} 로 대체 합주를 잡을까요? 선택 후에는 바꿀 수 없어요.`)) return;
+            try {
+                const fresh = await bandAvailLoad(date, 0); // 고르는 사이 잡힌 예약·대관이 없는지 다시 확인
+                if (bandDateConflicts(fresh, date, TIMES.indexOf(startT), TIMES.indexOf(startT) + dur - 1, { weeklyToo: true }).length) { showToast('그 시간은 방금 다른 일정이 잡혔어요. 다른 시간을 골라주세요.'); return; }
+                const blockId = await _bandInsertBlock({ day_of_week: new Date(date + 'T00:00:00').getDay(), start_time: startT, end_time: endBlock,
+                    reason: _bandSubReason(state.bandProfile), start_date: date, end_date: date, band_claim_id: s.claim_id || null, skip_dates: [] });
+                const { error } = await supabaseClient.from('band_skips').update({ resolution: 'substitute', substitute_date: date, substitute_start: startT, substitute_end: endExcl, substitute_block_id: blockId, resolved_at: new Date().toISOString() }).eq('id', skipId);
+                if (error) throw error;
+                gtSheetClose();
+                showToast(`${_bandMDW(date)} ${_bandRangeText(startT, endExcl)} 대체 합주로 잡았습니다.`);
+                await renderBandSlotSection(state.bandProfile); renderBandCycleNotice(state.bandProfile);
+            } catch (e) { console.error('substitute:', e); showToast('저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); }
+        }
+
         function bandTestTabHTML() {
             return `
                 <div class="band-card-section" style="margin-top:0;padding-top:0;border-top:0">
@@ -13039,8 +13804,18 @@
                    : isSelf ? '<span class="status-badge sm status-info">본인 팀</span>'
                    : `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="removeBandProfile('${t.id}', this)">탈퇴 처리</button>`);
 
-            let contractSection = '', paymentSection = '';
+            let contractSection = '', paymentSection = '', slotSection = '';
+            const cache = state.bandAdminCache || {};
+            const myClaims = (cache.claimsMap || {})[t.id] || [];
+            if (kind === 'pending') {
+                const pendingClaims = myClaims.filter(c => c.status === 'pending');
+                slotSection = pendingClaims.length
+                    ? `<div class="band-muted" style="margin-top:8px">신청 타임 <strong>${escHtml(bandClaimsText(pendingClaims))}</strong> · 희망 시작일 ${escHtml(_bandMDW(pendingClaims[0].start_date))} — [승인]을 누르면 겹치는 주를 계산해 달력에 반영합니다.</div>`
+                    : '';
+                slotSection += `<div id="ba-form-${t.id}" class="band-inline-form" hidden></div>`;
+            }
             if (kind === 'approved' && !isAdminTeam) {
+                slotSection = bandSlotSectionHTML(t, myClaims, (cache.skipsMap || {})[t.id] || [], cache.defs || []);
                 const rows = (paymentsMap || {})[t.id] || [];
                 const info = bandCycleInfo(t, rows);
                 const kv = (label, val) => `<div class="band-kv"><span>${label}</span><strong>${val || '-'}</strong></div>`;
@@ -13080,7 +13855,7 @@
                         </div>
                         <div class="gaa-btn-row" style="flex-shrink:0">${btns}</div>
                     </div>
-                    ${contractSection}${paymentSection}
+                    ${kind === 'pending' ? slotSection : ''}${contractSection}${paymentSection}${kind === 'approved' ? slotSection : ''}
                 </div>`;
         }
 
@@ -13135,7 +13910,7 @@
                     else if (n === info.n) { cls = info.status === 'overdue' ? 'status-rejected' : 'status-pending'; text = `${bandCycleLabel(n)} 입금일 ${bandMD(info.due)}`; }
                     else if (n === info.nextDueN) { text = `${bandCycleLabel(n)} 입금일 ${bandMD(info.nextDue)}`; } // 선납 뒤 첫 미납 회차
                     else if (n < info.n) { cls = 'status-rejected'; text = `${bandCycleLabel(n)} 미납`; }
-                    else text = `${bandCycleLabel(n)} ${bandMD(bandCycleStart(info.start, n))}`;
+                    else text = `${bandCycleLabel(n)} ${bandMD(bandCycleStart(info.start, n, info.ext))}`;
                     chips.push(`<span class="status-badge sm ${cls}">${escHtml(text)}</span>`);
                 }
                 strip = `<div class="band-cycle-strip">${chips.join('')}</div>`;
@@ -13170,8 +13945,8 @@
             if (info.mode === 'cycle') {
                 for (let n = 0; n <= K; n++) {
                     const cur = n === info.cur ? ' cur' : '';
-                    st.cells[n] = { text: bandYMDShort(bandCycleStart(info.start, n)), cls: cur };
-                    en.cells[n] = { text: bandYMDShort(bandCycleEnd(info.start, n)), cls: cur };
+                    st.cells[n] = { text: bandYMDShort(bandCycleStart(info.start, n, info.ext)), cls: cur };
+                    en.cells[n] = { text: bandYMDShort(bandCycleEnd(info.start, n, info.ext)), cls: cur };
                     const p = info.paidMap[n];
                     if (n === 0) pay.cells[0] = { text: `${bandYMDShort(p ? p.paid_at : info.start)}${t.band_deposit_paid_at ? ' (' + bandYMDShort(t.band_deposit_paid_at) + ')' : ''}`, cls: cur + (p ? ' paid' : '') };
                     else if (p) pay.cells[n] = { text: bandYMDShort(p.paid_at), cls: cur + ' paid' };
@@ -13231,6 +14006,9 @@
 
         async function approveBandProfile(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
+            // 타임 신청이 있으면 승인 폼(시작일·겹치는 주 → 달력 반영)으로, 없으면 종전처럼 상태만 승인
+            const pendingClaims = (((state.bandAdminCache || {}).claimsMap || {})[id] || []).filter(c => c.status === 'pending');
+            if (pendingClaims.length && !_bandSlotsUnavailable) { openBandApproval(id); return; }
             if (!confirm('이 팀의 가입을 승인하시겠습니까?')) return;
             _bandBusy(btn, true);
             const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
@@ -13264,6 +14042,8 @@
             }
             _bandBusy(btn, false);
             if (error) { console.error('band remove error:', error); showToast('처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+            // 고정 시간(타임 신청·반복 차단)도 오늘로 닫아 달력에서 열린다
+            try { await _bandEndClaims(((state.bandAdminCache || {}).claimsMap || {})[id] || [], bandTodayStr()); } catch (e) { console.error('band end claims:', e); }
             showToast('탈퇴 처리했습니다.');
             renderBandAdminTab();
             fetchAndRenderBandTeamList();
@@ -13276,11 +14056,13 @@
             if (!profile.band_start_date) { box.hidden = true; return; }
             let rows = [];
             try { rows = (await fetchBandPayments([profile.id]))[profile.id] || []; } catch (_) {}
+            try { profile._ext = bandExtDates((await fetchBandSkips([profile.id]))[profile.id] || []); } catch (_) {} // 1주 연장(건너뛰기권) 반영
             const info = bandCycleInfo(profile, rows);
             box.hidden = false;
+            const extNote = (profile._ext || []).length ? `<div class="band-muted" style="margin-top:4px">건너뛰기 1주 연장 ${profile._ext.length}회가 반영되어 회차 시작·입금일이 그만큼 뒤로 밀려 있어요.</div>` : '';
             box.innerHTML = `
                 <div class="band-card-head"><span>💰 회차·입금 안내</span>${bandStatusChip(info)}</div>
-                ${bandCycleSummaryHTML(profile, info)}
+                ${bandCycleSummaryHTML(profile, info)}${extNote}
                 <div class="band-muted" style="margin-top:4px">입금 계좌: <strong>토스뱅크 1000-2274-7678 최경수</strong> · 입금일에 안내 문자를 보내드립니다.</div>`;
         }
 

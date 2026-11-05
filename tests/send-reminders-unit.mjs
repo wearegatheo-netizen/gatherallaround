@@ -1,6 +1,6 @@
 // /send-reminders Cloudflare 함수 단위 테스트 — fetch 목으로 시나리오 검증
 // 실행: node tests/send-reminders-unit.mjs
-import { onRequest, bandCycleStart, bandCycleEnd, bandCycleDue, bandInferCycle, bandNextCycle } from '../functions/send-reminders.js';
+import { onRequest, bandCycleStart, bandCycleEnd, bandCycleDue, bandInferCycle, bandNextCycle, bandRentTargets, bandSkipResolution, bandExtDates } from '../functions/send-reminders.js';
 
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
@@ -143,11 +143,12 @@ const TEAM = (over = {}) => ({
   band_start_date: '2026-09-15', band_fee: 300000, instruments: 'anaha', email: 'anaha@band.gatheo.kr', ...over,
 });
 const at = (ymd, hm = '12:00') => { Date.now = () => Date.parse(`${ymd}T${hm}:00+09:00`); }; // 기본 정오 — 월세 발송 창(11시 이후) 안
-const bandRoutes = ({ teams = [TEAM()], payments = [], reminders = [], claim = { status: 201 }, solapi = { status: 200 } } = {}) => [
+const bandRoutes = ({ teams = [TEAM()], payments = [], reminders = [], skips = [], skipsStatus = 200, claim = { status: 201 }, solapi = { status: 200 } } = {}) => [
   ['performance_bookings?status=eq.approved', { body: [] }],
   ['profiles?member_type=eq.band', { body: teams }],
   ['band_payments?team_id=in.', { body: payments }],
   ['band_rent_reminders?team_id=in.', { body: reminders }],
+  ['band_skips?profile_id=in.', { status: skipsStatus, body: skips }],   // 건너뛰기권(1주 연장) — 마이그레이션 전엔 404
   ['band_rent_reminders?team_id=eq.', { method: 'DELETE', body: [] }],
   ['rest/v1/band_rent_reminders', { method: 'POST', status: claim.status, body: claim.body ?? [{}] }],
   ['api.solapi.com/messages', { method: 'POST', status: solapi.status, body: {} }],
@@ -167,6 +168,29 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
     [['2026-05-17', 0], ['2026-06-08', 1], ['2026-07-07', 2], ['2026-08-07', 3], ['2026-08-30', 4], ['2026-06-20', 1], ['2026-05-31', 1], ['2026-05-23', 0]].every(([d, n]) => bandInferCycle('2026-05-17', d) === n));
   chk('다음 회차: 시작 전 0, 시작일 1, 27일째 1, 28일째 2', bandNextCycle('2026-09-15', '2026-09-01') === 0
     && bandNextCycle('2026-09-15', '2026-09-15') === 1 && bandNextCycle('2026-09-15', '2026-10-12') === 1 && bandNextCycle('2026-09-15', '2026-10-13') === 2);
+  // 건너뛰기권 1주 연장(2026-11-05): 아나하 09/15 시작, 10/06(화, 등록 회차 4주차)을 건너뛰고 연장 → 1차 시작 10/13 → 10/20, 입금일 09/29 → 10/06, 2차도 7일씩
+  const EXT = ['2026-10-06'];
+  chk('연장 1회: 1차 시작 10/20 · 입금일 10/06 · 등록 종료일 10/13 · 2차 시작 11/17', bandCycleStart('2026-09-15', 1, EXT) === '2026-10-20' && bandCycleDue('2026-09-15', 1, EXT) === '2026-10-06'
+    && bandCycleEnd('2026-09-15', 0, EXT) === '2026-10-13' && bandCycleStart('2026-09-15', 2, EXT) === '2026-11-17', [bandCycleStart('2026-09-15', 1, EXT), bandCycleDue('2026-09-15', 1, EXT), bandCycleEnd('2026-09-15', 0, EXT)].join(' '));
+  chk('연장은 그 날짜 이전 경계엔 영향 없음(시작일·등록 입금일 그대로)', bandCycleStart('2026-09-15', 0, EXT) === '2026-09-15' && bandCycleDue('2026-09-15', 0, EXT) === '2026-09-15');
+  // 등록 회차 안 2주 연장 → 1차 10/27(5주 뒤 아님, 6주 뒤). 11/10 은 밀린 1차(10/27~11/23) 안이라 2차가 한 번 더 밀려 12/01, 3차 12/29
+  chk('연장 2회(등록 회차 안 2주) + 밀린 1차 안 1주: 1차 10/27 · 2차 12/01 · 3차 12/29', bandCycleStart('2026-09-15', 1, ['2026-10-06', '2026-09-29']) === '2026-10-27'
+    && bandCycleStart('2026-09-15', 2, ['2026-10-06', '2026-09-29', '2026-11-10']) === '2026-12-01' && bandCycleStart('2026-09-15', 3, ['2026-10-06', '2026-09-29', '2026-11-10']) === '2026-12-29',
+    [1, 2, 3].map(n => bandCycleStart('2026-09-15', n, ['2026-10-06', '2026-09-29', '2026-11-10'])).join(' '));
+  chk('1차 첫날(10/13) 건너뛰기는 1차 안의 일이라 1차 시작은 그대로, 2차 시작·입금일만 7일 뒤(11/17 · 11/03)', bandCycleStart('2026-09-15', 1, ['2026-10-13']) === '2026-10-13'
+    && bandCycleStart('2026-09-15', 2, ['2026-10-13']) === '2026-11-17' && bandCycleDue('2026-09-15', 2, ['2026-10-13']) === '2026-11-03');
+  chk('연장 뒤 다음 회차·귀속: 10/15 는 아직 등록 회차(nextCycle 1), 10/20 부터 2 · 구형 납부 10/08 → 1차 귀속', bandNextCycle('2026-09-15', '2026-10-15', EXT) === 1 && bandNextCycle('2026-09-15', '2026-10-20', EXT) === 2 && bandInferCycle('2026-09-15', '2026-10-08', EXT) === 1);
+  chk('시작일 전 날짜·중복 없는 ext 는 영향 없음', bandCycleStart('2026-09-15', 1, ['2026-09-01']) === '2026-10-13');
+  // 보상 실효 판정: 선택값 우선, 미선택은 마감(건너뛰는 날 − 7) 뒤 extend
+  const sk = (over) => ({ profile_id: TEAM_ID, skip_date: '2026-10-06', resolution: null, ...over });
+  chk('미선택 + 마감 전(09/29) → null · 마감 지남(09/30) → extend · substitute 선택은 그대로', bandSkipResolution(sk(), '2026-09-29') === null && bandSkipResolution(sk(), '2026-09-30') === 'extend'
+    && bandSkipResolution(sk({ resolution: 'substitute' }), '2026-12-01') === 'substitute' && bandSkipResolution(sk({ resolution: 'extend' }), '2026-09-01') === 'extend');
+  chk('bandExtDates: extend 와 마감 지난 미선택만 날짜순', JSON.stringify(bandExtDates([sk({ skip_date: '2026-11-03', resolution: 'extend' }), sk(), sk({ skip_date: '2026-10-20', resolution: 'substitute' })], '2026-10-01')) === '["2026-10-06","2026-11-03"]');
+  // bandRentTargets 에 skips 를 주면 입금일이 밀린다: 09/29 엔 대상 아님, 10/06 에 due
+  const tg = (today, skips) => bandRentTargets([TEAM()], [], [], today, skips);
+  chk('연장 skips → 09/29 대상 없음 · 10/06 due 1건(1차, 시작 10/20)', tg('2026-09-29', [sk({ resolution: 'extend' })]).length === 0
+    && (() => { const o = tg('2026-10-06', [sk({ resolution: 'extend' })]); return o.length === 1 && o[0].kind === 'due' && o[0].n === 1 && o[0].startN === '2026-10-20' && o[0].due === '2026-10-06'; })());
+  chk('skips 없으면 종전과 같이 09/29 due', tg('2026-09-29', []).length === 1 && tg('2026-09-29', []).startN !== undefined || tg('2026-09-29', [])[0].due === '2026-09-29');
 }
 // ── B1. 입금일 당일·미납 → 선점 후 문자 + 관리자 푸시
 {

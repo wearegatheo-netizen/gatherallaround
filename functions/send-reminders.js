@@ -67,18 +67,39 @@ const DAY_MS = 86400e3;
 const GATHEO_ADMIN_BAND_ID = 'wearegatheo'; // index.html GATHEO_ADMIN_BAND_ID 와 동일 — 관리자 팀은 문자 대상 아님
 const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js buildText · index.html 대관 조회 카드와 동일 문자열 유지
 export const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
-export const bandCycleStart = (start, n) => addDays(start, BAND_CYCLE_DAYS * n);
-export const bandCycleEnd = (start, n) => addDays(start, BAND_CYCLE_DAYS * n + 21);
+// 1주 무료 연장(건너뛰기권 extend, 2026-11-05): ext = 연장이 적용되는 건너뛴 날짜 목록. 그 날짜 뒤의 회차 경계가 날짜마다 7일씩 밀린다
+// — 시작일_n = start + 28n + 7×|{d ∈ ext : start ≤ d < 시작일_n}| (밀린 뒤 새로 포함되는 날짜가 있으면 다시 센다). index.html bandExtOffset 와 동일.
+export const bandExtOffset = (start, n, ext) => {
+    if (!ext || !ext.length) return 0;
+    let off = 0;
+    for (let i = 0; i < 60; i++) {
+        const s = addDays(start, BAND_CYCLE_DAYS * n + off);
+        const cnt = ext.filter(d => d >= start && d < s).length * 7;
+        if (cnt === off) break;
+        off = cnt;
+    }
+    return off;
+};
+export const bandCycleStart = (start, n, ext) => addDays(start, BAND_CYCLE_DAYS * n + bandExtOffset(start, n, ext));
+export const bandCycleEnd = (start, n, ext) => addDays(bandCycleStart(start, n + 1, ext), -7); // 마지막 주 첫 합주일(= 다음 시작일 − 7)
 export const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (3주차 사용일)
-export const bandCycleDue = (start, n) => (n <= 0 ? start : addDays(start, BAND_CYCLE_DAYS * n - BAND_DUE_OFFSET));
+export const bandCycleDue = (start, n, ext) => (n <= 0 ? start : addDays(bandCycleStart(start, n, ext), -BAND_DUE_OFFSET));
 // 다음 회차 번호: 오늘이 속한 회차 + 1 (시작일 전이면 0 = 등록 회차, 문자 대상 아님)
-export const bandNextCycle = (start, today) => {
-    const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
-    return days < 0 ? 0 : Math.floor(days / BAND_CYCLE_DAYS) + 1;
+export const bandNextCycle = (start, today, ext) => {
+    if (today < start) return 0;
+    let n = 0; while (n < 400 && bandCycleStart(start, n + 1, ext) <= today) n++;
+    return n + 1;
 };
 // 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7) — 입금일(시작 2주 전) 일주일 앞부터 시작 후 일주일까지
-export const bandInferCycle = (start, paidAt) =>
-    Math.max(0, Math.floor(((Date.parse(paidAt) - Date.parse(start)) / DAY_MS + 21) / BAND_CYCLE_DAYS));
+export const bandInferCycle = (start, paidAt, ext) => {
+    let n = 0; while (n < 400 && addDays(bandCycleStart(start, n + 1, ext), -21) <= paidAt) n++;
+    return n;
+};
+// 건너뛰기권(band_skips) 보상 실효 판정: 선택값 또는 마감(건너뛰는 날 − 7일) 뒤 자동 1주 연장 — index.html bandSkipResolution 와 동일
+export const BAND_SKIP_DEADLINE_DAYS = 7;
+export const bandSkipResolution = (s, today) => s.resolution || (today > addDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS) ? 'extend' : null);
+export const bandExtDates = (skips, today) => (skips || []).filter(s => bandSkipResolution(s, today) === 'extend').map(s => s.skip_date).sort();
+const extOf = (t) => (Array.isArray(t._ext) ? t._ext : []);
 
 const isAdminBand = (t) => {
     const loginId = String(t.instruments || '').trim().toLowerCase();
@@ -95,8 +116,8 @@ const kstHour = () => new Date(Date.now() + 9 * 3600e3).getUTCHours();
 // 입금 안내 문자. 90byte 초과 → 솔라피가 LMS로 자동 전환. 이모지는 EUC-KR에서 깨질 수 있어 넣지 않는다.
 export function bandRentText(team, n, kind, today) {
     const start = team.band_start_date;
-    const startN = bandCycleStart(start, n);
-    const due = bandCycleDue(start, n);
+    const startN = bandCycleStart(start, n, extOf(team));
+    const due = bandCycleDue(start, n, extOf(team));
     const name = team.band_name_kr || team.name || '';
     const cycle = `[${name}] 팀 고정 합주 다음 회차(${mdOf(startN)}(${wdOf(startN)})부터 4주)`;
     const lead = kind === 'last'
@@ -145,21 +166,23 @@ async function solapiAuthHeader(apiKey, apiSecret) {
 }
 
 // 오늘 문자를 보내야 할 팀·회차·종류 목록 (선점·발송 없음). 하루 한 팀 최대 1건.
-export function bandRentTargets(teams, payments, reminders, today) {
+export function bandRentTargets(teams, payments, reminders, today, skips) {
+    // 건너뛰기권 1주 연장 → 팀별 연장 날짜(t._ext)로 회차 경계를 미룬다
+    for (const t of teams) t._ext = bandExtDates((skips || []).filter(s => s.profile_id === t.id), today);
     const paidSet = new Set();
     for (const p of payments || []) {
         const team = teams.find(t => t.id === p.team_id);
         if (!team || !p.paid_at) continue;
-        const n = Number.isInteger(p.cycle_no) ? p.cycle_no : bandInferCycle(team.band_start_date, p.paid_at);
+        const n = Number.isInteger(p.cycle_no) ? p.cycle_no : bandInferCycle(team.band_start_date, p.paid_at, extOf(team));
         paidSet.add(`${p.team_id}:${n}`);
     }
     const sentSet = new Set((reminders || []).map(r => `${r.team_id}:${r.cycle_no}:${r.kind}`));
     const out = [];
     for (const t of teams) {
-        const n = bandNextCycle(t.band_start_date, today);
+        const n = bandNextCycle(t.band_start_date, today, extOf(t));
         if (n < 1 || paidSet.has(`${t.id}:${n}`)) continue;
-        const due = bandCycleDue(t.band_start_date, n);
-        const startN = bandCycleStart(t.band_start_date, n);
+        const due = bandCycleDue(t.band_start_date, n, extOf(t));
+        const startN = bandCycleStart(t.band_start_date, n, extOf(t));
         if (today < due || today >= startN) continue;
         const sent = (k) => sentSet.has(`${t.id}:${n}:${k}`);
         if (!sent('due')) out.push({ team: t, n, kind: 'due', due, startN });                                                   // 3주차(입금일)~
@@ -178,13 +201,15 @@ async function loadBandRentTargets(env, sbHeaders, today) {
     const teams = (await tRes.json().catch(() => [])).filter(t => t && t.band_start_date && !isAdminBand(t));
     if (!teams.length) return [];
     const ids = teams.map(t => t.id).join(',');
-    const [pRes, rRes] = await Promise.all([
+    const [pRes, rRes, sRes] = await Promise.all([
         fetch(`${base}band_payments?team_id=in.(${ids})&select=team_id,paid_at,cycle_no`, { headers: sbHeaders }),
         fetch(`${base}band_rent_reminders?team_id=in.(${ids})&select=team_id,cycle_no,kind`, { headers: sbHeaders }),
+        fetch(`${base}band_skips?profile_id=in.(${ids})&select=profile_id,skip_date,resolution`, { headers: sbHeaders }), // 표가 없으면(마이그레이션 전) 404 → 연장 없음
     ]);
     const payments = pRes.ok ? await pRes.json().catch(() => []) : [];
     const reminders = rRes.ok ? await rRes.json().catch(() => []) : [];
-    return bandRentTargets(teams, payments, reminders, today);
+    const skips = sRes.ok ? await sRes.json().catch(() => []) : [];
+    return bandRentTargets(teams, payments, reminders, today, Array.isArray(skips) ? skips : []);
 }
 
 export async function onRequest(context) {

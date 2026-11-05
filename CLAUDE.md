@@ -95,6 +95,24 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+  **실시간 시간 띠·타임 신청·건너뛰기권(2026-11-05, 마이그레이션 `20261105_band_slots.sql`)**: 「고정 가능 시간」 표를 손으로 고쳐 알리던 것을 사이트가 계산한다.
+  표 `band_slot_defs`(요일별 띠: start/end(**끝 시각 exclusive**)·label 오전/주간/야간·band_ok·rental_ok·open_from·note, 초기값 = 26.11.4 표) · `band_slot_claims`(팀 타임 신청, pending→approved, `block_id`) · `band_skips`(건너뛰기권) ·
+  `time_blocks.band_claim_id/skip_dates date[]`(그 날짜엔 반복 차단 미적용 — `_blockSkipped(b, dateStr)` 를 getBlock·perfBlocksForDate·월간 dayBlocks·커뮤니티 충돌 검사·`timeBlocksConflict` 가 모두 본다). time_blocks.end_time 은 종전처럼 마지막 슬롯 시작 — `_bandBlockEnd/_bandBlockEndExcl` 로 변환.
+  **예약 그리드 `TIMES` 는 08:00~22:00(끝 23:00) 15칸**(종전 10:00~) — 게더링·대관·커뮤니티 달력 공통, 안내문 「오전 8시 ~ 오후 11시」.
+  가용성 엔진: `bandAvailLoad(start)`(띠·신청·time_blocks 전체 + 26주 범위 reservations/performance_bookings(approved+살아 있는 pending)) → `bandDefStatus(def, ctx, {excludeProfile})` kind = off(대관만/불가) · wait(다른 팀 pending) · taken(end 없는/56일 넘게 남은 반복 차단, `[고정팀]` 이면 「고정팀 사용 중」, 끝나면 「M/D부터」) · later(open_from) · skip(겹치는 주 목록 `skips[{date,reasons}]`) · ok.
+  겹침 사유는 예약 「게더링 예약」·대관 「공간 대관(입금 대기)」·1회 차단(커뮤니티 모임/다른 팀 대체 합주/게더링 차단). 표 `bandAvailTableHTML(rows, {selectable…})` = 요일 줄 + `.band-slot-chip.{kind}` 칩.
+  **가입 신청**: 종전 주간/야간 체크박스(`#bandSignupLegacySlots`) 대신 `#bandSignupSlots`(희망 시작일 `#bandSignupStart` 기본 오늘+7 + 표, `bandSignupAvailInit/Refresh/Render`, 선택 `_bandSignupSel`) — band_slot_defs 표가 없으면(`_bandSlotsUnavailable`) 체크박스로 폴백.
+  제출은 `profiles.timeslots` 에 종전 표기(`bandSlotLegacyKey` 월_야간, `bandSlotSheetText` 는 오전 포함) + `band_start_date`=희망일 + `band_slot_claims` insert(pending). 타임 1개 이상·시작일 오늘 이후 필수.
+  **승인(운영자)**: 가입 신청 카드 [승인] → pending claim 이 있으면 confirm 대신 인라인 폼 `openBandApproval`(시작일·「차단 생성+건너뛰기권 발급 | 승인만」·타임별 체크 + `bandApprovalRecalc` 겹침 계산) → `bandApproveWithSlots`:
+  claim 마다 반복 time_block(`[고정팀] 팀명`, start_date, `band_claim_id`, `skip_dates`) → claim approved+block_id → `band_skips`(granted_by signup, 사유) → profiles approved(+band_start_date 비면 시작일, timeslots). `_bandInsertBlock` 은 새 컬럼이 없으면(PGRST204) 빼고 재시도+토스트.
+  승인 팀 카드 섹션 `bandSlotSectionHTML`: 고정 시간 줄([해제]=`bandEndClaim` → claim ended·block end_date 오늘), 건너뛰기권 줄(`bandSkipStatusChip`, [삭제]=`bandSkipDelete` → 대체 차단 삭제·skip_dates 제거), [+ 고정 시간]=`bandRegisterSlot`(기존 팀 달력 반영: 띠+시작일 → approved claim+block+skips),
+  [+ 건너뛰기권]=`bandGrantSkip`(앞으로 올 합주일 10개 중 택1 + 사유 → band_skips admin + `_bandBlockSkipDates`). 탈퇴 처리 `removeBandProfile` 는 `_bandEndClaims` 로 차단도 닫는다. 관리자 서브탭 「⏱️ 시간 띠」 `renderBandSlotsTab`(기준 시작일로 본 표 + 띠 정의 편집 `bandDefSave/Delete/Add`).
+  **건너뛰기권 규칙**: 보상은 **대체 합주(substitute: 건너뛰는 날 −7~전날, 같은 슬롯 수, 빈 시간만 — `bandSubstituteSheet` 가 gtSheetOpen 으로 날짜별 후보 칩, `bandSubstitutePick` 이 저장 직전 재확인 후 1회 time_block `[고정팀 대체] 팀명` + skip 갱신) 또는 1주 무료 연장(extend, `bandSkipExtend`)** 중 하나, 한 번 정하면 끝.
+  선택 마감 = 건너뛰는 날 −7(`BAND_SKIP_DEADLINE_DAYS`), 미선택이면 **lazy 로 extend 간주**(`bandSkipResolution(s, today)`; DB 는 안 바꿈) — 팀 화면 섹션 `#bandSlotSection`(`renderBandSlotSection`: 내 타임·권 목록·버튼).
+  **연장 → 회차 수식**: `bandExtDates(skips)` 날짜 목록을 팀에 `_ext` 로 붙이면 `bandCycleStart/End/Due/NextCycle/InferCycle(start, n, ext)` 가 그 날짜 뒤 경계를 7일씩 민다(`bandExtOffset` — 밀린 뒤 새로 포함되는 날짜는 다시 센다; 종료일_n = 시작일_{n+1} − 7).
+  세 곳 동일: `index.html`(`bandCycleInfo` 가 `team._ext` 사용 — 관리자 탭·현황표·본인 안내가 band_skips 를 받아 붙임) / `functions/send-reminders.js`(`loadBandRentTargets` 가 band_skips 조회 → `bandRentTargets(..., skips)`, 표 없으면 404 → 연장 없음) / `supabase/functions/check-band-payments`(`extDates`).
+  RLS: defs·claims 읽기 anon(가입 화면), 쓰기 운영 계정(`band_is_admin()` — 이 마이그레이션이 다시 만든다); claims insert 는 본인; skips 읽기·update 본인+운영, insert/delete 운영. 합주팀 계정(authenticated)이 달력을 계산·차단하도록 time_blocks(all)·reservations/performance_bookings(select) 에 authenticated 정책 추가(anon 과 같은 범위).
+  테스트 `tests/ui-band-slots.js`(48, 포트 8766)·`tests/send-reminders-unit.mjs` B0 연장 절. 운영 절차: 마이그레이션 → 기존 팀(화·수 야간 등)은 팀 관리 [+ 고정 시간]으로 달력 반영 → 시간 띠 탭에서 그 띠를 「고정팀 ✓」 로 되돌리면 「사용 중」이 자동 표시.
   **RLS(2026-10-28, `20261028_rls_band_polls.sql`)**: `band_members/band_comments/band_notices` 는 authenticated 전용 — 본인 팀(`band_profile_id = auth.uid()`, profiles.id = auth 사용자 id) + 운영 계정(`band_is_admin()` security definer: instruments 또는 이메일 접두 `wearegatheo`), 공지 쓰기는 운영 계정만.
   `polls/poll_votes` 는 카카오 멤버(anon)라 서버가 사람을 못 가려 종전 범위(anon 전부 허용) 그대로 RLS 만 켬 — 실질 보호는 없음, 잠그려면 쓰기를 서버 함수로. 마이그레이션은 기존 정책을 전부 지우고 다시 만든다. 로컬 검증: `/usr/lib/postgresql/16/bin` 으로 임시 DB 를 띄워(`runuser -u nobody`, /tmp, TCP 5499) auth.uid() 스텁 + 역할별 시나리오.
 - 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
@@ -189,8 +207,8 @@
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
   달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
 - 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search·community-admin 단위, shows/host/band UI —
-  Playwright는 scratchpad node_modules 필요, `ui-band.js`는 가짜 supabase 쿼리빌더로 밴드 관리자 화면 검증)
-- 개발 브랜치: `claude/exciting-gauss-83p6k1`
+  Playwright는 scratchpad node_modules 필요, `ui-band.js`·`ui-band-slots.js`는 가짜 supabase 쿼리빌더로 밴드 관리자·타임 신청 화면 검증)
+- 개발 브랜치: `claude/remove-main-page-button-oi3bml` (2026-11 현재; 작업 후 master 에 ff 머지)
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)
 
