@@ -18,8 +18,15 @@
             // 커뮤니티 모임 공유 링크 /meet/<id> (functions/meet/[id].js) — 인스타·카톡 인앱이 #해시를 버려서 경로형으로(2026-10-27)
             var mm = location.pathname.match(/^\/meet\/([0-9a-f-]{36})\/?$/i);
             if (mm && re.test(mm[1]) && !location.hash) history.replaceState({ page: 'community/meeting/' + mm[1].toLowerCase() }, '', '/#community/meeting/' + mm[1].toLowerCase());
-            // 고정 합주팀 가능 시간 보기 /band/times (functions/band/times.js) — 인앱 브라우저용 경로형(2026-11-05)
-            if (/^\/band\/times\/?$/i.test(location.pathname) && !location.hash) history.replaceState({ page: 'band/times' }, '', '/#band/times');
+            // 경로형 섹션 주소(2026-11-05) — /perf · /band/times · /gatheo/board/<id> · /shows/ticket/<코드> … 처럼 # 없이 들어와도
+            // 같은 해시 라우트로(인스타·카톡 인앱이 #해시를 버림). 서버는 functions/_middleware.js 가 셸을 200 으로 내며 같은 치환을 먼저 한다.
+            // 형식 검증은 라우터(_pageFromHash)가 하므로 여기선 안전한 글자만 옮긴다(아니면 섹션까지).
+            var ap = location.pathname.split('/').filter(Boolean);
+            if (!location.hash && ap.length && /^(gatheo|band|band-news|community|perf|shows|host)$/i.test(ap[0])) {
+                var rest = ap.slice(1, 4), ok = ap.length <= 4;
+                for (var i = 0; i < rest.length; i++) if (!/^[A-Za-z0-9_-]{1,64}$/.test(rest[i])) ok = false;
+                history.replaceState(null, '', '/' + location.search + '#' + [ap[0].toLowerCase()].concat(ok ? rest : []).join('/'));
+            }
         } catch (e) {}
     })();
     </script>
@@ -7039,7 +7046,7 @@
 
             // music.json 로드
             try {
-                const r = await fetch('music.json?v=' + Date.now());
+                const r = await fetch('/music.json?v=' + Date.now());
                 state.bgmTracks = await r.json();
             } catch (e) {
                 state.bgmTracks = [];
@@ -16483,9 +16490,10 @@
             fetchComments();
         }
 
-        // 게시글 링크 복사 — 카톡 공지에 붙이는 딥링크(#gatheo/board/<id>, 로그인 뒤 이 글로 복귀)
+        // 게시글 링크 복사 — 카톡 공지에 붙이는 딥링크(/gatheo/board/<id> = #gatheo/board/<id>, 로그인 뒤 이 글로 복귀).
+        // 경로형(2026-11-05): 카톡·인스타 인앱이 #해시를 버려도 열리도록 — functions/_middleware.js 가 셸을 내고 해시 라우트로 바꾼다.
         function copyBoardPostLink(id) {
-            const url = location.origin + location.pathname.replace(/[^/]*$/, '') + '#gatheo/board/' + id;
+            const url = location.origin + '/gatheo/board/' + id;
             const done = () => showToast('글 링크를 복사했습니다. 로그인이 필요한 멤버도 이 링크로 바로 글을 볼 수 있어요.');
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt('링크를 복사하세요', url));
             else prompt('링크를 복사하세요', url);
@@ -17133,7 +17141,7 @@
                 if (btn) { btn.disabled = false; btn.textContent = '양도 링크 만들기'; }
                 return;
             }
-            const url = `${location.origin}/#shows/claim/${out.token}`;
+            const url = `${location.origin}/shows/claim/${out.token}`; // 경로형 — 카톡으로 보내도 #해시가 안 깎이게(2026-11-05)
             _showsState.transferLinks[seatCode] = { url, expires_at: out.expires_at };
             t.transfers = Array.isArray(out.transfers) && out.transfers.length ? out.transfers
                 : [...(t.transfers || []).filter(x => !(x.seat_code === seatCode && x.status === 'pending')), { seat_code: seatCode, seat_no: seatNo, status: 'pending', expires_at: out.expires_at }];
@@ -17238,7 +17246,7 @@
             if (typeof qrcode === 'undefined') return;
             try {
                 const qr = qrcode(0, 'M');
-                qr.addData(location.origin + '/#host/checkin/' + code);
+                qr.addData(location.origin + '/host/checkin/' + code);
                 qr.make();
                 const n = qr.getModuleCount();
                 const cell = 10, margin = 40, size = n * cell + margin * 2;
@@ -17309,7 +17317,7 @@
             _pushNav('shows/ticket/' + out.ticket.code);
         }
 
-        // 티켓 QR — 체크인 딥링크(#host/checkin/CODE)를 인코딩. 호스트가 폰 기본 카메라로
+        // 티켓 QR — 체크인 딥링크(/host/checkin/CODE = #host/checkin/CODE, 2026-11-05 경로형)를 인코딩. 예전 해시형 QR 도 그대로 동작. 호스트가 폰 기본 카메라로
         // 스캔하면 사이트가 열리고 로그인 상태면 원탭 체크인된다. 라이브러리 미로드 시
         // 예매번호 텍스트가 이미 표시돼 있으므로 조용히 생략.
         function renderTicketQR(el, code) {
@@ -17317,7 +17325,7 @@
             if (typeof qrcode === 'undefined') { el.innerHTML = ''; return; }
             try {
                 const qr = qrcode(0, 'M');
-                qr.addData(location.origin + '/#host/checkin/' + code);
+                qr.addData(location.origin + '/host/checkin/' + code);
                 qr.make();
                 el.innerHTML = '<div class="qr-frame">' + qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }) + '</div>';
             } catch (_) { el.innerHTML = ''; }
@@ -18889,7 +18897,7 @@ ${body}
 
             async function initBgm() {
                 try {
-                    const res = await fetch('music.json?v=' + Date.now());
+                    const res = await fetch('/music.json?v=' + Date.now());
                     tracks = await res.json();
                 } catch (e) {
                     titleEl.innerHTML = '<span>BGM</span>곡 없음';

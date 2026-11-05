@@ -275,8 +275,8 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
     cancelBtn: [...document.querySelectorAll('#shows-container button')].some(b => b.textContent.trim() === '링크 취소'),
     tBtns: [...document.querySelectorAll('#shows-container button')].filter(b => b.textContent.trim() === '양도').length,
   }));
-  chk('링크 만들기: create_transfer(code·phone·seat_code) → #shows/claim/<토큰> 링크 + 뒤 화면 「양도 대기 중」·[링크 취소], 그 좌석 [양도] 숨김', s.call && s.call.code === 'AB3XKP' && s.call.phone === '01012345678'
-    && s.call.seat_code === 'ZZ9PQR' && s.url === `${new URL(p.url()).origin}/#shows/claim/${TOKEN}` && s.pend && s.cancelBtn && s.tBtns === 1, JSON.stringify(s));
+  chk('링크 만들기: create_transfer(code·phone·seat_code) → 경로형 /shows/claim/<토큰> 링크(# 없음, 2026-11-05) + 뒤 화면 「양도 대기 중」·[링크 취소], 그 좌석 [양도] 숨김', s.call && s.call.code === 'AB3XKP' && s.call.phone === '01012345678'
+    && s.call.seat_code === 'ZZ9PQR' && s.url === `${new URL(p.url()).origin}/shows/claim/${TOKEN}` && s.pend && s.cancelBtn && s.tBtns === 1, JSON.stringify(s));
   await p.evaluate(() => gtSheetClose());
   await p.evaluate(() => { window.__apiQueue.push({ ok: true, transfers: [] }); });
   await p.click('#shows-container button:has-text("링크 취소")'); await p.waitForTimeout(300);

@@ -9,7 +9,7 @@
 - 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
-  QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
+  QR 티켓 = `/host/checkin/{code}` 딥링크(경로형, 2026-11-05 — 예전 `#host/checkin/` QR 도 동작) (vendor/qrcode-generator 자체 호스팅).
   **포스터 꾸미기 작품을 공연 포스터로**(2026-10-13): 공연 등록 폼 [🎨 포스터 꾸미기에서 가져오기](`openWappenPosterPicker`) — 같은 출처라 `localStorage.wappen_session` 을 그대로
   `/wappen-api {action:'my_content', session}` 에 보내 내 작품(`preview_url` 있는 것)을 격자로, 고르면 `_hostState.posterUrl` = 미리보기(1080px JPEG) URL(`pickWappenPoster`, `#evPosterPreview` 썸네일).
   세션 없음/401 → 로그인 안내 + [포스터 꾸미기 열기](새 탭). 서버 `posterOk`(event-api)는 `community-images/events/` 와 `wappen/previews/` 두 접두만 허용(`POSTER_PREFIXES`).
@@ -23,7 +23,7 @@
   ② 원 예매 활성 좌석이 1장이면 **통째 명의 변경**(buyer_name/phone·예매번호 재발급) ③ 아니면 **새 예매(1매·confirmed, transferred_from)** 로 분리 + 좌석 이동 + 원 qty−1. 좌석 코드는 항상 **재발급**(원 QR 무효, 체크인은 좌석 코드라 추가 차단 불필요).
   본인 번호 → 409 `self`, 실패 시 토큰 되돌림(`revert`). `lookup` 응답에 `transfers`(대기·완료, 만료는 lazy 로 `expired`), 좌석·예매 취소 시 대기 링크는 `voidPendingTransfers` 로 정리.
   **양도받은 좌석·예매는 받는 사람이 직접 취소 불가**(`cancel_seat`/`cancel` 409 `transferred`, 호스트 취소는 가능) — 환불은 호스트와. 재양도는 같은 규칙으로 허용.
-  화면: 티켓 좌석 블록 [양도] → `openTransferSheet`(gtSheetOpen) → `createTransferLink` → 링크 `#shows/claim/<토큰>` 공유(`shareTransferLink` navigator.share → 복사)·[링크 취소](`cancelTransferLink`), 대기 중 좌석은 `.tk-pend`,
+  화면: 티켓 좌석 블록 [양도] → `openTransferSheet`(gtSheetOpen) → `createTransferLink` → 링크 `/shows/claim/<토큰>`(경로형, = `#shows/claim/<토큰>`) 공유(`shareTransferLink` navigator.share → 복사)·[링크 취소](`cancelTransferLink`), 대기 중 좌석은 `.tk-pend`,
   완료된 좌석은 「양도 완료 → 이*희」 블록(좌석 목록엔 없음, `transfers` 로 그림). 받는 사람 `renderTransferClaim(token)`(라우트 `shows/claim/<24자>`, `_TRANSFER_TOKEN_RE`) → `claimTransfer` → 바로 티켓 화면.
   양도받은 티켓은 머리에 🎁 표식·취소 버튼 없음(`_ticketTransferred`), 호스트 명단은 「양도받음 · 원예매 OOO」 칩·좌석 번호에 `·양도`. 테스트 `tests/event-api-unit.mjs` 13절·`tests/ui-shows.js` 4b절, 캡처 scratchpad `shows/shoot-transfer.js`.
 - **공연 예매·공간 대관·호스트 센터 머리·레이아웃(2026-10-16, 커뮤니티·게더링 개편 반영 — 탭 성격별로 다르게)**: 세 화면 모두 큰 제목 헤더(`.perf-header`, 삭제됨) 대신
@@ -47,6 +47,14 @@
   합치기 `_mergeMusicResults`(애플 먼저·정규화 키 중복 제거), 결과 없음·실패 시 입력값 그대로 등록하는 칩/줄.
   서버 함수는 우리 출처만(Sec-Fetch-Site/Origin/Referer), q≤60자, 1일 캐시(Deezer IP 쿼터 5초 50회 보호), 실패는 **500** JSON(502 는 Cloudflare 가 본문을 가림).
   상태는 `functions-diagnostics` 워크플로로 확인.
+- **경로형 섹션 주소(2026-11-05, 「모든 링크 # 빼도 연결」)**: 인스타 프로필 링크·카톡 인앱 브라우저가 URL 의 `#해시`를 버려 `/#perf` 같은 링크가 포털에서 멈췄다.
+  SPA 섹션(`_NAV_PAGES`: gatheo·band·band-news·community·perf·shows·host)의 **모든 해시 주소를 경로로도 받는다** — `/perf` = `/#perf`, `/band/times`, `/shows/ticket/<코드>`, `/gatheo/board/<id>`, `/community/test` …
+  서버 `functions/_middleware.js`(`appRouteFromPath` → `appRouteResponse`): GET/HEAD 이고 첫 세그먼트가 섹션이면 루트 셸(`env.ASSETS` `/`)을 그 URL 에서 200 으로 내고 `<head>` 머리에
+  `history.replaceState(null,'','/'+location.search+'#<경로>')` 를 넣는다(`appShellWithRoute`, 섹션별 og:title·description·url `SECTION_OG`). **`<base>` 는 넣지 않는다**(넣으면 이후 `'#…'` 상대 replaceState 가 쿼리를 떨굼; 셸 자산은 전부 절대 경로 — `music.json` 도 `/music.json` 로 고침).
+  세그먼트는 `[A-Za-z0-9_-]{1,64}`·최대 4단만 옮기고(스크립트 문자열 안전) 아니면 섹션까지 절단, 딥링크 형식 검증은 라우터 `_pageFromHash` 그대로. `/shows/<uuid>`·`/community/meeting/<uuid>` 는 `show/[id].js`·`meet/[id].js` 의 onRequest 에 맡겨 포스터 OG 까지 같게.
+  ASSETS 가 없으면 `next()`(Cloudflare 정적 SPA 폴백 — 루트에 404.html 이 없어 모르는 경로에 index.html 200) + **index.html 머리 인라인 스크립트가 같은 치환**(대소문자 무시, 끝 슬래시 허용). 섹션이 아닌 경로(`/nope`)는 포털 그대로.
+  주소창은 종전처럼 `/#perf` 로 바뀐다(라우터·`_pushNav` 는 해시 그대로 — 손대지 않음). 사이트가 만드는 링크는 경로형: 게시글 링크 복사·티켓 양도 링크·체크인 QR·모임장 수락 메일(`/meet/<id>`). 공유 버튼(`/show/<id>`·`/meet/<id>`)·쿼리형 초대(`?hostjoin=`·`?eventjoin=`)는 종전 그대로.
+  새 섹션을 `_NAV_PAGES` 에 추가하면 `APP_SECTIONS`(미들웨어)·머리 스크립트 정규식도 같이. 테스트 `tests/middleware-unit.mjs`(경로형 절)·`tests/ui-path-routes.js`(정적 폴백/미들웨어 셸 두 방식, 가짜 출처 route).
 - 부팅·세션 복원(`initSession`): 루트(포털)로 들어오면 저장된 세션(Supabase 이메일 = 게더링 회원/합주팀 공용, 카카오 캐시 `gaa_kakao_uid`)을
   **상태만 복구하고 화면은 포털**에 둔다(2026-10-06, 직전 계정 화면이 바로 뜨던 문제). 포털의 [게더링]/[고정 합주팀] 버튼(`showGatheoSection`/`showBandSection`)이
   복구된 세션이 있으면 로그인 폼 대신 `loginUI`/`loginBandUI` 로 바로 진입. 섹션 딥링크·새로고침(`#gatheo/…`, `#band`)은 종전처럼 바로 그 화면
@@ -61,7 +69,7 @@
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
   다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 사진이 없거나 실패하면 숨기지 않고 `.noimg` 어두운 배경(워드마크·버튼·헤드라인은 남아야 함). 대관 사진을 추가하면 webp 도 같이 넣을 것.
   히어로 클릭 = 공간 대관(`role=button`, Enter/Space — `event.target===this` 로 버튼에서 올라온 키는 무시, 버튼은 click/keydown 전파 차단).
-- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크).
+- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크, 2026-11-05부터 경로형 `/gatheo/board/<uuid>` 로 복사).
   비로그인으로 `#gatheo/…` 에 들어오면 `_routeToPage` 가 `_pendingGatheoSub`(메모리) + `sessionStorage.gaa_return_to`(`_saveReturnTo`)에 경로를 남기고, `handleLogin` 도 카카오 로그인 직전에 저장한다
   (인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 해시·메모리가 날아감 — 호스트 센터 `gaa_return_host` 와 같은 이유). `initSession` 머리에서 `gaa_return_to` 가 있으면 해시를 복원하고, 카카오 토큰이 살아 있고
   `gaa_kakao_uid` 가 아직 없으면 `_completeKakaoLogin()`(handleLogin 성공 처리를 분리한 것)으로 로그인을 마저 한다. `loginUI` 가 `_takeReturnTo()` 로 소비해 탭·글(`gtOpenPost`)로 이동, `location.search` 를 지울 때 해시는 남긴다.
@@ -103,7 +111,7 @@
   겹침 사유는 예약 「게더링 예약」·대관 「공간 대관(입금 대기)」·1회 차단(커뮤니티 모임/다른 팀 대체 합주/게더링 차단). 표 `bandAvailTableHTML(rows, {selectable…})` = 요일 줄 + `.band-slot-chip.{kind}` 칩.
   **합주팀 랜딩(2026-11-05 「가입 전에 일정부터」)**: 첫 화면은 메뉴 `#band-menu` 3개 — [📅 고정 가능 시간 보기]=`showBandScheduleView()` / [✍️ 가입 신청]=`showBandSignupForm()` / [🔑 로그인]=`showBandLoginForm()`(`showBandSection` 이 `showBandMenu()`, 각 화면 [← 처음으로]).
   시간표 화면 `#band-schedule-view` = 처음 보는 사람용 설명 `.band-guide`(고정 합주팀이란·희망 시작일·칩 5종 읽는 법(`.band-slot-chip.mini`)·건너뛰기권·승인 절차) + 희망 시작일 `#bandScheduleStart` + 표 `#bandScheduleBody` + CTA `#bandScheduleNextBtn`(「이 타임으로 가입 신청하기 (N개)」/「가입 신청으로」).
-  딥링크 `#band/times`(라우터 `band` + segs[1]) 와 경로형 `/band/times`(`functions/band/times.js` — /show·/meet 처럼 셸+`<base href="/">`+replaceState, 머리 스크립트 정적 폴백) 로 인스타·카톡에 붙일 수 있다.
+  딥링크 `#band/times`(라우터 `band` + segs[1]) 와 경로형 `/band/times`(아래 「경로형 섹션 주소」 공통 처리 — 전용 함수 `functions/band/times.js` 는 2026-11-05 삭제) 로 인스타·카톡에 붙일 수 있다.
   **표는 두 화면이 공유**: 가입 폼 안 `#bandSignupSlots`(`#bandSignupStart` + `#bandSignupAvailBody`, [표 읽는 법 · 자세히] 링크)과 시간표 화면이 같은 자료 `_bandSignupAvail`·선택 `_bandSignupSel`·희망일 `state.bandWishStart`(`bandWishStartChange` 가 두 입력칸 동기화) 를 쓰고 `bandSignupAvailRender` 가 두 컨테이너에 요약 줄(`.band-avail-summary` 바로 가능/건너뛰기 조건/날짜 지정 수)+범례+표+선택 상세를 그린다.
   선택 불가 칩도 누를 수 있다(`.na`, `bandScheduleChipInfo`): 개방일·종료 예정이면 희망 시작일을 그날로 옮기고, 아니면 토스트로 이유. band_slot_defs 표가 없거나 띠 0개면 `state.bandSignupFallback` — 가입 폼은 종전 체크박스 `#bandSignupLegacySlots`, 시간표 화면은 안내문.
   제출은 `profiles.timeslots` 에 종전 표기(`bandSlotLegacyKey` 월_야간, `bandSlotSheetText` 는 오전 포함) + `band_start_date`=희망일 + `band_slot_claims` insert(pending). 타임 1개 이상·시작일 오늘 이후 필수(`_bandSignupUsesTable()` 일 때).
