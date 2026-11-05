@@ -1664,7 +1664,7 @@
         .band-slot-chip.na { cursor: pointer; }
         .band-signup-slots { text-align: left; }
         .band-signup-start { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: var(--wds-gray-700); margin-bottom: 8px; }
-        .band-signup-start input[type="date"] { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background: var(--wds-white); color: var(--wds-black); -webkit-appearance: none; appearance: none; }
+        .band-signup-start input[type="date"], .band-signup-start select { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background: var(--wds-white); color: var(--wds-black); -webkit-appearance: none; appearance: none; }
         .band-avail { display: flex; flex-direction: column; gap: 6px; }
         .band-avail-row { display: flex; align-items: flex-start; gap: 8px; }
         .band-avail-day { flex: 0 0 22px; font-weight: 700; font-size: 0.86rem; color: var(--wds-gray-700); padding-top: 9px; text-align: center; }
@@ -2477,15 +2477,16 @@
                 <div class="band-guide">
                     <p><strong>고정 합주팀</strong>은 매주 같은 요일·시간에 합주실을 고정으로 쓰는 팀이에요(4주 단위 회차). 아래 표는 지금 잡혀 있는 예약·대관·다른 고정팀을 반영해 <strong>어느 요일 몇 시부터 고정이 가능한지</strong>를 실시간으로 보여줘요.</p>
                     <ul>
-                        <li><strong>희망 시작일</strong>을 바꾸면 그날부터 26주를 기준으로 다시 계산해요.</li>
+                        <li><strong>희망 시작일</strong>과 <strong>예상 사용 기간</strong>을 바꾸면 그 기간 안에서 겹치는 예약·대관이 있는지 다시 계산해요.</li>
                         <li><span class="band-slot-chip ok mini"><span class="s">가능</span></span> 바로 시작할 수 있어요.</li>
-                        <li><span class="band-slot-chip skip mini"><span class="s">N주 건너뛰기</span></span> 이미 잡힌 일정과 겹치는 주가 N번 있어요. 그 주만 건너뛰면 되고, 주마다 <strong>건너뛰기권</strong>(같은 길이의 대체 합주 또는 1주 무료 연장 중 선택)을 드려요.</li>
+                        <li><span class="band-slot-chip skip mini"><span class="s">N주 건너뛰기</span></span> 이미 잡힌 일정과 겹치는 주가 N번 있어요. 그 주만 건너뛰면 되고, 주마다 <strong>건너뛰기권</strong>(같은 고정 사용 시간의 대체 합주 또는 1주 무료 연장 중 선택)을 드려요.</li>
                         <li><span class="band-slot-chip later mini"><span class="s">M/D부터</span></span> 그 날짜부터 신청할 수 있어요. 누르면 희망 시작일이 그날로 바뀌어요.</li>
                         <li><span class="band-slot-chip taken mini"><span class="s">고정팀 사용 중</span></span> 다른 팀이 쓰는 시간, <span class="band-slot-chip off mini"><span class="s">대관만</span></span> 고정팀은 받지 않는 시간이에요.</li>
                     </ul>
                     <p>마음에 드는 타임을 고르고 <strong>가입 신청</strong>을 보내면 운영자가 확인 후 승인해요. 승인되면 그 시간이 예약 달력에서 고정팀 자리로 막혀요.</p>
                 </div>
                 <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandScheduleStart" onchange="bandWishStartChange(this.value)"></label>
+                <label class="band-signup-start"><span>예상 사용 기간</span><select id="bandScheduleMonths" onchange="bandWishMonthsChange(this.value)"><option value="1">1개월</option><option value="2">2개월</option><option value="3">3개월</option><option value="4">4개월</option><option value="5">5개월</option><option value="6" selected>6개월</option><option value="9">9개월</option><option value="12">12개월</option></select></label>
                 <div id="bandScheduleBody" class="band-signup-slots"><div class="band-empty">불러오는 중…</div></div>
                 <button type="button" id="bandScheduleNextBtn" class="email-primary-btn" onclick="showBandSignupForm()">가입 신청으로</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
@@ -2530,6 +2531,7 @@
                 <!-- 실시간 가능 타임 — 시간표 화면과 같은 자료·선택을 그린다. 표가 없으면(마이그레이션 전·띠 0개) 아래 종전 체크박스로 폴백 -->
                 <div id="bandSignupSlots" class="band-signup-slots hidden">
                     <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandSignupStart" onchange="bandWishStartChange(this.value)"></label>
+                    <label class="band-signup-start"><span>예상 사용 기간</span><select id="bandSignupMonths" onchange="bandWishMonthsChange(this.value)"><option value="1">1개월</option><option value="2">2개월</option><option value="3">3개월</option><option value="4">4개월</option><option value="5">5개월</option><option value="6" selected>6개월</option><option value="9">9개월</option><option value="12">12개월</option></select></label>
                     <div id="bandSignupAvailBody"><div class="band-empty">불러오는 중…</div></div>
                 </div>
                 <div id="bandSignupLegacySlots" class="band-timeslot-grid" style="margin-bottom:4px">
@@ -12736,7 +12738,7 @@
                         status: 'pending',
                         role: '일반'
                     };
-                    if (picked) meta.band_start_date = picked.start; // 희망 시작일(현황표 「등록 예정일」, 승인 때 확정)
+                    if (picked) { meta.band_start_date = picked.start; meta.band_expected_months = `${picked.months}개월`; } // 희망 시작일·예상 사용 기간(현황표 「등록 예정일·사용 개월수」, 승인 때 확정·겹침 계산 범위)
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
                     if (picked && picked.defs.length) { // 타임 신청 행 — 승인 때 달력(time_blocks)에 반영된다
@@ -12745,7 +12747,7 @@
                         if (cErr) console.error('band_slot_claims insert error:', cErr);
                     }
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
-                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망' : ''}`).catch(() => {}), 400);
+                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''}`).catch(() => {}), 400);
                 }
                 showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
@@ -13254,7 +13256,10 @@
         // 시간 띠 하나의 상태. kind: off(신청 불가) / later(개방일 전) / wait(다른 팀 신청 대기) / taken(다른 고정팀·장기 차단) / skip(가능, N주 건너뛰기) / ok
         function bandDefStatus(def, ctx, opts = {}) {
             const { s: sIdx, e: eIdx } = _bandSlotIdx(def.start_time, def.end_time);
-            if (def.band_ok === false) return { kind: 'off', label: def.rental_ok === false ? '불가' : '대관만', skips: [] };
+            if (def.band_ok === false) {
+                if (def.off_reason === 'team') return { kind: 'taken', label: '고정팀 사용 중', who: '고정팀 사용 중', skips: [] }; // 기존 고정팀이 쓰는 띠(달력 반영 전) — "대관만"으로 잘못 보이지 않게
+                return { kind: 'off', label: def.rental_ok === false ? '불가' : '대관만', skips: [] };
+            }
             const other = (ctx.claims || []).filter(c => c.day_of_week === def.day_of_week && c.profile_id !== opts.excludeProfile && (!c.end_date || c.end_date >= ctx.startDate)
                 && _bandOverlapIdx(sIdx, eIdx, _bandSlotIdx(c.start_time, c.end_time).s, _bandSlotIdx(c.start_time, c.end_time).e));
             if (other.some(c => c.status === 'pending')) return { kind: 'wait', label: '다른 팀 신청 중', skips: [] };
@@ -13304,7 +13309,20 @@
         const _bandSignupDefaultStart = () => _bandAddDays(bandTodayStr(), 7);
         const _bandAvailBodies = () => ['bandScheduleBody', 'bandSignupAvailBody'].map(id => document.getElementById(id)).filter(Boolean);
         const _bandStartInputs = () => ['bandScheduleStart', 'bandSignupStart'].map(id => document.getElementById(id)).filter(Boolean);
+        const _bandMonthsInputs = () => ['bandScheduleMonths', 'bandSignupMonths'].map(id => document.getElementById(id)).filter(Boolean);
         const bandWishStart = () => (/^\d{4}-\d{2}-\d{2}$/.test(state.bandWishStart || '') ? state.bandWishStart : _bandSignupDefaultStart());
+        // 예상 사용 기간(개월) — 겹치는 예약·대관은 이 기간 안에서만 찾는다(가입 때 profiles.band_expected_months 로 저장)
+        const BAND_MONTHS_OPTS = [1, 2, 3, 4, 5, 6, 9, 12];
+        const BAND_MONTHS_DEFAULT = 6;
+        const bandWishMonths = () => { const m = parseInt(state.bandWishMonths, 10); return BAND_MONTHS_OPTS.includes(m) ? m : BAND_MONTHS_DEFAULT; };
+        const _bandAddMonths = (ymd, m) => { const d = new Date(ymd + 'T00:00:00'); d.setMonth(d.getMonth() + m); return d.toLocaleDateString('en-CA'); };
+        const bandMonthsFromText = (t) => { const m = parseInt((String(t || '').match(/(\d+)\s*개월/) || [])[1], 10); return m > 0 && m <= 36 ? m : BAND_MONTHS_DEFAULT; }; // '6개월 이상' → 6
+        const bandAvailDaysFor = (start, months) => Math.max(7, bandDiffDays(_bandAddMonths(start, months), start));
+        function bandWishMonthsChange(v) {
+            state.bandWishMonths = v;
+            _bandMonthsInputs().forEach(i => { i.value = String(bandWishMonths()); });
+            bandSignupAvailRefresh();
+        }
         // 희망 시작일 변경(두 화면 입력칸 동기화) → 다시 계산
         function bandWishStartChange(v) {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(v || '')) return;
@@ -13318,6 +13336,7 @@
             if (!_bandAvailBodies().length) return;
             const start = bandWishStart();
             _bandStartInputs().forEach(i => { i.min = bandTodayStr(); i.value = start; });
+            _bandMonthsInputs().forEach(i => { i.value = String(bandWishMonths()); });
             await bandSignupAvailRefresh();
             // 폴백: 표가 없거나(마이그레이션 전) 띠가 하나도 없으면 가입 폼은 종전 체크박스, 시간표 화면은 안내문
             state.bandSignupFallback = !supabaseClient || _bandSlotsUnavailable || !_bandSignupAvail || !_bandSignupAvail.rows.length;
@@ -13331,7 +13350,7 @@
             const start = bandWishStart();
             _bandAvailBodies().forEach(b => { b.innerHTML = _bandLoadingHTML(); });
             try {
-                const ctx = await bandAvailLoad(start);
+                const ctx = await bandAvailLoad(start, bandAvailDaysFor(start, bandWishMonths()));
                 if (_bandSlotsUnavailable) { _bandSignupAvail = null; return; }
                 const rows = ctx.defs.map(def => ({ def, st: bandDefStatus(def, ctx) }));
                 _bandSignupAvail = { ctx, rows };
@@ -13357,14 +13376,14 @@
                 const skipItems = picked.flatMap(r => r.st.skips.map(s => ({ ...s, def: r.def }))).sort((a, b) => a.date.localeCompare(b.date));
                 detail = `<div class="band-avail-detail"><div><strong>선택한 타임</strong> · ${picked.map(r => escHtml(bandDefText(r.def))).join(' / ')}</div>`
                     + (skipItems.length
-                        ? `<div style="margin-top:6px">이미 잡힌 일정과 겹치는 주가 <strong>${skipItems.length}주</strong> 있어요. 승인되면 그 주마다 <strong>건너뛰기권 1장</strong>이 발급되고, 팀 페이지에서 <strong>같은 길이의 대체 합주(그 주 7일 전~전날)</strong> 또는 <strong>1주 무료 연장</strong> 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div>
+                        ? `<div style="margin-top:6px">이미 잡힌 일정과 겹치는 주가 <strong>${skipItems.length}주</strong> 있어요. 승인되면 그 주마다 <strong>건너뛰기권 1장</strong>이 발급되고, 팀 페이지에서 <strong>같은 고정 사용 시간의 대체 합주(그 주 7일 전~전날)</strong> 또는 <strong>1주 무료 연장</strong> 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div>
                            <ul class="band-avail-skips">${skipItems.map(s => `<li>${_bandMDW(s.date)} ${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</li>`).join('')}</ul>`
-                        : `<div class="band-muted" style="margin-top:4px">${bandMD(ctx.startDate)} 시작 기준 26주 안에 겹치는 일정이 없어요.</div>`)
+                        : `<div class="band-muted" style="margin-top:4px">예상 사용 기간(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안에 겹치는 일정이 없어요.</div>`)
                     + '</div>';
             } else detail = '<div class="band-muted" style="margin-top:8px;text-align:left">원하는 타임을 눌러 선택해주세요(여러 개 가능). 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
             // 한 줄 요약(처음 보는 사람용): 시작일 기준 바로 가능 / 건너뛰기 조건 / 날짜 지정 수
             const cnt = (k) => rows.filter(r => r.st.kind === k).length;
-            const summary = `<div class="band-avail-summary"><strong>${_bandMDW(ctx.startDate)} 시작 기준</strong> · 바로 가능 <b>${cnt('ok')}</b>개 · 건너뛰기 조건 <b>${cnt('skip')}</b>개 · 날짜 지정 <b>${rows.filter(r => r.st.from).length}</b>개${cnt('taken') + cnt('wait') + cnt('off') ? ` · 불가 ${cnt('taken') + cnt('wait') + cnt('off')}개` : ''}</div>`;
+            const summary = `<div class="band-avail-summary"><strong>${_bandMDW(ctx.startDate)}부터 ${bandWishMonths()}개월(~${bandMD(ctx.endDate)}) 기준</strong> · 바로 가능 <b>${cnt('ok')}</b>개 · 건너뛰기 조건 <b>${cnt('skip')}</b>개 · 날짜 지정 <b>${rows.filter(r => r.st.from).length}</b>개${cnt('taken') + cnt('wait') + cnt('off') ? ` · 불가 ${cnt('taken') + cnt('wait') + cnt('off')}개` : ''}</div>`;
             const table = bandAvailTableHTML(rows, { selectable: true, selected: _bandSignupSel, onToggle: 'bandSignupToggleSlot', onInfo: 'bandScheduleChipInfo', publicView: true });
             _bandAvailBodies().forEach(body => { body.innerHTML = summary + _bandAvailLegend() + table + detail; });
             const next = document.getElementById('bandScheduleNextBtn');
@@ -13374,7 +13393,7 @@
         // 가입 신청 제출용: 새 표가 살아 있으면 {defs, start} / 폴백(종전 체크박스)이면 null
         function bandSignupSelection() {
             if (!_bandSignupUsesTable()) return null;
-            return { start: bandWishStart(), defs: _bandSignupAvail.rows.filter(r => _bandSignupSel.has(r.def.id)).map(r => r.def) };
+            return { start: bandWishStart(), months: bandWishMonths(), defs: _bandSignupAvail.rows.filter(r => _bandSignupSel.has(r.def.id)).map(r => r.def) };
         }
 
         // ── 관리자: 승인(달력 반영)·고정 시간 등록·건너뛰기권 부여·해제 ──
@@ -13424,19 +13443,21 @@
             if (!start) { list.innerHTML = _bandEmptyHTML('시작일을 선택해주세요.'); return; }
             const claims = ((_bandCache().claimsMap || {})[id] || []).filter(c => c.status === 'pending');
             list.innerHTML = _bandLoadingHTML();
-            const ctx = await bandAvailLoad(start);
+            const team = (_bandCache().teams || []).find(x => x.id === id) || {};
+            const months = bandMonthsFromText(team.band_expected_months); // 가입 때 적은 예상 사용 기간 안에서만 겹침을 찾는다
+            const ctx = await bandAvailLoad(start, bandAvailDaysFor(start, months));
             const items = claims.map(c => {
                 const def = ctx.defs.find(d => d.id === c.def_id);
                 const st = bandDefStatus({ ...(def || {}), ...c, band_ok: true, open_from: def ? def.open_from : null }, ctx, { excludeProfile: id });
                 return { claim: c, def, st };
             });
             _bandApprovalCtx[id] = { ctx, items, start };
-            list.innerHTML = items.length ? items.map(({ claim, def, st }) => `
+            list.innerHTML = `<div class="band-muted" style="margin-bottom:4px">예상 사용 기간 ${months}개월(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안의 겹침만 건너뛰기권으로 발급합니다.</div>` + (items.length ? items.map(({ claim, def, st }) => `
                 <div class="band-ba-claim">
                     <label><input type="checkbox" id="ba-c-${claim.id}" checked> <strong>${escHtml(def ? bandDefText(def) : bandClaimText(claim))}</strong></label>
                     <span class="status-badge sm ${BAND_KIND_CHIP[st.kind] || 'status-neutral'}">${escHtml(st.kind === 'ok' ? '겹침 없음' : st.label)}</span>
                     ${st.skips.length ? `<ul class="band-avail-skips">${st.skips.map(s => `<li>${_bandMDW(s.date)} · ${escHtml(s.reasons.join(', '))} → 건너뛰기권</li>`).join('')}</ul>` : ''}
-                </div>`).join('') : _bandEmptyHTML('신청한 타임이 없습니다.');
+                </div>`).join('') : _bandEmptyHTML('신청한 타임이 없습니다.'));
         }
         async function bandApproveWithSlots(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
@@ -13523,7 +13544,7 @@
                             <label>건너뛸 합주일<select id="bg-date-${t.id}" class="band-input">${grantOpts || '<option value="">예정된 합주일이 없습니다</option>'}</select></label>
                             <label>사유<input type="text" id="bg-reason-${t.id}" class="band-input" placeholder="예: 공연 대관 · 통화로 협의"></label>
                         </div>
-                        <div class="band-muted" style="margin-bottom:6px">그날은 달력에서 열리고, 팀이 대체 합주(7일 전~전날, 같은 길이) 또는 1주 무료 연장 중 하나를 고릅니다(일주일 전까지 미선택이면 자동 연장).</div>
+                        <div class="band-muted" style="margin-bottom:6px">그날은 달력에서 열리고, 팀이 대체 합주(7일 전~전날, 같은 고정 사용 시간) 또는 1주 무료 연장 중 하나를 고릅니다(일주일 전까지 미선택이면 자동 연장).</div>
                         <div id="bg-result-${t.id}" class="band-form-result"></div>
                         <div class="gaa-btn-row">
                             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandGrantSkip('${t.id}', this)">부여</button>
@@ -13559,7 +13580,7 @@
             const t = (_bandCache().teams || []).find(x => x.id === teamId) || { id: teamId };
             _bandBusy(btn, true, '등록 중…');
             try {
-                const ctx = await bandAvailLoad(start);
+                const ctx = await bandAvailLoad(start, bandAvailDaysFor(start, bandMonthsFromText(t.band_expected_months)));
                 const def = ctx.defs.find(d => d.id === defId);
                 if (!def) { showErr('시간 띠를 찾을 수 없습니다.'); return; }
                 const st = bandDefStatus({ ...def, band_ok: true, open_from: null }, ctx, { excludeProfile: teamId });
@@ -13668,6 +13689,7 @@
                     <div class="band-def-ctl">
                         <label class="band-def-chk"><input type="checkbox" id="def-ok-${d.id}"${d.band_ok !== false ? ' checked' : ''}> 고정팀</label>
                         <label class="band-def-chk"><input type="checkbox" id="def-rent-${d.id}"${d.rental_ok !== false ? ' checked' : ''}> 대관</label>
+                        <select id="def-off-${d.id}" class="band-input" title="고정팀을 끄면 표에 보일 사유"><option value="rental"${d.off_reason !== 'team' ? ' selected' : ''}>불가 사유: 대관만</option><option value="team"${d.off_reason === 'team' ? ' selected' : ''}>불가 사유: 고정팀 사용 중</option></select>
                         <input type="date" id="def-from-${d.id}" class="band-input" value="${escAttr(d.open_from || '')}" title="이 날짜부터 신청 가능">
                         <input type="text" id="def-note-${d.id}" class="band-input" value="${escAttr(d.note || '')}" placeholder="메모(운영자용)">
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandDefSave('${d.id}', this)">저장</button>
@@ -13682,7 +13704,7 @@
                 ${_bandAvailLegend()}
                 ${bandAvailTableHTML(rows, { selectable: false })}
                 <div class="band-roster-title">시간 띠 정의 <span class="band-muted">${ctx.defs.length}개</span></div>
-                <div class="band-muted" style="margin:-4px 0 8px">고정팀 체크를 끄면 「대관만/불가」, 개방일을 넣으면 그 날짜부터 신청 가능. 다른 고정팀이 쓰는 띠는 달력 차단에서 자동으로 「사용 중」으로 보입니다.</div>
+                <div class="band-muted" style="margin:-4px 0 8px">고정팀 체크를 끄면 불가 사유(「대관만」 또는 「고정팀 사용 중」)로 보이고, 개방일을 넣으면 그 날짜부터 신청 가능. 팀 관리 [+ 고정 시간]으로 달력에 반영된 띠는 자동으로 「고정팀 사용 중」이 되니 그때 고정팀 체크를 다시 켜세요.</div>
                 ${ctx.defs.map(defRow).join('') || _bandEmptyHTML('정의된 시간 띠가 없습니다.')}
                 <div class="band-inline-form">
                     <div class="band-card-head"><span>+ 시간 띠 추가</span></div>
@@ -13700,9 +13722,15 @@
         async function bandDefSave(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
             const upd = { band_ok: !!document.getElementById(`def-ok-${id}`)?.checked, rental_ok: !!document.getElementById(`def-rent-${id}`)?.checked,
-                open_from: document.getElementById(`def-from-${id}`)?.value || null, note: (document.getElementById(`def-note-${id}`)?.value || '').trim() || null };
+                open_from: document.getElementById(`def-from-${id}`)?.value || null, note: (document.getElementById(`def-note-${id}`)?.value || '').trim() || null,
+                off_reason: document.getElementById(`def-off-${id}`)?.value === 'team' ? 'team' : 'rental' };
             _bandBusy(btn, true);
-            const { error } = await supabaseClient.from('band_slot_defs').update(upd).eq('id', id);
+            let { error } = await supabaseClient.from('band_slot_defs').update(upd).eq('id', id);
+            if (error && /off_reason/.test(error.message || '')) { // 마이그레이션(20261105_band_slot_off_reason) 전 — 사유 없이 저장
+                const { off_reason, ...plain } = upd;
+                ({ error } = await supabaseClient.from('band_slot_defs').update(plain).eq('id', id));
+                if (!error) showToast('불가 사유 컬럼(off_reason)이 없어 사유 없이 저장했습니다. 20261105_band_slot_off_reason.sql 을 실행해주세요.', 6000);
+            }
             _bandBusy(btn, false);
             if (error) { console.error(error); showToast('저장하지 못했습니다.'); return; }
             showToast('시간 띠를 저장했습니다.'); renderBandAdminTab();
@@ -13759,7 +13787,7 @@
                 ${approved.length ? `<div class="band-kv-grid">${approved.map(c => `<div class="band-kv"><span>매주 ${BAND_DOW[c.day_of_week]}요일</span><strong>${_bandRangeText(c.start_time, c.end_time)}<span class="band-muted" style="font-weight:400"> · ${bandMD(c.start_date)}부터</span></strong></div>`).join('')}</div>` : ''}
                 ${pending.length ? `<div class="band-muted" style="margin-top:6px">승인 대기 중인 타임: ${escHtml(bandClaimsText(pending))}</div>` : ''}
                 ${upcoming.length ? `<div class="band-card-section"><div class="band-card-head"><span>건너뛰기권 ${upcoming.length}장</span></div>
-                    <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 길이의 대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
+                    <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 고정 사용 시간의 대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
                     ${upcoming.map(skipRow).join('')}</div>` : (approved.length ? '<div class="band-muted" style="margin-top:8px">예정된 건너뛰기가 없어요.</div>' : '')}
                 ${past.length ? `<details class="band-skip-past"><summary class="band-muted">지난 건너뛰기 ${past.length}건</summary>${past.map(skipRow).join('')}</details>` : ''}`;
         }
@@ -13775,7 +13803,7 @@
             showToast('1주 무료 연장으로 처리했습니다. 다음 회차 시작·입금일이 일주일 뒤로 밀립니다.');
             await renderBandSlotSection(state.bandProfile); renderBandCycleNotice(state.bandProfile);
         }
-        // 대체 합주 고르기: 건너뛰는 날 7일 전~전날 중 같은 길이로 비어 있는 시간대
+        // 대체 합주 고르기: 건너뛰는 날 7일 전~전날 중 같은 고정 사용 시간(슬롯 수)으로 비어 있는 시간대
         async function bandSubstituteSheet(skipId) {
             const s = (state.bandSkips || []).find(x => x.id === skipId);
             if (!s || !supabaseClient) return;
@@ -13798,7 +13826,7 @@
             }
             const body = document.querySelector('#gtSheet .cm-sheet-body');
             if (!body) return;
-            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">원래 합주와 같은 길이(${dur}시간)로, 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
+            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">원래 고정 사용 시간과 같은 ${dur}시간으로, 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
                 + (days.length ? days.map(({ d, opts }) => `<div class="band-sub-day"><div class="d"><strong>${_bandMDW(d)}</strong></div><div class="chips">${opts.length
                     ? opts.map(i => `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandSubstitutePick('${s.id}','${d}','${TIMES[i]}')">${_bandRangeText(TIMES[i], _bandBlockEndExcl(TIMES[i + dur - 1]))}</button>`).join('')
                     : '<span class="band-muted">가능한 시간 없음</span>'}</div></div>`).join('')
