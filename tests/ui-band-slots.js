@@ -51,6 +51,7 @@ const TABLES = {
     { id: 'pb1', date: '2026-11-30', start_time: '12:00', end_time: '14:00', status: 'approved', created_at: '2026-11-01T00:00:00Z' },   // 월 주간 3주차 겹침
   ],
   band_payments: [], band_rent_reminders: [], band_notices: [], band_members: [], band_comments: [],
+  band_pins: [{ profile_id: VANDOR, pin: '0921' }],
 };
 const FAKE_SB = `
 (function () {
@@ -120,7 +121,7 @@ const FAKE_SB = `
   // ── 1. 합주팀 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 → 고정 가능 시간 보기(설명 + 실시간 표)
   await p.evaluate(() => { _hideAllScreens(); showBandSection(); document.getElementById('portalLoadingScreen')?.remove(); });
   await p.waitForTimeout(300);
-  chk('첫 화면: 메뉴 3개(시간표 보기·가입 신청·로그인) 표시, 로그인 폼·시간표·가입 폼 숨김', await p.evaluate(() => { const m = document.getElementById('band-menu'); const b = [...m.querySelectorAll('.band-menu-btn b')].map(e => e.textContent); return !m.classList.contains('hidden') && b.join('|') === '고정 가능 시간 보기|가입 신청|로그인' && ['band-login-form', 'band-schedule-view', 'band-signup-form'].every(id => document.getElementById(id).classList.contains('hidden')); }));
+  chk('첫 화면: 메뉴 2개(고정 가능 시간 보기 · 가입 신청 / 로그인) 표시 — 가입 신청 단독 버튼 없음, 로그인 폼·시간표·가입 폼 숨김', await p.evaluate(() => { const m = document.getElementById('band-menu'); const b = [...m.querySelectorAll('.band-menu-btn b')].map(e => e.textContent); return !m.classList.contains('hidden') && b.join('|') === '고정 가능 시간 보기 · 가입 신청|로그인' && !m.querySelector('[onclick="showBandSignupForm()"]') && document.querySelector('#band-login-form button[onclick="showBandScheduleView()"]') && ['band-login-form', 'band-schedule-view', 'band-signup-form'].every(id => document.getElementById(id).classList.contains('hidden')); }));
   await p.evaluate(() => showBandScheduleView());
   await p.waitForTimeout(700);
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-slots-schedule.png'), fullPage: true });
@@ -190,6 +191,8 @@ const FAKE_SB = `
   chk('가입: band_slot_claims insert(def·요일 1·12:00~18:00·시작일·pending)', !!cl && Array.isArray(cl.payload) && cl.payload.length === 1 && cl.payload[0].def_id === 'def-mon-day' && cl.payload[0].day_of_week === 1 && cl.payload[0].start_time === '12:00' && cl.payload[0].end_time === '18:00' && cl.payload[0].start_date === '2026-11-12' && cl.payload[0].status === 'pending' && cl.payload[0].profile_id === 'f0000000-0000-4000-8000-000000000006', JSON.stringify(cl && cl.payload));
   chk('가입: 관리자 푸시 본문에 "월 주간 · 11/12 시작 희망 · 3개월"', !!push && /월 주간/.test(push.body) && /11\/12 시작 희망 · 3개월/.test(push.body), push && push.body);
   chk('가입: auth.signUp 비밀번호 = "pw1234"(접두 + 숫자 4자리)', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.password === 'pw1234' && window.__signUpArgs.email === 'newteam@band.gatheo.kr'), await p.evaluate(() => JSON.stringify(window.__signUpArgs)));
+  const pinIns = await lastCall('band_pins', 'insert');
+  chk('가입: 숫자 4자리를 운영자 전용 band_pins 에 저장(profile_id·pin "1234")', !!pinIns && pinIns.payload.profile_id === 'f0000000-0000-4000-8000-000000000006' && pinIns.payload.pin === '1234', JSON.stringify(pinIns && pinIns.payload));
   // 로그인 정규화: 숫자 4자리만 치면 pw+숫자로, PW 대문자는 소문자로 한 번 더 시도(첫 시도 실패 때만)
   chk('로그인: "1234" → 첫 시도 실패 후 "pw1234" 재시도 · "PW1234" → "pw1234" 재시도 · 맞는 비밀번호는 1회', await p.evaluate(async () => {
     const tries = []; window.__fakeSb.auth.signInWithPassword = async ({ email, password }) => { tries.push(password); return password === 'pw1234' ? { data: { user: null }, error: null } : { data: null, error: { message: 'bad' } }; };
@@ -202,14 +205,14 @@ const FAKE_SB = `
   chk('가입 완료 → 로그인 폼으로', await p.evaluate(() => !document.getElementById('band-login-form').classList.contains('hidden')));
   chk('딥링크 #band/times → 시간표 화면', await p.evaluate(() => { _hideAllScreens(); location.hash = '#band/times'; _routeToPage(_pageFromHash()); return !document.getElementById('landing-page-band').classList.contains('hidden') && !document.getElementById('band-schedule-view').classList.contains('hidden'); }));
   await p.waitForTimeout(500);
-  await p.evaluate(() => { location.hash = ''; document.getElementById('portalLoadingScreen')?.remove(); window.__T.band_slot_claims = window.__T.band_slot_claims.filter(c => c.profile_id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.profiles = window.__T.profiles.filter(x => x.id !== 'f0000000-0000-4000-8000-000000000006'); });
+  await p.evaluate(() => { location.hash = ''; document.getElementById('portalLoadingScreen')?.remove(); window.__T.band_slot_claims = window.__T.band_slot_claims.filter(c => c.profile_id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.profiles = window.__T.profiles.filter(x => x.id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.band_pins = window.__T.band_pins.filter(x => x.profile_id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.band_pins.push({ profile_id: 'd0000000-0000-4000-8000-000000000004', pin: '4444' }); });
 
   // ── 2. 관리자: 가입 신청 승인 폼 → 달력 반영 + 건너뛰기권 발급
   await p.evaluate((a) => loginBandUI(a), TABLES.profiles[0]);
   await p.waitForTimeout(700);
   chk('관리자 서브탭에 ⏱️ 시간 띠', await p.evaluate(() => !!document.querySelector('#bandAdminSection .admin-subtab[data-tab="slots"]')));
   const pendHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
-  chk('가입 신청 카드: 신청 타임 "토 9~14시" · 희망 시작일 11/14(토)', pendHtml.includes('신청 타임 <strong>토 9~14시</strong>') && pendHtml.includes('희망 시작일 11/14(토)'), pendHtml.match(/신청 타임[^<]*<strong>[^<]*/)?.[0]);
+  chk('가입 신청 카드: 신청 타임 "토 9~14시" · 희망 시작일 11/14(토) · 등록 비밀번호 4444(운영자만)', pendHtml.includes('신청 타임 <strong>토 9~14시</strong>') && pendHtml.includes('희망 시작일 11/14(토)') && pendHtml.includes('<span class="band-pin">4444</span>'), pendHtml.match(/신청 타임[^<]*<strong>[^<]*/)?.[0]);
   await p.evaluate((id) => approveBandProfile(id, document.querySelector(`button[onclick="approveBandProfile('${id}', this)"]`)), NEWBIE);
   await p.waitForTimeout(600);
   const baHtml = await p.evaluate((id) => { const f = document.getElementById('ba-form-' + id); return f && !f.hidden ? f.innerHTML : ''; }, NEWBIE);
@@ -234,6 +237,15 @@ const FAKE_SB = `
   chk('신규팀 카드: 승인된 고정 시간 "토 9~14시 · 11/14부터" + 건너뛰기권(11/21 미선택 · 11/14까지)', teamsHtml.includes('<strong>토 9~14시</strong>') && teamsHtml.includes('11/14부터') && teamsHtml.includes('11/21(토) 9~14시') && teamsHtml.includes('미선택 · 11/14까지'));
   // 벤더 05/17 시작: 11/05 는 6차(11/01~) 안, 다음 7차 11/29 — 11/20 미선택(마감 11/13 전)이라 아직 연장 없음 → 입금일 11/15
   chk('벤더 회차: 연장 전 다음 7차 11/29 시작 · 입금일 11/15', teamsHtml.includes('<strong>7차</strong> 11/29(일) 시작') && teamsHtml.includes('입금일 <strong>11/15</strong>'), teamsHtml.match(/다음 회차 <strong>[^<]*<\/strong>[^·]*·[^·]*/)?.[0]);
+  chk('벤더 계약 정보: 등록 비밀번호(4자리) 0921 표시 + 계약 폼 칸에 미리 채움 · 신규팀은 4444', teamsHtml.includes('등록 비밀번호(4자리)') && teamsHtml.includes('<span class="band-pin">0921</span>') && teamsHtml.includes('<span class="band-pin">4444</span>') && (await p.evaluate((id) => document.getElementById('bc-pin-' + id).value, VANDOR)) === '0921');
+  await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '7788'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
+  await p.waitForTimeout(600);
+  const pinUp = await lastCall('band_pins', 'insert');
+  chk('계약 폼 저장: 등록 비밀번호 7788 → band_pins upsert', !!pinUp && pinUp.payload.profile_id === VANDOR && pinUp.payload.pin === '7788', JSON.stringify(pinUp && pinUp.payload));
+  await p.waitForTimeout(400);
+  await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '12'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
+  chk('계약 폼: 숫자 4자리 아니면 인라인 오류', (await p.evaluate((id) => document.getElementById('bc-result-' + id).textContent, VANDOR)).includes('숫자 4자리'));
+  await p.evaluate(() => renderBandAdminTab()); await p.waitForTimeout(600);
   const grantOpts = await p.evaluate((id) => [...document.querySelectorAll(`#bg-date-${id} option`)].map(o => o.textContent), VANDOR);
   chk('부여 폼: 벤더 다음 합주일 후보 금요일 11/6, 11/13, 11/20 …(10개)', grantOpts.length === 10 && grantOpts[0] === '11/6(금) 18~23시' && grantOpts[2] === '11/20(금) 18~23시', grantOpts.slice(0, 3).join(','));
   await p.evaluate((id) => { document.getElementById(`bg-date-${id}`).value = `2026-11-27|cl-vandor`; document.getElementById(`bg-reason-${id}`).value = '공연 대관 협의'; return bandGrantSkip(id, document.querySelector(`#bs-skip-${id} .gaa-btn-primary`)); }, VANDOR);

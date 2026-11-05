@@ -1736,6 +1736,7 @@
         .band-ba-claim { padding: 8px 0; border-top: 1px dashed var(--wds-gray-300); font-size: 0.88rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
         .band-ba-claim:first-child { border-top: 0; }
         .band-ba-claim .band-avail-skips { flex-basis: 100%; margin-top: 0; }
+        .band-pin { display: inline-block; padding: 1px 8px; border-radius: 8px; background: var(--wds-gray-100); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; letter-spacing: 2px; }
         .band-slot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--wds-gray-200); font-size: 0.88rem; }
         .band-slot-row:last-of-type { border-bottom: 0; }
         .band-slot-row > span:first-child { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
@@ -2510,9 +2511,8 @@
         <div id="band-email-section">
             <!-- 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 (2026-11-05, 가입 전에 일정부터) -->
             <div id="band-menu" class="band-menu">
-                <p class="band-menu-intro">매주 같은 요일·같은 시간에 합주실을 고정으로 쓰는 팀을 위한 공간이에요.<br>처음이라면 <strong>고정 가능 시간</strong>부터 확인해보세요.</p>
-                <button type="button" class="band-menu-btn" onclick="showBandScheduleView()"><span class="ic">📅</span><span class="tx"><b>고정 가능 시간 보기</b><small>요일별로 언제부터 고정이 가능한지 실시간으로 확인해요</small></span><span class="ar">›</span></button>
-                <button type="button" class="band-menu-btn" onclick="showBandSignupForm()"><span class="ic">✍️</span><span class="tx"><b>가입 신청</b><small>타임을 고르고 팀 정보를 보내면 운영자가 확인 후 승인해요</small></span><span class="ar">›</span></button>
+                <p class="band-menu-intro">매주 같은 요일·같은 시간에 합주실을 고정으로 쓰는 팀을 위한 공간이에요.<br>처음이라면 <strong>고정 가능 시간</strong>을 확인하고 바로 가입 신청할 수 있어요.</p>
+                <button type="button" class="band-menu-btn" onclick="showBandScheduleView()"><span class="ic">📅</span><span class="tx"><b>고정 가능 시간 보기 · 가입 신청</b><small>요일별 가능 시간을 실시간으로 확인하고 타임을 골라 신청해요</small></span><span class="ar">›</span></button>
                 <button type="button" class="band-menu-btn" onclick="showBandLoginForm()"><span class="ic">🔑</span><span class="tx"><b>로그인</b><small>승인된 고정팀 계정으로 입장</small></span><span class="ar">›</span></button>
             </div>
 
@@ -2522,7 +2522,7 @@
                 <input type="password" id="bandLoginPassword" placeholder="비밀번호 (pw + 숫자 4자리)" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <div id="bandLoginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
-                <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
+                <button type="button" class="email-secondary-btn" onclick="showBandScheduleView()">아직 팀원이 아니신가요? 가능 시간 확인 후 가입 신청</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
             </div>
 
@@ -12816,6 +12816,8 @@
                     if (picked) { meta.band_start_date = picked.start; meta.band_expected_months = `${picked.months}개월`; } // 희망 시작일·예상 사용 기간(현황표 「등록 예정일·사용 개월수」, 승인 때 확정·겹침 계산 범위)
                     const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr) console.error('Band profile upsert error:', pErr);
+                    // 비밀번호 숫자 4자리 → 운영자 전용 표(band_pins, 마이그레이션 20261105_band_pins.sql) — 캐비넷·6개월 이상 등록용. 표가 없어도 가입은 진행.
+                    try { const { error: pinErr } = await supabaseClient.from('band_pins').upsert({ profile_id: data.user.id, pin: pwDigits }, { onConflict: 'profile_id' }); if (pinErr) console.error('band_pins upsert error:', pinErr); } catch (e) { console.error('band_pins:', e); }
                     if (picked && picked.defs.length) { // 타임 신청 행 — 승인 때 달력(time_blocks)에 반영된다
                         const { error: cErr } = await supabaseClient.from('band_slot_claims').insert(picked.defs.map(d => ({
                             profile_id: data.user.id, def_id: d.id, day_of_week: d.day_of_week, start_time: d.start_time, end_time: d.end_time, start_date: picked.start, status: 'pending' })));
@@ -12943,7 +12945,7 @@
             const allIds = teams.map(t => t.id);
             const [claimsAll, defs] = await Promise.all([fetchBandSlotClaims(allIds), fetchBandSlotDefs()]);
             const claimsMap = {}; claimsAll.forEach(c => { (claimsMap[c.profile_id] = claimsMap[c.profile_id] || []).push(c); });
-            state.bandAdminCache = { ...(state.bandAdminCache || {}), teams, claimsMap, defs };
+            state.bandAdminCache = { ...(state.bandAdminCache || {}), teams, claimsMap, defs, pinsMap: await fetchBandPins(allIds) };
             if (tab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
                 if (!pending.length) { view.innerHTML = _bandEmptyHTML('대기 중인 가입 신청이 없습니다.'); return; }
@@ -12952,9 +12954,9 @@
             }
             const approved = teams.filter(t => t.status === 'approved');
             const ids = teams.filter(t => t.status === 'approved' || t.band_ended_at).map(t => t.id);
-            const [paymentsMap, remindersMap, skipsMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids), fetchBandSkips(ids)]);
+            const [paymentsMap, remindersMap, skipsMap, pinsMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids), fetchBandSkips(ids), fetchBandPins(allIds)]);
             teams.forEach(t => { t._ext = bandExtDates(skipsMap[t.id] || []); }); // 1주 연장 → 회차 경계(bandCycleInfo)에 반영
-            state.bandAdminCache = { teams, paymentsMap, remindersMap, claimsMap, skipsMap, defs };
+            state.bandAdminCache = { teams, paymentsMap, remindersMap, claimsMap, skipsMap, defs, pinsMap };
             if (tab === 'roster') { renderBandRosterTab(view, teams, paymentsMap, remindersMap); return; }
             // 관리 팀(게더링 운영 계정)은 계약·회차·문자 대상이 아니므로 계약 팀 목록과 분리해 보여준다
             const adminTeams = approved.filter(t => _isAdminBandProfile(t));
@@ -13066,6 +13068,22 @@
             (data || []).forEach(r => { (map[r.team_id] = map[r.team_id] || []).push(r); });
             return map;
         }
+        // 팀별 등록 비밀번호 숫자 4자리 — {teamId: '1234'} (운영자만 읽을 수 있는 band_pins, 표가 없거나 권한 없으면 빈 객체)
+        async function fetchBandPins(teamIds) {
+            if (!supabaseClient || !teamIds.length || !isBandAdmin()) return {};
+            const { data, error } = await supabaseClient.from('band_pins').select('profile_id, pin').in('profile_id', teamIds);
+            if (error) { console.error('band_pins:', error); return {}; }
+            const map = {}; (data || []).forEach(r => { map[r.profile_id] = r.pin; });
+            return map;
+        }
+        // 계약 정보 폼의 등록 비밀번호 칸 저장: 4자리면 upsert, 비우면 삭제(운영자) — 표가 없으면 안내
+        async function saveBandPin(teamId, pin) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const q = pin ? supabaseClient.from('band_pins').upsert({ profile_id: teamId, pin, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' })
+                          : supabaseClient.from('band_pins').delete().eq('profile_id', teamId);
+            const { error } = await q;
+            if (error) { console.error('band_pins save:', error); showToast('등록 비밀번호를 저장하지 못했습니다. 20261105_band_pins.sql 마이그레이션을 확인해주세요.', 6000); }
+        }
         // 팀별 문자 발송 이력 — {teamId: [{cycle_no, kind, sent_at}]} (마이그레이션 전이면 빈 객체)
         async function fetchBandReminders(teamIds) {
             if (!supabaseClient || !teamIds.length) return {};
@@ -13090,6 +13108,7 @@
                     <label>보증금 입금일<input type="date" id="bc-deposit-at-${id}" class="band-input" value="${escAttr(t.band_deposit_paid_at || '')}"></label>
                     <label>회차(4주) 이용료(원)<input type="number" id="bc-fee-${id}" class="band-input" inputmode="numeric" placeholder="300000" value="${escAttr(t.band_fee ?? '')}"></label>
                     <label>메모<input type="text" id="bc-memo-${id}" class="band-input" placeholder="캐비넷 등" value="${escAttr(t.band_memo || '')}"></label>
+                    <label>등록 비밀번호(숫자 4자리)<input type="text" id="bc-pin-${id}" class="band-input" inputmode="numeric" maxlength="4" placeholder="캐비넷·도어락 등록용" value="${escAttr(((state.bandAdminCache || {}).pinsMap || {})[id] || '')}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"></label>
                 </div>
                 <div id="bc-result-${id}" class="band-form-result"></div>
                 <div class="gaa-btn-row">
@@ -13109,7 +13128,8 @@
             const res = document.getElementById(`bc-result-${teamId}`);
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
-            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo');
+            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo'), pin = v('bc-pin');
+            if (pin && !/^\d{4}$/.test(pin)) { showErr('등록 비밀번호는 숫자 4자리여야 합니다.'); return; }
             if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) { showErr('시작일 형식이 올바르지 않습니다.'); return; }
             if (depositAt && !/^\d{4}-\d{2}-\d{2}$/.test(depositAt)) { showErr('보증금 입금일 형식이 올바르지 않습니다.'); return; }
             const toInt = (s) => (s === '' ? null : parseInt(s, 10));
@@ -13122,6 +13142,8 @@
                     band_fee: toInt(fee), band_memo: memo || null,
                 }).eq('id', teamId);
                 if (error) { console.error('band contract save error:', error); showErr('저장하지 못했습니다. 잠시 후 다시 시도해주세요. (컬럼이 없다면 20260915 마이그레이션을 먼저 실행하세요)'); return; }
+                const prevPin = ((state.bandAdminCache || {}).pinsMap || {})[teamId] || '';
+                if (pin !== prevPin) await saveBandPin(teamId, pin); // 바뀐 때만(비우면 삭제)
                 showToast('계약 정보를 저장했습니다.');
                 renderBandAdminTab();
             } finally { _bandBusy(btn, false); }
@@ -14017,6 +14039,8 @@
                 slotSection = pendingClaims.length
                     ? `<div class="band-muted" style="margin-top:8px">신청 타임 <strong>${escHtml(bandClaimsText(pendingClaims))}</strong> · 희망 시작일 ${escHtml(_bandMDW(pendingClaims[0].start_date))} — [승인]을 누르면 겹치는 주를 계산해 달력에 반영합니다.</div>`
                     : '';
+                const pin = (cache.pinsMap || {})[t.id];
+                if (pin) slotSection = `<div class="band-muted" style="margin-top:6px">등록 비밀번호(숫자 4자리) <span class="band-pin">${escHtml(pin)}</span> · 6개월 이상·캐비넷 이용 시 등록</div>` + slotSection;
                 slotSection += `<div id="ba-form-${t.id}" class="band-inline-form" hidden></div>`;
             }
             if (kind === 'approved' && !isAdminTeam) {
@@ -14033,6 +14057,7 @@
                             ${kv('예상 사용', escHtml(t.band_expected_months || ''))}
                             ${kv('보증금', t.band_deposit ? `${bandWon(t.band_deposit)}${t.band_deposit_paid_at ? ' · ' + bandMD(t.band_deposit_paid_at) + ' 입금' : ' · 미입금'}` : '')}
                             ${kv('이용료(4주)', bandWon(t.band_fee))}
+                            ${kv('등록 비밀번호(4자리)', (cache.pinsMap || {})[t.id] ? `<span class="band-pin">${escHtml(cache.pinsMap[t.id])}</span>` : '')}
                         </div>
                         ${_bandDisplayNote(t.band_memo) ? `<div class="band-muted">메모: ${escHtml(_bandDisplayNote(t.band_memo))}</div>` : ''}
                         <div id="bc-form-${t.id}" class="band-inline-form" hidden>${bandContractFormHTML(t)}</div>

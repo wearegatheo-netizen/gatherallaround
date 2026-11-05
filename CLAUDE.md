@@ -117,7 +117,10 @@
   선택 불가 칩도 누를 수 있다(`.na`, `bandScheduleChipInfo`): 개방일·종료 예정이면 희망 시작일을 그날로 옮기고, 아니면 토스트로 이유. band_slot_defs 표가 없거나 띠 0개면 `state.bandSignupFallback` — 가입 폼은 종전 체크박스 `#bandSignupLegacySlots`, 시간표 화면은 안내문.
   제출은 `profiles.timeslots` 에 종전 표기(`bandSlotLegacyKey` 월_야간, `bandSlotSheetText` 는 오전 포함) + `band_start_date`=희망일 + `band_expected_months`=「N개월」 + `band_slot_claims` insert(pending). 타임 1개 이상·시작일 오늘 이후 필수(`_bandSignupUsesTable()` 일 때).
   **비밀번호 규칙(2026-11-05)**: 합주팀 비밀번호는 항상 **`pw` + 숫자 4자리**(`BAND_PW_RE`) — 가입 폼은 접두 `pw` 고정 칸(`.band-pw-prefix`) + 숫자 4자리 입력 `#bandSignupPwDigits/#bandSignupPwDigitsConfirm`(numeric·maxlength 4·숫자만 남김)으로 받고 `'pw'+digits` 로 signUp,
-  안내문 `.band-pw-note`(숫자 4자리는 6개월 이상 사용·캐비넷 이용 시 비밀번호로 등록). 로그인은 첫 시도가 실패하면 `_bandNormalizePw`(숫자 4자리만 → pw 접두, PW 대문자 → 소문자)로 한 번 더 시도(기존 팀 비밀번호는 그대로). 숫자 4자리는 auth 해시라 운영자가 볼 수 없다 — 필요하면 운영자 전용 RLS 표로 따로 저장해야 함(미구현).
+  안내문 `.band-pw-note`(숫자 4자리는 6개월 이상 사용·캐비넷 이용 시 비밀번호로 등록). 로그인은 첫 시도가 실패하면 `_bandNormalizePw`(숫자 4자리만 → pw 접두, PW 대문자 → 소문자)로 한 번 더 시도(기존 팀 비밀번호는 그대로).
+  숫자 4자리는 auth 해시라 볼 수 없으므로 **운영자 전용 표 `band_pins`**(마이그레이션 `20261105_band_pins.sql`: profile_id PK·pin 4자리, select 는 `band_is_admin()` 만, insert/update 본인+운영자)에 가입 직후 upsert(표 없으면 console 만, 가입은 진행).
+  운영자 화면: 가입 신청 카드 줄·승인 팀 계약 정보 kv 「등록 비밀번호(4자리)」(`.band-pin`), 계약 폼 `bc-pin-<id>`(4자리 upsert / 비우면 삭제, `saveBandPin`, `fetchBandPins` → `bandAdminCache.pinsMap`). 기존 팀은 운영자가 계약 폼에 직접 적는다.
+  랜딩 메뉴는 [고정 가능 시간 보기 · 가입 신청] / [로그인] 2개(가입 신청 단독 버튼 없음 — 시간표 화면 CTA 가 가입 폼으로 보낸다, 로그인 폼의 가입 링크도 시간표로).
   **승인(운영자)**: 가입 신청 카드 [승인] → pending claim 이 있으면 confirm 대신 인라인 폼 `openBandApproval`(시작일·「차단 생성+건너뛰기권 발급 | 승인만」·타임별 체크 + `bandApprovalRecalc` 겹침 계산) → `bandApproveWithSlots`:
   claim 마다 반복 time_block(`[고정팀] 팀명`, start_date, `band_claim_id`, `skip_dates`) → claim approved+block_id → `band_skips`(granted_by signup, 사유) → profiles approved(+band_start_date 비면 시작일, timeslots). `_bandInsertBlock` 은 새 컬럼이 없으면(PGRST204) 빼고 재시도+토스트.
   승인 팀 카드 섹션 `bandSlotSectionHTML`: 고정 시간 줄([해제]=`bandEndClaim` → claim ended·block end_date 오늘), 건너뛰기권 줄(`bandSkipStatusChip`, [삭제]=`bandSkipDelete` → 대체 차단 삭제·skip_dates 제거), [+ 고정 시간]=`bandRegisterSlot`(기존 팀 달력 반영: 띠+시작일 → approved claim+block+skips),
