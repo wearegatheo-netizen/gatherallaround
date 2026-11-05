@@ -165,12 +165,20 @@ const FAKE_SB = `
   await p.evaluate(() => {
     document.getElementById('bandSignupLeaderName').value = '홍길동'; document.getElementById('bandSignupLeaderPhone').value = '010-2222-3333';
     document.getElementById('bandSignupNameKr').value = '새팀'; document.getElementById('bandSignupNameEn').value = 'NewTeam'; document.getElementById('bandSignupId').value = 'newteam';
-    document.getElementById('bandSignupPassword').value = 'pw123456'; document.getElementById('bandSignupPasswordConfirm').value = 'pw123456';
+    document.getElementById('bandSignupPwDigits').value = '1234'; document.getElementById('bandSignupPwDigitsConfirm').value = '1234';
     document.getElementById('bandPrivacyConsent').checked = true;
     bandSignupToggleSlot(document.querySelector('.band-slot-chip.sel').dataset.def); // 선택 해제
     return handleBandEmailSignup();
   });
   chk('타임 미선택 제출 → 인라인 오류 "합주 타임을 1개 이상"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('합주 타임을 1개 이상'));
+  // 비밀번호 규칙: pw 접두 고정 + 숫자 4자리, 안내문(6개월 이상·캐비넷 등록)
+  chk('비밀번호 칸: pw 접두 고정 + 숫자 4자리(maxlength 4·numeric) 두 칸 + 안내문(6개월 이상·캐비넷·비밀번호로 등록)', await p.evaluate(() => { const a = document.getElementById('bandSignupPwDigits'), b = document.getElementById('bandSignupPwDigitsConfirm'); const note = document.querySelector('.band-pw-note').textContent; const pre = [...document.querySelectorAll('#band-signup-form .band-pw-prefix')]; return a.maxLength === 4 && a.inputMode === 'numeric' && b.maxLength === 4 && pre.length === 2 && pre.every(e => e.textContent === 'pw') && note.includes('pw + 숫자 4자리') && note.includes('6개월 이상') && note.includes('캐비넷') && note.includes('비밀번호로 등록') && !document.getElementById('bandSignupPassword'); }));
+  chk('숫자 입력 정리: "12a4" → "124"(숫자만) · 6자리 → 4자리', await p.evaluate(() => { const a = document.getElementById('bandSignupPwDigits'); a.value = '12a4'; a.dispatchEvent(new Event('input')); const v1 = a.value; a.value = '123456'; a.dispatchEvent(new Event('input')); const v2 = a.value; a.value = '1234'; return v1 === '124' && v2 === '1234'; }));
+  await p.evaluate((id) => { bandSignupToggleSlot(id); document.getElementById('bandSignupPwDigits').value = '12'; return handleBandEmailSignup(); }, D.monDay);
+  chk('숫자 4자리가 아니면 인라인 오류 "pw 뒤에 숫자 4자리"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('pw 뒤에 숫자 4자리'));
+  await p.evaluate(() => { document.getElementById('bandSignupPwDigits').value = '1234'; document.getElementById('bandSignupPwDigitsConfirm').value = '4321'; return handleBandEmailSignup(); });
+  chk('확인 칸 불일치 → 인라인 오류', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('일치하지 않습니다'));
+  await p.evaluate((id) => { document.getElementById('bandSignupPwDigitsConfirm').value = '1234'; bandSignupToggleSlot(id); window.__fakeSb.auth.signUp = async (args) => { window.__signUpArgs = args; return { data: { user: { id: 'f0000000-0000-4000-8000-000000000006' } }, error: null }; }; }, D.monDay);
   chk('가입 폼에서 고른 선택도 시간표 화면과 공유(폼 안 칩 클릭 → 폼 표에 "✓ 선택")', await p.evaluate((id) => { bandSignupToggleSlot(id); const ok = document.querySelector(`#bandSignupAvailBody .band-slot-chip[data-def="${id}"] .s`).textContent === '✓ 선택'; bandSignupToggleSlot(id); return ok; }, D.monDay));
   await p.evaluate((id) => { bandSignupToggleSlot(id); return handleBandEmailSignup(); }, D.monDay);
   try { await p.clock.runFor(1000); } catch (_) {}
@@ -181,6 +189,16 @@ const FAKE_SB = `
   chk('가입: profiles upsert timeslots ["월_주간"] + band_start_date 11/12 + band_expected_months "3개월"', !!up && JSON.stringify(up.payload.timeslots) === '["월_주간"]' && up.payload.band_start_date === '2026-11-12' && up.payload.band_expected_months === '3개월' && up.payload.status === 'pending', JSON.stringify(up && [up.payload.timeslots, up.payload.band_expected_months]));
   chk('가입: band_slot_claims insert(def·요일 1·12:00~18:00·시작일·pending)', !!cl && Array.isArray(cl.payload) && cl.payload.length === 1 && cl.payload[0].def_id === 'def-mon-day' && cl.payload[0].day_of_week === 1 && cl.payload[0].start_time === '12:00' && cl.payload[0].end_time === '18:00' && cl.payload[0].start_date === '2026-11-12' && cl.payload[0].status === 'pending' && cl.payload[0].profile_id === 'f0000000-0000-4000-8000-000000000006', JSON.stringify(cl && cl.payload));
   chk('가입: 관리자 푸시 본문에 "월 주간 · 11/12 시작 희망 · 3개월"', !!push && /월 주간/.test(push.body) && /11\/12 시작 희망 · 3개월/.test(push.body), push && push.body);
+  chk('가입: auth.signUp 비밀번호 = "pw1234"(접두 + 숫자 4자리)', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.password === 'pw1234' && window.__signUpArgs.email === 'newteam@band.gatheo.kr'), await p.evaluate(() => JSON.stringify(window.__signUpArgs)));
+  // 로그인 정규화: 숫자 4자리만 치면 pw+숫자로, PW 대문자는 소문자로 한 번 더 시도(첫 시도 실패 때만)
+  chk('로그인: "1234" → 첫 시도 실패 후 "pw1234" 재시도 · "PW1234" → "pw1234" 재시도 · 맞는 비밀번호는 1회', await p.evaluate(async () => {
+    const tries = []; window.__fakeSb.auth.signInWithPassword = async ({ email, password }) => { tries.push(password); return password === 'pw1234' ? { data: { user: null }, error: null } : { data: null, error: { message: 'bad' } }; };
+    showBandLoginForm(); document.getElementById('bandLoginId').value = 'vandor';
+    const run = async (pw) => { tries.length = 0; document.getElementById('bandLoginPassword').value = pw; await handleBandEmailLogin(); return tries.slice(); };
+    const a = await run('1234'), b = await run('PW1234'), c = await run('pw1234'), d = await run('wrongpw');
+    return JSON.stringify([a, b, c, d]) === JSON.stringify([['1234', 'pw1234'], ['PW1234', 'pw1234'], ['pw1234'], ['wrongpw']]) && document.getElementById('bandLoginResult').textContent.includes('로그인 실패');
+  }));
+  await p.evaluate(() => showBandLoginForm());
   chk('가입 완료 → 로그인 폼으로', await p.evaluate(() => !document.getElementById('band-login-form').classList.contains('hidden')));
   chk('딥링크 #band/times → 시간표 화면', await p.evaluate(() => { _hideAllScreens(); location.hash = '#band/times'; _routeToPage(_pageFromHash()); return !document.getElementById('landing-page-band').classList.contains('hidden') && !document.getElementById('band-schedule-view').classList.contains('hidden'); }));
   await p.waitForTimeout(500);

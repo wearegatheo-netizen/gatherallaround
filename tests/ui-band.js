@@ -297,8 +297,8 @@ const FAKE_SB = `
     document.getElementById('bandSignupNameKr').value = '새팀';
     document.getElementById('bandSignupNameEn').value = 'NewTeam';
     document.getElementById('bandSignupId').value = 'newteam';
-    document.getElementById('bandSignupPassword').value = 'pw123456';
-    document.getElementById('bandSignupPasswordConfirm').value = 'pw123456';
+    document.getElementById('bandSignupPwDigits').value = '1234';
+    document.getElementById('bandSignupPwDigitsConfirm').value = '1234';
     document.querySelector('.band-timeslot-checkbox[value="목_야간"]').checked = true;
     document.getElementById('bandPrivacyConsent').checked = true;
     return handleBandEmailSignup();
