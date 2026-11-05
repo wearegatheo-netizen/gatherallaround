@@ -114,30 +114,41 @@ const FAKE_SB = `
     return !timeBlocksConflict(once('2026-11-20'), window.__T.time_blocks[0]) && timeBlocksConflict(once('2026-11-27'), window.__T.time_blocks[0]);
   }));
 
-  // ── 1. 가입 화면: 실시간 가능 타임 표
-  await p.evaluate(() => { _hideAllScreens(); document.getElementById('landing-page-band').classList.remove('hidden'); showBandSignupForm(); });
+  // ── 1. 합주팀 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 → 고정 가능 시간 보기(설명 + 실시간 표)
+  await p.evaluate(() => { _hideAllScreens(); showBandSection(); document.getElementById('portalLoadingScreen')?.remove(); });
+  await p.waitForTimeout(300);
+  chk('첫 화면: 메뉴 3개(시간표 보기·가입 신청·로그인) 표시, 로그인 폼·시간표·가입 폼 숨김', await p.evaluate(() => { const m = document.getElementById('band-menu'); const b = [...m.querySelectorAll('.band-menu-btn b')].map(e => e.textContent); return !m.classList.contains('hidden') && b.join('|') === '고정 가능 시간 보기|가입 신청|로그인' && ['band-login-form', 'band-schedule-view', 'band-signup-form'].every(id => document.getElementById(id).classList.contains('hidden')); }));
+  await p.evaluate(() => showBandScheduleView());
   await p.waitForTimeout(700);
-  chk('새 타임표 표시 + 종전 체크박스 숨김 + 희망 시작일 기본 오늘+7(11/12)', await p.evaluate(() => !document.getElementById('bandSignupSlots').classList.contains('hidden') && document.getElementById('bandSignupLegacySlots').classList.contains('hidden') && document.getElementById('bandSignupStart').value === '2026-11-12'));
-  const chip = (id) => p.evaluate((id) => { const c = document.querySelector(`.band-slot-chip[data-def="${id}"]`); return c && { cls: c.className, s: c.querySelector('.s').textContent, disabled: c.disabled }; }, id);
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-slots-schedule.png'), fullPage: true });
+  chk('시간표 화면: 설명(고정 합주팀이란·칩 읽는 법·건너뛰기권·신청 절차) + 희망 시작일 기본 오늘+7(11/12) + 요약 줄', await p.evaluate(() => { const v = document.getElementById('band-schedule-view'); const g = v.querySelector('.band-guide').textContent; const sum = v.querySelector('.band-avail-summary')?.textContent || ''; return !v.classList.contains('hidden') && g.includes('고정 합주팀') && g.includes('희망 시작일') && g.includes('건너뛰기권') && g.includes('가입 신청') && v.querySelectorAll('.band-guide .band-slot-chip.mini').length === 5 && document.getElementById('bandScheduleStart').value === '2026-11-12' && sum.includes('11/12(목) 시작 기준') && sum.includes('바로 가능 0개') && sum.includes('건너뛰기 조건 1개') && sum.includes('날짜 지정 1개'); }), await p.evaluate(() => document.querySelector('#band-schedule-view .band-avail-summary')?.textContent));
+  chk('시간표 화면: CTA 는 선택 전 "가입 신청으로"(항상 누를 수 있음)', await p.evaluate(() => { const b = document.getElementById('bandScheduleNextBtn'); return !b.disabled && b.textContent === '가입 신청으로'; }));
+  const chip = (id) => p.evaluate((id) => { const c = document.querySelector(`#band-schedule-view .band-slot-chip[data-def="${id}"]`); return c && { cls: c.className, s: c.querySelector('.s').textContent, disabled: c.disabled }; }, id);
   const c1 = await chip(D.monDay), c2 = await chip(D.monNight), c3 = await chip(D.tueNight), c4 = await chip(D.wedDay), c5 = await chip(D.friNight), c6 = await chip(D.satAm);
   chk('월 주간: 2주 건너뛰기(11/23 예약·11/30 대관, 취소 예약 제외) 선택 가능', c1 && c1.cls.includes('skip') && c1.s === '2주 건너뛰기' && !c1.disabled, JSON.stringify(c1));
-  chk('월 야간: 개방일 12/1부터(비활성)', c2 && c2.cls.includes('later') && c2.s === '12/1부터' && c2.disabled, JSON.stringify(c2));
-  chk('화 야간: 고정팀 불가 → 대관만', c3 && c3.cls.includes('off') && c3.s === '대관만' && c3.disabled, JSON.stringify(c3));
+  chk('월 야간: 개방일 12/1부터(선택 불가지만 눌러서 안내)', c2 && c2.cls.includes('later') && c2.cls.includes('na') && c2.s === '12/1부터' && !c2.disabled, JSON.stringify(c2));
+  chk('화 야간: 고정팀 불가 → 대관만', c3 && c3.cls.includes('off') && c3.s === '대관만' && !c3.disabled, JSON.stringify(c3));
   chk('수 주간: 운영 반복 차단(정기 청소) → 차단 중', c4 && c4.cls.includes('taken') && c4.s === '차단 중', JSON.stringify(c4));
   chk('금 야간: 벤더 반복 차단 → 고정팀 사용 중', c5 && c5.cls.includes('taken') && c5.s === '고정팀 사용 중', JSON.stringify(c5));
-  chk('토 오전: 신규팀 신청 대기 → 다른 팀 신청 중', c6 && c6.cls.includes('wait') && c6.s === '다른 팀 신청 중' && c6.disabled, JSON.stringify(c6));
-  chk('칩 폭 420px: 월요일 줄 칩 2개가 줄 안에 들어옴', await p.evaluate(() => { const row = document.querySelector('.band-avail-row'); const chips = [...row.querySelectorAll('.band-slot-chip')]; const r = row.getBoundingClientRect(); return chips.length === 2 && chips.every(c => c.getBoundingClientRect().right <= r.right + 1) && chips.every(c => c.offsetHeight >= 36); }));
-  await p.click(`.band-slot-chip[data-def="${D.monDay}"]`);
+  chk('토 오전: 신규팀 신청 대기 → 다른 팀 신청 중', c6 && c6.cls.includes('wait') && c6.s === '다른 팀 신청 중', JSON.stringify(c6));
+  chk('칩 폭 420px: 월요일 줄 칩 2개가 줄 안에 들어옴', await p.evaluate(() => { const row = document.querySelector('#band-schedule-view .band-avail-row'); const chips = [...row.querySelectorAll('.band-slot-chip')]; const r = row.getBoundingClientRect(); return chips.length === 2 && chips.every(c => c.getBoundingClientRect().right <= r.right + 1) && chips.every(c => c.offsetHeight >= 36); }));
+  await p.click(`#band-schedule-view .band-slot-chip[data-def="${D.monDay}"]`);
+  const detail = await p.evaluate(() => document.querySelector('#band-schedule-view .band-avail-detail')?.textContent || '');
+  chk('선택 → 칩 "✓ 선택" + 안내: 2주 · 11/23(월) 게더링 예약 · 11/30(월) 공간 대관 · 건너뛰기권 설명 + CTA "(1개)"', (await chip(D.monDay)).s === '✓ 선택' && detail.includes('2주') && detail.includes('11/23(월) 12~18시 · 게더링 예약') && detail.includes('11/30(월) 12~18시 · 공간 대관') && detail.includes('1주 무료 연장') && (await p.evaluate(() => document.getElementById('bandScheduleNextBtn').textContent)) === '이 타임으로 가입 신청하기 (1개)', detail.slice(0, 160));
+  // 개방일 칩을 누르면 희망 시작일이 그날로 — 월 야간 가능, 월 주간은 겹침 없음(선택 유지), 두 화면 날짜칸 동기화
+  await p.click(`#band-schedule-view .band-slot-chip[data-def="${D.monNight}"]`);
+  await p.waitForTimeout(400);
+  const c2b = await chip(D.monNight), c1b = await chip(D.monDay);
+  chk('"12/1부터" 칩 클릭 → 시작일 12/1 · 월 야간 가능 · 월 주간 "✓ 선택" 유지 · 가입 폼 날짜칸도 12/1', c2b && c2b.cls.includes('ok') && !c2b.disabled && c1b && c1b.s === '✓ 선택' && (await p.evaluate(() => document.getElementById('bandScheduleStart').value === '2026-12-01' && document.getElementById('bandSignupStart').value === '2026-12-01')), JSON.stringify([c2b, c1b]));
+  await p.evaluate(() => bandWishStartChange('2026-11-12'));
+  await p.waitForTimeout(300);
+  chk('선택 불가 칩(대관만) 클릭 → 토스트 안내, 날짜 그대로', await p.evaluate(async (id) => { document.querySelector(`#band-schedule-view .band-slot-chip[data-def="${id}"]`).click(); await new Promise(r => setTimeout(r, 50)); return document.getElementById('bandScheduleStart').value === '2026-11-12' && /고정팀은 받지 않는/.test(document.body.innerText); }, D.tueNight));
+  // CTA → 가입 폼: 같은 표·선택이 폼 안에도 그려지고 종전 체크박스는 숨김
+  await p.evaluate(() => document.getElementById('bandScheduleNextBtn').click());
+  await p.waitForTimeout(600);
+  chk('가입 폼: 표(선택 유지 "✓ 선택")·날짜 11/12 + 종전 체크박스 숨김 + [표 읽는 법] 링크', await p.evaluate((id) => !document.getElementById('band-signup-form').classList.contains('hidden') && document.getElementById('band-schedule-view').classList.contains('hidden') && !document.getElementById('bandSignupSlots').classList.contains('hidden') && document.getElementById('bandSignupLegacySlots').classList.contains('hidden') && document.querySelector(`#bandSignupAvailBody .band-slot-chip[data-def="${id}"] .s`).textContent === '✓ 선택' && document.getElementById('bandSignupStart').value === '2026-11-12' && !!document.querySelector('#band-signup-form button[onclick="showBandScheduleView()"]'), D.monDay));
   await p.evaluate(() => document.getElementById('bandSignupSlots').scrollIntoView());
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-slots-signup.png'), fullPage: true });
-  const detail = await p.evaluate(() => document.querySelector('.band-avail-detail')?.textContent || '');
-  chk('선택 → 칩 "✓ 선택" + 안내: 2주 · 11/23(월) 게더링 예약 · 11/30(월) 공간 대관 · 건너뛰기권 설명', (await chip(D.monDay)).s === '✓ 선택' && detail.includes('2주') && detail.includes('11/23(월) 12~18시 · 게더링 예약') && detail.includes('11/30(월) 12~18시 · 공간 대관') && detail.includes('1주 무료 연장'), detail.slice(0, 160));
-  await p.evaluate(() => { document.getElementById('bandSignupStart').value = '2026-12-01'; return bandSignupAvailRefresh(); });
-  await p.waitForTimeout(300);
-  const c2b = await chip(D.monNight), c1b = await chip(D.monDay);
-  chk('시작일 12/1 로 바꾸면 월 야간 가능 · 월 주간은 겹침 없음 → "가능"(선택 유지)', c2b && c2b.cls.includes('ok') && !c2b.disabled && c1b && c1b.s === '✓ 선택', JSON.stringify([c2b, c1b]));
-  await p.evaluate(() => { document.getElementById('bandSignupStart').value = '2026-11-12'; return bandSignupAvailRefresh(); });
-  await p.waitForTimeout(300);
   // 제출: 선택 없이 → 인라인 오류 / 선택 후 → profiles upsert + claims insert + 푸시
   await p.evaluate(() => {
     document.getElementById('bandSignupLeaderName').value = '홍길동'; document.getElementById('bandSignupLeaderPhone').value = '010-2222-3333';
@@ -148,6 +159,7 @@ const FAKE_SB = `
     return handleBandEmailSignup();
   });
   chk('타임 미선택 제출 → 인라인 오류 "합주 타임을 1개 이상"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('합주 타임을 1개 이상'));
+  chk('가입 폼에서 고른 선택도 시간표 화면과 공유(폼 안 칩 클릭 → 폼 표에 "✓ 선택")', await p.evaluate((id) => { bandSignupToggleSlot(id); const ok = document.querySelector(`#bandSignupAvailBody .band-slot-chip[data-def="${id}"] .s`).textContent === '✓ 선택'; bandSignupToggleSlot(id); return ok; }, D.monDay));
   await p.evaluate((id) => { bandSignupToggleSlot(id); return handleBandEmailSignup(); }, D.monDay);
   try { await p.clock.runFor(1000); } catch (_) {}
   await p.waitForTimeout(400);
@@ -157,7 +169,10 @@ const FAKE_SB = `
   chk('가입: profiles upsert timeslots ["월_주간"] + band_start_date 11/12', !!up && JSON.stringify(up.payload.timeslots) === '["월_주간"]' && up.payload.band_start_date === '2026-11-12' && up.payload.status === 'pending', JSON.stringify(up && up.payload.timeslots));
   chk('가입: band_slot_claims insert(def·요일 1·12:00~18:00·시작일·pending)', !!cl && Array.isArray(cl.payload) && cl.payload.length === 1 && cl.payload[0].def_id === 'def-mon-day' && cl.payload[0].day_of_week === 1 && cl.payload[0].start_time === '12:00' && cl.payload[0].end_time === '18:00' && cl.payload[0].start_date === '2026-11-12' && cl.payload[0].status === 'pending' && cl.payload[0].profile_id === 'f0000000-0000-4000-8000-000000000006', JSON.stringify(cl && cl.payload));
   chk('가입: 관리자 푸시 본문에 "월 주간 · 11/12 시작 희망"', !!push && /월 주간/.test(push.body) && /11\/12 시작 희망/.test(push.body), push && push.body);
-  await p.evaluate(() => { window.__T.band_slot_claims = window.__T.band_slot_claims.filter(c => c.profile_id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.profiles = window.__T.profiles.filter(x => x.id !== 'f0000000-0000-4000-8000-000000000006'); });
+  chk('가입 완료 → 로그인 폼으로', await p.evaluate(() => !document.getElementById('band-login-form').classList.contains('hidden')));
+  chk('딥링크 #band/times → 시간표 화면', await p.evaluate(() => { _hideAllScreens(); location.hash = '#band/times'; _routeToPage(_pageFromHash()); return !document.getElementById('landing-page-band').classList.contains('hidden') && !document.getElementById('band-schedule-view').classList.contains('hidden'); }));
+  await p.waitForTimeout(500);
+  await p.evaluate(() => { location.hash = ''; document.getElementById('portalLoadingScreen')?.remove(); window.__T.band_slot_claims = window.__T.band_slot_claims.filter(c => c.profile_id !== 'f0000000-0000-4000-8000-000000000006'); window.__T.profiles = window.__T.profiles.filter(x => x.id !== 'f0000000-0000-4000-8000-000000000006'); });
 
   // ── 2. 관리자: 가입 신청 승인 폼 → 달력 반영 + 건너뛰기권 발급
   await p.evaluate((a) => loginBandUI(a), TABLES.profiles[0]);

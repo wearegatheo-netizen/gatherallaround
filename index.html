@@ -18,6 +18,8 @@
             // 커뮤니티 모임 공유 링크 /meet/<id> (functions/meet/[id].js) — 인스타·카톡 인앱이 #해시를 버려서 경로형으로(2026-10-27)
             var mm = location.pathname.match(/^\/meet\/([0-9a-f-]{36})\/?$/i);
             if (mm && re.test(mm[1]) && !location.hash) history.replaceState({ page: 'community/meeting/' + mm[1].toLowerCase() }, '', '/#community/meeting/' + mm[1].toLowerCase());
+            // 고정 합주팀 가능 시간 보기 /band/times (functions/band/times.js) — 인앱 브라우저용 경로형(2026-11-05)
+            if (/^\/band\/times\/?$/i.test(location.pathname) && !location.hash) history.replaceState({ page: 'band/times' }, '', '/#band/times');
         } catch (e) {}
     })();
     </script>
@@ -1632,6 +1634,27 @@
         }
         .band-notice-item { padding: 12px 14px; border: 1px solid var(--wds-gray-300); border-radius: 12px; margin-bottom: 8px; background: var(--wds-gray-100); }
         /* 실시간 시간 띠 표(가입 신청·관리자 시간 띠 탭) — 요일 줄 + 띠 칩, 상태별 색 */
+        .band-menu { display: flex; flex-direction: column; gap: 10px; }
+        .band-menu-intro { margin: 0 0 6px; font-size: 0.9rem; line-height: 1.6; color: var(--wds-gray-700); }
+        .band-menu-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 1px solid var(--wds-gray-300); border-radius: 14px; background: var(--wds-white); color: var(--wds-black); font-family: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+        .band-menu-btn:hover { border-color: var(--wds-primary); background: var(--wds-primary-light); }
+        .band-menu-btn .ic { font-size: 1.45rem; flex: 0 0 auto; }
+        .band-menu-btn .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .band-menu-btn b { font-size: 1rem; font-weight: 800; }
+        .band-menu-btn small { font-size: 0.8rem; color: var(--wds-gray-600); line-height: 1.4; }
+        .band-menu-btn .ar { color: var(--wds-gray-500); font-size: 1.2rem; flex: 0 0 auto; }
+        .band-menu-btn:first-of-type { border-color: var(--wds-primary); }
+        .band-step { font-weight: 800; font-size: 1.05rem; color: var(--wds-black); text-align: left; }
+        .band-guide { text-align: left; font-size: 0.86rem; line-height: 1.6; color: var(--wds-gray-800); background: var(--wds-gray-100); border-radius: 12px; padding: 12px 14px; }
+        .band-guide p { margin: 0; } .band-guide p + ul, .band-guide ul + p { margin-top: 8px; }
+        .band-guide ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+        .band-guide li { display: block; padding-left: 10px; text-indent: -10px; }
+        .band-guide li::before { content: '·'; display: inline-block; width: 10px; text-indent: 0; color: var(--wds-gray-500); }
+        .band-slot-chip.mini { display: inline-flex; vertical-align: middle; padding: 1px 8px; min-width: 0; border-radius: 8px; cursor: default; margin: 0 2px; text-indent: 0; }
+        .band-slot-chip.mini .s { font-size: 0.74rem; }
+        .band-avail-summary { text-align: left; font-size: 0.86rem; line-height: 1.5; color: var(--wds-gray-800); margin: 0 0 8px; }
+        .band-avail-summary b { color: var(--wds-primary); }
+        .band-slot-chip.na { cursor: pointer; }
         .band-signup-slots { text-align: left; }
         .band-signup-start { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: var(--wds-gray-700); margin-bottom: 8px; }
         .band-signup-start input[type="date"] { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background: var(--wds-white); color: var(--wds-black); -webkit-appearance: none; appearance: none; }
@@ -2423,17 +2446,47 @@
         <p>고정 합주팀 전용 공간</p>
 
         <div id="band-email-section">
+            <!-- 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 (2026-11-05, 가입 전에 일정부터) -->
+            <div id="band-menu" class="band-menu">
+                <p class="band-menu-intro">매주 같은 요일·같은 시간에 합주실을 고정으로 쓰는 팀을 위한 공간이에요.<br>처음이라면 <strong>고정 가능 시간</strong>부터 확인해보세요.</p>
+                <button type="button" class="band-menu-btn" onclick="showBandScheduleView()"><span class="ic">📅</span><span class="tx"><b>고정 가능 시간 보기</b><small>요일별로 언제부터 고정이 가능한지 실시간으로 확인해요</small></span><span class="ar">›</span></button>
+                <button type="button" class="band-menu-btn" onclick="showBandSignupForm()"><span class="ic">✍️</span><span class="tx"><b>가입 신청</b><small>타임을 고르고 팀 정보를 보내면 운영자가 확인 후 승인해요</small></span><span class="ar">›</span></button>
+                <button type="button" class="band-menu-btn" onclick="showBandLoginForm()"><span class="ic">🔑</span><span class="tx"><b>로그인</b><small>승인된 고정팀 계정으로 입장</small></span><span class="ar">›</span></button>
+            </div>
+
             <!-- 로그인 폼 -->
-            <div id="band-login-form" class="email-form">
+            <div id="band-login-form" class="email-form hidden">
                 <input type="text" id="bandLoginId" placeholder="아이디 (영문/숫자)" autocomplete="username" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <input type="password" id="bandLoginPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
                 <div id="bandLoginResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailLogin()">로그인</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandSignupForm()">아직 팀원이 아니신가요? 가입 신청</button>
+                <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
+            </div>
+
+            <!-- 고정 가능 시간 보기: 처음 보는 사람용 설명 + 실시간 표(band_slot_defs + 예약·대관·차단 계산). 딥링크 #band/times · /band/times -->
+            <div id="band-schedule-view" class="email-form hidden">
+                <div class="band-step">📅 고정 가능 시간</div>
+                <div class="band-guide">
+                    <p><strong>고정 합주팀</strong>은 매주 같은 요일·시간에 합주실을 고정으로 쓰는 팀이에요(4주 단위 회차). 아래 표는 지금 잡혀 있는 예약·대관·다른 고정팀을 반영해 <strong>어느 요일 몇 시부터 고정이 가능한지</strong>를 실시간으로 보여줘요.</p>
+                    <ul>
+                        <li><strong>희망 시작일</strong>을 바꾸면 그날부터 26주를 기준으로 다시 계산해요.</li>
+                        <li><span class="band-slot-chip ok mini"><span class="s">가능</span></span> 바로 시작할 수 있어요.</li>
+                        <li><span class="band-slot-chip skip mini"><span class="s">N주 건너뛰기</span></span> 이미 잡힌 일정과 겹치는 주가 N번 있어요. 그 주만 건너뛰면 되고, 주마다 <strong>건너뛰기권</strong>(같은 길이의 대체 합주 또는 1주 무료 연장 중 선택)을 드려요.</li>
+                        <li><span class="band-slot-chip later mini"><span class="s">M/D부터</span></span> 그 날짜부터 신청할 수 있어요. 누르면 희망 시작일이 그날로 바뀌어요.</li>
+                        <li><span class="band-slot-chip taken mini"><span class="s">고정팀 사용 중</span></span> 다른 팀이 쓰는 시간, <span class="band-slot-chip off mini"><span class="s">대관만</span></span> 고정팀은 받지 않는 시간이에요.</li>
+                    </ul>
+                    <p>마음에 드는 타임을 고르고 <strong>가입 신청</strong>을 보내면 운영자가 확인 후 승인해요. 승인되면 그 시간이 예약 달력에서 고정팀 자리로 막혀요.</p>
+                </div>
+                <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandScheduleStart" onchange="bandWishStartChange(this.value)"></label>
+                <div id="bandScheduleBody" class="band-signup-slots"><div class="band-empty">불러오는 중…</div></div>
+                <button type="button" id="bandScheduleNextBtn" class="email-primary-btn" onclick="showBandSignupForm()">가입 신청으로</button>
+                <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
             </div>
 
             <!-- 회원가입 폼 -->
             <div id="band-signup-form" class="email-form hidden">
+                <div class="band-step">✍️ 가입 신청</div>
                 <div style="text-align:left;margin-bottom:4px">
                     <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">팀 리더 이름 <span style="color:#e74c3c">*</span></label>
                 </div>
@@ -2463,12 +2516,13 @@
                 </div>
                 <input type="password" id="bandSignupPasswordConfirm" placeholder="비밀번호 확인" autocomplete="new-password">
 
-                <div style="text-align:left;margin-bottom:8px;margin-top:4px">
+                <div style="text-align:left;margin-bottom:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;gap:8px">
                     <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">합주 타임 선택 <span style="color:#e74c3c">*</span></label>
+                    <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="showBandScheduleView()">표 읽는 법 · 자세히</button>
                 </div>
-                <!-- 실시간 가능 타임(band_slot_defs + 예약·대관·차단 계산). 표가 없으면(마이그레이션 전) 아래 종전 체크박스로 폴백 -->
+                <!-- 실시간 가능 타임 — 시간표 화면과 같은 자료·선택을 그린다. 표가 없으면(마이그레이션 전·띠 0개) 아래 종전 체크박스로 폴백 -->
                 <div id="bandSignupSlots" class="band-signup-slots hidden">
-                    <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandSignupStart" onchange="bandSignupAvailRefresh()"></label>
+                    <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandSignupStart" onchange="bandWishStartChange(this.value)"></label>
                     <div id="bandSignupAvailBody"><div class="band-empty">불러오는 중…</div></div>
                 </div>
                 <div id="bandSignupLegacySlots" class="band-timeslot-grid" style="margin-bottom:4px">
@@ -2514,7 +2568,7 @@
 
                 <div id="bandSignupResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
                 <button type="button" class="email-primary-btn" onclick="handleBandEmailSignup()">가입 신청</button>
-                <button type="button" class="email-secondary-btn" onclick="showBandLoginForm()">로그인으로 돌아가기</button>
+                <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
             </div>
         </div>
     </div>
@@ -8318,6 +8372,7 @@
                     return _UUID_RE.test(segs[2]) ? 'gatheo/board/' + segs[2].toLowerCase() : 'gatheo/board';
                 return segs.slice(0, 2).join('/');
             }
+            if (segs[0] === 'band' && segs[1] === 'times') return 'band/times'; // 고정 가능 시간 보기(가입 전 일정 확인, 2026-11-05)
             if (segs[0] === 'community' && segs[1]) {
                 if (segs[1] === 'meeting' && _UUID_RE.test(segs[2] || '')) return 'community/meeting/' + segs[2].toLowerCase();
                 return _COMMUNITY_TABS.includes(segs[1]) ? segs.slice(0, 2).join('/') : 'community';
@@ -8373,7 +8428,10 @@
                         showGatheoSection();
                     }
                 }
-                else if (page === 'band') { if (state.bandProfile) loginBandUI(state.bandProfile); else showBandSection(); }
+                else if (page === 'band') {
+                    if (state.bandProfile) loginBandUI(state.bandProfile);
+                    else { showBandSection(); if (segs[1] === 'times') showBandScheduleView(); } // #band/times = 고정 가능 시간 보기(가입 전 일정 확인)
+                }
                 else if (page === 'community') {
                     // showCommunitySection이 탭을 'current'로 리셋하므로, 원하는 탭을 미리 맡겨둔다
                     if (_COMMUNITY_TABS.includes(segs[1])) window.__routeCommunityTab = segs[1];
@@ -9817,7 +9875,7 @@
             document.body.classList.remove('fullwidth-view');
             _hideAllScreens();
             document.getElementById('landing-page-band').classList.remove('hidden');
-            showBandLoginForm();
+            showBandMenu();
             showPortalLoading();
         }
 
@@ -12570,19 +12628,22 @@
         // ─────────────────────────────────────────────────────────────────────
 
         // Band section form helpers
-        function showBandLoginForm() {
-            document.getElementById('band-login-form').classList.remove('hidden');
-            document.getElementById('band-signup-form').classList.add('hidden');
+        // 합주팀 랜딩 4화면: 메뉴(#band-menu: 시간표 보기·가입 신청·로그인) / 로그인 / 고정 가능 시간(#band-schedule-view, 설명 포함) / 가입 폼 — 2026-11-05
+        function _bandLandingShow(which) {
+            ['band-menu', 'band-login-form', 'band-schedule-view', 'band-signup-form'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', id !== which));
             const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
+            try { if (which !== 'band-menu') document.getElementById('landing-page-band')?.scrollIntoView({ block: 'start' }); } catch (_) {}
         }
-
+        function showBandMenu() { _bandLandingShow('band-menu'); }
+        function showBandLoginForm() { _bandLandingShow('band-login-form'); }
+        function showBandScheduleView() {
+            _bandLandingShow('band-schedule-view');
+            bandSignupAvailInit().catch(e => console.error('band schedule view:', e));
+        }
         function showBandSignupForm() {
-            document.getElementById('band-login-form').classList.add('hidden');
-            document.getElementById('band-signup-form').classList.remove('hidden');
-            const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
-            const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
-            bandSignupAvailInit().catch(e => console.error('band signup avail:', e)); // 실시간 가능 타임 표(마이그레이션 전엔 체크박스 폴백)
+            _bandLandingShow('band-signup-form');
+            bandSignupAvailInit().catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -12634,7 +12695,7 @@
 
             if (!leaderName || !leaderPhone || !bandNameKr || !bandNameEn || !rawId || !password) { showErr('모든 항목을 입력해주세요.'); return; }
             if (picked) {
-                if (!picked.defs.length) { showErr('합주 타임을 1개 이상 선택해주세요.'); return; }
+                if (!picked.defs.length) { showErr('합주 타임을 1개 이상 선택해주세요. (표에서 「가능」·「N주 건너뛰기」 칩을 누르면 선택돼요)'); return; }
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(picked.start) || picked.start < bandTodayStr()) { showErr('희망 시작일을 오늘 이후로 선택해주세요.'); return; }
             }
             if (!/^[a-zA-Z0-9]+$/.test(rawId)) { showErr('아이디는 영문 또는 영문+숫자 조합만 가능합니다.'); return; }
@@ -13220,35 +13281,48 @@
                 const list = byDow[dow] || [];
                 return `<div class="band-avail-row"><div class="band-avail-day">${BAND_DOW[dow]}</div><div class="band-avail-chips">${list.length ? list.map(({ def, st }) => {
                     const can = opts.selectable && (st.kind === 'ok' || st.kind === 'skip');
+                    const info = opts.selectable && !can && opts.onInfo; // 선택 불가 칩도 눌러 이유·개방일 이동
                     const on = sel.has(def.id);
                     const title = !opts.publicView && def.note ? ` title="${escAttr(def.note)}"` : '';
-                    return `<button type="button" class="band-slot-chip ${st.kind}${on ? ' sel' : ''}" data-def="${def.id}"${can ? ` onclick="${opts.onToggle}('${def.id}')"` : ' disabled'}${title}>
+                    return `<button type="button" class="band-slot-chip ${st.kind}${on ? ' sel' : ''}${info ? ' na' : ''}" data-def="${def.id}"${can ? ` onclick="${opts.onToggle}('${def.id}')"` : info ? ` onclick="${opts.onInfo}('${def.id}')"` : ' disabled'}${title}>
                         <span class="t">${escHtml(def.label || _bandLabelOf(def.start_time))} ${_bandRangeText(def.start_time, def.end_time)}</span><span class="s">${on ? '✓ 선택' : escHtml(st.label)}</span></button>`;
                 }).join('') : '<span class="band-muted">띠 없음</span>'}</div></div>`;
             }).join('')}</div>`;
         }
         const _bandAvailLegend = () => `<div class="band-avail-legend"><span class="status-badge sm status-approved">가능</span><span class="status-badge sm status-pending">N주 건너뛰기</span><span class="status-badge sm status-info">개방일</span><span class="status-badge sm status-rejected">사용 중</span><span class="status-badge sm status-neutral">불가·대기</span></div>`;
 
-        // ── 가입 신청: 희망 시작일 기준 실시간 가능 타임 고르기 ──
+        // ── 고정 가능 시간 보기·가입 신청: 희망 시작일 기준 실시간 가능 타임 — 시간표 화면(#bandScheduleBody)과 가입 폼(#bandSignupAvailBody)이 같은 자료·선택을 쓴다 ──
         let _bandSignupAvail = null; // {ctx, rows}
         const _bandSignupSel = new Set();
         const _bandSignupDefaultStart = () => _bandAddDays(bandTodayStr(), 7);
+        const _bandAvailBodies = () => ['bandScheduleBody', 'bandSignupAvailBody'].map(id => document.getElementById(id)).filter(Boolean);
+        const _bandStartInputs = () => ['bandScheduleStart', 'bandSignupStart'].map(id => document.getElementById(id)).filter(Boolean);
+        const bandWishStart = () => (/^\d{4}-\d{2}-\d{2}$/.test(state.bandWishStart || '') ? state.bandWishStart : _bandSignupDefaultStart());
+        // 희망 시작일 변경(두 화면 입력칸 동기화) → 다시 계산
+        function bandWishStartChange(v) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(v || '')) return;
+            state.bandWishStart = v;
+            _bandStartInputs().forEach(i => { i.value = v; });
+            bandSignupAvailRefresh();
+        }
+        // 폴백(표 없음·띠 0개) 여부 — 2단계 폼·제출이 종전 체크박스와 구분하는 기준
+        const _bandSignupUsesTable = () => !!_bandSignupAvail && !state.bandSignupFallback;
         async function bandSignupAvailInit() {
-            const box = document.getElementById('bandSignupSlots'), legacy = document.getElementById('bandSignupLegacySlots');
-            if (!box) return;
-            const input = document.getElementById('bandSignupStart');
-            if (input) { input.min = bandTodayStr(); if (!input.value) input.value = _bandSignupDefaultStart(); }
+            if (!_bandAvailBodies().length) return;
+            const start = bandWishStart();
+            _bandStartInputs().forEach(i => { i.min = bandTodayStr(); i.value = start; });
             await bandSignupAvailRefresh();
-            const fallback = _bandSlotsUnavailable || !supabaseClient;
-            box.classList.toggle('hidden', fallback);
-            if (legacy) legacy.classList.toggle('hidden', !fallback);
+            // 폴백: 표가 없거나(마이그레이션 전) 띠가 하나도 없으면 가입 폼은 종전 체크박스, 시간표 화면은 안내문
+            state.bandSignupFallback = !supabaseClient || _bandSlotsUnavailable || !_bandSignupAvail || !_bandSignupAvail.rows.length;
+            const fb = state.bandSignupFallback;
+            document.getElementById('bandSignupSlots')?.classList.toggle('hidden', fb);
+            document.getElementById('bandSignupLegacySlots')?.classList.toggle('hidden', !fb);
+            if (fb) { const sb = document.getElementById('bandScheduleBody'); if (sb) sb.innerHTML = _bandEmptyHTML('아직 시간표가 준비되지 않았어요. 가입 신청에서 주간/야간 타임을 골라 보내주시면 운영자가 연락드릴게요.'); const nb = document.getElementById('bandScheduleNextBtn'); if (nb) { nb.disabled = false; nb.textContent = '가입 신청으로'; } }
         }
         async function bandSignupAvailRefresh() {
-            const body = document.getElementById('bandSignupAvailBody');
-            if (!body || !supabaseClient) return;
-            const input = document.getElementById('bandSignupStart');
-            const start = input && /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : _bandSignupDefaultStart();
-            body.innerHTML = _bandLoadingHTML();
+            if (!supabaseClient || !_bandAvailBodies().length) return;
+            const start = bandWishStart();
+            _bandAvailBodies().forEach(b => { b.innerHTML = _bandLoadingHTML(); });
             try {
                 const ctx = await bandAvailLoad(start);
                 if (_bandSlotsUnavailable) { _bandSignupAvail = null; return; }
@@ -13256,11 +13330,19 @@
                 _bandSignupAvail = { ctx, rows };
                 [..._bandSignupSel].forEach(id => { const r = rows.find(x => x.def.id === id); if (!r || (r.st.kind !== 'ok' && r.st.kind !== 'skip')) _bandSignupSel.delete(id); });
                 bandSignupAvailRender();
-            } catch (e) { console.error('band avail:', e); body.innerHTML = _bandEmptyHTML('가능 시간을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); }
+            } catch (e) { console.error('band avail:', e); _bandAvailBodies().forEach(b => { b.innerHTML = _bandEmptyHTML('가능 시간을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); }); }
+        }
+        // 선택 불가 칩을 눌렀을 때: 개방일·종료 예정이면 희망 시작일을 그날로 옮기고, 아니면 이유를 알려준다
+        function bandScheduleChipInfo(id) {
+            const r = _bandSignupAvail && _bandSignupAvail.rows.find(x => x.def.id === id);
+            if (!r) return;
+            const st = r.st;
+            if ((st.kind === 'later' || st.kind === 'taken') && st.from) { bandWishStartChange(st.from); showToast(`희망 시작일을 ${_bandMDW(st.from)}로 바꿨어요. 이 타임은 그날부터 신청할 수 있어요.`); return; }
+            const msg = { wait: '다른 팀이 먼저 신청해 운영자 확인을 기다리는 타임이에요.', taken: '다른 고정팀이 쓰고 있는 시간이라 지금은 신청할 수 없어요.', off: '고정팀은 받지 않는 시간이에요(공간 대관은 가능).' }[st.kind];
+            if (msg) showToast(msg);
         }
         function bandSignupAvailRender() {
-            const body = document.getElementById('bandSignupAvailBody');
-            if (!body || !_bandSignupAvail) return;
+            if (!_bandSignupAvail) return;
             const { rows, ctx } = _bandSignupAvail;
             const picked = rows.filter(r => _bandSignupSel.has(r.def.id));
             let detail;
@@ -13273,14 +13355,19 @@
                         : `<div class="band-muted" style="margin-top:4px">${bandMD(ctx.startDate)} 시작 기준 26주 안에 겹치는 일정이 없어요.</div>`)
                     + '</div>';
             } else detail = '<div class="band-muted" style="margin-top:8px;text-align:left">원하는 타임을 눌러 선택해주세요(여러 개 가능). 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
-            body.innerHTML = _bandAvailLegend() + bandAvailTableHTML(rows, { selectable: true, selected: _bandSignupSel, onToggle: 'bandSignupToggleSlot', publicView: true }) + detail;
+            // 한 줄 요약(처음 보는 사람용): 시작일 기준 바로 가능 / 건너뛰기 조건 / 날짜 지정 수
+            const cnt = (k) => rows.filter(r => r.st.kind === k).length;
+            const summary = `<div class="band-avail-summary"><strong>${_bandMDW(ctx.startDate)} 시작 기준</strong> · 바로 가능 <b>${cnt('ok')}</b>개 · 건너뛰기 조건 <b>${cnt('skip')}</b>개 · 날짜 지정 <b>${rows.filter(r => r.st.from).length}</b>개${cnt('taken') + cnt('wait') + cnt('off') ? ` · 불가 ${cnt('taken') + cnt('wait') + cnt('off')}개` : ''}</div>`;
+            const table = bandAvailTableHTML(rows, { selectable: true, selected: _bandSignupSel, onToggle: 'bandSignupToggleSlot', onInfo: 'bandScheduleChipInfo', publicView: true });
+            _bandAvailBodies().forEach(body => { body.innerHTML = summary + _bandAvailLegend() + table + detail; });
+            const next = document.getElementById('bandScheduleNextBtn');
+            if (next) { next.disabled = false; next.textContent = picked.length ? `이 타임으로 가입 신청하기 (${picked.length}개)` : '가입 신청으로'; }
         }
         function bandSignupToggleSlot(id) { if (_bandSignupSel.has(id)) _bandSignupSel.delete(id); else _bandSignupSel.add(id); bandSignupAvailRender(); }
         // 가입 신청 제출용: 새 표가 살아 있으면 {defs, start} / 폴백(종전 체크박스)이면 null
         function bandSignupSelection() {
-            if (!_bandSignupAvail || _bandSlotsUnavailable) return null;
-            const start = document.getElementById('bandSignupStart')?.value || '';
-            return { start, defs: _bandSignupAvail.rows.filter(r => _bandSignupSel.has(r.def.id)).map(r => r.def) };
+            if (!_bandSignupUsesTable()) return null;
+            return { start: bandWishStart(), defs: _bandSignupAvail.rows.filter(r => _bandSignupSel.has(r.def.id)).map(r => r.def) };
         }
 
         // ── 관리자: 승인(달력 반영)·고정 시간 등록·건너뛰기권 부여·해제 ──
