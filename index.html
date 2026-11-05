@@ -1652,36 +1652,80 @@
         .band-menu-btn .ar { color: var(--wds-gray-500); font-size: 1.2rem; flex: 0 0 auto; }
         .band-menu-btn:first-of-type { border-color: var(--wds-primary); }
         .band-step { font-weight: 800; font-size: 1.05rem; color: var(--wds-black); text-align: left; }
-        .band-guide { text-align: left; font-size: 0.86rem; line-height: 1.6; color: var(--wds-gray-800); background: var(--wds-gray-100); border-radius: 12px; padding: 12px 14px; }
-        .band-guide p { margin: 0; } .band-guide p + ul, .band-guide ul + p { margin-top: 8px; }
-        .band-guide ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
-        .band-guide li { display: block; padding-left: 10px; text-indent: -10px; }
-        .band-guide li::before { content: '·'; display: inline-block; width: 10px; text-indent: 0; color: var(--wds-gray-500); }
-        .band-slot-chip.mini { display: inline-flex; vertical-align: middle; padding: 1px 8px; min-width: 0; border-radius: 8px; cursor: default; margin: 0 2px; text-indent: 0; }
-        .band-slot-chip.mini .s { font-size: 0.74rem; }
+        /* 고정 가능 시간 화면(2026-11-05 정리): 머리(눈썹·제목·한 줄 소개) → 조건 패널 → 요약 타일 → 표 → 읽는 법(점 범례 + 접힘 설명) */
+        .band-sv-head { text-align: left; }
+        .band-sv-eyebrow { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.6px; color: var(--wds-primary); text-transform: uppercase; }
+        .band-sv-title { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.4px; color: var(--wds-black); margin-top: 2px; }
+        .band-sv-lead { margin: 6px 0 0; font-size: 0.86rem; line-height: 1.6; color: var(--wds-gray-700); }
+        .band-sv-ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; border: 1px solid var(--wds-gray-200); border-radius: 14px; background: var(--wds-gray-100); }
+        .band-sv-ctl label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 0.74rem; font-weight: 700; color: var(--wds-gray-600); text-align: left; }
+        .band-sv-ctl input, .band-sv-ctl select { width: 100%; min-width: 0; height: 42px; padding: 0 10px; margin: 0; border: 1px solid var(--wds-gray-300); border-radius: 10px; background: var(--wds-white); color: var(--wds-black); font-family: inherit; font-size: 0.92rem; font-weight: 700; -webkit-appearance: none; appearance: none; box-sizing: border-box; }
+        .band-sv-ctl select { background-image: linear-gradient(45deg, transparent 50%, var(--wds-gray-500) 50%), linear-gradient(135deg, var(--wds-gray-500) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+        .band-sv-ctl input:focus, .band-sv-ctl select:focus { outline: none; border-color: var(--wds-primary); box-shadow: 0 0 0 3px var(--wds-primary-light); }
+        .band-sv-period { font-size: 0.8rem; font-weight: 700; color: var(--wds-gray-600); text-align: left; margin: 0 0 6px; }
+        .band-sv-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 12px; }
+        .band-sv-stat { border-radius: 12px; padding: 10px 6px 9px; text-align: center; background: var(--wds-gray-100); }
+        .band-sv-stat b { display: block; font-size: 1.4rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; }
+        .band-sv-stat span { display: block; margin-top: 3px; font-size: 0.7rem; font-weight: 700; color: var(--wds-gray-600); }
+        .band-sv-stat.ok { background: #ecfdf5; } .band-sv-stat.ok b { color: #047857; }
+        .band-sv-stat.skip { background: #fffbeb; } .band-sv-stat.skip b { color: #b45309; }
+        .band-sv-stat.later { background: #eff6ff; } .band-sv-stat.later b { color: #1d4ed8; }
         .band-avail-summary { text-align: left; font-size: 0.86rem; line-height: 1.5; color: var(--wds-gray-800); margin: 0 0 8px; }
         .band-avail-summary b { color: var(--wds-primary); }
-        .band-slot-chip.na { cursor: pointer; }
         .band-signup-slots { text-align: left; }
         .band-signup-start { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: var(--wds-gray-700); margin-bottom: 8px; }
         .band-signup-start input[type="date"], .band-signup-start select { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--wds-gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; background: var(--wds-white); color: var(--wds-black); -webkit-appearance: none; appearance: none; }
-        .band-avail { display: flex; flex-direction: column; gap: 6px; }
-        .band-avail-row { display: flex; align-items: flex-start; gap: 8px; }
-        .band-avail-day { flex: 0 0 22px; font-weight: 700; font-size: 0.86rem; color: var(--wds-gray-700); padding-top: 9px; text-align: center; }
+        /* 표: 카드 안 요일 줄(알약 + 칩들) */
+        .band-avail { display: flex; flex-direction: column; border: 1px solid var(--wds-gray-200); border-radius: 14px; background: var(--wds-white); overflow: hidden; }
+        .band-avail-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid var(--wds-gray-200); }
+        .band-avail-row:first-child { border-top: 0; }
+        .band-avail-day { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--wds-gray-100); font-weight: 800; font-size: 0.8rem; color: var(--wds-gray-700); }
+        .band-avail-day.sat { color: #1d4ed8; background: #eff6ff; }
+        .band-avail-day.sun { color: #b91c1c; background: #fef2f2; }
         .band-avail-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
-        .band-slot-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-black); font-family: inherit; text-align: left; cursor: pointer; min-width: 104px; }
-        .band-slot-chip .t { font-size: 0.82rem; font-weight: 700; line-height: 1.3; }
-        .band-slot-chip .s { font-size: 0.74rem; font-weight: 600; line-height: 1.3; color: var(--wds-gray-500); }
-        .band-slot-chip.ok { border-color: #a7f3d0; background: #ecfdf5; } .band-slot-chip.ok .s { color: #047857; }
+        .band-avail-none { font-size: 0.8rem; color: var(--wds-gray-400); padding: 6px 0; }
+        .band-slot-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 7px 11px; border-radius: 11px; border: 1px solid var(--wds-gray-300); background: var(--wds-white); color: var(--wds-black); font-family: inherit; text-align: left; cursor: pointer; min-width: 112px; transition: transform .08s ease, box-shadow .12s ease; }
+        .band-slot-chip:not(:disabled):active { transform: scale(0.98); }
+        .band-slot-chip .t { font-size: 0.86rem; font-weight: 800; line-height: 1.25; letter-spacing: -0.2px; }
+        .band-slot-chip .t em { font-style: normal; font-weight: 600; font-size: 0.72rem; color: var(--wds-gray-500); margin-left: 5px; }
+        .band-slot-chip .s { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; line-height: 1.3; color: var(--wds-gray-500); }
+        .band-slot-chip .s::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+        .band-slot-chip.ok { border-color: #a7f3d0; background: #f0fdf4; } .band-slot-chip.ok .s { color: #047857; }
         .band-slot-chip.skip { border-color: #fde68a; background: #fffbeb; } .band-slot-chip.skip .s { color: #b45309; }
         .band-slot-chip.later { border-color: #bfdbfe; background: #eff6ff; } .band-slot-chip.later .s { color: #1d4ed8; }
-        .band-slot-chip.taken { border-color: #fecaca; background: #fef2f2; } .band-slot-chip.taken .s { color: #b91c1c; }
-        .band-slot-chip.off, .band-slot-chip.wait { background: var(--wds-gray-100); color: var(--wds-gray-500); }
+        .band-slot-chip.taken { border-color: #fecaca; background: #fff7f7; color: var(--wds-gray-600); } .band-slot-chip.taken .s { color: #b91c1c; }
+        .band-slot-chip.off, .band-slot-chip.wait { background: var(--wds-gray-100); border-color: var(--wds-gray-200); color: var(--wds-gray-500); }
         .band-slot-chip:disabled { cursor: default; opacity: 0.85; }
-        .band-slot-chip.sel { border-color: var(--wds-primary); background: var(--wds-primary); color: #fff; box-shadow: 0 0 0 2px var(--wds-primary-light); }
-        .band-slot-chip.sel .s { color: rgba(255,255,255,0.9); }
+        .band-slot-chip.na { cursor: pointer; }
+        .band-slot-chip.sel { border-color: var(--wds-primary); background: var(--wds-primary); color: #fff; box-shadow: 0 3px 10px rgba(51, 102, 255, 0.28); }
+        .band-slot-chip.sel .t em, .band-slot-chip.sel .s { color: rgba(255,255,255,0.92); }
+        .band-slot-chip.sel .s::before { display: none; }
         .band-avail-legend { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
-        .band-avail-detail { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--wds-gray-100); font-size: 0.84rem; line-height: 1.55; text-align: left; color: var(--wds-gray-800); }
+        /* 읽는 법: 점 범례 2열 + 접힘 설명 */
+        .band-sv-key { text-align: left; }
+        .band-sv-key-title { font-size: 0.78rem; font-weight: 800; color: var(--wds-gray-600); margin: 0 0 8px; }
+        .band-sv-key-grid { display: flex; flex-direction: column; gap: 6px; }
+        .band-sv-key-grid > div { display: grid; grid-template-columns: 8px auto 1fr; column-gap: 8px; align-items: center; font-size: 0.8rem; line-height: 1.4; }
+        .band-sv-key-grid b { font-weight: 800; color: var(--wds-black); white-space: nowrap; }
+        .band-sv-key-grid small { font-size: 0.76rem; color: var(--wds-gray-600); }
+        .band-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .band-dot.ok { background: #10b981; } .band-dot.skip { background: #f59e0b; } .band-dot.later { background: #3b82f6; } .band-dot.taken { background: #ef4444; } .band-dot.off { background: #9ca3af; }
+        .band-sv-more { margin-top: 12px; border-top: 1px solid var(--wds-gray-200); padding-top: 10px; }
+        .band-sv-more summary { cursor: pointer; font-size: 0.82rem; font-weight: 700; color: var(--wds-primary); list-style: none; }
+        .band-sv-more summary::-webkit-details-marker { display: none; }
+        .band-sv-more summary::before { content: '＋'; display: inline-block; width: 16px; }
+        .band-sv-more[open] summary::before { content: '－'; }
+        .band-sv-more p { margin: 8px 0 0; font-size: 0.82rem; line-height: 1.6; color: var(--wds-gray-700); }
+        /* 선택한 타임 카드 */
+        .band-sv-hint { margin-top: 8px; font-size: 0.78rem; line-height: 1.5; color: var(--wds-gray-500); text-align: left; }
+        .band-sv-detail { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--wds-primary-light); text-align: left; }
+        .band-sv-detail-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.76rem; font-weight: 800; color: var(--wds-primary); }
+        .band-sv-picked { margin-top: 3px; font-size: 0.95rem; font-weight: 800; color: var(--wds-black); line-height: 1.45; letter-spacing: -0.2px; }
+        .band-sv-skips { margin-top: 8px; font-size: 0.82rem; line-height: 1.55; color: var(--wds-gray-800); }
+        .band-sv-skips ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+        .band-sv-skips li { display: flex; align-items: center; gap: 8px; }
+        .band-sv-skips .d { flex: 0 0 auto; padding: 1px 8px; border-radius: 8px; background: var(--wds-white); font-weight: 800; font-size: 0.74rem; color: #b45309; }
+        .band-sv-note { margin-top: 8px; font-size: 0.78rem; line-height: 1.55; color: var(--wds-gray-600); }
         .band-avail-skips { margin: 6px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.6; color: var(--wds-gray-700); }
         .band-ba-claim { padding: 8px 0; border-top: 1px dashed var(--wds-gray-300); font-size: 0.88rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
         .band-ba-claim:first-child { border-top: 0; }
@@ -1710,7 +1754,12 @@
         body.dark .band-slot-chip.later { border-color: #1e40af; background: #0f1f45; } body.dark .band-slot-chip.later .s { color: #93c5fd; }
         body.dark .band-slot-chip.taken { border-color: #991b1b; background: #2d0a0a; } body.dark .band-slot-chip.taken .s { color: #fca5a5; }
         body.dark .band-slot-chip.sel { background: var(--wds-primary); border-color: var(--wds-primary); }
-        body.dark .band-avail-detail { background: var(--wds-gray-100); color: var(--wds-gray-800); }
+        body.dark .band-sv-stat.ok { background: #052e22; } body.dark .band-sv-stat.ok b { color: #6ee7b7; }
+        body.dark .band-sv-stat.skip { background: #2d1b05; } body.dark .band-sv-stat.skip b { color: #fcd34d; }
+        body.dark .band-sv-stat.later { background: #0f1f45; } body.dark .band-sv-stat.later b { color: #93c5fd; }
+        body.dark .band-avail-day.sat { color: #93c5fd; background: #0f1f45; } body.dark .band-avail-day.sun { color: #fca5a5; background: #2d0a0a; }
+        body.dark .band-slot-chip.off, body.dark .band-slot-chip.wait { background: var(--wds-gray-100); border-color: var(--wds-gray-300); }
+        body.dark .band-sv-skips .d { background: var(--wds-gray-200); color: #fcd34d; }
         .band-empty { color: var(--wds-gray-500); font-size: 0.9rem; text-align: center; padding: 16px 0; line-height: 1.5; }
         .band-muted { color: var(--wds-gray-500); font-size: var(--b-muted); line-height: 1.5; }
         /* 팀 항목 = 구분선 리스트 (중첩 카드 없음) */
@@ -2473,21 +2522,31 @@
 
             <!-- 고정 가능 시간 보기: 처음 보는 사람용 설명 + 실시간 표(band_slot_defs + 예약·대관·차단 계산). 딥링크 #band/times · /band/times -->
             <div id="band-schedule-view" class="email-form hidden">
-                <div class="band-step">📅 고정 가능 시간</div>
-                <div class="band-guide">
-                    <p><strong>고정 합주팀</strong>은 매주 같은 요일·시간에 합주실을 고정으로 쓰는 팀이에요(4주 단위 회차). 아래 표는 지금 잡혀 있는 예약·대관·다른 고정팀을 반영해 <strong>어느 요일 몇 시부터 고정이 가능한지</strong>를 실시간으로 보여줘요.</p>
-                    <ul>
-                        <li><strong>희망 시작일</strong>과 <strong>예상 사용 기간</strong>을 바꾸면 그 기간 안에서 겹치는 예약·대관이 있는지 다시 계산해요.</li>
-                        <li><span class="band-slot-chip ok mini"><span class="s">가능</span></span> 바로 시작할 수 있어요.</li>
-                        <li><span class="band-slot-chip skip mini"><span class="s">N주 건너뛰기</span></span> 이미 잡힌 일정과 겹치는 주가 N번 있어요. 그 주만 건너뛰면 되고, 주마다 <strong>건너뛰기권</strong>(같은 고정 사용 시간의 대체 합주 또는 1주 무료 연장 중 선택)을 드려요.</li>
-                        <li><span class="band-slot-chip later mini"><span class="s">M/D부터</span></span> 그 날짜부터 신청할 수 있어요. 누르면 희망 시작일이 그날로 바뀌어요.</li>
-                        <li><span class="band-slot-chip taken mini"><span class="s">고정팀 사용 중</span></span> 다른 팀이 쓰는 시간, <span class="band-slot-chip off mini"><span class="s">대관만</span></span> 고정팀은 받지 않는 시간이에요.</li>
-                    </ul>
-                    <p>마음에 드는 타임을 고르고 <strong>가입 신청</strong>을 보내면 운영자가 확인 후 승인해요. 승인되면 그 시간이 예약 달력에서 고정팀 자리로 막혀요.</p>
+                <div class="band-sv-head">
+                    <div class="band-sv-eyebrow">고정 합주팀</div>
+                    <div class="band-sv-title">고정 가능 시간</div>
+                    <p class="band-sv-lead">매주 같은 요일·시간에 합주실을 고정으로 쓰는 팀을 위한 실시간 표예요. 지금 잡힌 예약·대관·다른 고정팀을 반영해 <strong>어느 요일 몇 시부터 가능한지</strong> 보여드려요.</p>
                 </div>
-                <label class="band-signup-start"><span>희망 시작일</span><input type="date" id="bandScheduleStart" onchange="bandWishStartChange(this.value)"></label>
-                <label class="band-signup-start"><span>예상 사용 기간</span><select id="bandScheduleMonths" onchange="bandWishMonthsChange(this.value)"><option value="1">1개월</option><option value="2">2개월</option><option value="3">3개월</option><option value="4">4개월</option><option value="5">5개월</option><option value="6" selected>6개월</option><option value="9">9개월</option><option value="12">12개월</option></select></label>
+                <div class="band-sv-ctl">
+                    <label><span>희망 시작일</span><input type="date" id="bandScheduleStart" onchange="bandWishStartChange(this.value)"></label>
+                    <label><span>예상 사용 기간</span><select id="bandScheduleMonths" onchange="bandWishMonthsChange(this.value)"><option value="1">1개월</option><option value="2">2개월</option><option value="3">3개월</option><option value="4">4개월</option><option value="5">5개월</option><option value="6" selected>6개월</option><option value="9">9개월</option><option value="12">12개월</option></select></label>
+                </div>
                 <div id="bandScheduleBody" class="band-signup-slots"><div class="band-empty">불러오는 중…</div></div>
+                <div class="band-sv-key">
+                    <div class="band-sv-key-title">표 읽는 법</div>
+                    <div class="band-sv-key-grid">
+                        <div><span class="band-dot ok"></span><b>가능</b><small>바로 시작할 수 있어요</small></div>
+                        <div><span class="band-dot skip"></span><b>N주 건너뛰기</b><small>겹치는 주만 건너뛰고 건너뛰기권을 받아요</small></div>
+                        <div><span class="band-dot later"></span><b>M/D부터</b><small>그날부터 가능 · 누르면 시작일이 바뀌어요</small></div>
+                        <div><span class="band-dot taken"></span><b>고정팀 사용 중</b><small>다른 팀이 쓰는 시간이에요</small></div>
+                        <div><span class="band-dot off"></span><b>대관만</b><small>고정팀은 받지 않는 시간이에요</small></div>
+                    </div>
+                    <details class="band-sv-more">
+                        <summary>건너뛰기권과 신청 절차</summary>
+                        <p><strong>건너뛰기권</strong> · 희망 시작일부터 예상 사용 기간 안에 이미 잡힌 예약·대관과 겹치는 주마다 1장. 같은 고정 사용 시간의 <strong>대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르고, 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</p>
+                        <p><strong>신청 절차</strong> · 타임 선택 → 가입 신청 → 운영자 확인·승인 → 그 시간이 예약 달력에서 고정팀 자리로 막혀요. 고정 합주팀은 4주 단위 회차로 운영돼요.</p>
+                    </details>
+                </div>
                 <button type="button" id="bandScheduleNextBtn" class="email-primary-btn" onclick="showBandSignupForm()">가입 신청으로</button>
                 <button type="button" class="email-secondary-btn" onclick="showBandMenu()">← 처음으로</button>
             </div>
@@ -13291,14 +13350,14 @@
             const sel = opts.selected || new Set();
             return `<div class="band-avail">${BAND_DOW_ORDER.map(dow => {
                 const list = byDow[dow] || [];
-                return `<div class="band-avail-row"><div class="band-avail-day">${BAND_DOW[dow]}</div><div class="band-avail-chips">${list.length ? list.map(({ def, st }) => {
+                return `<div class="band-avail-row"><div class="band-avail-day${dow === 6 ? ' sat' : dow === 0 ? ' sun' : ''}">${BAND_DOW[dow]}</div><div class="band-avail-chips">${list.length ? list.map(({ def, st }) => {
                     const can = opts.selectable && (st.kind === 'ok' || st.kind === 'skip');
                     const info = opts.selectable && !can && opts.onInfo; // 선택 불가 칩도 눌러 이유·개방일 이동
                     const on = sel.has(def.id);
                     const title = !opts.publicView && def.note ? ` title="${escAttr(def.note)}"` : '';
                     return `<button type="button" class="band-slot-chip ${st.kind}${on ? ' sel' : ''}${info ? ' na' : ''}" data-def="${def.id}"${can ? ` onclick="${opts.onToggle}('${def.id}')"` : info ? ` onclick="${opts.onInfo}('${def.id}')"` : ' disabled'}${title}>
-                        <span class="t">${escHtml(def.label || _bandLabelOf(def.start_time))} ${_bandRangeText(def.start_time, def.end_time)}</span><span class="s">${on ? '✓ 선택' : escHtml(st.label)}</span></button>`;
-                }).join('') : '<span class="band-muted">띠 없음</span>'}</div></div>`;
+                        <span class="t">${_bandRangeText(def.start_time, def.end_time)}<em>${escHtml(def.label || _bandLabelOf(def.start_time))}</em></span><span class="s">${on ? '✓ 선택' : escHtml(st.label)}</span></button>`;
+                }).join('') : '<span class="band-avail-none">—</span>'}</div></div>`;
             }).join('')}</div>`;
         }
         const _bandAvailLegend = () => `<div class="band-avail-legend"><span class="status-badge sm status-approved">가능</span><span class="status-badge sm status-pending">N주 건너뛰기</span><span class="status-badge sm status-info">개방일</span><span class="status-badge sm status-rejected">사용 중</span><span class="status-badge sm status-neutral">불가·대기</span></div>`;
@@ -13374,18 +13433,26 @@
             let detail;
             if (picked.length) {
                 const skipItems = picked.flatMap(r => r.st.skips.map(s => ({ ...s, def: r.def }))).sort((a, b) => a.date.localeCompare(b.date));
-                detail = `<div class="band-avail-detail"><div><strong>선택한 타임</strong> · ${picked.map(r => escHtml(bandDefText(r.def))).join(' / ')}</div>`
+                detail = `<div class="band-sv-detail"><div class="band-sv-detail-head"><span>선택한 타임</span><span>${picked.length}개</span></div>
+                    <div class="band-sv-picked">${picked.map(r => escHtml(bandDefText(r.def))).join(' · ')}</div>`
                     + (skipItems.length
-                        ? `<div style="margin-top:6px">이미 잡힌 일정과 겹치는 주가 <strong>${skipItems.length}주</strong> 있어요. 승인되면 그 주마다 <strong>건너뛰기권 1장</strong>이 발급되고, 팀 페이지에서 <strong>같은 고정 사용 시간의 대체 합주(그 주 7일 전~전날)</strong> 또는 <strong>1주 무료 연장</strong> 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div>
-                           <ul class="band-avail-skips">${skipItems.map(s => `<li>${_bandMDW(s.date)} ${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</li>`).join('')}</ul>`
-                        : `<div class="band-muted" style="margin-top:4px">예상 사용 기간(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안에 겹치는 일정이 없어요.</div>`)
+                        ? `<div class="band-sv-skips">겹치는 주 <strong>${skipItems.length}주</strong> → 건너뛰기권 ${skipItems.length}장
+                           <ul>${skipItems.map(s => `<li><span class="d">${_bandMDW(s.date)}</span> <span>${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</span></li>`).join('')}</ul>
+                           <div class="band-sv-note">주마다 같은 고정 사용 시간의 대체 합주(그 주 7일 전~전날) 또는 1주 무료 연장 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div></div>`
+                        : `<div class="band-sv-skips">예상 사용 기간(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안에 겹치는 일정이 없어요.</div>`)
                     + '</div>';
-            } else detail = '<div class="band-muted" style="margin-top:8px;text-align:left">원하는 타임을 눌러 선택해주세요(여러 개 가능). 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
-            // 한 줄 요약(처음 보는 사람용): 시작일 기준 바로 가능 / 건너뛰기 조건 / 날짜 지정 수
+            } else detail = '<div class="band-sv-hint">타임을 누르면 선택돼요 · 여러 개 가능 · 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
+            // 요약(처음 보는 사람용): 시작일·기간 기준 바로 가능 / 건너뛰기 조건 / 날짜 지정 수 — 시간표 화면은 타일, 가입 폼은 한 줄
             const cnt = (k) => rows.filter(r => r.st.kind === k).length;
-            const summary = `<div class="band-avail-summary"><strong>${_bandMDW(ctx.startDate)}부터 ${bandWishMonths()}개월(~${bandMD(ctx.endDate)}) 기준</strong> · 바로 가능 <b>${cnt('ok')}</b>개 · 건너뛰기 조건 <b>${cnt('skip')}</b>개 · 날짜 지정 <b>${rows.filter(r => r.st.from).length}</b>개${cnt('taken') + cnt('wait') + cnt('off') ? ` · 불가 ${cnt('taken') + cnt('wait') + cnt('off')}개` : ''}</div>`;
+            const nLater = rows.filter(r => r.st.from).length, nNo = cnt('taken') + cnt('wait') + cnt('off');
+            const period = `${_bandMDW(ctx.startDate)}부터 ${bandWishMonths()}개월 · ~${bandMD(ctx.endDate)}`;
+            const tiles = `<div class="band-sv-period">${period} 기준</div><div class="band-sv-stats">
+                <div class="band-sv-stat ok"><b>${cnt('ok')}</b><span>바로 가능</span></div>
+                <div class="band-sv-stat skip"><b>${cnt('skip')}</b><span>건너뛰기 조건</span></div>
+                <div class="band-sv-stat later"><b>${nLater}</b><span>날짜 지정</span></div></div>`;
+            const summary = `<div class="band-avail-summary"><strong>${period} 기준</strong> · 바로 가능 <b>${cnt('ok')}</b>개 · 건너뛰기 조건 <b>${cnt('skip')}</b>개 · 날짜 지정 <b>${nLater}</b>개${nNo ? ` · 불가 ${nNo}개` : ''}</div>`;
             const table = bandAvailTableHTML(rows, { selectable: true, selected: _bandSignupSel, onToggle: 'bandSignupToggleSlot', onInfo: 'bandScheduleChipInfo', publicView: true });
-            _bandAvailBodies().forEach(body => { body.innerHTML = summary + _bandAvailLegend() + table + detail; });
+            _bandAvailBodies().forEach(body => { body.innerHTML = (body.id === 'bandScheduleBody' ? tiles : summary + _bandAvailLegend()) + table + detail; });
             const next = document.getElementById('bandScheduleNextBtn');
             if (next) { next.disabled = false; next.textContent = picked.length ? `이 타임으로 가입 신청하기 (${picked.length}개)` : '가입 신청으로'; }
         }
