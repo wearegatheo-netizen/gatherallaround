@@ -191,6 +191,9 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   chk('연장 skips → 09/29 대상 없음 · 10/06 due 1건(1차, 시작 10/20)', tg('2026-09-29', [sk({ resolution: 'extend' })]).length === 0
     && (() => { const o = tg('2026-10-06', [sk({ resolution: 'extend' })]); return o.length === 1 && o[0].kind === 'due' && o[0].n === 1 && o[0].startN === '2026-10-20' && o[0].due === '2026-10-06'; })());
   chk('skips 없으면 종전과 같이 09/29 due', tg('2026-09-29', []).length === 1 && tg('2026-09-29', []).startN !== undefined || tg('2026-09-29', [])[0].due === '2026-09-29');
+  // 고정 사용 종료 예정일(band_end_date, 2026-11-05): 1차 시작(10/13) 뒤가 종료일이면 문자 없음, 종료일이 1차 안이면 1차 문자는 보냄, 지난 종료일은 팀 제외
+  const tgE = (today, end) => bandRentTargets([TEAM({ band_end_date: end })], [], [], today, []);
+  chk('종료 예정일 10/10(1차 시작 전) → 09/29 입금 안내 없음 · 종료일 11/05(1차 안) → 09/29 due 1건 · 종료일 지남(09/20) → 대상 아님', tgE('2026-09-29', '2026-10-10').length === 0 && tgE('2026-09-29', '2026-11-05').length === 1 && tgE('2026-09-29', '2026-09-20').length === 0);
 }
 // ── B1. 입금일 당일·미납 → 선점 후 문자 + 관리자 푸시
 {
@@ -356,7 +359,7 @@ const claimBody = () => { const c = calls.find(c => c.method === 'POST' && /rest
   mockFetch(bandRoutes());
   await run('POST', ENV_SMS);
   const q = calls.find(c => c.url.includes('profiles?member_type=eq.band')).url;
-  chk('팀 조회: 승인·시작일 있음·종료 안 됨', q.includes('status=eq.approved') && q.includes('band_start_date=not.is.null') && q.includes('band_ended_at=is.null'));
+  chk('팀 조회: 승인·시작일 있음·종료 안 됨 + band_end_date 선택', q.includes('status=eq.approved') && q.includes('band_start_date=not.is.null') && q.includes('band_ended_at=is.null') && q.includes('band_end_date'));
   mockFetch(bandRoutes());
   const g = await (await run('GET', ENV_SMS)).json();
   chk('GET 드라이런: 대상 요약만(PII 없음), 선점·발송 없음', g['월세_문자'] === '켜짐' && Array.isArray(g['월세_발송_대기']) && g['월세_발송_대기'].length === 1

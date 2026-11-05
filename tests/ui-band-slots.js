@@ -237,6 +237,7 @@ const FAKE_SB = `
   chk('신규팀 카드: 승인된 고정 시간 "토 9~14시 · 11/14부터" + 건너뛰기권(11/21 미선택 · 11/14까지)', teamsHtml.includes('<strong>토 9~14시</strong>') && teamsHtml.includes('11/14부터') && teamsHtml.includes('11/21(토) 9~14시') && teamsHtml.includes('미선택 · 11/14까지'));
   // 벤더 05/17 시작: 11/05 는 6차(11/01~) 안, 다음 7차 11/29 — 11/20 미선택(마감 11/13 전)이라 아직 연장 없음 → 입금일 11/15
   chk('벤더 회차: 연장 전 다음 7차 11/29 시작 · 입금일 11/15', teamsHtml.includes('<strong>7차</strong> 11/29(일) 시작') && teamsHtml.includes('입금일 <strong>11/15</strong>'), teamsHtml.match(/다음 회차 <strong>[^<]*<\/strong>[^·]*·[^·]*/)?.[0]);
+  chk('신규팀 카드(등록 회차): 「등록 회차 이용료는 등록일부터 시작일 전날(11/13)까지 입금」', teamsHtml.includes('등록일부터 시작일 전날(11/13)까지'));
   chk('벤더 계약 정보: 등록 비밀번호(4자리) 0921 표시 + 계약 폼 칸에 미리 채움 · 신규팀은 4444', teamsHtml.includes('등록 비밀번호(4자리)') && teamsHtml.includes('<span class="band-pin">0921</span>') && teamsHtml.includes('<span class="band-pin">4444</span>') && (await p.evaluate((id) => document.getElementById('bc-pin-' + id).value, VANDOR)) === '0921');
   await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '7788'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
   await p.waitForTimeout(600);
@@ -245,6 +246,22 @@ const FAKE_SB = `
   await p.waitForTimeout(400);
   await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '12'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
   chk('계약 폼: 숫자 4자리 아니면 인라인 오류', (await p.evaluate((id) => document.getElementById('bc-result-' + id).textContent, VANDOR)).includes('숫자 4자리'));
+  // 고정 사용 종료 예정일: 저장 → profiles.band_end_date + 승인 타임 신청·반복 차단 end_date, 카드 kv·회차 안내(종료일 뒤 회차 없음)
+  await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '7788'; document.getElementById('bc-end-' + id).value = '2026-05-10'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
+  chk('계약 폼: 종료 예정일이 시작일(5/17)보다 앞이면 인라인 오류', (await p.evaluate((id) => document.getElementById('bc-result-' + id).textContent, VANDOR)).includes('종료 예정일은 시작일 뒤'));
+  await p.evaluate((id) => { document.getElementById('bc-end-' + id).value = '2026-12-10'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
+  await p.waitForTimeout(800);
+  const endUpd = (await calls('profiles', 'update')).filter(c => 'band_end_date' in c.payload).pop();
+  const blkEnd = (await calls('time_blocks', 'update')).filter(c => c.payload.end_date === '2026-12-10').pop();
+  const clEnd = (await calls('band_slot_claims', 'update')).filter(c => c.payload.end_date === '2026-12-10').pop();
+  chk('종료 예정일 12/10 저장 → profiles.band_end_date + 벤더 반복 차단·타임 신청 end_date 12/10', !!endUpd && endUpd.payload.band_end_date === '2026-12-10' && !!blkEnd && !!clEnd && (await p.evaluate(() => window.__T.time_blocks.find(b => b.id === 'blk-vandor').end_date === '2026-12-10')), JSON.stringify([endUpd && endUpd.payload.band_end_date, blkEnd && blkEnd.payload, clEnd && clEnd.payload]));
+  const teamsHtml3 = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
+  chk('카드: 종료 예정일 2026-12-10(목) kv + 회차 안내 「종료 예정 12/10」 · 다음 7차(11/29)는 종료일 전이라 그대로', teamsHtml3.includes('2026-12-10(목)') && teamsHtml3.includes('종료 예정 12/10') && teamsHtml3.includes('<strong>7차</strong> 11/29(일) 시작'), teamsHtml3.match(/다음 회차 <strong>[^<]*<\/strong>[^<]*/)?.[0]);
+  chk('bandCycleInfo: 종료일(12/10)이 다음 회차 시작(12/27) 전이면 ending(다음 회차 없음) · 종료일 지남 → ended', await p.evaluate(() => { const t = { band_start_date: '2026-05-17', band_end_date: '2026-12-10' }; const a = bandCycleInfo(t, [], '2026-12-01'); const b = bandCycleInfo(t, [], '2026-12-11'); return a.status === 'ending' && a.label === '12/10 종료 예정' && /다음 회차 없음/.test(bandCycleSummaryHTML(t, a)) && b.status === 'ended' && /종료되었습니다/.test(bandCycleSummaryHTML(t, b)); }));
+  chk('현황표·팀 목록: 종료 예정일이 지난 팀은 히스토리로', await p.evaluate(() => bandEndedDate({ band_end_date: '2026-11-01' }) === '2026-11-01' && bandEndedDate({ band_end_date: '2026-12-10' }) === null && bandEndedDate({ band_ended_at: '2026-10-01', band_end_date: '2026-12-10' }) === '2026-10-01'));
+  await p.evaluate((id) => { document.getElementById('bc-end-' + id).value = ''; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
+  await p.waitForTimeout(800);
+  chk('종료 예정일 비우면 차단 end_date 도 null 로 복귀', await p.evaluate(() => window.__T.time_blocks.find(b => b.id === 'blk-vandor').end_date === null && window.__T.profiles.find(x => x.id === 'b0000000-0000-4000-8000-000000000002').band_end_date === null));
   await p.evaluate(() => renderBandAdminTab()); await p.waitForTimeout(600);
   const grantOpts = await p.evaluate((id) => [...document.querySelectorAll(`#bg-date-${id} option`)].map(o => o.textContent), VANDOR);
   chk('부여 폼: 벤더 다음 합주일 후보 금요일 11/6, 11/13, 11/20 …(10개)', grantOpts.length === 10 && grantOpts[0] === '11/6(금) 18~23시' && grantOpts[2] === '11/20(금) 18~23시', grantOpts.slice(0, 3).join(','));
@@ -295,12 +312,14 @@ const FAKE_SB = `
   const secHtml = await p.evaluate(() => document.getElementById('bandSlotSection').innerHTML);
   chk('팀 화면 섹션: 매주 금요일 18~23시 · 건너뛰기권 2장 · 11/20 행에 [대체 합주 고르기][1주 연장] + 마감 안내 11/13', await p.evaluate(() => !document.getElementById('bandSlotSection').classList.contains('hidden')) && secHtml.includes('매주 금요일') && secHtml.includes('18~23시') && secHtml.includes('건너뛰기권 2장') && secHtml.includes("bandSubstituteSheet('sk-vandor')") && secHtml.includes("bandSkipExtend('sk-vandor'") && secHtml.includes('11/13까지 고르지 않으면'), secHtml.replace(/\s+/g, ' ').slice(0, 200));
   chk('회차 안내: 연장 미확정 → 7차 11/29 · 입금일 11/15', (await p.evaluate(() => document.getElementById('bandCycleNotice').innerHTML)).includes('<strong>7차</strong> 11/29(일) 시작'));
+  chk('팀 본인 화면: 보증금(미등록)·이용료 250,000원·납부 내역 0건(읽기 전용, 수정 버튼 없음)·요청사항 안내', await p.evaluate(() => { const h = document.getElementById('bandCycleNotice').innerHTML; return h.includes('<span>보증금</span><strong>미등록</strong>') && h.includes('250,000원') && h.includes('납부 내역 0건 보기') && !h.includes('openBandPaymentForm') && h.includes('요청사항으로 알려주세요'); }));
   // 대체 합주 시트: 11/13~11/19 중 5시간짜리 빈 칸
   await p.evaluate(() => bandSubstituteSheet('sk-vandor'));
   await p.waitForTimeout(600);
   const sheet = await p.evaluate(() => ({ title: document.querySelector('#gtSheet h3')?.textContent, days: [...document.querySelectorAll('#gtSheet .band-sub-day .d')].map(e => e.textContent), first: [...document.querySelectorAll('#gtSheet .band-sub-day')].map(d => d.querySelectorAll('button').length), monBtns: [...document.querySelectorAll('#gtSheet .band-sub-day')].find(d => d.textContent.includes('11/16(월)'))?.querySelectorAll('button').length }));
   // 5시간 창(08~23 → 11개): 토 11/14 는 신규팀 09~14 차단 뒤 14~18시 시작만 5개 · 수 11/18 은 정기 청소(12~16) 뒤 17·18시 2개 · 월 11/16 은 벤더 월 야간(12/1~) 전이라 11개
-  chk('대체 합주 시트: 11/20 대신 · 11/13(금)~11/19(목) 7일 · 토 5개 · 수 2개 · 월 11개', sheet.title === '대체 합주 고르기 · 11/20(금) 대신' && sheet.days.length === 7 && sheet.days[0].includes('11/13(금)') && sheet.days[6].includes('11/19(목)') && sheet.first[1] === 5 && sheet.first[5] === 2 && sheet.monBtns === 11, JSON.stringify(sheet));
+  chk('대체 합주 시트: 11/20 대신 · 앞뒤 1주일 11/13(금)~11/27(금) 15일 · 토 5개 · 수 2개 · 월 11개', sheet.title === '대체 합주 고르기 · 11/20(금) 대신' && sheet.days.length === 15 && sheet.days[0].includes('11/13(금)') && sheet.days[14].includes('11/27(금)') && sheet.first[1] === 5 && sheet.first[5] === 2 && sheet.monBtns === 11, JSON.stringify(sheet));
+  chk('대체 합주 시트: 안내문 「앞뒤 1주일」', await p.evaluate(() => /앞뒤 1주일/.test(document.querySelector('#gtSheet .cm-sheet-body').textContent)));
   chk('대체 합주 시트: 금요일 11/13 은 벤더 자기 차단(18~22)과 겹치는 시간 제외 → 18시 이후 시작 없음', await p.evaluate(() => { const fri = [...document.querySelectorAll('#gtSheet .band-sub-day')][0]; const labels = [...fri.querySelectorAll('button')].map(b => b.textContent); return labels.length === 6 && labels[labels.length - 1] === '13~18시'; }), await p.evaluate(() => [...document.querySelectorAll('#gtSheet .band-sub-day')][0].textContent));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-slots-sub-sheet.png'), fullPage: false });
   // 신규팀 토 09~14 차단과 겹치는 09시 시작은 저장 직전 재확인에서 거절(토스트, 저장 없음)

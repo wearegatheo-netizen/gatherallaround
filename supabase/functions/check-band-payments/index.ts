@@ -68,7 +68,7 @@ const skipResolution = (s: Skip, today: string) => s.resolution || (today > addD
 const extDates = (skips: Skip[], teamId: string, today: string) =>
   skips.filter((s) => s.profile_id === teamId && skipResolution(s, today) === "extend").map((s) => s.skip_date).sort();
 
-type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null };
+type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null; band_end_date?: string | null };
 type Payment = { team_id: string; paid_at: string; cycle_no: number | null };
 
 function isAdminBand(t: Team): boolean {
@@ -80,9 +80,11 @@ function isAdminBand(t: Team): boolean {
 // 팀별 알림 판정 — status 와 표시 라벨(입금일까지 남은/지난 일수)
 function judge(t: Team, payments: Payment[], today: string, ext: string[] = []): { status: "overdue" | "imminent" | "normal" | "unknown"; label: string } {
   const mine = payments.filter((p) => p.team_id === t.id && p.paid_at);
+  if (t.band_end_date && t.band_end_date < today) return { status: "normal", label: "사용 종료" }; // 종료 예정일 지남
   if (t.band_start_date) {
     const n = nextCycle(t.band_start_date, today, ext);
     if (n < 1) return { status: "normal", label: "시작 전" };
+    if (t.band_end_date && cycleStart(t.band_start_date, n, ext) > t.band_end_date) return { status: "normal", label: `${t.band_end_date} 종료 예정` }; // 종료일 뒤 회차 없음
     const paid = mine.some((p) => (Number.isInteger(p.cycle_no) ? p.cycle_no : inferCycle(t.band_start_date!, p.paid_at, ext)) === n);
     if (paid) return { status: "normal", label: `${n}차 납부 완료` };
     const diff = diffDays(cycleDue(t.band_start_date, n, ext), today);
@@ -124,7 +126,7 @@ Deno.serve(async (req) => {
 
     // 승인된 합주팀 목록
     const teamsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&band_ended_at=is.null&select=id,band_name_kr,band_start_date,instruments,email`,
+      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&band_ended_at=is.null&select=id,band_name_kr,band_start_date,instruments,email,band_end_date`,
       { headers }
     );
     const teams: Team[] = ((await teamsRes.json()) as Team[]).filter((t) => !isAdminBand(t));

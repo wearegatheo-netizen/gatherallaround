@@ -270,9 +270,13 @@ const FAKE_SB = `
   const notice = await p.evaluate(() => document.getElementById('bandCycleNotice').innerHTML);
   const adminHidden = await p.evaluate(() => document.getElementById('bandAdminSection').classList.contains('hidden'));
   chk('팀 본인 화면: 회차 안내(5차 납부 완료·다음 6차·계좌) + 관리자 섹션 숨김', adminHidden && notice.includes('5차 납부 완료') && notice.includes('토스뱅크 1000-2274-7678') && notice.includes('이번 회차'), notice.slice(0, 160));
+  chk('팀 본인 화면: 운영자가 적은 보증금(250,000원 · 5/7 입금 확인)·납부 내역 6건(읽기 전용: 등록·1~5차, 수정/삭제 없음)', /<span>보증금<\/span><strong>250,000원<span[^>]*> · 5\/7 입금<\/span><\/strong>/.test(notice) && notice.includes('납부 내역 6건 보기') && notice.includes('<strong>5차</strong> · 2026-09-26') && notice.includes('<strong>등록</strong> · 2026-05-17') && !notice.includes('deleteBandPayment'), notice.match(/납부 내역[^<]*/)?.[0]);
   const infoHtml = await p.evaluate(() => document.getElementById('bandInfoCard').innerHTML);
   chk('밴드 정보: 합주 타임 시트 표기 "일 야간"', infoHtml.includes('일 야간'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-420-light.png'), fullPage: true });
+  await p.evaluate(() => { const d = document.getElementById('bandMyPayHist'); if (d) d.open = true; }); await p.waitForTimeout(100);
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-payhist-420-light.png'), fullPage: true });
+  await p.evaluate(() => { const d = document.getElementById('bandMyPayHist'); if (d) d.open = false; });
   await p.evaluate(() => toggleBandInfoEdit());
   chk('정보 수정 폼: 국문·영문·리더·연락처 입력칸 모두 44px', await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].every(id => document.getElementById(id).offsetHeight === 44)), await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].map(id => { const e = document.getElementById(id); return id + ':' + e.offsetHeight + '/' + getComputedStyle(e).height + '/style=' + JSON.stringify(e.getAttribute('style')) + '/' + e.outerHTML.slice(0, 90); }).join(' | ')));
   chk('정보 수정: 보기 영역 숨김 + 폼 표시(아래에 덧붙지 않음) + 수정 버튼 실제로 안 보임', await p.evaluate(() => document.getElementById('bandInfoView').hidden && !document.getElementById('bandInfoEditForm').hidden && document.getElementById('bandInfoEditBtn').offsetParent === null));

@@ -179,10 +179,12 @@ export function bandRentTargets(teams, payments, reminders, today, skips) {
     const sentSet = new Set((reminders || []).map(r => `${r.team_id}:${r.cycle_no}:${r.kind}`));
     const out = [];
     for (const t of teams) {
+        if (t.band_end_date && t.band_end_date < today) continue; // 고정 사용 종료 예정일이 지난 팀(band_ended_at 과 같은 취급)
         const n = bandNextCycle(t.band_start_date, today, extOf(t));
         if (n < 1 || paidSet.has(`${t.id}:${n}`)) continue;
         const due = bandCycleDue(t.band_start_date, n, extOf(t));
         const startN = bandCycleStart(t.band_start_date, n, extOf(t));
+        if (t.band_end_date && startN > t.band_end_date) continue; // 종료 예정일 뒤에 시작하는 회차는 없다 → 입금 안내 없음
         if (today < due || today >= startN) continue;
         const sent = (k) => sentSet.has(`${t.id}:${n}:${k}`);
         if (!sent('due')) out.push({ team: t, n, kind: 'due', due, startN });                                                   // 3주차(입금일)~
@@ -194,7 +196,7 @@ export function bandRentTargets(teams, payments, reminders, today, skips) {
 
 async function loadBandRentTargets(env, sbHeaders, today) {
     const base = `${env.SUPABASE_URL}/rest/v1/`;
-    const sel = 'id,name,band_name_kr,leader_phone,phone,band_start_date,band_fee,instruments,email';
+    const sel = 'id,name,band_name_kr,leader_phone,phone,band_start_date,band_fee,instruments,email,band_end_date';
     const tRes = await fetch(`${base}profiles?member_type=eq.band&status=eq.approved&band_start_date=not.is.null&band_ended_at=is.null&select=${sel}`,
         { headers: sbHeaders });
     if (!tRes.ok) throw new Error('band teams lookup failed: ' + tRes.status);

@@ -2549,7 +2549,7 @@
                     </div>
                     <details class="band-sv-more">
                         <summary>건너뛰기권과 신청 절차</summary>
-                        <p><strong>건너뛰기권</strong> · 희망 시작일부터 예상 사용 기간 안에 이미 잡힌 예약·대관과 겹치는 주마다 1장. 같은 고정 사용 시간의 <strong>대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르고, 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</p>
+                        <p><strong>건너뛰기권</strong> · 희망 시작일부터 예상 사용 기간 안에 이미 잡힌 예약·대관과 겹치는 주마다 1장. 같은 고정 사용 시간의 <strong>대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르고, 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</p>
                         <p><strong>신청 절차</strong> · 타임 선택 → 가입 신청 → 운영자 확인·승인 → 그 시간이 예약 달력에서 고정팀 자리로 막혀요. 고정 합주팀은 4주 단위 회차로 운영돼요.</p>
                     </details>
                 </div>
@@ -12953,7 +12953,7 @@
                 return;
             }
             const approved = teams.filter(t => t.status === 'approved');
-            const ids = teams.filter(t => t.status === 'approved' || t.band_ended_at).map(t => t.id);
+            const ids = teams.filter(t => t.status === 'approved' || bandEndedDate(t)).map(t => t.id);
             const [paymentsMap, remindersMap, skipsMap, pinsMap] = await Promise.all([fetchBandPayments(ids), fetchBandReminders(ids), fetchBandSkips(ids), fetchBandPins(allIds)]);
             teams.forEach(t => { t._ext = bandExtDates(skipsMap[t.id] || []); }); // 1주 연장 → 회차 경계(bandCycleInfo)에 반영
             state.bandAdminCache = { teams, paymentsMap, remindersMap, claimsMap, skipsMap, defs, pinsMap };
@@ -13038,6 +13038,12 @@
                     curStart: bandCycleStart(start, cur, ext), curEnd: bandCycleEnd(start, cur, ext) };
                 if (n === 0) { info.status = 'normal'; info.paid = !!paidMap[0]; info.label = `${bandMD(start)} 시작 예정`; return info; }
                 info.paid = !!paidMap[n];
+                // 고정 사용 종료 예정일(band_end_date): 다음 회차 시작이 종료일 뒤면 회차를 더 만들지 않는다(입금 안내 없음) — send-reminders·check-band-payments 와 동일
+                if (team.band_end_date) {
+                    info.endDate = team.band_end_date;
+                    if (team.band_end_date < today) { info.status = 'ended'; info.label = `${bandMD(team.band_end_date)} 사용 종료`; info.ended = true; return info; }
+                    if (info.startN > team.band_end_date) { info.status = 'ending'; info.label = `${bandMD(team.band_end_date)} 종료 예정`; info.ending = true; return info; }
+                }
                 const diff = bandDiffDays(info.due, today); info.diff = diff;
                 if (info.paid) { info.status = 'paid'; info.label = `${n}차 납부 완료`; }
                 else if (diff > 7) { info.status = 'normal'; info.label = `입금일 ${diff}일 후`; }
@@ -13053,7 +13059,9 @@
                 status: diff < 0 ? 'overdue' : diff <= 7 ? 'imminent' : 'normal',
                 label: diff >= 0 ? `납부 예정 ${diff}일 후` : `납부 예정일 ${-diff}일 지남` };
         }
-        const BAND_STATUS_CHIP = { paid: 'status-approved', normal: 'status-neutral', imminent: 'status-pending', due_today: 'status-pending', overdue: 'status-rejected', unknown: 'status-neutral' };
+        const BAND_STATUS_CHIP = { paid: 'status-approved', normal: 'status-neutral', imminent: 'status-pending', due_today: 'status-pending', overdue: 'status-rejected', unknown: 'status-neutral', ending: 'status-info', ended: 'status-neutral' };
+        // 사용 종료: 탈퇴 처리일(band_ended_at) 또는 지나간 종료 예정일(band_end_date < 오늘) — 현황표·팀 목록·문자 대상이 같은 판정을 쓴다
+        const bandEndedDate = (t, today = bandTodayStr()) => t.band_ended_at || (t.band_end_date && t.band_end_date < today ? t.band_end_date : null);
         const bandStatusChip = (info, extra = '') => `<span class="status-badge sm ${BAND_STATUS_CHIP[info.status] || 'status-neutral'}"${extra}>${escHtml(info.label)}</span>`;
 
         // 팀별 납부 행 (최신순) — {teamId: [row]}
@@ -13106,6 +13114,7 @@
                     <label>예상 사용 개월수<input type="text" id="bc-months-${id}" class="band-input" placeholder="예: 6개월 이상" value="${escAttr(t.band_expected_months || '')}"></label>
                     <label>보증금(원)<input type="number" id="bc-deposit-${id}" class="band-input" inputmode="numeric" placeholder="200000" value="${escAttr(t.band_deposit ?? '')}"></label>
                     <label>보증금 입금일<input type="date" id="bc-deposit-at-${id}" class="band-input" value="${escAttr(t.band_deposit_paid_at || '')}"></label>
+                    <label>고정 사용 종료 예정일<input type="date" id="bc-end-${id}" class="band-input" value="${escAttr(t.band_end_date || '')}" title="마지막 사용일 — 비우면 기한 없음"></label>
                     <label>회차(4주) 이용료(원)<input type="number" id="bc-fee-${id}" class="band-input" inputmode="numeric" placeholder="300000" value="${escAttr(t.band_fee ?? '')}"></label>
                     <label>메모<input type="text" id="bc-memo-${id}" class="band-input" placeholder="캐비넷 등" value="${escAttr(t.band_memo || '')}"></label>
                     <label>등록 비밀번호(숫자 4자리)<input type="text" id="bc-pin-${id}" class="band-input" inputmode="numeric" maxlength="4" placeholder="캐비넷·도어락 등록용" value="${escAttr(((state.bandAdminCache || {}).pinsMap || {})[id] || '')}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"></label>
@@ -13128,20 +13137,30 @@
             const res = document.getElementById(`bc-result-${teamId}`);
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
-            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo'), pin = v('bc-pin');
+            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo'), pin = v('bc-pin'), endDate = v('bc-end');
             if (pin && !/^\d{4}$/.test(pin)) { showErr('등록 비밀번호는 숫자 4자리여야 합니다.'); return; }
             if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) { showErr('시작일 형식이 올바르지 않습니다.'); return; }
+            if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) { showErr('종료 예정일 형식이 올바르지 않습니다.'); return; }
+            if (endDate && start && endDate < start) { showErr('종료 예정일은 시작일 뒤여야 합니다.'); return; }
             if (depositAt && !/^\d{4}-\d{2}-\d{2}$/.test(depositAt)) { showErr('보증금 입금일 형식이 올바르지 않습니다.'); return; }
             const toInt = (s) => (s === '' ? null : parseInt(s, 10));
             if ((deposit && !Number.isInteger(toInt(deposit))) || (fee && !Number.isInteger(toInt(fee)))) { showErr('금액은 숫자만 입력해주세요.'); return; }
             _bandBusy(btn, true, '저장 중…');
             try {
-                const { error } = await supabaseClient.from('profiles').update({
+                const prevEnd = (((state.bandAdminCache || {}).teams || []).find(x => x.id === teamId) || {}).band_end_date || null; // update 전에 읽는다(캐시 행이 같은 객체일 수 있음)
+                const payload = {
                     band_start_date: start || null, band_expected_months: months || null,
                     band_deposit: toInt(deposit), band_deposit_paid_at: depositAt || null,
-                    band_fee: toInt(fee), band_memo: memo || null,
-                }).eq('id', teamId);
+                    band_fee: toInt(fee), band_memo: memo || null, band_end_date: endDate || null,
+                };
+                let { error } = await supabaseClient.from('profiles').update(payload).eq('id', teamId);
+                if (error && /band_end_date/.test(error.message || '')) { // 마이그레이션(20261105_band_end_date) 전 — 종료 예정일 없이 저장
+                    const { band_end_date, ...plain } = payload;
+                    ({ error } = await supabaseClient.from('profiles').update(plain).eq('id', teamId));
+                    if (!error && endDate) showToast('종료 예정일 컬럼(band_end_date)이 없어 그 값은 저장하지 못했습니다. 20261105_band_end_date.sql 을 실행해주세요.', 6000);
+                }
                 if (error) { console.error('band contract save error:', error); showErr('저장하지 못했습니다. 잠시 후 다시 시도해주세요. (컬럼이 없다면 20260915 마이그레이션을 먼저 실행하세요)'); return; }
+                if ((endDate || null) !== prevEnd) await _bandApplyEndDate(teamId, endDate || null); // 고정 시간 차단·타임 신청의 end_date 도 같이
                 const prevPin = ((state.bandAdminCache || {}).pinsMap || {})[teamId] || '';
                 if (pin !== prevPin) await saveBandPin(teamId, pin); // 바뀐 때만(비우면 삭제)
                 showToast('계약 정보를 저장했습니다.');
@@ -13230,11 +13249,12 @@
         }
         // 시트 이관 시드가 남긴 "시트 이관" 표식은 화면에서 숨긴다 (DB 값은 유지 — 뒤에 다른 메모가 붙어 있으면 그 부분만 표시)
         const _bandDisplayNote = (s) => String(s || '').replace(/^\s*시트\s*이관\s*([·,;/-]\s*)?/, '').trim();
-        function bandPaymentHistoryHTML(t, rows) {
+        function bandPaymentHistoryHTML(t, rows, opts = {}) {
             if (!rows.length) return _bandEmptyHTML('납부 내역이 없습니다.');
             return rows.map(r => {
                 const n = bandPaymentCycle(t, r);
                 const note = _bandDisplayNote(r.note);
+                if (opts.readOnly) return `<div class="band-pay-row"><span>${n !== null ? `<strong>${bandCycleLabel(n)}</strong> · ` : ''}${escHtml(r.paid_at)}${r.amount ? ' · ' + bandWon(r.amount) : ''}${note ? ` <span class="band-muted">· ${escHtml(note)}</span>` : ''}</span></div>`;
                 return `<div class="band-pay-row">
                     <span>${n !== null ? `<strong>${bandCycleLabel(n)}</strong> · ` : ''}${escHtml(r.paid_at)}${r.amount ? ' · ' + bandWon(r.amount) : ''}${note ? ` <span class="band-muted">· ${escHtml(note)}</span>` : ''}</span>
                     <span class="gaa-btn-row">
@@ -13254,7 +13274,8 @@
         const BAND_DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
         const BAND_AVAIL_DAYS = 182;          // 가용성·건너뛰기 계산 범위(시작일부터 26주)
         const BAND_HARD_BLOCK_DAYS = 56;      // 이보다 오래 남은 반복 차단은 "사용 중"(건너뛰기 아님)
-        const BAND_SKIP_DEADLINE_DAYS = 7;    // 보상 선택 마감 = 건너뛰는 날 − 7일 · 대체 합주 범위 = [건너뛰는 날 − 7, 전날]
+        const BAND_SKIP_DEADLINE_DAYS = 7;    // 보상 선택 마감 = 건너뛰는 날 − 7일
+        const BAND_SUB_RANGE_DAYS = 7;        // 대체 합주 범위 = 건너뛰는 날 앞뒤 1주일 [−7, +7] (2026-11-05, 종전 −7~전날)
         const _bandH = (t) => parseInt(String(t || '0'), 10);
         const _bandRangeText = (s, e) => `${_bandH(s)}~${_bandH(e)}시`;
         const _bandBlockEnd = (endExcl) => (endExcl >= '23:00' ? TIMES[TIMES.length - 1] : TIMES[TIMES.indexOf(endExcl) - 1]);
@@ -13476,7 +13497,7 @@
                     + (skipItems.length
                         ? `<div class="band-sv-skips">겹치는 주 <strong>${skipItems.length}주</strong> → 건너뛰기권 ${skipItems.length}장
                            <ul>${skipItems.map(s => `<li><span class="d">${_bandMDW(s.date)}</span> <span>${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</span></li>`).join('')}</ul>
-                           <div class="band-sv-note">주마다 같은 고정 사용 시간의 대체 합주(그 주 7일 전~전날) 또는 1주 무료 연장 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div></div>`
+                           <div class="band-sv-note">주마다 같은 고정 사용 시간의 대체 합주(건너뛰는 날 앞뒤 1주일 안) 또는 1주 무료 연장 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div></div>`
                         : `<div class="band-sv-skips">예상 사용 기간(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안에 겹치는 일정이 없어요.</div>`)
                     + '</div>';
             } else detail = '<div class="band-sv-hint">타임을 누르면 선택돼요 · 여러 개 가능 · 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
@@ -13649,7 +13670,7 @@
                             <label>건너뛸 합주일<select id="bg-date-${t.id}" class="band-input">${grantOpts || '<option value="">예정된 합주일이 없습니다</option>'}</select></label>
                             <label>사유<input type="text" id="bg-reason-${t.id}" class="band-input" placeholder="예: 공연 대관 · 통화로 협의"></label>
                         </div>
-                        <div class="band-muted" style="margin-bottom:6px">그날은 달력에서 열리고, 팀이 대체 합주(7일 전~전날, 같은 고정 사용 시간) 또는 1주 무료 연장 중 하나를 고릅니다(일주일 전까지 미선택이면 자동 연장).</div>
+                        <div class="band-muted" style="margin-bottom:6px">그날은 달력에서 열리고, 팀이 대체 합주(앞뒤 1주일 안, 같은 고정 사용 시간) 또는 1주 무료 연장 중 하나를 고릅니다(일주일 전까지 미선택이면 자동 연장).</div>
                         <div id="bg-result-${t.id}" class="band-form-result"></div>
                         <div class="gaa-btn-row">
                             <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandGrantSkip('${t.id}', this)">부여</button>
@@ -13767,6 +13788,16 @@
             _bandBusy(btn, true);
             try { await _bandEndClaims([c], bandTodayStr()); showToast('고정 시간을 해제했습니다.'); renderBandAdminTab(); fetchAndRenderBandTeamList(); }
             finally { _bandBusy(btn, false); }
+        }
+        // 종료 예정일을 팀의 승인된 타임 신청·반복 차단 end_date 에 반영(null 이면 기한 없음으로 되돌림) — 달력이 그다음 날부터 열린다
+        async function _bandApplyEndDate(teamId, endDate) {
+            if (!supabaseClient) return;
+            const claims = (((state.bandAdminCache || {}).claimsMap || {})[teamId] || []).filter(c => c.status === 'approved');
+            for (const c of claims) {
+                await supabaseClient.from('band_slot_claims').update({ end_date: endDate }).eq('id', c.id);
+                if (c.block_id) await supabaseClient.from('time_blocks').update({ end_date: endDate }).eq('id', c.block_id);
+            }
+            if (typeof fetchBlocks === 'function') fetchBlocks().catch(() => {});
         }
         // 타임 종료: 신청 ended + 반복 차단 end_date — 탈퇴 처리와 공유
         async function _bandEndClaims(claims, endDate) {
@@ -13892,7 +13923,7 @@
                 ${approved.length ? `<div class="band-kv-grid">${approved.map(c => `<div class="band-kv"><span>매주 ${BAND_DOW[c.day_of_week]}요일</span><strong>${_bandRangeText(c.start_time, c.end_time)}<span class="band-muted" style="font-weight:400"> · ${bandMD(c.start_date)}부터</span></strong></div>`).join('')}</div>` : ''}
                 ${pending.length ? `<div class="band-muted" style="margin-top:6px">승인 대기 중인 타임: ${escHtml(bandClaimsText(pending))}</div>` : ''}
                 ${upcoming.length ? `<div class="band-card-section"><div class="band-card-head"><span>건너뛰기권 ${upcoming.length}장</span></div>
-                    <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 고정 사용 시간의 대체 합주</strong>(건너뛰는 날 7일 전~전날) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
+                    <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 고정 사용 시간의 대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
                     ${upcoming.map(skipRow).join('')}</div>` : (approved.length ? '<div class="band-muted" style="margin-top:8px">예정된 건너뛰기가 없어요.</div>' : '')}
                 ${past.length ? `<details class="band-skip-past"><summary class="band-muted">지난 건너뛰기 ${past.length}건</summary>${past.map(skipRow).join('')}</details>` : ''}`;
         }
@@ -13908,16 +13939,16 @@
             showToast('1주 무료 연장으로 처리했습니다. 다음 회차 시작·입금일이 일주일 뒤로 밀립니다.');
             await renderBandSlotSection(state.bandProfile); renderBandCycleNotice(state.bandProfile);
         }
-        // 대체 합주 고르기: 건너뛰는 날 7일 전~전날 중 같은 고정 사용 시간(슬롯 수)으로 비어 있는 시간대
+        // 대체 합주 고르기: 건너뛰는 날 앞뒤 1주일(−7~+7) 중 같은 고정 사용 시간(슬롯 수)으로 비어 있는 시간대 (선택 마감은 그대로 건너뛰는 날 −7)
         async function bandSubstituteSheet(skipId) {
             const s = (state.bandSkips || []).find(x => x.id === skipId);
             if (!s || !supabaseClient) return;
             if (bandSkipResolution(s)) { showToast('이미 보상이 정해진 건너뛰기권입니다.'); return; }
             const today = bandTodayStr();
             const dur = _bandSlotIdx(s.skip_start, s.skip_end).e - _bandSlotIdx(s.skip_start, s.skip_end).s + 1; // 슬롯 수
-            const from = _bandAddDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS), to = _bandAddDays(s.skip_date, -1);
+            const from = _bandAddDays(s.skip_date, -BAND_SUB_RANGE_DAYS), to = _bandAddDays(s.skip_date, BAND_SUB_RANGE_DAYS);
             gtSheetOpen(`대체 합주 고르기 · ${_bandMDW(s.skip_date)} 대신`, _bandLoadingHTML());
-            const ctx = await bandAvailLoad(from, BAND_SKIP_DEADLINE_DAYS);
+            const ctx = await bandAvailLoad(from, BAND_SUB_RANGE_DAYS * 2);
             const now = new Date();
             const days = [];
             for (let d = from; d <= to; d = _bandAddDays(d, 1)) {
@@ -13931,7 +13962,7 @@
             }
             const body = document.querySelector('#gtSheet .cm-sheet-body');
             if (!body) return;
-            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">원래 고정 사용 시간과 같은 ${dur}시간으로, 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
+            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">건너뛰는 날 앞뒤 1주일 안에서, 원래 고정 사용 시간과 같은 ${dur}시간으로 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
                 + (days.length ? days.map(({ d, opts }) => `<div class="band-sub-day"><div class="d"><strong>${_bandMDW(d)}</strong></div><div class="chips">${opts.length
                     ? opts.map(i => `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandSubstitutePick('${s.id}','${d}','${TIMES[i]}')">${_bandRangeText(TIMES[i], _bandBlockEndExcl(TIMES[i + dur - 1]))}</button>`).join('')
                     : '<span class="band-muted">가능한 시간 없음</span>'}</div></div>`).join('')
@@ -14005,11 +14036,14 @@
         function bandCycleSummaryHTML(t, info) {
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';
             if (info.mode === 'legacy') return `<div class="band-muted">시작일 미설정 — 마지막 납부일(${escHtml(info.lastPaid)}) 기준 다음 납부 예정 ${escHtml(info.next)}. 계약 정보를 입력하면 회차·문자 안내가 시작됩니다.</div>`;
-            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 이용료는 시작일에 입금</div>`;
+            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 등록 회차 이용료는 <strong>등록일부터 시작일 전날(${bandMD(_bandAddDays(info.start, -1))})까지</strong> 입금</div>`;
+            if (info.ended) return `<div>고정 사용이 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong>에 종료되었습니다.</div>`;
+            if (info.ending) return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 고정 사용 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong> 종료 예정 · 다음 회차 없음</div>`;
+            const endNote = info.endDate ? ` · 종료 예정 ${bandMD(info.endDate)}` : '';
             const dueText = info.paid
                 ? `납부 완료 · ${bandCycleLabel(info.nextDueN)} 입금일 <strong>${bandMD(info.nextDue)}</strong>`
                 : `입금일 <strong>${bandMD(info.due)}</strong>`;
-            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · ${dueText}${t.band_fee ? ` · 이용료 ${bandWon(t.band_fee)}` : ''}</div>`;
+            return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 다음 회차 <strong>${bandCycleLabel(info.n)}</strong> ${bandMD(info.startN)}(${bandWD(info.startN)}) 시작 · ${dueText}${t.band_fee ? ` · 이용료 ${bandWon(t.band_fee)}` : ''}${endNote}</div>`;
         }
         function bandReminderLogHTML(reminders, n) {
             const all = (reminders || []).slice().sort((a, b) => String(a.sent_at).localeCompare(String(b.sent_at)));
@@ -14057,6 +14091,7 @@
                             ${kv('예상 사용', escHtml(t.band_expected_months || ''))}
                             ${kv('보증금', t.band_deposit ? `${bandWon(t.band_deposit)}${t.band_deposit_paid_at ? ' · ' + bandMD(t.band_deposit_paid_at) + ' 입금' : ' · 미입금'}` : '')}
                             ${kv('이용료(4주)', bandWon(t.band_fee))}
+                            ${kv('종료 예정일', t.band_end_date ? `${escHtml(t.band_end_date)}(${bandWD(t.band_end_date)})${t.band_end_date < bandTodayStr() ? ' · 종료됨' : ''}` : '')}
                             ${kv('등록 비밀번호(4자리)', (cache.pinsMap || {})[t.id] ? `<span class="band-pin">${escHtml(cache.pinsMap[t.id])}</span>` : '')}
                         </div>
                         ${_bandDisplayNote(t.band_memo) ? `<div class="band-muted">메모: ${escHtml(_bandDisplayNote(t.band_memo))}</div>` : ''}
@@ -14092,9 +14127,9 @@
         // ── 현황표 탭: 내부운영 시트 "진행중인 고정팀 / 대기팀 / 히스토리" 이식 ──
         function renderBandRosterTab(view, teams, paymentsMap, remindersMap) {
             const others = teams.filter(t => !_isAdminBandProfile(t));
-            const active = others.filter(t => t.status === 'approved' && !t.band_ended_at);
+            const active = others.filter(t => t.status === 'approved' && !bandEndedDate(t));
             const pending = others.filter(t => t.status === 'pending');
-            const history = others.filter(t => !!t.band_ended_at).sort((a, b) => String(b.band_ended_at).localeCompare(String(a.band_ended_at)));
+            const history = others.filter(t => !!bandEndedDate(t)).sort((a, b) => String(bandEndedDate(b)).localeCompare(String(bandEndedDate(a))));
             state.bandRosterView = state.bandRosterView || 'cards';
             const isTable = state.bandRosterView === 'table';
             const seg = (key, label) => `<button type="button" class="gaa-btn gaa-btn-xs ${state.bandRosterView === key ? 'gaa-btn-primary' : 'gaa-btn-secondary'}" onclick="setBandRosterView('${key}')">${label}</button>`;
@@ -14121,8 +14156,9 @@
         // 실사용 회차: 납부 기록 수가 있으면 그 값, 없으면 시작일~종료일 기간을 28일로 나눠 반올림(시트 이관 팀 등)
         function bandUsageText(t, rows) {
             let count = Object.keys(bandPaidMap(t, rows)).length;
-            if (!count && t.band_start_date && t.band_ended_at) count = Math.max(1, Math.round(bandDiffDays(t.band_ended_at, t.band_start_date) / BAND_CYCLE_DAYS));
-            const range = t.band_start_date ? `${bandYMDShort(t.band_start_date)} ~ ${bandYMDShort(t.band_ended_at)}` : bandYMDShort(t.band_ended_at);
+            const endedAt = bandEndedDate(t);
+            if (!count && t.band_start_date && endedAt) count = Math.max(1, Math.round(bandDiffDays(endedAt, t.band_start_date) / BAND_CYCLE_DAYS));
+            const range = t.band_start_date ? `${bandYMDShort(t.band_start_date)} ~ ${bandYMDShort(endedAt)}` : bandYMDShort(endedAt);
             return `${count}회 (${range})`;
         }
         // 카드 보기: 팀 요약 + 회차 스트립 (등록 ✓ 5/17 · 1차 ✓ 6/8 · … · 5차 입금일 9/27)
@@ -14203,7 +14239,7 @@
             if (!cache) return;
             const { teams, paymentsMap } = cache;
             const others = teams.filter(t => !_isAdminBandProfile(t));
-            const active = others.filter(t => t.status === 'approved' && !t.band_ended_at);
+            const active = others.filter(t => t.status === 'approved' && !bandEndedDate(t));
             const K = bandRosterColumns(active, paymentsMap);
             const esc = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
             const lines = [];
@@ -14224,7 +14260,7 @@
             lines.push('');
             lines.push('▶ 히스토리');
             lines.push(['요일', '팀명', '대표자', '연락처', '등록일', '예상 사용 개월수', '실사용 개월수'].join(','));
-            others.filter(t => !!t.band_ended_at).forEach(t => lines.push([bandSlotSheetText(t.timeslots), t.band_name_kr || '', t.leader_name || '', t.leader_phone || '', bandYMDShort(t.band_start_date), t.band_expected_months || '', bandUsageText(t, (paymentsMap || {})[t.id] || [])].map(esc).join(',')));
+            others.filter(t => !!bandEndedDate(t)).forEach(t => lines.push([bandSlotSheetText(t.timeslots), t.band_name_kr || '', t.leader_name || '', t.leader_phone || '', bandYMDShort(t.band_start_date), t.band_expected_months || '', bandUsageText(t, (paymentsMap || {})[t.id] || [])].map(esc).join(',')));
             const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -14290,10 +14326,17 @@
             const info = bandCycleInfo(profile, rows);
             box.hidden = false;
             const extNote = (profile._ext || []).length ? `<div class="band-muted" style="margin-top:4px">건너뛰기 1주 연장 ${profile._ext.length}회가 반영되어 회차 시작·입금일이 그만큼 뒤로 밀려 있어요.</div>` : '';
+            // 운영자가 적은 보증금·납부 내역을 팀도 본다(읽기 전용)
+            const deposit = profile.band_deposit ? `${bandWon(profile.band_deposit)}<span class="band-muted" style="font-weight:400"> · ${profile.band_deposit_paid_at ? `${bandMD(profile.band_deposit_paid_at)} 입금` : '입금 전'}</span>` : '미등록';
             box.innerHTML = `
                 <div class="band-card-head"><span>💰 회차·입금 안내</span>${bandStatusChip(info)}</div>
                 ${bandCycleSummaryHTML(profile, info)}${extNote}
-                <div class="band-muted" style="margin-top:4px">입금 계좌: <strong>토스뱅크 1000-2274-7678 최경수</strong> · 입금일에 안내 문자를 보내드립니다.</div>`;
+                <div class="band-kv-grid" style="margin-top:8px">
+                    <div class="band-kv"><span>보증금</span><strong>${deposit}</strong></div>
+                    <div class="band-kv"><span>이용료(4주)</span><strong>${bandWon(profile.band_fee) || '-'}</strong></div>
+                </div>
+                <details class="band-skip-past" id="bandMyPayHist"><summary class="band-muted">납부 내역 ${rows.length}건 보기</summary><div class="band-pay-hist">${bandPaymentHistoryHTML(profile, rows, { readOnly: true })}</div></details>
+                <div class="band-muted" style="margin-top:4px">입금 계좌: <strong>토스뱅크 1000-2274-7678 최경수</strong> · 입금일에 안내 문자를 보내드립니다. 내역이 다르면 요청사항으로 알려주세요.</div>`;
         }
 
         function renderBandInfo(profile) {
@@ -14502,16 +14545,17 @@
             const list = document.getElementById('bandTeamList');
             if (!list) return;
             const { data: teams } = await supabaseClient.from('profiles')
-                .select('id, band_name_kr, band_name_en, leader_name, leader_phone, timeslots')
+                .select('id, band_name_kr, band_name_en, leader_name, leader_phone, timeslots, band_ended_at, band_end_date')
                 .eq('member_type', 'band').eq('status', 'approved').order('created_at', { ascending: true });
-            if (!teams || !teams.length) { list.innerHTML = _bandEmptyHTML('등록된 팀이 없습니다.'); return; }
+            const live = (teams || []).filter(t => !bandEndedDate(t)); // 종료 예정일이 지난 팀은 목록에서 제외
+            if (!live.length) { list.innerHTML = _bandEmptyHTML('등록된 팀이 없습니다.'); return; }
             const { data: allMembers } = await supabaseClient.from('band_members').select('*').order('created_at', { ascending: true });
             const memberMap = {};
             (allMembers || []).forEach(m => {
                 if (!memberMap[m.band_profile_id]) memberMap[m.band_profile_id] = [];
                 memberMap[m.band_profile_id].push(m);
             });
-            list.innerHTML = teams.map(t => {
+            list.innerHTML = live.map(t => {
                 const members = memberMap[t.id] || [];
                 const membersHtml = members.length
                     ? members.map(m => `<span class="band-member-chip">${escHtml(m.name)}${m.part ? `<span style="opacity:0.7;font-weight:400">&nbsp;${escHtml(m.part)}</span>` : ''}</span>`).join('')
