@@ -165,13 +165,18 @@ const FAKE_SB = `
   // 제출: 선택 없이 → 인라인 오류 / 선택 후 → profiles upsert + claims insert + 푸시
   await p.evaluate(() => {
     document.getElementById('bandSignupLeaderName').value = '홍길동'; document.getElementById('bandSignupLeaderPhone').value = '010-2222-3333';
-    document.getElementById('bandSignupNameKr').value = '새팀'; document.getElementById('bandSignupNameEn').value = 'NewTeam'; document.getElementById('bandSignupId').value = 'newteam';
+    document.getElementById('bandSignupNameKr').value = '새팀'; document.getElementById('bandSignupNameEn').value = 'NewTeam';
     document.getElementById('bandSignupPwDigits').value = '1234'; document.getElementById('bandSignupPwDigitsConfirm').value = '1234';
     document.getElementById('bandPrivacyConsent').checked = true;
     bandSignupToggleSlot(document.querySelector('.band-slot-chip.sel').dataset.def); // 선택 해제
     return handleBandEmailSignup();
   });
   chk('타임 미선택 제출 → 인라인 오류 "합주 타임을 1개 이상"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('합주 타임을 1개 이상'));
+  // 아이디 = 밴드 영문명 자동 지정(아이디 칸 없음): 미리보기·짧은 이름 오류
+  chk('아이디 칸 없음 + 영문명 "New Team 2!" → 미리보기 "newteam2"(영문·숫자 소문자)', await p.evaluate(() => { const en = document.getElementById('bandSignupNameEn'); en.value = 'New Team 2!'; en.dispatchEvent(new Event('input')); return !document.getElementById('bandSignupId') && document.getElementById('bandSignupIdPreview').textContent === 'newteam2' && /밴드 영문명/.test(document.getElementById('bandSignupIdNote').textContent); }));
+  await p.evaluate(() => { document.getElementById('bandSignupNameEn').value = 'AB'; return handleBandEmailSignup(); });
+  chk('영문명이 짧으면(ab) 인라인 오류 "4자 이상"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('4자 이상'));
+  await p.evaluate(() => { const en = document.getElementById('bandSignupNameEn'); en.value = 'NewTeam'; en.dispatchEvent(new Event('input')); });
   // 비밀번호 규칙: pw 접두 고정 + 숫자 4자리, 안내문(6개월 이상·캐비넷 등록)
   chk('비밀번호 칸: pw 접두 고정 + 숫자 4자리(maxlength 4·numeric) 두 칸 + 안내문(6개월 이상·캐비넷·비밀번호로 등록)', await p.evaluate(() => { const a = document.getElementById('bandSignupPwDigits'), b = document.getElementById('bandSignupPwDigitsConfirm'); const note = document.querySelector('.band-pw-note').textContent; const pre = [...document.querySelectorAll('#band-signup-form .band-pw-prefix')]; return a.maxLength === 4 && a.inputMode === 'numeric' && b.maxLength === 4 && pre.length === 2 && pre.every(e => e.textContent === 'pw') && note.includes('pw + 숫자 4자리') && note.includes('6개월 이상') && note.includes('캐비넷') && note.includes('비밀번호로 등록') && !document.getElementById('bandSignupPassword'); }));
   chk('숫자 입력 정리: "12a4" → "124"(숫자만) · 6자리 → 4자리', await p.evaluate(() => { const a = document.getElementById('bandSignupPwDigits'); a.value = '12a4'; a.dispatchEvent(new Event('input')); const v1 = a.value; a.value = '123456'; a.dispatchEvent(new Event('input')); const v2 = a.value; a.value = '1234'; return v1 === '124' && v2 === '1234'; }));
