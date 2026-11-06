@@ -4,6 +4,8 @@
 #   → 닫힘(7px)·구멍 메움 → 연결 성분 → 중심 좌표를 행·열 묶음으로 격자 배정(너무 길쭉하면 가장 잘록한 줄에서 둘로 분리)
 #   → 셀마다 성분 합집합을 알파로(1px 팽창 + 0.8px 블러), 256색 팔레트(디더)로 저장.
 #   시트가 이미 투명 배경(RGBA, 완전 투명 픽셀 2% 이상 — 낱개 라벨 PNG 처럼 여백이 좁아도 됨)이면 질감 대신 알파 채널(>128)을 마스크로 쓰고, 컷아웃 알파도 원본 알파를 그대로 쓴다(부드러운 테두리 유지).
+#   흰 사진 배경 시트("bg":"white", 그림자 있는 스튜디오 사진)는 질감 마스크 그대로 쓰되 알파를 3px 깎아(경계가 실제 가장자리 밖 ~4px) 흰·그림자 테두리를 버린다.
+#   격자가 아닌 배치는 "layout":"boxes" — 항목마다 "box":[x0,y0,x1,y1] 을 주면 중심이 그 상자 안에 드는 성분을 그 항목으로(rows/cols 불필요).
 #   체커보드가 그림으로 박힌 시트("bg":"checker", 투명 없음·비네팅 있어도 됨)는 그라데이션 "평균" 대신 9×9 창 안 에지 픽셀 "비율"(density)로 판정 —
 #   체커 경계는 얇은 계단 에지라 비율이 낮고(≤ 0.3) 자수 질감은 거의 모든 픽셀이 에지(≥ 0.8)라서 체커 눈금이 전경으로 잡히지 않는다.
 #   "배경 같은" 픽셀 = 무채색이고 밝기가 주변 체커 두 단계 범위 안(그림자 포함; 흰 테두리는 체커 밝은 칸보다 밝고 검정 테두리는 그림자보다 어두워 제외).
@@ -106,19 +108,26 @@ def cut_sheet(sheet, out_dir, src_dir=None):
             inv = Image.eval(mask, lambda v: 255 - v); ImageDraw.floodfill(inv, (0, 0), 128)
             mk = (np.asarray(mask) > 0) | (np.asarray(inv) == 255)      # 바깥과 안 이어진 배경 = 구멍 → 전경
     comps = [c for c in _components(mk) if c['area'] >= sheet.get('min_area', 600)]
-    rows, cols = sheet['rows'], sheet['cols']
+    boxes = sheet.get('layout') == 'boxes'
+    rows, cols = sheet.get('rows', 1), sheet.get('cols', 1)
     med_h = float(np.median([c['bbox'][3] - c['bbox'][1] for c in comps]))
     split = []
     for c in comps: split += _split_waist(c) if c['bbox'][3] - c['bbox'][1] > 1.5 * med_h else [c]
     comps = [c for c in split if c['area'] >= sheet.get('min_area', 600)]
-    rb, cb = _bands([c['cy'] for c in comps], rows), _bands([c['cx'] for c in comps], cols)
-    cells = {}
-    for c, r, k in zip(comps, rb, cb): cells.setdefault((int(r), int(k)), []).append(c)
     items = sheet['items']
-    if len(items) != rows * cols: raise SystemExit(f"{sheet['src']}: 항목 {len(items)}개 ≠ 격자 {rows}×{cols}")
+    cells = {}
+    if boxes:   # 항목별 상자: 성분 중심이 드는 첫 항목으로(어느 상자에도 안 들면 버림)
+        for c in comps:
+            for idx, meta in enumerate(items):
+                x0, y0, x1, y1 = meta['box']
+                if x0 <= c['cx'] < x1 and y0 <= c['cy'] < y1: cells.setdefault(idx, []).append(c); break
+    else:
+        rb, cb = _bands([c['cy'] for c in comps], rows), _bands([c['cx'] for c in comps], cols)
+        for c, r, k in zip(comps, rb, cb): cells.setdefault((int(r), int(k)), []).append(c)
+        if len(items) != rows * cols: raise SystemExit(f"{sheet['src']}: 항목 {len(items)}개 ≠ 격자 {rows}×{cols}")
     out = []
     for idx, meta in enumerate(items):
-        key = (idx // cols, idx % cols)
+        key = idx if boxes else (idx // cols, idx % cols)
         if key not in cells: raise SystemExit(f"{sheet['src']}: {key} 칸에서 패치를 찾지 못함 (threshold 조정 필요)")
         group = cells[key]; big = max(c['area'] for c in group)
         group = [c for c in group if c['area'] >= big * (0.01 if checker else 0.03)]   # 셀 안 잔부스러기 제거(별 세 개·로켓 옆 반짝 같은 작은 조각은 유지)
@@ -133,13 +142,19 @@ def cut_sheet(sheet, out_dir, src_dir=None):
             alpha = Image.fromarray(np.where(np.asarray(keep) > 0, src_alpha[y0:y1, x0:x1], 0).astype(np.uint8))
         elif checker:   # 체커 시트: 띠 정제로 경계가 실제 가장자리와 맞음 → 팽창 없이 1px 깎고 블러(압축 번짐 회색 테두리 제거)
             alpha = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+        elif sheet.get('bg') == 'white':   # 흰 사진 배경: 질감 경계가 가장자리 밖 ~4px → 3px 깎고 블러
+            alpha = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(7)).filter(ImageFilter.GaussianBlur(1.0))
         else:
             alpha = Image.fromarray((sel[y0:y1, x0:x1] * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
         rgba = im.crop((x0, y0, x1, y1)).convert('RGBA'); rgba.putalpha(alpha)
         fn = meta['key'] + '.png'
-        pal = rgba.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.FLOYDSTEINBERG)
-        pal.save(os.path.join(out_dir, fn), 'PNG', optimize=True)
-        out.append({**meta, 'kind': 'raster', 'file': fn, 'w': rgba.width, 'h': rgba.height})
+        # 용량 상한(기본 160KB, 유닛 테스트와 같음): 넘으면 0.88 배씩 줄여 다시 저장(큰 자수 패치 — 2026-11-06 나무 캐릭터 871×982 가 246KB)
+        for _ in range(6):
+            pal = rgba.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.FLOYDSTEINBERG)
+            pal.save(os.path.join(out_dir, fn), 'PNG', optimize=True)
+            if os.path.getsize(os.path.join(out_dir, fn)) <= sheet.get('max_kb', 160) * 1024: break
+            rgba = rgba.resize((max(1, round(rgba.width * 0.88)), max(1, round(rgba.height * 0.88))), Image.LANCZOS)
+        out.append({**{k: v for k, v in meta.items() if k != 'box'}, 'kind': 'raster', 'file': fn, 'w': rgba.width, 'h': rgba.height})
     return out
 
 def cut_sheets(cfg_path, out_dir, src_dir=None):

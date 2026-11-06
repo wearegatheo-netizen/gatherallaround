@@ -1,7 +1,7 @@
 // 기본 와펜 세트 목록 — tools/wappen-seed/build.mjs(또는 finish.py --reuse) 가 생성한다. 직접 수정하지 말 것.
 // 벡터 항목은 tools/wappen-seed/designs.mjs 에서 코드로 그린 원본(CC0), kind:'raster' 항목은 tools/wappen-seed/raster.json 의 시트(제공자 소유)에서 잘라낸 것.
 // 서버(functions/wappen-api.js admin_seed_items)와 관리자 화면이 같은 파일을 import.
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 9;
 export const SEED_ITEMS = [
     {"key": "p-cherry", "name": "체리 패치", "category": "과일", "tags": ["체리", "빨강", "자수"], "file": "p-cherry.png", "w": 235, "h": 209, "kind": "raster"},
     {"key": "p-plaid-heart", "name": "체크 하트 핀", "category": "도형·기호", "tags": ["하트", "옷핀", "해골", "펑크", "자수"], "file": "p-plaid-heart.png", "w": 242, "h": 230, "kind": "raster"},
@@ -118,4 +118,11 @@ export const SEED_ITEMS = [
     {"key": "p8-12-broom", "name": "노란 빗자루", "category": "캐릭터·자연", "tags": ["빗자루", "마녀", "노랑", "할로윈", "자수"], "file": "p8-12-broom.png", "w": 357, "h": 407, "kind": "raster"},
     {"key": "p8-13-skeleton-hand", "name": "해골 손", "category": "캐릭터·자연", "tags": ["해골", "손", "뼈", "흰색", "할로윈", "자수"], "file": "p8-13-skeleton-hand.png", "w": 317, "h": 397, "kind": "raster"},
     {"key": "p8-14-eyeball", "name": "눈알", "category": "캐릭터·자연", "tags": ["눈알", "눈", "초록", "빨강", "할로윈", "자수"], "file": "p8-14-eyeball.png", "w": 334, "h": 335, "kind": "raster"},
+    {"key": "p9-01-campfire-keys", "name": "모닥불 키보드", "category": "게더링", "tags": ["키보드", "모닥불", "마시멜로", "모자", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-01-campfire-keys.png", "w": 501, "h": 500, "kind": "raster"},
+    {"key": "p9-02-cymbal-general", "name": "심벌 장군", "category": "게더링", "tags": ["심벌", "드럼", "망토", "전사", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-02-cymbal-general.png", "w": 544, "h": 553, "kind": "raster"},
+    {"key": "p9-03-goblin-run", "name": "달리는 고블린", "category": "게더링", "tags": ["고블린", "초록", "달리기", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-03-goblin-run.png", "w": 275, "h": 258, "kind": "raster"},
+    {"key": "p9-04-rock-sword", "name": "돌멩이 검사", "category": "게더링", "tags": ["돌멩이", "검", "칼", "주황", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-04-rock-sword.png", "w": 447, "h": 408, "kind": "raster"},
+    {"key": "p9-05-nurse-guitar", "name": "간호사 기타", "category": "게더링", "tags": ["기타", "간호사", "보라", "고블린", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-05-nurse-guitar.png", "w": 343, "h": 528, "kind": "raster"},
+    {"key": "p9-06-tree-guitar", "name": "나무 속 기타", "category": "게더링", "tags": ["나무", "기타", "하늘색", "갈색", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-06-tree-guitar.png", "w": 674, "h": 760, "kind": "raster"},
+    {"key": "p9-07-goblin-think", "name": "고민하는 고블린", "category": "게더링", "tags": ["고블린", "초록", "물음표", "게더링 캐릭터", "픽셀", "밴드", "자수"], "file": "p9-07-goblin-think.png", "w": 585, "h": 609, "kind": "raster"},
 ];
