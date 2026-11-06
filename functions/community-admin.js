@@ -127,7 +127,7 @@ async function notifyOrganizer(env, m, decision) {
     const ok = decision === 'approved';
     const when = `${String(m.meeting_date || '').replace(/-/g, '.')} ${m.meeting_time || ''}`.trim();
     const subject = `[게더 올 어라운드] "${m.title}" 모임 시간 요청이 ${ok ? '수락' : '거절'}되었습니다`;
-    const link = `${SITE}/#community/meeting/${m.id}`;
+    const link = `${SITE}/meet/${m.id}`; // 경로형 공유 주소 — 메일 앱 인앱 브라우저가 #해시를 버려도 상세로(functions/meet/[id].js)
     const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#222;line-height:1.7">
         <h2 style="font-size:1.1rem;margin:0 0 12px">${ok ? '모임 시간 요청이 수락되었습니다 🎉' : '모임 시간 요청이 거절되었습니다'}</h2>
         <p style="margin:0 0 12px">${esc(m.organizer_name || '모임장')}님, 게더 올 어라운드 공간에서 <b>${esc(m.title)}</b> 모임을 ${ok ? '진행하실 수 있습니다.' : '진행하기 어렵게 되었습니다.'}</p>

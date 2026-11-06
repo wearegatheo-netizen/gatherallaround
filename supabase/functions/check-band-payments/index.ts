@@ -35,19 +35,40 @@ const CYCLE_DAYS = 28;
 const DAY_MS = 86400000;
 const GATHEO_ADMIN_BAND_ID = "wearegatheo";
 const addDays = (ymd: string, n: number) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
-const cycleStart = (start: string, n: number) => addDays(start, CYCLE_DAYS * n);
+// 1주 무료 연장(건너뛰기권 extend, 2026-11-05): ext = 연장 적용 날짜 목록 → 그 뒤의 회차 경계가 7일씩 밀린다 (index.html bandExtOffset · send-reminders.js 와 동일)
+const extOffset = (start: string, n: number, ext: string[]) => {
+  if (!ext.length) return 0;
+  let off = 0;
+  for (let i = 0; i < 60; i++) {
+    const s = addDays(start, CYCLE_DAYS * n + off);
+    const cnt = ext.filter((d) => d >= start && d < s).length * 7;
+    if (cnt === off) break;
+    off = cnt;
+  }
+  return off;
+};
+const cycleStart = (start: string, n: number, ext: string[] = []) => addDays(start, CYCLE_DAYS * n + extOffset(start, n, ext));
 const DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일
-const cycleDue = (start: string, n: number) => (n <= 0 ? start : addDays(start, CYCLE_DAYS * n - DUE_OFFSET));
-const nextCycle = (start: string, today: string) => {
-  const days = Math.round((Date.parse(today) - Date.parse(start)) / DAY_MS);
-  return days < 0 ? 0 : Math.floor(days / CYCLE_DAYS) + 1;
+const cycleDue = (start: string, n: number, ext: string[] = []) => (n <= 0 ? start : addDays(cycleStart(start, n, ext), -DUE_OFFSET));
+const nextCycle = (start: string, today: string, ext: string[] = []) => {
+  if (today < start) return 0;
+  let n = 0; while (n < 400 && cycleStart(start, n + 1, ext) <= today) n++;
+  return n + 1;
 };
 // 구형 납부 행 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7)
-const inferCycle = (start: string, paidAt: string) =>
-  Math.max(0, Math.floor(((Date.parse(paidAt) - Date.parse(start)) / DAY_MS + 21) / CYCLE_DAYS));
+const inferCycle = (start: string, paidAt: string, ext: string[] = []) => {
+  let n = 0; while (n < 400 && addDays(cycleStart(start, n + 1, ext), -21) <= paidAt) n++;
+  return n;
+};
 const diffDays = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / DAY_MS);
+// 건너뛰기권 보상 실효 판정: 선택값 또는 마감(건너뛰는 날 − 7일) 뒤 자동 1주 연장
+const SKIP_DEADLINE_DAYS = 7;
+type Skip = { profile_id: string; skip_date: string; resolution: string | null };
+const skipResolution = (s: Skip, today: string) => s.resolution || (today > addDays(s.skip_date, -SKIP_DEADLINE_DAYS) ? "extend" : null);
+const extDates = (skips: Skip[], teamId: string, today: string) =>
+  skips.filter((s) => s.profile_id === teamId && skipResolution(s, today) === "extend").map((s) => s.skip_date).sort();
 
-type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null };
+type Team = { id: string; band_name_kr: string; band_start_date: string | null; instruments: string | null; email: string | null; band_end_date?: string | null };
 type Payment = { team_id: string; paid_at: string; cycle_no: number | null };
 
 function isAdminBand(t: Team): boolean {
@@ -57,14 +78,16 @@ function isAdminBand(t: Team): boolean {
 }
 
 // 팀별 알림 판정 — status 와 표시 라벨(입금일까지 남은/지난 일수)
-function judge(t: Team, payments: Payment[], today: string): { status: "overdue" | "imminent" | "normal" | "unknown"; label: string } {
+function judge(t: Team, payments: Payment[], today: string, ext: string[] = []): { status: "overdue" | "imminent" | "normal" | "unknown"; label: string } {
   const mine = payments.filter((p) => p.team_id === t.id && p.paid_at);
+  if (t.band_end_date && t.band_end_date < today) return { status: "normal", label: "사용 종료" }; // 종료 예정일 지남
   if (t.band_start_date) {
-    const n = nextCycle(t.band_start_date, today);
+    const n = nextCycle(t.band_start_date, today, ext);
     if (n < 1) return { status: "normal", label: "시작 전" };
-    const paid = mine.some((p) => (Number.isInteger(p.cycle_no) ? p.cycle_no : inferCycle(t.band_start_date!, p.paid_at)) === n);
+    if (t.band_end_date && cycleStart(t.band_start_date, n, ext) > t.band_end_date) return { status: "normal", label: `${t.band_end_date} 종료 예정` }; // 종료일 뒤 회차 없음
+    const paid = mine.some((p) => (Number.isInteger(p.cycle_no) ? p.cycle_no : inferCycle(t.band_start_date!, p.paid_at, ext)) === n);
     if (paid) return { status: "normal", label: `${n}차 납부 완료` };
-    const diff = diffDays(cycleDue(t.band_start_date, n), today);
+    const diff = diffDays(cycleDue(t.band_start_date, n, ext), today);
     const label = diff >= 0 ? `${n}차 입금일 ${diff}일 후` : `${n}차 입금일 ${-diff}일 지남`;
     return { status: diff < 0 ? "overdue" : diff <= 7 ? "imminent" : "normal", label };
   }
@@ -103,7 +126,7 @@ Deno.serve(async (req) => {
 
     // 승인된 합주팀 목록
     const teamsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&band_ended_at=is.null&select=id,band_name_kr,band_start_date,instruments,email`,
+      `${SUPABASE_URL}/rest/v1/profiles?member_type=eq.band&status=eq.approved&band_ended_at=is.null&select=id,band_name_kr,band_start_date,instruments,email,band_end_date`,
       { headers }
     );
     const teams: Team[] = ((await teamsRes.json()) as Team[]).filter((t) => !isAdminBand(t));
@@ -118,11 +141,17 @@ Deno.serve(async (req) => {
       { headers }
     );
     const payments: Payment[] = await paymentsRes.json();
+    // 건너뛰기권(1주 연장) — 표가 없으면(마이그레이션 전) 빈 배열
+    const skipsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/band_skips?profile_id=in.(${teamIds})&select=profile_id,skip_date,resolution`,
+      { headers }
+    );
+    const skips: Skip[] = skipsRes.ok ? ((await skipsRes.json().catch(() => [])) as Skip[]) : [];
 
     // 알림 대상 팀 필터 (KST 기준 오늘)
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     const alertTeams = teams
-      .map((t) => ({ name: t.band_name_kr, ...judge(t, payments, today) }))
+      .map((t) => ({ name: t.band_name_kr, ...judge(t, payments, today, extDates(Array.isArray(skips) ? skips : [], t.id, today)) }))
       .filter((x) => x.status === "overdue" || x.status === "imminent" || x.status === "unknown");
 
     if (!alertTeams.length) {

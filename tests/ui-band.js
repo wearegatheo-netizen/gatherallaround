@@ -269,10 +269,16 @@ const FAKE_SB = `
   await p.waitForTimeout(700);
   const notice = await p.evaluate(() => document.getElementById('bandCycleNotice').innerHTML);
   const adminHidden = await p.evaluate(() => document.getElementById('bandAdminSection').classList.contains('hidden'));
+  chk('머리: SVG 모드 버튼(.cm-ib.theme-toggle-svg 40px) + 로그아웃 알약(.cm-pill 34px) — 다른 섹션 앱 바와 같은 부품', await p.evaluate(() => { const t = document.getElementById('themeToggleBtnBandMain'), l = document.querySelector('.band-header .cm-pill'); return t.classList.contains('cm-ib') && t.classList.contains('theme-toggle-svg') && t.querySelectorAll('svg').length === 2 && Math.round(t.getBoundingClientRect().height) === 40 && !!l && l.textContent === '로그아웃' && Math.round(l.getBoundingClientRect().height) === 34 && !document.querySelector('.band-header .theme-toggle-btn'); }));
+  chk('밴드 정보 값 글자 크기 통일(국문명도 0.95rem, .lg 없음)', await p.evaluate(() => { const fs = [...document.querySelectorAll('#bandInfoView .band-kv strong')].map(e => getComputedStyle(e).fontSize); return fs.length >= 4 && fs.every(f => f === fs[0]) && !document.querySelector('#bandInfoView strong.lg'); }), await p.evaluate(() => [...document.querySelectorAll('#bandInfoView .band-kv strong')].map(e => getComputedStyle(e).fontSize).join(',')));
   chk('팀 본인 화면: 회차 안내(5차 납부 완료·다음 6차·계좌) + 관리자 섹션 숨김', adminHidden && notice.includes('5차 납부 완료') && notice.includes('토스뱅크 1000-2274-7678') && notice.includes('이번 회차'), notice.slice(0, 160));
+  chk('팀 본인 화면: 운영자가 적은 보증금(250,000원 · 5/7 입금 확인)·납부 내역 6건(읽기 전용: 등록·1~5차, 수정/삭제 없음)', /<span>보증금<\/span><strong>250,000원<span[^>]*> · 5\/7 입금<\/span><\/strong>/.test(notice) && notice.includes('납부 내역 6건 보기') && notice.includes('<strong>5차</strong> · 2026-09-26') && notice.includes('<strong>등록</strong> · 2026-05-17') && !notice.includes('deleteBandPayment'), notice.match(/납부 내역[^<]*/)?.[0]);
   const infoHtml = await p.evaluate(() => document.getElementById('bandInfoCard').innerHTML);
   chk('밴드 정보: 합주 타임 시트 표기 "일 야간"', infoHtml.includes('일 야간'));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-420-light.png'), fullPage: true });
+  await p.evaluate(() => { const d = document.getElementById('bandMyPayHist'); if (d) d.open = true; }); await p.waitForTimeout(100);
+  await p.screenshot({ path: path.join(SHOT_DIR, 'band-member-payhist-420-light.png'), fullPage: true });
+  await p.evaluate(() => { const d = document.getElementById('bandMyPayHist'); if (d) d.open = false; });
   await p.evaluate(() => toggleBandInfoEdit());
   chk('정보 수정 폼: 국문·영문·리더·연락처 입력칸 모두 44px', await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].every(id => document.getElementById(id).offsetHeight === 44)), await p.evaluate(() => ['bandEditNameKr','bandEditNameEn','bandEditLeaderName','bandEditLeaderPhone'].map(id => { const e = document.getElementById(id); return id + ':' + e.offsetHeight + '/' + getComputedStyle(e).height + '/style=' + JSON.stringify(e.getAttribute('style')) + '/' + e.outerHTML.slice(0, 90); }).join(' | ')));
   chk('정보 수정: 보기 영역 숨김 + 폼 표시(아래에 덧붙지 않음) + 수정 버튼 실제로 안 보임', await p.evaluate(() => document.getElementById('bandInfoView').hidden && !document.getElementById('bandInfoEditForm').hidden && document.getElementById('bandInfoEditBtn').offsetParent === null));
@@ -290,15 +296,14 @@ const FAKE_SB = `
   await p.evaluate(() => {
     window.__fetchCalls = [];
     window.fetch = (url, opts) => { window.__fetchCalls.push({ url: String(url), body: opts && opts.body }); return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })); };
-    window.__fakeSb.auth.signUp = async () => ({ data: { user: { id: 'f0000000-0000-4000-8000-000000000006' } }, error: null });
+    window.__fakeSb.auth.signUp = async (args) => { window.__signUpArgs = args; return { data: { user: { id: 'f0000000-0000-4000-8000-000000000006' } }, error: null }; };
     _hideAllScreens(); document.getElementById('landing-page-band').classList.remove('hidden'); showBandSignupForm();
     document.getElementById('bandSignupLeaderName').value = '홍길동';
     document.getElementById('bandSignupLeaderPhone').value = '010-2222-3333';
     document.getElementById('bandSignupNameKr').value = '새팀';
     document.getElementById('bandSignupNameEn').value = 'NewTeam';
-    document.getElementById('bandSignupId').value = 'newteam';
-    document.getElementById('bandSignupPassword').value = 'pw123456';
-    document.getElementById('bandSignupPasswordConfirm').value = 'pw123456';
+    document.getElementById('bandSignupPwDigits').value = '1234';
+    document.getElementById('bandSignupPwDigitsConfirm').value = '1234';
     document.querySelector('.band-timeslot-checkbox[value="목_야간"]').checked = true;
     document.getElementById('bandPrivacyConsent').checked = true;
     return handleBandEmailSignup();
@@ -309,6 +314,8 @@ const FAKE_SB = `
   const notify = await p.evaluate(() => (window.__fetchCalls || []).find(c => c.url === '/notify-admins'));
   const signupDbg = await p.evaluate(() => 'result=' + document.getElementById('bandSignupResult').textContent + ' calls=' + JSON.stringify((window.__fetchCalls || []).map(c => c.url)));
   chk('가입 신청 → /notify-admins 푸시(팀명·리더·타임)', !!notify && (() => { const b = JSON.parse(notify.body); return b.title.includes('고정팀 가입 신청') && b.body.includes('새팀') && b.body.includes('홍길동') && b.body.includes('목 야간'); })(), notify ? notify.body : signupDbg);
+  chk('가입: 아이디는 밴드 영문명(NewTeam → newteam@band.gatheo.kr) 자동 지정 · 아이디 입력칸 없음', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.email === 'newteam@band.gatheo.kr' && !document.getElementById('bandSignupId')), await p.evaluate(() => JSON.stringify(window.__signUpArgs)));
+  chk('로그인 칸: 안내 "아이디 (밴드 영문명)" + 입력 "New Team" 도 newteam 으로 정리', await p.evaluate(() => document.getElementById('bandLoginId').placeholder.includes('밴드 영문명') && bandIdFromName('New Team') === 'newteam' && bandIdFromName('GatheO Band!') === 'gatheoband'));
   await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);
   await p.waitForTimeout(600);
   const pendingTab = await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="pending"]').textContent);

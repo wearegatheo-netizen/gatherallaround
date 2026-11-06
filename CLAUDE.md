@@ -9,7 +9,7 @@
 - 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
   (service role, 호스트 인증은 카카오 access token을 kapi.kakao.com에서 서버 검증).
   PII 테이블(event_hosts/event_tickets)은 anon RLS 정책 없음. 좌석 정합성은 `book_event_ticket` RPC(FOR UPDATE)만.
-  QR 티켓 = `#host/checkin/{code}` 딥링크 (vendor/qrcode-generator 자체 호스팅).
+  QR 티켓 = `/host/checkin/{code}` 딥링크(경로형, 2026-11-05 — 예전 `#host/checkin/` QR 도 동작) (vendor/qrcode-generator 자체 호스팅).
   **포스터 꾸미기 작품을 공연 포스터로**(2026-10-13): 공연 등록 폼 [🎨 포스터 꾸미기에서 가져오기](`openWappenPosterPicker`) — 같은 출처라 `localStorage.wappen_session` 을 그대로
   `/wappen-api {action:'my_content', session}` 에 보내 내 작품(`preview_url` 있는 것)을 격자로, 고르면 `_hostState.posterUrl` = 미리보기(1080px JPEG) URL(`pickWappenPoster`, `#evPosterPreview` 썸네일).
   세션 없음/401 → 로그인 안내 + [포스터 꾸미기 열기](새 탭). 서버 `posterOk`(event-api)는 `community-images/events/` 와 `wappen/previews/` 두 접두만 허용(`POSTER_PREFIXES`).
@@ -23,7 +23,7 @@
   ② 원 예매 활성 좌석이 1장이면 **통째 명의 변경**(buyer_name/phone·예매번호 재발급) ③ 아니면 **새 예매(1매·confirmed, transferred_from)** 로 분리 + 좌석 이동 + 원 qty−1. 좌석 코드는 항상 **재발급**(원 QR 무효, 체크인은 좌석 코드라 추가 차단 불필요).
   본인 번호 → 409 `self`, 실패 시 토큰 되돌림(`revert`). `lookup` 응답에 `transfers`(대기·완료, 만료는 lazy 로 `expired`), 좌석·예매 취소 시 대기 링크는 `voidPendingTransfers` 로 정리.
   **양도받은 좌석·예매는 받는 사람이 직접 취소 불가**(`cancel_seat`/`cancel` 409 `transferred`, 호스트 취소는 가능) — 환불은 호스트와. 재양도는 같은 규칙으로 허용.
-  화면: 티켓 좌석 블록 [양도] → `openTransferSheet`(gtSheetOpen) → `createTransferLink` → 링크 `#shows/claim/<토큰>` 공유(`shareTransferLink` navigator.share → 복사)·[링크 취소](`cancelTransferLink`), 대기 중 좌석은 `.tk-pend`,
+  화면: 티켓 좌석 블록 [양도] → `openTransferSheet`(gtSheetOpen) → `createTransferLink` → 링크 `/shows/claim/<토큰>`(경로형, = `#shows/claim/<토큰>`) 공유(`shareTransferLink` navigator.share → 복사)·[링크 취소](`cancelTransferLink`), 대기 중 좌석은 `.tk-pend`,
   완료된 좌석은 「양도 완료 → 이*희」 블록(좌석 목록엔 없음, `transfers` 로 그림). 받는 사람 `renderTransferClaim(token)`(라우트 `shows/claim/<24자>`, `_TRANSFER_TOKEN_RE`) → `claimTransfer` → 바로 티켓 화면.
   양도받은 티켓은 머리에 🎁 표식·취소 버튼 없음(`_ticketTransferred`), 호스트 명단은 「양도받음 · 원예매 OOO」 칩·좌석 번호에 `·양도`. 테스트 `tests/event-api-unit.mjs` 13절·`tests/ui-shows.js` 4b절, 캡처 scratchpad `shows/shoot-transfer.js`.
 - **공연 예매·공간 대관·호스트 센터 머리·레이아웃(2026-10-16, 커뮤니티·게더링 개편 반영 — 탭 성격별로 다르게)**: 세 화면 모두 큰 제목 헤더(`.perf-header`, 삭제됨) 대신
@@ -47,6 +47,14 @@
   합치기 `_mergeMusicResults`(애플 먼저·정규화 키 중복 제거), 결과 없음·실패 시 입력값 그대로 등록하는 칩/줄.
   서버 함수는 우리 출처만(Sec-Fetch-Site/Origin/Referer), q≤60자, 1일 캐시(Deezer IP 쿼터 5초 50회 보호), 실패는 **500** JSON(502 는 Cloudflare 가 본문을 가림).
   상태는 `functions-diagnostics` 워크플로로 확인.
+- **경로형 섹션 주소(2026-11-05, 「모든 링크 # 빼도 연결」)**: 인스타 프로필 링크·카톡 인앱 브라우저가 URL 의 `#해시`를 버려 `/#perf` 같은 링크가 포털에서 멈췄다.
+  SPA 섹션(`_NAV_PAGES`: gatheo·band·band-news·community·perf·shows·host)의 **모든 해시 주소를 경로로도 받는다** — `/perf` = `/#perf`, `/band/times`, `/shows/ticket/<코드>`, `/gatheo/board/<id>`, `/community/test` …
+  서버 `functions/_middleware.js`(`appRouteFromPath` → `appRouteResponse`): GET/HEAD 이고 첫 세그먼트가 섹션이면 루트 셸(`env.ASSETS` `/`)을 그 URL 에서 200 으로 내고 `<head>` 머리에
+  `history.replaceState(null,'','/'+location.search+'#<경로>')` 를 넣는다(`appShellWithRoute`, 섹션별 og:title·description·url `SECTION_OG`). **`<base>` 는 넣지 않는다**(넣으면 이후 `'#…'` 상대 replaceState 가 쿼리를 떨굼; 셸 자산은 전부 절대 경로 — `music.json` 도 `/music.json` 로 고침).
+  세그먼트는 `[A-Za-z0-9_-]{1,64}`·최대 4단만 옮기고(스크립트 문자열 안전) 아니면 섹션까지 절단, 딥링크 형식 검증은 라우터 `_pageFromHash` 그대로. `/shows/<uuid>`·`/community/meeting/<uuid>` 는 `show/[id].js`·`meet/[id].js` 의 onRequest 에 맡겨 포스터 OG 까지 같게.
+  ASSETS 가 없으면 `next()`(Cloudflare 정적 SPA 폴백 — 루트에 404.html 이 없어 모르는 경로에 index.html 200) + **index.html 머리 인라인 스크립트가 같은 치환**(대소문자 무시, 끝 슬래시 허용). 섹션이 아닌 경로(`/nope`)는 포털 그대로.
+  주소창은 종전처럼 `/#perf` 로 바뀐다(라우터·`_pushNav` 는 해시 그대로 — 손대지 않음). 사이트가 만드는 링크는 경로형: 게시글 링크 복사·티켓 양도 링크·체크인 QR·모임장 수락 메일(`/meet/<id>`). 공유 버튼(`/show/<id>`·`/meet/<id>`)·쿼리형 초대(`?hostjoin=`·`?eventjoin=`)는 종전 그대로.
+  새 섹션을 `_NAV_PAGES` 에 추가하면 `APP_SECTIONS`(미들웨어)·머리 스크립트 정규식도 같이. 테스트 `tests/middleware-unit.mjs`(경로형 절)·`tests/ui-path-routes.js`(정적 폴백/미들웨어 셸 두 방식, 가짜 출처 route).
 - 부팅·세션 복원(`initSession`): 루트(포털)로 들어오면 저장된 세션(Supabase 이메일 = 게더링 회원/합주팀 공용, 카카오 캐시 `gaa_kakao_uid`)을
   **상태만 복구하고 화면은 포털**에 둔다(2026-10-06, 직전 계정 화면이 바로 뜨던 문제). 포털의 [게더링]/[고정 합주팀] 버튼(`showGatheoSection`/`showBandSection`)이
   복구된 세션이 있으면 로그인 폼 대신 `loginUI`/`loginBandUI` 로 바로 진입. 섹션 딥링크·새로고침(`#gatheo/…`, `#band`)은 종전처럼 바로 그 화면
@@ -61,7 +69,7 @@
   같은 이름의 **경량 WebP `img/portal/<이름>.webp`**(가로 960px, `tools/make-portal-hero.js` 로 생성 — 원본 0.7~3.6MB 금지)를 4초마다 크로스페이드,
   다음 장만 그때 내려받고 포털이 안 보이면 멈춤. 사진이 없거나 실패하면 숨기지 않고 `.noimg` 어두운 배경(워드마크·버튼·헤드라인은 남아야 함). 대관 사진을 추가하면 webp 도 같이 넣을 것.
   히어로 클릭 = 공간 대관(`role=button`, Enter/Space — `event.target===this` 로 버튼에서 올라온 키는 무시, 버튼은 click/keydown 전파 차단).
-- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크).
+- **로그인 뒤 원래 페이지로 복귀(2026-10-29, 리더즈 회의 건의)**: 게시글 딥링크 `#gatheo/board/<uuid>`(라우터 `_pageFromHash`, 글마다 [🔗 링크 복사]=`copyBoardPostLink` — 카톡 공지에 붙이는 링크, 2026-11-05부터 경로형 `/gatheo/board/<uuid>` 로 복사).
   비로그인으로 `#gatheo/…` 에 들어오면 `_routeToPage` 가 `_pendingGatheoSub`(메모리) + `sessionStorage.gaa_return_to`(`_saveReturnTo`)에 경로를 남기고, `handleLogin` 도 카카오 로그인 직전에 저장한다
   (인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 해시·메모리가 날아감 — 호스트 센터 `gaa_return_host` 와 같은 이유). `initSession` 머리에서 `gaa_return_to` 가 있으면 해시를 복원하고, 카카오 토큰이 살아 있고
   `gaa_kakao_uid` 가 아직 없으면 `_completeKakaoLogin()`(handleLogin 성공 처리를 분리한 것)으로 로그인을 마저 한다. `loginUI` 가 `_takeReturnTo()` 로 소비해 탭·글(`gtOpenPost`)로 이동, `location.search` 를 지울 때 해시는 남긴다.
@@ -95,6 +103,43 @@
   게더링 관리자(로그인 ID `wearegatheo`) 화면: 팀 관리(계약·회차·입금 인라인 폼) + 「현황표」(시트 이식, 카드/표/CSV).
   화면의 "입금일" 표시(현황표 표·카드 칩·팀 카드/본인 화면 요약)는 `bandCycleInfo().nextDueN`(다음 **미납** 회차) 기준 — 다음 회차를 선납했으면 그 다음 회차 입금일을 보여준다.
   토스뱅크 계좌 문구는 `index.html`(대관 조회 카드·밴드 본인 화면) / `send-sms.js` / `send-reminders.js` 세 곳 동기화.
+  **실시간 시간 띠·타임 신청·건너뛰기권(2026-11-05, 마이그레이션 `20261105_band_slots.sql`)**: 「고정 가능 시간」 표를 손으로 고쳐 알리던 것을 사이트가 계산한다.
+  표 `band_slot_defs`(요일별 띠: start/end(**끝 시각 exclusive**)·label 오전/주간/야간·band_ok·rental_ok·open_from·note·`off_reason` rental|team(마이그레이션 `20261105_band_slot_off_reason.sql` — band_ok=false 일 때 「대관만」/「고정팀 사용 중」 중 무엇으로 보일지, 화·수 야간은 team), 초기값 = 26.11.4 표) · `band_slot_claims`(팀 타임 신청, pending→approved, `block_id`) · `band_skips`(건너뛰기권) ·
+  `time_blocks.band_claim_id/skip_dates date[]`(그 날짜엔 반복 차단 미적용 — `_blockSkipped(b, dateStr)` 를 getBlock·perfBlocksForDate·월간 dayBlocks·커뮤니티 충돌 검사·`timeBlocksConflict` 가 모두 본다). time_blocks.end_time 은 종전처럼 마지막 슬롯 시작 — `_bandBlockEnd/_bandBlockEndExcl` 로 변환.
+  **예약 그리드 `TIMES` 는 08:00~22:00(끝 23:00) 15칸**(종전 10:00~) — 게더링·대관·커뮤니티 달력 공통, 안내문 「오전 8시 ~ 오후 11시」.
+  가용성 엔진: `bandAvailLoad(start, days)`(띠·신청·time_blocks 전체 + 범위 안 reservations/performance_bookings(approved+살아 있는 pending); 범위 = **예상 사용 기간** `bandWishMonths()`(가입 화면 셀렉트 1~12개월, 기본 6) 또는 팀의 `band_expected_months`(`bandMonthsFromText` '6개월 이상'→6, 승인·고정 시간 등록이 씀), 기본 26주) → `bandDefStatus(def, ctx, {excludeProfile})` kind = off(대관만/불가) · wait(다른 팀 pending) · taken(end 없는/56일 넘게 남은 반복 차단, `[고정팀]` 이면 「고정팀 사용 중」, 끝나면 「M/D부터」) · later(open_from) · skip(겹치는 주 목록 `skips[{date,reasons}]`) · ok.
+  겹침 사유는 예약 「게더링 예약」·대관 「공간 대관(입금 대기)」·1회 차단(커뮤니티 모임/다른 팀 대체 합주/게더링 차단). 표 `bandAvailTableHTML(rows, {selectable…})` = 요일 줄 + `.band-slot-chip.{kind}` 칩.
+  **합주팀 랜딩(2026-11-05 「가입 전에 일정부터」)**: 첫 화면은 메뉴 `#band-menu` 3개 — [📅 고정 가능 시간 보기]=`showBandScheduleView()` / [✍️ 가입 신청]=`showBandSignupForm()` / [🔑 로그인]=`showBandLoginForm()`(`showBandSection` 이 `showBandMenu()`, 각 화면 [← 처음으로]).
+  시간표 화면 `#band-schedule-view`(2026-11-05 디자인 정리) = 머리 `.band-sv-head`(눈썹·제목·한 줄 소개) → 조건 패널 `.band-sv-ctl`(희망 시작일 `#bandScheduleStart` · 예상 사용 기간 `#bandScheduleMonths`, 2열) → `#bandScheduleBody`(렌더: 기간 줄 `.band-sv-period` + 요약 타일 `.band-sv-stats`(바로 가능/건너뛰기 조건/날짜 지정) + 카드형 표 `.band-avail`(요일 알약 `.band-avail-day` 토 `.sat`·일 `.sun`, 빈 요일 `.band-avail-none` —, 칩 = 시간 굵게+`<em>`띠 이름 / 상태 줄 앞 점) + 선택 카드 `.band-sv-detail`(겹치는 주 날짜 알약 `.d`) 또는 힌트 `.band-sv-hint`)
+  → 읽는 법 `.band-sv-key`(점 범례 `.band-dot` 5줄 + `<details class="band-sv-more">` 건너뛰기권·신청 절차) → CTA `#bandScheduleNextBtn`(「이 타임으로 가입 신청하기 (N개)」/「가입 신청으로」). 가입 폼 쪽 `#bandSignupAvailBody` 는 타일 대신 한 줄 요약 `.band-avail-summary` + 범례 `_bandAvailLegend()`.
+  딥링크 `#band/times`(라우터 `band` + segs[1]) 와 경로형 `/band/times`(아래 「경로형 섹션 주소」 공통 처리 — 전용 함수 `functions/band/times.js` 는 2026-11-05 삭제) 로 인스타·카톡에 붙일 수 있다.
+  **표는 두 화면이 공유**: 가입 폼 안 `#bandSignupSlots`(`#bandSignupStart`·`#bandSignupMonths` + `#bandSignupAvailBody`, [표 읽는 법 · 자세히] 링크)과 시간표 화면이 같은 자료 `_bandSignupAvail`·선택 `_bandSignupSel`·희망일 `state.bandWishStart`·기간 `state.bandWishMonths`(`bandWishStartChange/bandWishMonthsChange` 가 두 화면 입력칸 동기화) 를 쓰고 `bandSignupAvailRender` 가 두 컨테이너에 요약 줄(`.band-avail-summary` 바로 가능/건너뛰기 조건/날짜 지정 수)+범례+표+선택 상세를 그린다.
+  선택 불가 칩도 누를 수 있다(`.na`, `bandScheduleChipInfo`): 개방일·종료 예정이면 희망 시작일을 그날로 옮기고, 아니면 토스트로 이유. band_slot_defs 표가 없거나 띠 0개면 `state.bandSignupFallback` — 가입 폼은 종전 체크박스 `#bandSignupLegacySlots`, 시간표 화면은 안내문.
+  제출은 `profiles.timeslots` 에 종전 표기(`bandSlotLegacyKey` 월_야간, `bandSlotSheetText` 는 오전 포함) + `band_start_date`=희망일 + `band_expected_months`=「N개월」 + `band_slot_claims` insert(pending). 타임 1개 이상·시작일 오늘 이후 필수(`_bandSignupUsesTable()` 일 때).
+  **비밀번호 규칙(2026-11-05)**: 합주팀 비밀번호는 항상 **`pw` + 숫자 4자리**(`BAND_PW_RE`) — 가입 폼은 접두 `pw` 고정 칸(`.band-pw-prefix`) + 숫자 4자리 입력 `#bandSignupPwDigits/#bandSignupPwDigitsConfirm`(numeric·maxlength 4·숫자만 남김)으로 받고 `'pw'+digits` 로 signUp,
+  안내문 `.band-pw-note`(숫자 4자리는 6개월 이상 사용·캐비넷 이용 시 비밀번호로 등록). 로그인은 첫 시도가 실패하면 `_bandNormalizePw`(숫자 4자리만 → pw 접두, PW 대문자 → 소문자)로 한 번 더 시도(기존 팀 비밀번호는 그대로).
+  숫자 4자리는 auth 해시라 볼 수 없으므로 **운영자 전용 표 `band_pins`**(마이그레이션 `20261105_band_pins.sql`: profile_id PK·pin 4자리, select 는 `band_is_admin()` 만, insert/update 본인+운영자)에 가입 직후 upsert(표 없으면 console 만, 가입은 진행).
+  운영자 화면: 가입 신청 카드 줄·승인 팀 계약 정보 kv 「등록 비밀번호(4자리)」(`.band-pin`), 계약 폼 `bc-pin-<id>`(4자리 upsert / 비우면 삭제, `saveBandPin`, `fetchBandPins` → `bandAdminCache.pinsMap`). 기존 팀은 운영자가 계약 폼에 직접 적는다.
+  랜딩 메뉴는 [고정 가능 시간 보기 · 가입 신청] / [로그인] 2개(가입 신청 단독 버튼 없음 — 시간표 화면 CTA 가 가입 폼으로 보낸다, 로그인 폼의 가입 링크도 시간표로).
+  **아이디 = 밴드 영문명 자동 지정(2026-11-05)**: 가입 폼에 아이디 칸 없음 — `bandIdFromName(name)`(영문·숫자만 소문자, 20자까지) 로 `bandSignupNameEn` 에서 만들고 영문명 아래 `.band-id-note#bandSignupIdNote` 에 미리보기(`bandSignupIdPreview`, `#bandSignupIdPreview`). 4자 미만이면 인라인 오류(타임 검사보다 먼저 = 폼 순서), signUp 중복(already/exist/registered)은 「이미 같은 아이디로 가입한 팀」 안내.
+  로그인 입력도 같은 정리를 거친다(「New Team」 → newteam, 기존 팀 아이디는 영문·숫자라 그대로). `instruments`=아이디·이메일 `<id>@band.gatheo.kr` 는 종전과 같다.
+  **팀 화면 머리(2026-11-05)**: `.band-header` 의 모드 버튼은 다른 섹션 앱 바와 같은 `.cm-ib.theme-toggle-svg`(SVG, `themeToggleBtnBandMain` — applyTheme 가 textContent 를 건드리면 안 됨) + 로그아웃 `.cm-pill`(이모지 원형 32px·xs 버튼 조합이 크기가 달라 보이던 문제). 밴드 정보 kv 값은 전부 0.95rem(국문명 `.lg` 제거).
+  **승인(운영자)**: 가입 신청 카드 [승인] → pending claim 이 있으면 confirm 대신 인라인 폼 `openBandApproval`(시작일·「차단 생성+건너뛰기권 발급 | 승인만」·타임별 체크 + `bandApprovalRecalc` 겹침 계산) → `bandApproveWithSlots`:
+  claim 마다 반복 time_block(`[고정팀] 팀명`, start_date, `band_claim_id`, `skip_dates`) → claim approved+block_id → `band_skips`(granted_by signup, 사유) → profiles approved(+band_start_date 비면 시작일, timeslots). `_bandInsertBlock` 은 새 컬럼이 없으면(PGRST204) 빼고 재시도+토스트.
+  승인 팀 카드 섹션 `bandSlotSectionHTML`: 고정 시간 줄([해제]=`bandEndClaim` → claim ended·block end_date 오늘), 건너뛰기권 줄(`bandSkipStatusChip`, [삭제]=`bandSkipDelete` → 대체 차단 삭제·skip_dates 제거), [+ 고정 시간]=`bandRegisterSlot`(기존 팀 달력 반영: 띠+시작일 → approved claim+block+skips),
+  [+ 건너뛰기권]=`bandGrantSkip`(앞으로 올 합주일 10개 중 택1 + 사유 → band_skips admin + `_bandBlockSkipDates`). 탈퇴 처리 `removeBandProfile` 는 `_bandEndClaims` 로 차단도 닫는다. 관리자 서브탭 「⏱️ 시간 띠」 `renderBandSlotsTab`(기준 시작일로 본 표 + 띠 정의 편집 `bandDefSave/Delete/Add`).
+  **건너뛰기권 규칙**: 보상은 **대체 합주(substitute: 건너뛰는 날 −7~전날, 같은 고정 사용 시간(슬롯 수), 빈 시간만 — `bandSubstituteSheet` 가 gtSheetOpen 으로 날짜별 후보 칩, `bandSubstitutePick` 이 저장 직전 재확인 후 1회 time_block `[고정팀 대체] 팀명` + skip 갱신) 또는 1주 무료 연장(extend, `bandSkipExtend`)** 중 하나, 한 번 정하면 끝.
+  선택 마감 = 건너뛰는 날 −7(`BAND_SKIP_DEADLINE_DAYS`), 미선택이면 **lazy 로 extend 간주**(`bandSkipResolution(s, today)`; DB 는 안 바꿈) — 팀 화면 섹션 `#bandSlotSection`(`renderBandSlotSection`: 내 타임·권 목록·버튼).
+  **연장 → 회차 수식**: `bandExtDates(skips)` 날짜 목록을 팀에 `_ext` 로 붙이면 `bandCycleStart/End/Due/NextCycle/InferCycle(start, n, ext)` 가 그 날짜 뒤 경계를 7일씩 민다(`bandExtOffset` — 밀린 뒤 새로 포함되는 날짜는 다시 센다; 종료일_n = 시작일_{n+1} − 7).
+  세 곳 동일: `index.html`(`bandCycleInfo` 가 `team._ext` 사용 — 관리자 탭·현황표·본인 안내가 band_skips 를 받아 붙임) / `functions/send-reminders.js`(`loadBandRentTargets` 가 band_skips 조회 → `bandRentTargets(..., skips)`, 표 없으면 404 → 연장 없음) / `supabase/functions/check-band-payments`(`extDates`).
+  **대체 합주 범위는 건너뛰는 날 앞뒤 1주일**(2026-11-05, `BAND_SUB_RANGE_DAYS=7` → `[−7, +7]`, 종전 −7~전날; `bandAvailLoad(from, 14)`) — 선택 마감(`BAND_SKIP_DEADLINE_DAYS`, 건너뛰는 날 −7)은 그대로. 문구는 전부 「앞뒤 1주일 안」.
+  **고정 사용 종료 예정일(2026-11-05, 마이그레이션 `20261105_band_end_date.sql` — `profiles.band_end_date date`)**: 마지막 사용일(inclusive). 계약 폼 「고정 사용 종료 예정일」(`bc-end-<id>`, 시작일 뒤여야 함) → `saveBandContract` 가 저장하고 값이 바뀌면 `_bandApplyEndDate(teamId, endDate)` 가 승인된 `band_slot_claims.end_date`·그 `time_blocks.end_date` 를 같이 맞춘다(비우면 null = 기한 없음; `prevEnd` 는 update **전에** 읽는다 — 캐시 행과 같은 객체일 수 있음).
+  컬럼 없으면(`band_end_date` 오류) 그 값만 빼고 저장 + 토스트. 판정은 `bandEndedDate(t)` = `band_ended_at`(탈퇴 처리일) || 지나간 `band_end_date` 한 곳 — 현황표 active/history·CSV·`bandUsageText`·팀 목록(`live` 필터)·문자 대상(`send-reminders` `bandRentTargets`: 지났으면 제외, 다음 회차 시작이 종료일 뒤면 제외)·`check-band-payments`(`judge`: '사용 종료'/'M/D 종료 예정') 가 같은 규칙.
+  `bandCycleInfo`: 종료일 지남 → status `ended`(「M/D 사용 종료」, 칩 neutral), 다음 회차 시작 > 종료일 → `ending`(「M/D 종료 예정 · 다음 회차 없음」, 칩 info), 아니면 요약 끝에 「· 종료 예정 M/D」. 카드 kv 「종료 예정일」(지났으면 「· 종료됨」).
+  **등록 회차 문구**: `bandCycleSummaryHTML` n===0 → 「등록 회차 이용료는 등록일부터 시작일 전날(M/D)까지 입금」(종전 「시작일에 입금」).
+  **팀 본인 화면 보증금·납부 내역(읽기 전용)**: `renderBandCycleNotice` 가 `.band-kv-grid`(보증금 `bandWon` + 「· M/D 입금」/「· 입금 전」/미등록, 이용료(4주)) + `<details id="bandMyPayHist">납부 내역 N건 보기</details>`(`bandPaymentHistoryHTML(t, rows, {readOnly:true})` — 버튼 없는 줄) + 「내역이 다르면 요청사항으로 알려주세요」. 테스트 `tests/ui-band-slots.js`(81)·`tests/ui-band.js`(60, 캡처 `band-member-payhist-420-light.png`)·`tests/send-reminders-unit.mjs`(95).
+  RLS: defs·claims 읽기 anon(가입 화면), 쓰기 운영 계정(`band_is_admin()` — 이 마이그레이션이 다시 만든다); claims insert 는 본인; skips 읽기·update 본인+운영, insert/delete 운영. 합주팀 계정(authenticated)이 달력을 계산·차단하도록 time_blocks(all)·reservations/performance_bookings(select) 에 authenticated 정책 추가(anon 과 같은 범위).
+  테스트 `tests/ui-band-slots.js`(포트 8766)·`tests/send-reminders-unit.mjs` B0 연장 절. 운영 절차: 마이그레이션 → 기존 팀(화·수 야간 등)은 팀 관리 [+ 고정 시간]으로 달력 반영 → 시간 띠 탭에서 그 띠를 「고정팀 ✓」 로 되돌리면 「사용 중」이 자동 표시.
   **RLS(2026-10-28, `20261028_rls_band_polls.sql`)**: `band_members/band_comments/band_notices` 는 authenticated 전용 — 본인 팀(`band_profile_id = auth.uid()`, profiles.id = auth 사용자 id) + 운영 계정(`band_is_admin()` security definer: instruments 또는 이메일 접두 `wearegatheo`), 공지 쓰기는 운영 계정만.
   `polls/poll_votes` 는 카카오 멤버(anon)라 서버가 사람을 못 가려 종전 범위(anon 전부 허용) 그대로 RLS 만 켬 — 실질 보호는 없음, 잠그려면 쓰기를 서버 함수로. 마이그레이션은 기존 정책을 전부 지우고 다시 만든다. 로컬 검증: `/usr/lib/postgresql/16/bin` 으로 임시 DB 를 띄워(`runuser -u nobody`, /tmp, TCP 5499) auth.uid() 스텁 + 역할별 시나리오.
 - 공간 대관 공간 소개 사진(`.perf-photo-gallery img`, 2026-10-14): 누르면 라이트박스 `#perfPhotoBox.perf-lb`(`perfPhotoOpen(i)/perfPhotoStep/perfPhotoClose`, z 10050) — 원본을 화면에 맞춰(contain) ‹ › 버튼·좌우 스와이프·←→ 키·Esc·배경 클릭·아래로 스와이프로 조작, `body.perf-lb-open` 스크롤 잠금, 다음 장 프리로드. 검증 scratchpad `perf-lb.js`.
@@ -146,7 +191,9 @@
   내가 신청했으면 「참석 확정」 칩, 버튼은 `openScheduleForDate`) + 내가 신청한 다른 날짜가 있으면 「내 다음 참여 일정」 줄 → 내 다음 예약 `#gtNextRes`(멤버 아바타·[멤버 수정]) → 공지 한 줄 `#gtNotice`(접힘, 누르면 전부)
   → 바로가기 4(`.gt-qa`) → 게시판 새 글 3(`gtOpenPost`). 데이터 갱신은 `gtHomeRefresh()`(render()/공지/일정/댓글 fetch 끝에서 호출, 60ms 디바운스). 옛 `#notice_container`·`#schedule_banner` 는
   숨긴 채 데이터만 유지(renderNotices 가 다시 보이게 하지 않음; 공지 편집은 관리자 탭).
-  **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
+  **대관 대기도 자리 차지(2026-11-04)**: `fetchReservations` 가 `performance_bookings` 를 approved **+ pending**(`_pbExpired` 로 4시간 지난 대기 제외)으로 받아 가상 예약 행(`__perf`, status pending/approved)으로 합친다 — 대관 달력(`loadPerfRangeConflicts`)과 같은 규칙. 종전엔 approved 만 받아 입금 대기 시간에 멤버가 겹쳐 예약할 수 있었다.
+  주간 칸 「🎭 대관 대기」/「🎭 공간 대관」, 일 보기 「(외부 예약 · 입금 대기)」, 제출 충돌 검사(rejected/cancelled 만 제외)는 그대로 pending 을 막는다. 테스트 `tests/ui-gatheo-perf-block.js`(4).
+    **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
   → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
   **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,
   팀 카드는 수정/삭제 버튼 대신 `.team-more` ⋯ → `gtTeamMenu` 시트, 멤버 아바타 묶음 `.gt-stack`. **게시판**: 제목은 앱 바, `#main-content #comments_container` 평면, 글쓴이 아바타(`_gtMemberByKakao`).
@@ -162,7 +209,17 @@
   알약 `.gt-att-seg` [이름|세션별|팀장별](`state.attMode`, 기본 세션별) 을 누르면 `gtAttMode()` 가 **모든 `.gt-att` 패널을 data-ids 로 제자리에서 다시 그림**(재요청 없음).
   세션별 = 프로필 `instruments` 첫 악기(보컬·기타·베이스·키보드·드럼 순, 없으면 「미지정」), 팀장별 = 진행 중 팀(`isPastTeam` 제외)별 「👑 팀장 · 팀명 N」(슬롯의 `team_id` 팀 먼저, 여러 팀이면 각각 표시, 나머지 「소속 팀 없음」).
   칩 `.gt-att-chip`(아바타+이름, 나는 `.me` 파란 채움). 캡처 `gatheo/shoot-att.js`.
-  **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
+  **외부인 참여 신청(2026-11-02, 마이그레이션 `20261102_schedule_guests.sql`)**: 멤버가 본인 신청과 별도로 데려오는 외부인을 **슬롯마다 한 줄**(`schedule_guests`: schedule_date·`slot_key`=`slotAttKey`·host_profile_id·guest_count 1~30·guest_names 메모, unique(date, slot_key, host))로 적는다.
+  `fetchScheduleAttendees` 가 같은 날짜 범위로 함께 받아 `state.scheduleGuests[date]`(행 배열); 표가 없으면(42P01) `state._guestsUnavailable=true` 로 버튼을 숨기고 조용히 빈 값. 슬롯 줄 [+ 외부]/[👥 외부 N](내 줄, `.gt-guest-btn.mine`) → `gtGuestSheet` 바닥 시트(인원 수 셀렉트 1~10 + 누구 입력) → `gtGuestSave`(update/insert)·`gtGuestDelete`.
+  **합산**: 슬롯 `🙋 N명 · 외부 M`, 명단 패널 맨 아래 `.gt-att-guests`(모드 전환과 무관, 칩 `.gt-att-chip.guest` 「👤 이름 N명 · 초대 멤버」), 날짜 「전체 참여 N명 · 멤버 a · 외부 g」, 홈 카드 「N명 참석 (외부 g)」. **참여 횟수(멤버 출석)에는 넣지 않음.** 새 신청은 신청 기간(`checkSignupPeriod`) 안에서만, 수정·삭제는 언제나(지난 날짜 제외).
+  **날짜별 받기/안 받기**(`schedules.allow_guests`, 마이그레이션 `20261102_schedules_allow_guests.sql`, 기본 false): 일정 편집기 체크박스 「외부인 참여 신청 받기」(`#schedGuestToggle` → `state.scheduleEditorAllowGuests`, 그 날짜 행 전부에 저장; 컬럼 없으면 42703 을 잡아 빼고 재저장 + 안내 토스트).
+  `_guestsAllowed(date)` = 행에 컬럼이 없으면(마이그레이션 전) 허용, 있으면 하나라도 true — 켠 날짜만 [+ 외부] 버튼·머리줄 「👥 외부인 참여 가능」 칩, 꺼도 이미 적은 줄은 합산·수정·삭제 유지. 테스트 `tests/ui-gatheo-guests.js`(24, 포트 8765; 가짜 builder 는 배열 insert 지원).
+  **팀으로 신청(2026-11-03)**: 슬롯 줄 [👥 팀](`.gt-team-btn`, 내가 속한 진행 중 팀 `_myActiveTeams(myId)` 가 있을 때만) → `gtTeamApplySheet` 바닥 시트 — 팀마다 카드(`.gt-team-apply`: 👑 팀장 먼저 칩, 신청된 팀원 ✓, 「n/N명 신청됨」)
+  + [팀 전체 신청 (+미신청 수)](`gtTeamApply`: 미신청 팀원만 `schedule_attendees` 에 배열 insert, 슬롯 키 동일 — 개인 신청과 같은 행이라 마이그레이션 없음) / [팀 전체 취소](`gtTeamCancel`: 확인창 → 팀원 전원의 이 슬롯 행 `.in('profile_id')` delete).
+  팀원 누구나 할 수 있고(팀장 제한 없음), 새 신청은 신청 기간 안에서만·취소는 언제나. 슬롯 줄 버튼 3개([팀][+ 외부][신청])는 `margin-left:auto` 묶음으로 폭이 모자라면 둘째 줄로 내려간다(flex-wrap). 테스트 `tests/ui-gatheo-team-apply.js`(14).
+    **⚠️ 2026-11-02 일정 유실 사고**: `saveScheduleForDate` 가 「날짜로 delete → insert」 순서였는데 insert 가 모르는 컬럼(allow_guests, 마이그레이션 전)으로 실패해 그 날짜 일정이 통째로 사라졌다. PostgREST 는 모르는 컬럼을 **42703 이 아니라 `PGRST204`**("Could not find the '…' column … schema cache")로 거절하므로 코드가 아닌 메시지로 판정할 것.
+  지금은 **insert 먼저 → 성공 후 옛 행을 id 로 delete**(실패해도 기존 일정 보존), `state.schedules` 에 컬럼이 없으면 처음부터 빼고 보낸다. 새 컬럼을 쓰는 저장 경로는 반드시 같은 순서로.
+    **이동 뒤 포커스(2026-10-19)**: 다른 탭·폼으로 보내는 동작은 전부 `gtFocus(target, {focus, flash, block, ifHidden, tries})` 를 거친다 — 요소가 그려질 때까지(100ms×30) 기다렸다가 앱 바 아래(70px)로 스크롤,
   `.gt-flash`(파란 테두리 1.7초) 강조, `focus` 선택자는 포인터 기기에서만 포커스, `ifHidden` 이면 이미 다 보이는 요소는 스크롤 안 함. 적용: 홈 [일정 보기]·「내 다음 참여 일정」·배너 줄 → `openScheduleForDate` 가 지난 날짜면 `scheduleFilter='past'`
   로 바꾸고 날짜 카드 `#schedDay-<date>` 로 / 홈 새 글 `gtOpenPost` 는 게시판 fetch 를 기다려 글을 펼치고 `.board-row-wrap` 으로 / 팀 [팀 수정]·[새 팀] → 목록 위 폼 `#teamFormContainer` 로 + `#teamName` 포커스, 저장 뒤엔 그 팀 카드 `#team-<id>` 강조 + 토스트 /
   관리자 일정 [편집]·[+ 새 일정 추가] → `#schedEditor`, 저장 뒤엔 저장한 날짜 카드 / 예약 탭은 월간 날짜 클릭 → 주간 시간표(`#viewContainer`)가 화면 밖이면 거기로, 시작·끝 칸으로 범위를 완성하면 `#participantSection` 이 화면 밖일 때만 가운데로.
@@ -177,8 +234,8 @@
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
   달력 함수 안에서는 `_perfState` 대신 `_cs()`를 쓸 것.
 - 테스트: `tests/` (event-api·send-sms·send-email·send-reminders·notify-admins·music-search·community-admin 단위, shows/host/band UI —
-  Playwright는 scratchpad node_modules 필요, `ui-band.js`는 가짜 supabase 쿼리빌더로 밴드 관리자 화면 검증)
-- 개발 브랜치: `claude/exciting-gauss-83p6k1`
+  Playwright는 scratchpad node_modules 필요, `ui-band.js`·`ui-band-slots.js`는 가짜 supabase 쿼리빌더로 밴드 관리자·타임 신청 화면 검증)
+- 개발 브랜치: `claude/remove-main-page-button-oi3bml` (2026-11 현재; 작업 후 master 에 ff 머지)
 
 ## ⚠️ Git 작업 전 필수 체크리스트 (중요)
 

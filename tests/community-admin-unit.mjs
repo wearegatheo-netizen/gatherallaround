@@ -73,7 +73,7 @@ const blockCall = () => calls.find(c => c.url.endsWith('/time_blocks') && c.meth
   chk('time_blocks: 2026-10-20(화)=2, 19:00~20:00(표시 21:00 의 이전 슬롯), 사유 [커뮤니티] 제목, 당일 한정', b.day_of_week === 2 && b.start_time === '19:00' && b.end_time === '20:00'
     && b.reason === '[커뮤니티] 어쿠스틱 잼' && b.start_date === '2026-10-20' && b.end_date === '2026-10-20', JSON.stringify(b));
   const em = JSON.parse(calls.find(c => c.url.includes('api.resend.com')).body);
-  chk('모임장 메일: 수신 organizer_email, 제목에 수락, 본문에 모임 링크', em.to === 'bora@test.com' && /수락/.test(em.subject) && em.html.includes(`#community/meeting/${MID}`), em.subject);
+  chk('모임장 메일: 수신 organizer_email, 제목에 수락, 본문에 모임 링크', em.to === 'bora@test.com' && /수락/.test(em.subject) && em.html.includes(`/meet/${MID}`), em.subject);
 }
 // ── 4. 거절: Supabase 세션(운영 총괄) → status rejected, time_blocks 없음, 메일 키 없으면 발송 없음
 {

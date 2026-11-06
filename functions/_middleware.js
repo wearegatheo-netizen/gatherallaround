@@ -4,7 +4,81 @@
 // 포스터 꾸미기 공유 링크(표준은 경로형 /wp/<id>·/ww/<id> — functions/wp|ww/[id].js 가 처리). 여기서는 예전 쿼리형
 // 루트 /?wp=<프로젝트 id>·/?ww=<작품 id> 와 /wappen/?p=·?w= 를 받아, 사람(브라우저)은 HTTP 302 로 /wappen/#/… 에 바로 보내고
 // (JS 실행에 의존하지 않음 — 2026-10-06 카톡 인앱에서 포털에 멈추던 문제), 크롤러에게만 작품·프로젝트별 OG 태그를 주입한다.
+// 경로형 섹션 주소(2026-11-05): /perf · /shows/<id> · /gatheo/board/<id> … 처럼 # 없이 들어와도 같은 화면 — 아래 appRouteFromPath 참고.
 import { isCrawler, injectOg } from '../wappen/share-page.js';
+import { onRequest as showShare } from './show/[id].js';
+import { onRequest as meetShare } from './meet/[id].js';
+
+// ── 경로형 섹션 주소(2026-11-05) ─────────────────────────────────────────────
+// 인스타그램 프로필 링크·카카오톡 등 인앱 브라우저는 URL 의 #해시를 버려 `/#perf` 같은 링크가 포털에서 멈춘다.
+// SPA 섹션(index.html _NAV_PAGES)의 모든 해시 주소를 경로로도 받는다: /perf = /#perf, /gatheo/board/<id> = /#gatheo/board/<id>.
+// 루트 셸(index.html)을 그 URL 에서 바로 200 으로 내고 <head> 머리에 history.replaceState('/#<경로>') 를 넣어
+// 기존 해시 라우터가 그대로 처리한다(딥링크 형식 검증은 index.html _pageFromHash). /show/<id>·/meet/<id>·/band/times 와 같은 방식.
+// /shows/<uuid>·/community/meeting/<uuid> 는 공연·모임 공유 함수에 맡겨 포스터·대표 이미지 OG 까지 같게 낸다.
+// 셸을 못 읽으면(ASSETS 없음) next() — 정적 SPA 폴백 + index.html 머리 스크립트가 같은 치환을 한다.
+export const APP_SECTIONS = ['gatheo', 'band', 'band-news', 'community', 'perf', 'shows', 'host'];
+const SITE = 'https://gatherallaround.com';
+const ROUTE_SEG_RE = /^[A-Za-z0-9_-]{1,64}$/;   // 스크립트 문자열에 그대로 들어가므로 안전한 글자만(아니면 섹션까지로 절단)
+
+export function appRouteFromPath(pathname) {
+    const segs = String(pathname || '').split('/').filter(Boolean);
+    if (!segs.length) return null;
+    const head = segs[0].toLowerCase();
+    if (!APP_SECTIONS.includes(head)) return null;
+    const rest = segs.slice(1, 4);
+    if (segs.length > 4 || !rest.every(s => ROUTE_SEG_RE.test(s))) return head;
+    return [head, ...rest].join('/');
+}
+
+// 섹션별 링크 미리보기(크롤러용 og:title·description·url). 이미지는 포털 기본 그대로.
+const SECTION_OG = {
+    perf: ['공간 대관 | Gather all around', '신촌 5분 거리 합주·공연 공간 — 대관 가능일을 확인하고 바로 예약하세요.'],
+    shows: ['공연 예매 | Gather all around', '게더 올 어라운드에서 열리는 공연을 예매하세요.'],
+    community: ['커뮤니티 | Gather all around', '게더 올 어라운드 커뮤니티 모임에 참여해 보세요.'],
+    'band/times': ['고정 합주팀 가능 시간 | Gather all around', '매주 같은 시간, 4주 단위로 쓰는 고정 합주팀 — 지금 신청할 수 있는 시간을 확인하세요.'],
+    band: ['고정 합주팀 | Gather all around', '매주 같은 시간, 4주 단위로 쓰는 고정 합주팀 — 가능 시간 확인·가입 신청.'],
+    'band-news': ['어제 하루, 밴드씬에서 생긴 일?! | Gather all around', '국내외 밴드씬 이슈를 한 번에 읽어보자'],
+    host: ['호스트 센터 | Gather all around', '공연 등록·예매 관리'],
+    gatheo: ['게더링 | Gather all around', '게더링 멤버 전용 페이지'],
+};
+function sectionOg(route) {
+    const segs = route.split('/');
+    return SECTION_OG[segs.slice(0, 2).join('/')] || SECTION_OG[segs[0]] || null;
+}
+
+export function appShellWithRoute(html, route) {
+    // <base> 는 넣지 않는다 — 셸 자산은 모두 절대 경로라 필요 없고, 넣으면 이후 '#…' 상대 replaceState 가 쿼리를 떨군다(정적 폴백과 동작을 맞춤).
+    const head = `<head>\n    <script>try{history.replaceState(null,'','/'+location.search+'#${route}')}catch(e){}</script>`;
+    html = html.replace(/<head>/i, head);
+    const og = sectionOg(route);
+    if (!og) return html;
+    return html
+        .replace(/<meta property="og:title" content="[^"]*">/i, `<meta property="og:title" content="${escapeAttr(og[0])}">`)
+        .replace(/<meta property="og:description" content="[^"]*">/i, `<meta property="og:description" content="${escapeAttr(og[1])}">`)
+        .replace(/<meta property="og:url" content="[^"]*">/i, `<meta property="og:url" content="${escapeAttr(SITE + '/' + route)}">`);
+}
+
+async function rootShell(context) {
+    const { request, env } = context;
+    if (!env || !env.ASSETS || typeof env.ASSETS.fetch !== 'function') return null;
+    try {
+        const r = await env.ASSETS.fetch(new Request(new URL('/', request.url).toString(), { headers: { accept: 'text/html' } }));
+        if (!r || !r.ok) return null;
+        const html = await r.text();
+        return /<title>Gather all around/.test(html) ? html : null; // 포털 셸이 아니면 쓰지 않는다
+    } catch (_) { return null; }
+}
+
+async function appRouteResponse(context, route) {
+    const share = /^(shows|community\/meeting)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(route);
+    if (share) {   // 공연·모임 상세 — 공유 함수와 같은 응답(크롤러엔 포스터 OG, 사람엔 상세로 가는 셸)
+        const ctx = { ...context, params: { id: share[2].toLowerCase() } };
+        return share[1] === 'shows' ? showShare(ctx) : meetShare(ctx);
+    }
+    const shell = await rootShell(context);
+    if (!shell) return context.next();
+    return new Response(appShellWithRoute(shell, route), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
 
 // Drive API 키는 Cloudflare 환경변수(DRIVE_API_KEY)에서 읽는다.
 // 미설정 시 기존 하드코딩 값으로 폴백(하위호환). 설정 후 이 폴백 값은 콘솔에서 폐기/제한 권장.
@@ -59,6 +133,10 @@ export async function onRequest(context) {
     const DRIVE_API_KEY = (env && env.DRIVE_API_KEY) || DRIVE_API_KEY_FALLBACK;
     const url = new URL(request.url);
     const newsId = url.searchParams.get('news');
+    if (!newsId && (request.method === 'GET' || request.method === 'HEAD')) {
+        const route = appRouteFromPath(url.pathname);
+        if (route) return appRouteResponse(context, route);
+    }
     const wappenIds = newsId ? null : wappenShareIds(url);
     const wappenShare = !!wappenIds;
     if (wappenShare && !isCrawler(request)) {   // 경로형 공유 URL 로 보낸다 — 거기서 셸이 바로 나온다(해시·쿼리 없음)

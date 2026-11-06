@@ -91,5 +91,53 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   const html = await (await run('/?news=abc', { html: '<title>x</title><meta property="og:title" content="a"><meta property="og:description" content="b">' })).text();
   chk('news: Drive 제목으로 title·og 치환', html.includes('<title>오늘의 뉴스 | 어제 하루, 밴드씬에서 생긴 일?!</title>') && html.includes('content="국내외 밴드씬 이슈를 한 번에 읽어보자"'));
 }
+{ // 경로형 섹션 주소(2026-11-05): /perf = /#perf … 셸 200 + replaceState 해시 라우트
+  const { appRouteFromPath } = await import('../functions/_middleware.js');
+  const SHELL = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  let assetCalls = [];
+  const ASSETS = { fetch: async (req) => { assetCalls.push(new URL(req.url).pathname); return new Response(SHELL, { status: 200, headers: { 'content-type': 'text/html' } }); } };
+  const ENV_A = { ...ENV, ASSETS };
+  const runA = (p, o = {}) => { assetCalls = []; return run(p, { env: ENV_A, ...o }); };
+  const routeOf = (html) => (/history\.replaceState\(null,'','\/'\+location\.search\+'#([^']*)'\)/.exec(html) || [])[1];
+  const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1';
+
+  chk('appRouteFromPath: 섹션·하위 경로', appRouteFromPath('/perf') === 'perf' && appRouteFromPath('/perf/') === 'perf' && appRouteFromPath('/Perf') === 'perf'
+    && appRouteFromPath('/band/times') === 'band/times' && appRouteFromPath('/gatheo/member/schedule') === 'gatheo/member/schedule' && appRouteFromPath('/band-news') === 'band-news');
+  chk('appRouteFromPath: 섹션 아님 → null', [ '/', '/index.html', '/wappen/', '/show/x', '/meet/x', '/bandx', '/performance', '/sw.js', '/img/portal/a.webp' ].every(p => appRouteFromPath(p) === null));
+  chk('appRouteFromPath: 위험 글자·너무 깊음 → 섹션까지', appRouteFromPath("/perf/'-alert(1)-'") === 'perf' && appRouteFromPath('/shows/a%3Cb') === 'shows' && appRouteFromPath('/gatheo/a/b/c/d') === 'gatheo');
+
+  mockFetch([]);
+  let r = await runA('/perf', { ua: SAFARI });
+  let html = await r.text();
+  chk('/perf → 200 셸(ASSETS /) + #perf 라우트(base 없음 — 쿼리 유지)', r.status === 200 && assetCalls.join() === '/' && routeOf(html) === 'perf' && !html.includes('<base ') && r.headers.get('cache-control') === 'no-store');
+  chk('/perf: 공간 대관 OG(title·url), 이미지는 기본', html.includes('<meta property="og:title" content="공간 대관 | Gather all around">') && html.includes('<meta property="og:url" content="https://gatherallaround.com/perf">') && html.includes('og:image:width'));
+  chk('/perf: 셸 머리 스크립트보다 라우트 치환이 먼저', html.indexOf("'#perf'") < html.indexOf('URLSearchParams(location.search)'));
+  html = await (await runA('/band/times')).text();
+  chk('/band/times → #band/times + 고정 합주팀 가능 시간 OG', routeOf(html) === 'band/times' && html.includes('고정 합주팀 가능 시간 | Gather all around'));
+  html = await (await runA('/gatheo/board/11111111-1111-4111-8111-111111111111')).text();
+  chk('/gatheo/board/<id> → 같은 해시 라우트', routeOf(html) === 'gatheo/board/11111111-1111-4111-8111-111111111111');
+  html = await (await runA('/shows/ticket/ABC234')).text();
+  chk('/shows/ticket/<코드> → 일반 셸(코드 그대로, 대문자화는 라우터)', routeOf(html) === 'shows/ticket/ABC234' && html.includes('공연 예매 | Gather all around'));
+  html = await (await runA("/perf/'-x-'")).text();
+  chk("위험 글자 경로 → #perf 로 절단(스크립트에 안 들어감)", routeOf(html) === 'perf' && !html.includes("'-x-'"));
+  html = await (await runA('/host', { ua: SAFARI })).text();
+  chk('/host → #host + 호스트 센터 OG', routeOf(html) === 'host' && html.includes('호스트 센터 | Gather all around'));
+  chk('HEAD/GET 외 요청은 통과(POST)', (await (await onRequest({ request: new Request('https://gatherallaround.com/perf', { method: 'POST' }), env: ENV_A, next: async () => new Response('next') })).text()) === 'next');
+  chk('ASSETS 없으면 next()(정적 SPA 폴백)', (await (await run('/perf', { env: ENV })).text()) === PAGE);
+
+  // 공연·모임 상세는 공유 함수와 같은 응답(포스터 OG)
+  const EID = '55555555-5555-4555-8555-555555555555', MID = '66666666-6666-4666-8666-666666666666';
+  mockFetch([['events?id=eq.' + EID, { body: [{ title: '가을 공연', starts_at: '2026-11-21T08:00:00Z', venue: '게더', host_name: '밴드', poster_url: 'https://sb.test/p.jpg', status: 'published', price: 10000 }] }]]);
+  html = await (await runA('/shows/' + EID.toUpperCase(), { ua: 'facebookexternalhit/1.1;kakaotalk-scrap/1.0;' })).text();
+  chk('/shows/<uuid> 크롤러 → 공연 포스터 OG(/show/<id> 와 같음)', html.includes('<meta property="og:title" content="가을 공연">') && html.includes('https://sb.test/p.jpg') && html.includes(`/show/${EID}`));
+  html = await (await runA('/shows/' + EID, { ua: SAFARI })).text();
+  chk('/shows/<uuid> 사람 → 셸 + #shows/<id>', html.includes(`/#shows/${EID}`) && html.includes('<meta property="og:title" content="가을 공연">'));
+  mockFetch([['community_meetings?id=eq.' + MID, { body: [{ title: '보드게임 모임', meeting_date: '2026-11-21', meeting_time: '17:00', location: '게더', fee: 0, cover_image_url: 'https://sb.test/c.jpg', organizer_name: '보라', status: 'active' }] }]]);
+  html = await (await runA('/community/meeting/' + MID, { ua: 'facebookexternalhit/1.1;kakaotalk-scrap/1.0;' })).text();
+  chk('/community/meeting/<uuid> 크롤러 → 모임 OG(/meet/<id> 와 같음)', html.includes('보드게임 모임') && html.includes('https://sb.test/c.jpg'));
+  mockFetch([]);
+  html = await (await runA('/community/test')).text();
+  chk('/community/test → #community/test + 커뮤니티 OG', routeOf(html) === 'community/test' && html.includes('커뮤니티 | Gather all around'));
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
