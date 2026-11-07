@@ -1665,7 +1665,6 @@
         .band-guide-body li { margin: 5px 0; }
         .band-guide-body li::marker { color: var(--wds-gray-500); }
         .band-guide-note { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--wds-gray-100); font-size: 0.84rem; color: var(--wds-gray-600); line-height: 1.55; }
-        .band-guide-cta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
         @media (max-width: 480px) { .band-guide-body { padding-left: 2px; } }
         .band-radio-row { display: flex; gap: 18px; margin: 2px 0 10px; text-align: left; }
         .band-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 0.92rem; cursor: pointer; }
@@ -2537,18 +2536,9 @@
             <div id="band-menu" class="band-menu">
                 <p class="band-menu-intro">매주 같은 요일·같은 시간에 합주실을 고정으로 쓰는 팀을 위한 공간이에요.<br>처음이라면 <strong>고정 가능 시간</strong>을 확인하고 바로 가입 신청할 수 있어요.</p>
                 <button type="button" class="band-menu-btn" onclick="showBandScheduleView()"><span class="ic">📅</span><span class="tx"><b>고정 가능 시간 보기 · 가입 신청</b><small>요일별 가능 시간을 실시간으로 확인하고 타임을 골라 신청해요</small></span><span class="ar">›</span></button>
-                <button type="button" class="band-menu-btn" onclick="showBandGuideView()"><span class="ic">📖</span><span class="tx"><b>운영 안내</b><small>회차·이용료·캐비넷·건너뛰기권 등 고정팀 운영 방식</small></span><span class="ar">›</span></button>
                 <button type="button" class="band-menu-btn" onclick="showBandLoginForm()"><span class="ic">🔑</span><span class="tx"><b>로그인</b><small>승인된 고정팀 계정으로 입장</small></span><span class="ar">›</span></button>
             </div>
 
-            <!-- 운영 안내(2026-11-07): 비회원도 보는 운영 방식 — 팀 화면 [운영 안내] 탭과 같은 bandGuideHTML() -->
-            <div id="band-guide-view" class="hidden" style="text-align:left">
-                <div id="bandGuideLanding"></div>
-                <div class="band-guide-cta">
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="showBandScheduleView()">고정 가능 시간 보기 · 가입 신청</button>
-                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="showBandMenu()">← 처음으로</button>
-                </div>
-            </div>
             <!-- 로그인 폼 -->
             <div id="band-login-form" class="email-form hidden">
                 <input type="text" id="bandLoginId" placeholder="아이디 (밴드 영문명)" autocomplete="username" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
@@ -12754,13 +12744,13 @@
         // Band section form helpers
         // 합주팀 랜딩 4화면: 메뉴(#band-menu: 시간표 보기·가입 신청·로그인) / 로그인 / 고정 가능 시간(#band-schedule-view, 설명 포함) / 가입 폼 — 2026-11-05
         function _bandLandingShow(which) {
-            ['band-menu', 'band-login-form', 'band-schedule-view', 'band-signup-form', 'band-guide-view'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', id !== which));
+            ['band-menu', 'band-login-form', 'band-schedule-view', 'band-signup-form'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', id !== which));
             const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
             try { if (which !== 'band-menu') document.getElementById('landing-page-band')?.scrollIntoView({ block: 'start' }); } catch (_) {}
         }
         function showBandMenu() { _bandLandingShow('band-menu'); }
-        // ── 운영 안내(2026-11-07): 고정 합주팀 운영 방식을 한 곳에. 숫자·계좌·연락처는 코드 상수(문자·화면과 동일). 랜딩 메뉴·팀 화면 탭·딥링크 #band/guide(/band/guide) 공용
+        // ── 운영 안내(2026-11-07): 가입한 팀 대상 — 팀 화면 [운영 안내] 탭 + 딥링크 #band/guide(/band/guide, 비로그인은 로그인 폼 → 로그인 뒤 안내 탭). 숫자·계좌·연락처는 코드 상수(문자·화면과 동일)
         function bandGuideHTML() {
             const sec = (icon, title, body, open) => `<details class="band-guide-sec"${open ? ' open' : ''}><summary><span class="ic">${icon}</span><span>${title}</span><span class="ar">›</span></summary><div class="band-guide-body">${body}</div></details>`;
             const ul = (...items) => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
@@ -12774,7 +12764,7 @@
                     `합주실은 <strong>매일 ${first} ~ ${String(closeH).padStart(2, '0')}:00</strong> 운영하고, 고정팀은 <strong>매주 같은 요일·같은 시간</strong>을 4주 단위로 씁니다.`,
                     '요일마다 <strong>오전 · 주간 · 야간</strong> 띠가 있어요. 지금 신청할 수 있는 띠는 [고정 가능 시간 보기]에서 실시간으로 확인합니다(고정팀 사용 중 · 대관만 · 개방 예정 · 겹치는 주 표시).',
                     '고정 시간 변경·추가는 로그인 후 <strong>요청사항</strong>으로 남겨주시면 운영팀이 달력에 반영합니다.'), true)}
-                ${sec('✍️', '가입 신청부터 시작까지', ol(
+                ${sec('✍️', '등록 절차와 첫 회차', ol(
                     '[고정 가능 시간 보기]에서 희망 시작일·예상 사용 기간을 넣고 타임을 고른 뒤 <strong>가입 신청</strong>(팀 리더 이름·연락처, 밴드명, 비밀번호, 캐비넷 사용 여부)을 보냅니다.',
                     '접수되면 팀 리더 번호로 <strong>접수 확인 문자</strong>가 갑니다. 운영팀이 일정을 확인해 승인하면 <strong>승인 안내 문자</strong>(고정 시간·시작일·입금 안내)를 보내드려요.',
                     '<strong>보증금(1개월분)</strong>을 입금하면 등록이 확정됩니다.',
@@ -12799,13 +12789,15 @@
                     '공지사항 카드에 운영 공지가 올라오니 가끔 확인해주세요.'))}
                 ${sec('👋', '종료와 복귀', ul(
                     '사용을 마치려면 종료 예정일을 미리 알려주세요. 그날까지 사용한 뒤 보증금을 돌려드립니다.',
-                    '쉬었다가 다시 시작할 때는 <strong>기존 아이디(밴드 영문명)로 로그인</strong>하거나 운영팀에 문의해주세요. 같은 리더 연락처로 다시 신청하면 운영팀이 이전 기록을 확인합니다.'))}`;
+                    '쉬었다가 다시 시작할 때는 운영팀에 알려주세요. 이전 기록을 확인해 이어드립니다.'))}`;
         }
         const BAND_BANK_LINE_UI = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js·send-reminders.js 와 동일 문자열 유지
+        // 비로그인으로 #band/guide 에 오면 로그인 폼으로 — 로그인(loginBandUI)이 끝나면 안내 탭을 연다
         function showBandGuideView() {
-            const box = document.getElementById('bandGuideLanding');
-            if (box && !box.innerHTML) box.innerHTML = bandGuideHTML();
-            _bandLandingShow('band-guide-view');
+            if (state.bandProfile) { loginBandUI(state.bandProfile); setTimeout(() => bandPageTab('guide'), 0); return; }
+            state._bandAfterLogin = 'guide';
+            showBandLoginForm();
+            const r = document.getElementById('bandLoginResult'); if (r) { r.textContent = '운영 안내는 가입한 팀만 볼 수 있어요. 로그인해주세요.'; r.style.color = ''; }
         }
         // 팀 화면 탭: 'home' = 기존 카드 전부 / 'guide' = 운영 안내 카드만
         function bandPageTab(tab) {
@@ -12908,9 +12900,15 @@
             const origLabel = submitBtn ? submitBtn.textContent : '';
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '처리 중...'; }
             try {
-                const email = bandIdToEmail(rawId);
-                const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { showErr(/already|exist|registered/i.test(error.message || '') ? `이미 같은 아이디(${rawId})로 가입한 팀이 있어요. 예전에 이용한 팀이면 기존 아이디로 로그인하거나 ${PORTAL_PHONE} 로 문의해주시고, 새 팀이면 밴드 영문명을 조금 바꿔주세요.` : '가입 신청 실패: ' + error.message); return; }
+                // 같은 아이디(영문명)가 이미 있으면 숫자를 붙여 그대로 접수한다(vandor → vandor2…). 신청 팀에게 기존 가입 여부를 알리거나 판단하게 하지 않고,
+                // 운영자가 가입 신청 카드의 「복귀 팀 가능성」(리더 연락처·이름 일치)을 보고 이전 기록을 이어 적용한다(bandAdoptPrevious).
+                let loginId = rawId, res = await supabaseClient.auth.signUp({ email: bandIdToEmail(loginId), password });
+                for (let n = 2; res.error && /already|exist|registered/i.test(res.error.message || '') && n <= 9; n++) {
+                    loginId = rawId.slice(0, 19) + n;
+                    res = await supabaseClient.auth.signUp({ email: bandIdToEmail(loginId), password });
+                }
+                const { data, error } = res;
+                if (error) { showErr('가입 신청 실패: ' + error.message); return; }
                 if (data?.user) {
                     const meta = {
                         id: data.user.id,
@@ -12922,7 +12920,7 @@
                         band_name_en: bandNameEn,
                         timeslots: timeslots,
                         member_type: 'band',
-                        instruments: rawId,
+                        instruments: loginId,
                         status: 'pending',
                         role: '일반',
                         band_cabinet: cabinet,
@@ -12947,7 +12945,7 @@
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
                     setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''} · 캐비넷 ${cabinet ? '사용' : '미사용'}`).catch(() => {}), 400);
                 }
-                showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
+                showToast(`가입 신청이 완료되었습니다! 로그인 아이디는 ${loginId} 입니다. 관리자 승인 후 이용 가능합니다.`, 5000);
                 showBandLoginForm();
             } finally {
                 _bandSignupBusy = false;
@@ -12969,7 +12967,8 @@
         }
 
         function loginBandUI(profile) {
-            if (document.getElementById('bandGuideSection') && !document.getElementById('bandGuideSection').hidden) bandPageTab('home'); // 안내 탭에서 다시 들어오면 내 팀으로
+            if (state._bandAfterLogin === 'guide') { state._bandAfterLogin = null; setTimeout(() => bandPageTab('guide'), 0); } // #band/guide 로 와서 로그인한 경우
+            else if (document.getElementById('bandGuideSection') && !document.getElementById('bandGuideSection').hidden) bandPageTab('home'); // 안내 탭에서 다시 들어오면 내 팀으로
             try { localStorage.removeItem('gaa_portal_required'); } catch(e) {} // 게더링 로그아웃 표식이 남아 있으면 합주팀 세션도 다음 부팅에서 지워진다
             // fullwidth-view: 본문 좌우 패딩 없이 페이지 배경을 화면 끝까지 (공연 예매·대관과 동일)
             document.body.classList.add('portal-view', 'fullwidth-view');
@@ -13597,7 +13596,31 @@
                 const why = String(o.leader_phone || o.phone || '').replace(/\D/g, '') === String(t.leader_phone || t.phone || '').replace(/\D/g, '') ? '연락처 일치' : '리더 이름·밴드명 일치';
                 return `「${escHtml(o.band_name_kr || o.name || '-')}」(${o.band_start_date ? bandYMDShort(o.band_start_date) + ' 시작 · ' : ''}${st} · ${why})`;
             }).join(', ');
-            return `<div class="band-muted" style="margin-top:6px">🔁 <strong>복귀 팀 가능성</strong> — 이전 기록 ${desc}. 현황표 히스토리에서 납부·이용 이력을 확인하세요.</div>`;
+            return `<div class="band-muted" style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span>🔁 <strong>복귀 팀 가능성</strong> — 이전 기록 ${desc}. 신청 팀에게는 알리지 않습니다.</span>
+                <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandAdoptPrevious('${t.id}', '${hits[0].id}', this)">이전 팀 정보 가져오기</button></div>`;
+        }
+        // 이전 팀의 계약 정보(이용료·보증금 금액·캐비넷·메모)를 새 신청에 복사 — 보증금 입금일은 종료 때 반환되므로 복사하지 않는다. 회차·납부 내역은 이전 팀 기록에 그대로.
+        async function bandAdoptPrevious(id, prevId, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const teams = (state.bandAdminCache || {}).teams || [];
+            const t = teams.find(x => x.id === id), prev = teams.find(x => x.id === prevId);
+            if (!t || !prev) { showToast('이전 팀 정보를 찾지 못했습니다.'); return; }
+            const prevName = prev.band_name_kr || prev.name || '-';
+            const period = `${prev.band_start_date ? bandYMDShort(prev.band_start_date) : '?'}~${bandEndedDate(prev) ? bandYMDShort(bandEndedDate(prev)) : '진행 중'}`;
+            if (!confirm(`「${prevName}」(${period})의 이용료·보증금 금액·캐비넷·메모를 이 신청에 가져올까요?\n보증금 입금일은 복사하지 않아요(종료 시 반환되므로 다시 입금 확인). 회차·납부 내역은 이전 팀 기록에 남습니다.`)) return;
+            const upd = { band_memo: [`복귀 · 이전 팀 ${prevName}(${period})`, t.band_memo, prev.band_memo].filter(Boolean).join(' / ') };
+            if (prev.band_fee != null) upd.band_fee = prev.band_fee;
+            if (prev.band_deposit != null) upd.band_deposit = prev.band_deposit;
+            if (!t.band_expected_months && prev.band_expected_months) upd.band_expected_months = prev.band_expected_months;
+            if (t.band_cabinet == null && prev.band_cabinet != null) upd.band_cabinet = prev.band_cabinet;
+            _bandBusy(btn, true, '적용 중…');
+            try {
+                let { error } = await supabaseClient.from('profiles').update(upd).eq('id', id);
+                if (error && /band_cabinet/.test(error.message || '')) { delete upd.band_cabinet; ({ error } = await supabaseClient.from('profiles').update(upd).eq('id', id)); }
+                if (error) { console.error('band adopt previous:', error); showToast('적용하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                showToast(`「${prevName}」 정보를 가져왔습니다. 계약 정보에서 확인·수정하세요.`);
+                renderBandAdminTab();
+            } finally { _bandBusy(btn, false); }
         }
         function bandWishMonthsChange(v) {
             state.bandWishMonths = v;
