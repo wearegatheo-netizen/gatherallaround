@@ -222,8 +222,10 @@ const FAKE_SB = `
   await p.waitForTimeout(600);
   const baHtml = await p.evaluate((id) => { const f = document.getElementById('ba-form-' + id); return f && !f.hidden ? f.innerHTML : ''; }, NEWBIE);
   chk('승인 폼 열림(confirm 아님): 시작일 11/14 · 예상 2개월(11/14~1/14) 기준 · 토 오전 1주 건너뛰기(11/21 예약, 1/16 예약은 범위 밖)', dialogs.length === 0 && baHtml.includes('value="2026-11-14"') && baHtml.includes('예상 사용 기간 2개월(11/14~1/14)') && baHtml.includes('토 오전 9~14시') && baHtml.includes('1주 건너뛰기') && baHtml.includes('11/21(토) · 게더링 예약 → 건너뛰기권') && !baHtml.includes('1/16'), baHtml.replace(/\s+/g, ' ').slice(0, 260));
+  await p.evaluate(() => { window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-admin' } } }); window.__fetchCalls = []; });
   await p.evaluate((id) => bandApproveWithSlots(id, document.querySelector(`#ba-form-${id} .gaa-btn-primary`)), NEWBIE);
   await p.waitForTimeout(700);
+  chk('승인 직후: /send-sms {band_profile_id, kind:"approve", sb_token} 승인 안내 문자 요청', await p.evaluate((id) => { const c = (window.__fetchCalls || []).find(x => x.url === '/send-sms'); const b = c && JSON.parse(c.body); return !!b && b.band_profile_id === id && b.kind === 'approve' && b.sb_token === 'tok-admin' && !b.resend; }, NEWBIE), await p.evaluate(() => JSON.stringify((window.__fetchCalls || []).map(c => c.url + ' ' + c.body))));
   const blkIns = await lastCall('time_blocks', 'insert');
   const skIns = await lastCall('band_skips', 'insert');
   const clUpd = (await calls('band_slot_claims', 'update')).find(c => c.payload.status === 'approved');
@@ -242,7 +244,7 @@ const FAKE_SB = `
   chk('신규팀 카드: 승인된 고정 시간 "토 9~14시 · 11/14부터" + 건너뛰기권(11/21 미선택 · 11/14까지)', teamsHtml.includes('<strong>토 9~14시</strong>') && teamsHtml.includes('11/14부터') && teamsHtml.includes('11/21(토) 9~14시') && teamsHtml.includes('미선택 · 11/14까지'));
   // 벤더 05/17 시작: 11/05 는 6차(11/01~) 안, 다음 7차 11/29 — 11/20 미선택(마감 11/13 전)이라 아직 연장 없음 → 입금일 11/15
   chk('벤더 회차: 연장 전 다음 7차 11/29 시작 · 입금일 11/15', teamsHtml.includes('<strong>7차</strong> 11/29(일) 시작') && teamsHtml.includes('입금일 <strong>11/15</strong>'), teamsHtml.match(/다음 회차 <strong>[^<]*<\/strong>[^·]*·[^·]*/)?.[0]);
-  chk('신규팀 카드(등록 회차): 「등록 회차 이용료는 등록일부터 시작일 전날(11/13)까지 입금」', teamsHtml.includes('등록일부터 시작일 전날(11/13)까지'));
+  chk('신규팀 카드(등록 회차): 「보증금(1개월분) 입금으로 등록 확정 · 이용료는 시작일 전날(11/13)까지 · 다음 회차부터 사용 3주차」', teamsHtml.includes('보증금(1개월분) 입금으로 등록 확정') && teamsHtml.includes('시작일 전날(11/13)까지') && teamsHtml.includes('사용 3주차'));
   chk('벤더 계약 정보: 등록 비밀번호(4자리) 0921 표시 + 계약 폼 칸에 미리 채움 · 신규팀은 4444', teamsHtml.includes('등록 비밀번호(4자리)') && teamsHtml.includes('<span class="band-pin">0921</span>') && teamsHtml.includes('<span class="band-pin">4444</span>') && (await p.evaluate((id) => document.getElementById('bc-pin-' + id).value, VANDOR)) === '0921');
   await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '7788'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
   await p.waitForTimeout(600);

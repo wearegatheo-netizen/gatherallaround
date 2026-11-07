@@ -1,5 +1,9 @@
 // Cloudflare Pages Function: /send-sms
 // 공간 대관 접수 직후, 신청자 연락처로 접수 확인 문자를 1회 발송한다 (솔라피 API).
+// + 고정 합주팀 문자(2026-11-07): 가입 접수 확인 {band_signup_id}(공개, 신청 15분 안·1회) /
+//   승인·거절 안내 {band_profile_id, kind:'approve'|'reject', sb_token[, resend]}(게더링 운영 계정 세션만) /
+//   운영자 테스트 {band_test:'signup'|'approve'|'reject', sb_token}(본인 번호로 [테스트] 문구, 기록 없음).
+//   1회 보장은 band_sms_log(profile_id, kind) PK 선점(마이그레이션 20261107_band_sms_log.sql) — resend 는 upsert 로 다시 보낸다.
 // 공개 페이지(비로그인)에서 호출되므로 요청을 그대로 믿지 않는다:
 //   1) 서비스 롤 키로 performance_bookings에서 해당 예약 건을 직접 조회해 대조
 //   2) 접수 15분 이내 건만 발송 (오래된 건 재호출은 거부)
@@ -67,6 +71,198 @@ ${codeLine}이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 �
 ※ 기준 인원 수(5명)를 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
 }
 
+// ── 고정 합주팀 문자 본문 ──────────────────────────────────────────────
+// index.html bandCycleSummaryHTML(등록 회차)·send-reminders.js bandRentText 와 같은 규칙:
+//   보증금(1개월분) 입금으로 등록 확정 · 등록 회차 이용료는 시작일 전날까지 · 다음 회차부터 입금일 = 사용 3주차(문자 자동 안내)
+//   캐비넷 = 회차당 2만원 추가 · 가입 때 정한 숫자 4자리가 캐비넷 비밀번호. 이모지 없음(EUC-KR), LMS 한도 2,000byte 안.
+const GATHEO_ADMIN_BAND_ID = 'wearegatheo';
+const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-reminders.js · index.html 과 동일 문자열 유지
+const BAND_CONTACT = '010-5109-1042';                     // index.html PORTAL_PHONE
+const BAND_SITE = 'gatherallaround.com/band';
+const BAND_DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const BAND_GREETING = '안녕하세요! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.';
+const ymdAdd = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * 86400e3).toISOString().slice(0, 10);
+const mdOf = (ymd) => { const [, m, d] = String(ymd).split('-').map(Number); return `${m}/${d}`; };
+const wdOf = (ymd) => BAND_DOW[new Date(ymd + 'T00:00:00Z').getUTCDay()];
+const mdw = (ymd) => `${mdOf(ymd)}(${wdOf(ymd)})`;
+const won = (n) => `${Number(n).toLocaleString('ko-KR')}원`;
+const hourOf = (t) => parseInt(String(t || '').slice(0, 2), 10);
+// 타임 표기: band_slot_claims(end_time exclusive) → "금요일 18~23시"; 신청 행이 없으면 종전 timeslots('금_야간') → "금요일 야간"
+export function bandSlotText(claims, timeslots) {
+    const rows = (claims || []).filter(c => c && Number.isInteger(c.day_of_week)).sort((a, b) => a.day_of_week - b.day_of_week || String(a.start_time).localeCompare(String(b.start_time)));
+    if (rows.length) return rows.map(c => `${BAND_DOW[c.day_of_week]}요일 ${hourOf(c.start_time)}~${hourOf(c.end_time)}시`).join(', ');
+    const keys = Array.isArray(timeslots) ? timeslots : [];
+    return keys.map(k => { const [d, l] = String(k).split('_'); return l ? `${d}요일 ${l}` : String(k); }).join(', ');
+}
+const teamNameOf = (p) => p.band_name_kr || p.name || '';
+const monthsOf = (p) => String(p.band_expected_months || '').trim();
+export function bandSignupText(p, claims) {
+    const slot = bandSlotText(claims, p.timeslots);
+    const startLine = p.band_start_date ? `\n- 희망 시작일: ${mdw(p.band_start_date)}부터${monthsOf(p) ? ` · 예상 ${monthsOf(p)}` : ''}` : '';
+    const idLine = p.instruments ? `\n- 로그인 아이디: ${p.instruments} (밴드 영문명)` : '';
+    return `${BAND_GREETING}
+
+[${teamNameOf(p)}] 팀의 고정 합주팀 가입 신청이 접수되었습니다.
+
+- 신청 타임: ${slot || '미정'}${startLine}${idLine}
+
+운영팀이 일정을 확인한 뒤 승인 여부를 문자로 안내드립니다. 승인되면 보증금 입금 안내를 함께 보내드립니다.
+승인 전에는 로그인하셔도 대기 화면만 보입니다.
+
+※ 신청 내용 변경·문의: ${BAND_CONTACT}`;
+}
+export function bandApproveText(p, claims) {
+    const slot = bandSlotText(claims, p.timeslots);
+    const start = p.band_start_date;
+    const deposit = Number(p.band_deposit) > 0 ? `보증금(1개월분, ${won(p.band_deposit)})` : '보증금(1개월분)';
+    const fee = Number(p.band_fee) > 0 ? `고정 사용 이용료(${won(p.band_fee)})` : '고정 사용 이용료';
+    const eve = start ? `시작일 전날(${mdOf(ymdAdd(start, -1))})까지` : '시작일 전날까지';
+    return `${BAND_GREETING}
+
+[${teamNameOf(p)}] 팀의 고정 합주팀 가입이 승인되었습니다. 환영합니다!
+
+- 고정 시간: ${slot ? '매주 ' + slot : '운영팀과 협의'}
+- 시작일: ${start ? mdw(start) + '부터 4주 단위' : '추후 안내'}
+- 로그인: ${BAND_SITE} · 아이디 ${p.instruments || '(밴드 영문명)'} · 비밀번호 pw+숫자 4자리
+
+${deposit}을 아래 계좌로 입금해주시면 등록이 확정됩니다.
+${fee}는 ${eve} 입금해주세요.
+
+${BAND_BANK_LINE}
+
+[캐비넷 이용 안내]
+- 캐비넷은 회차당 2만원이며, 이용료와 함께 입금해주시면 됩니다.
+- 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록됩니다.
+- 이용을 원하시면 로그인 후 [요청사항] 또는 문자(${BAND_CONTACT})로 알려주세요.
+
+※ 다음 회차부터는 사용 3주차에 입금 안내 문자를 보내드립니다.
+※ 건너뛰기권·대체 합주 등 이용 규칙은 로그인 후 [합주 시간·건너뛰기권]에서 확인하실 수 있습니다.
+※ 보증금은 사용 종료 시 반환됩니다.`;
+}
+export function bandRejectText(p) {
+    return `안녕하세요! 게더 올 어라운드(Gather all around)입니다.
+
+[${teamNameOf(p)}] 팀의 고정 합주팀 가입 신청은 아쉽게도 이번에는 진행이 어렵게 되었습니다. 신청하신 타임에 자리가 나면 다시 안내드리겠습니다.
+
+※ 문의: ${BAND_CONTACT}`;
+}
+const BAND_TEXT = { signup: bandSignupText, approve: bandApproveText, reject: bandRejectText };
+const BAND_SUBJECT = { signup: '게더 올 어라운드 가입 접수', approve: '게더 올 어라운드 가입 승인', reject: '게더 올 어라운드 가입 안내' };
+const BAND_SAMPLE = { band_name_kr: '게더링', band_name_en: 'GatheO', instruments: 'gatheo', band_start_date: null, band_expected_months: '6개월', band_fee: 250000, band_deposit: 250000, timeslots: ['금_야간'] };
+const isAdminBand = (t) => {
+    const loginId = String(t.instruments || '').trim().toLowerCase();
+    const emailId = String(t.email || '').trim().toLowerCase().split('@')[0];
+    return loginId === GATHEO_ADMIN_BAND_ID || emailId === GATHEO_ADMIN_BAND_ID;
+};
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Supabase 세션 토큰 → 사용자 id (send-reminders.js 와 동일)
+async function verifySb(env, jwt) {
+    if (!jwt || typeof jwt !== 'string' || jwt.length > 4096) return null;
+    try {
+        const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + jwt } });
+        if (!r.ok) return null;
+        const u = await r.json().catch(() => null);
+        return u && u.id ? String(u.id) : null;
+    } catch (_) { return null; }
+}
+async function solapiSend(env, to, text, subject) {
+    return fetch('https://api.solapi.com/messages/v4/send', {
+        method: 'POST',
+        headers: { Authorization: await solapiAuthHeader(env.SOLAPI_API_KEY, env.SOLAPI_API_SECRET), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject } }),
+    });
+}
+const PROFILE_SEL = 'id,name,band_name_kr,band_name_en,instruments,email,member_type,status,leader_phone,phone,timeslots,band_start_date,band_expected_months,band_fee,band_deposit,created_at';
+// 고정 합주팀 문자 분기. 응답은 json(obj, status).
+async function handleBandSms(body, env, json) {
+    const SUPABASE_URL = env.SUPABASE_URL, SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_URL || !SERVICE_KEY) return json({ error: 'missing SUPABASE env vars' }, 500);
+    const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
+    const smsOn = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
+    const getProfile = async (id) => {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=${PROFILE_SEL}&limit=1`, { headers: sbHeaders });
+        if (!r.ok) return { err: json({ error: 'profile lookup failed', status: r.status, detail: (await r.text().catch(() => '')).slice(0, 300) }, 502) };
+        const [p] = await r.json().catch(() => []);
+        return { p };
+    };
+    const getClaims = async (id, statuses) => {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/band_slot_claims?profile_id=eq.${encodeURIComponent(id)}&status=in.(${statuses.join(',')})&select=day_of_week,start_time,end_time,status&order=day_of_week`, { headers: sbHeaders });
+        return r.ok ? (await r.json().catch(() => [])) : []; // 표가 없으면(마이그레이션 전) timeslots 로 폴백
+    };
+    const phoneOf = (p) => String(p.leader_phone || p.phone || '').replace(/\D/g, '');
+    const PHONE_RE = /^01[016789][0-9]{7,8}$/;
+
+    // ── 운영자 테스트: 본인 번호로 [테스트] 문구만, 기록 없음
+    if (body.band_test) {
+        const kind = String(body.band_test);
+        if (!BAND_TEXT[kind]) return json({ ok: false, error: 'bad-kind' }, 400);
+        if (!smsOn) return json({ ok: false, error: 'sms-disabled', message: '솔라피 키(SOLAPI_API_KEY/SECRET, SMS_SENDER)가 설정되지 않았습니다.' }, 400);
+        const uid = await verifySb(env, body.sb_token);
+        if (!uid) return json({ ok: false, error: 'auth', message: '로그인이 만료되었습니다. 다시 로그인해주세요.' }, 401);
+        const { p: me, err } = await getProfile(uid); if (err) return err;
+        if (!me || me.member_type !== 'band' || !isAdminBand(me)) return json({ ok: false, error: 'forbidden', message: '게더링 관리자 계정만 사용할 수 있습니다.' }, 403);
+        const to = phoneOf(me);
+        if (!PHONE_RE.test(to)) return json({ ok: false, error: 'bad-phone', message: '관리자 계정의 휴대폰 번호가 올바르지 않습니다.' }, 400);
+        const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+        const sample = { ...BAND_SAMPLE, band_start_date: ymdAdd(today, 9) };
+        const text = '[테스트] ' + BAND_TEXT[kind](sample, [{ day_of_week: 5, start_time: '18:00', end_time: '23:00' }]);
+        const smsRes = await solapiSend(env, to, text, BAND_SUBJECT[kind] + '(테스트)');
+        if (!smsRes.ok) return json({ ok: false, error: 'solapi', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
+        return json({ ok: true, to: maskPhone(to), kind, test: true });
+    }
+
+    // ── 대상·종류·권한
+    let kind, targetId, resend = false;
+    if (body.band_signup_id) {
+        kind = 'signup'; targetId = String(body.band_signup_id);
+        if (!UUID_RE.test(targetId)) return json({ error: 'invalid band_signup_id' }, 400);
+        if (!smsOn) return json({ ok: false, skipped: 'sms-disabled' });
+    } else {
+        kind = String(body.kind || ''); targetId = String(body.band_profile_id || '');
+        if (!['approve', 'reject'].includes(kind)) return json({ ok: false, error: 'bad-kind' }, 400);
+        if (!UUID_RE.test(targetId)) return json({ error: 'invalid band_profile_id' }, 400);
+        if (!smsOn) return json({ ok: false, error: 'sms-disabled', message: '솔라피 키가 설정되지 않아 문자를 보내지 않았습니다.' }, 400);
+        const uid = await verifySb(env, body.sb_token);
+        if (!uid) return json({ ok: false, error: 'auth', message: '로그인이 만료되었습니다. 다시 로그인해주세요.' }, 401);
+        const { p: me, err } = await getProfile(uid); if (err) return err;
+        if (!me || me.member_type !== 'band' || !isAdminBand(me)) return json({ ok: false, error: 'forbidden', message: '게더링 관리자 계정만 보낼 수 있습니다.' }, 403);
+        resend = body.resend === true;
+    }
+    const { p, err } = await getProfile(targetId); if (err) return err;
+    if (!p || p.member_type !== 'band') return json({ ok: false, error: 'not-found', message: '팀을 찾을 수 없습니다.' }, 404);
+    const want = kind === 'signup' ? 'pending' : kind === 'approve' ? 'approved' : 'rejected';
+    if ((p.status || 'pending') !== want) return json({ ok: false, error: 'status', message: `팀 상태(${p.status || 'pending'})가 ${want} 가 아니어서 보내지 않았습니다.` }, 409);
+    if (kind === 'signup' && p.created_at && Date.now() - Date.parse(p.created_at) > 15 * 60 * 1000) return json({ ok: false, skipped: 'stale' });
+    const to = phoneOf(p);
+    if (!PHONE_RE.test(to)) return json({ ok: false, error: 'bad-phone', skipped: 'bad-phone', message: '팀 리더 휴대폰 번호가 올바르지 않습니다.' }, kind === 'signup' ? 200 : 400);
+
+    // ── 1회 선점: band_sms_log(profile_id, kind) PK. resend 는 upsert(merge) 로 통과
+    const claimTs = new Date().toISOString();
+    const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/band_sms_log`, {
+        method: 'POST',
+        headers: { ...sbHeaders, 'Content-Type': 'application/json', Prefer: resend ? 'return=minimal,resolution=merge-duplicates' : 'return=minimal' },
+        body: JSON.stringify({ profile_id: targetId, kind, sent_at: claimTs, to_phone: maskPhone(to) }),
+    });
+    if (claimRes.status === 409) return json({ ok: false, skipped: 'already-sent', message: '이미 보낸 문자입니다.' }, kind === 'signup' ? 200 : 409);
+    if (!claimRes.ok) {
+        const detail = (await claimRes.text().catch(() => '')).slice(0, 300);
+        const noTable = claimRes.status === 404 || /band_sms_log/.test(detail);
+        return json({ ok: false, error: noTable ? 'no-table' : 'claim failed', skipped: noTable ? 'no-table' : undefined, status: claimRes.status, detail,
+            message: noTable ? '발송 기록 표(band_sms_log)가 없습니다. 20261107_band_sms_log.sql 을 실행해주세요.' : '발송 기록을 남기지 못해 보내지 않았습니다.' }, kind === 'signup' ? 200 : 502);
+    }
+
+    const claims = await getClaims(targetId, kind === 'approve' ? ['approved'] : ['pending', 'approved']);
+    const text = BAND_TEXT[kind](p, claims);
+    const smsRes = await solapiSend(env, to, text, BAND_SUBJECT[kind]);
+    if (!smsRes.ok) {
+        // 실패 → 내가 찍은 선점(sent_at 일치)만 지워 다음 시도 여지를 남긴다
+        await fetch(`${SUPABASE_URL}/rest/v1/band_sms_log?profile_id=eq.${encodeURIComponent(targetId)}&kind=eq.${kind}&sent_at=eq.${encodeURIComponent(claimTs)}`,
+            { method: 'DELETE', headers: sbHeaders }).catch(() => {});
+        return json({ ok: false, error: 'solapi send failed', message: '문자 발송에 실패했습니다.', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
+    }
+    return json({ ok: true, to: maskPhone(to), kind });
+}
+
 // 진단용 솔라피 조회 (발송 없음)
 async function solapiGet(path, env) {
     const res = await fetch('https://api.solapi.com' + path, {
@@ -130,8 +326,10 @@ export async function onRequest(context) {
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
     try {
-        const { booking_id } = await request.json().catch(() => ({}));
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(booking_id || ''))) {
+        const body = await request.json().catch(() => ({}));
+        if (body && (body.band_signup_id || body.band_profile_id || body.band_test)) return await handleBandSms(body, env, json);
+        const { booking_id } = body || {};
+        if (!UUID_RE.test(String(booking_id || ''))) {
             return json({ error: 'invalid booking_id' }, 400);
         }
 

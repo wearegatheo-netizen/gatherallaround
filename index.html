@@ -2629,7 +2629,7 @@
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
                     • 수집 항목: 팀 리더 이름, 전화번호, 밴드명(국문/영문), 아이디, 합주 타임<br>
-                    • 수집 목적: 고정 합주팀 서비스 제공 및 팀 관리<br>
+                    • 수집 목적: 고정 합주팀 서비스 제공 및 팀 관리, 신청 접수·승인 결과·이용료 안내 문자 발송<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
                     • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.<br><br>
                     <strong>서비스 이용 및 기록 보존 안내</strong><br>
@@ -12827,6 +12827,8 @@
                             profile_id: data.user.id, def_id: d.id, day_of_week: d.day_of_week, start_time: d.start_time, end_time: d.end_time, start_date: picked.start, status: 'pending' })));
                         if (cErr) console.error('band_slot_claims insert error:', cErr);
                     }
+                    // 접수 확인 문자(팀 리더 번호) — /send-sms 가 서비스 롤로 대조·15분 안·band_sms_log 1회 선점. 실패해도 가입은 완료.
+                    fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ band_signup_id: data.user.id }) }).catch(() => {});
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
                     setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''}`).catch(() => {}), 400);
                 }
@@ -13626,6 +13628,7 @@
                 const { error: pErr } = await supabaseClient.from('profiles').update(upd).eq('id', id);
                 if (pErr) throw pErr;
                 showToast(approved.length ? `가입을 승인하고 고정 시간 ${approved.length}개를 달력에 반영했습니다.` : '가입을 승인했습니다.');
+                _bandSendSms(id, 'approve', { delay: 1500 }).catch(() => {});
                 renderBandAdminTab();
                 fetchAndRenderBandTeamList();
                 if (typeof fetchBlocks === 'function') fetchBlocks().catch(() => {});
@@ -14004,6 +14007,16 @@
                     </div>
                 </div>
                 <div class="band-card-section">
+                    <div class="band-card-head"><span>📨 가입 안내 문자 테스트</span></div>
+                    <div class="band-muted">가입 신청 직후(접수)·[승인]·[거절] 때 팀 리더 번호로 자동 발송되는 문구입니다(팀·종류별 1회, 승인 문자는 팀 카드 [승인 문자]로 다시 보낼 수 있어요).<br>
+                        아래 버튼은 <strong>내 번호로만</strong> 예시 팀(게더링·금요일 18~23시·보증금/이용료 25만원) 내용에 [테스트] 표시를 붙여 보냅니다.</div>
+                    <div class="gaa-btn-row" style="margin-top:10px">
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'signup')">접수 확인</button>
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'approve')">승인 안내</button>
+                        <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="sendBandSmsTest(this, 'reject')">거절 안내</button>
+                    </div>
+                </div>
+                <div class="band-card-section">
                     <div class="band-card-head"><span>🔔 관리자 푸시 테스트</span></div>
                     <div class="band-muted">실제 문자가 나가면 운영 총괄에게 「💰 월세 입금 안내 문자 발송」 푸시가 1건 갑니다.<br>
                         아래 버튼은 문자 없이 그 푸시만 [테스트] 표시로 보냅니다 — 운영 총괄로 푸시를 켠 모든 기기에 도착합니다.</div>
@@ -14015,15 +14028,18 @@
         // mode 'push' → 문자 없이 실제 발송 때와 같은 관리자 푸시([테스트] 표시)만 보낸다
         async function sendBandSmsTest(btn, kind, mode) {
             if (!supabaseClient || !isBandAdmin()) return;
-            if (!['due', 'week4', 'last'].includes(kind)) kind = 'due';
+            const bandKind = ['signup', 'approve', 'reject'].includes(kind) ? kind : null; // 가입 안내 문자는 /send-sms 가 담당
+            if (!bandKind && !['due', 'week4', 'last'].includes(kind)) kind = 'due';
             const pushOnly = mode === 'push';
             _bandBusy(btn, true, '발송 중…');
             try {
                 const { data } = await supabaseClient.auth.getSession();
                 const token = data && data.session && data.session.access_token;
                 if (!token) { showToast('로그인 세션이 없습니다. 다시 로그인해주세요.'); return; }
-                const res = await fetch('/send-reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'test_band_sms', sb_token: token, kind, ...(pushOnly ? { push: 'only' } : {}) }) });
+                const res = bandKind
+                    ? await fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ band_test: bandKind, sb_token: token }) })
+                    : await fetch('/send-reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'test_band_sms', sb_token: token, kind, ...(pushOnly ? { push: 'only' } : {}) }) });
                 const out = await res.json().catch(() => ({}));
                 if (!res.ok || !out.ok) { console.error('band sms test:', res.status, out); showToast(out.message || (pushOnly ? '푸시 테스트에 실패했습니다.' : '문자 테스트에 실패했습니다.')); return; }
                 if (pushOnly) {
@@ -14040,7 +14056,7 @@
         function bandCycleSummaryHTML(t, info) {
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';
             if (info.mode === 'legacy') return `<div class="band-muted">시작일 미설정 — 마지막 납부일(${escHtml(info.lastPaid)}) 기준 다음 납부 예정 ${escHtml(info.next)}. 계약 정보를 입력하면 회차·문자 안내가 시작됩니다.</div>`;
-            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 등록 회차 이용료는 <strong>등록일부터 시작일 전날(${bandMD(_bandAddDays(info.start, -1))})까지</strong> 입금</div>`;
+            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 보증금(1개월분) 입금으로 등록 확정 · 등록 회차 이용료는 <strong>시작일 전날(${bandMD(_bandAddDays(info.start, -1))})까지</strong> 입금 · 다음 회차부터는 사용 3주차에 입금 안내</div>`;
             if (info.ended) return `<div>고정 사용이 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong>에 종료되었습니다.</div>`;
             if (info.ending) return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 고정 사용 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong> 종료 예정 · 다음 회차 없음</div>`;
             const endNote = info.endDate ? ` · 종료 예정 ${bandMD(info.endDate)}` : '';
@@ -14089,7 +14105,8 @@
                 contractSection = `
                     <div class="band-card-section">
                         <div class="band-card-head"><span>📄 계약 정보</span>
-                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="toggleBandBox('bc-form-${t.id}')">수정</button></div>
+                            <span style="display:flex;gap:6px"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="bandResendApproveSms('${t.id}', this)" title="보증금·이용료 금액을 넣어 승인 안내 문자를 다시 보냅니다">승인 문자</button>
+                            <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="toggleBandBox('bc-form-${t.id}')">수정</button></span></div>
                         <div class="band-kv-grid">
                             ${kv('시작일', t.band_start_date ? `${escHtml(t.band_start_date)}(${bandWD(t.band_start_date)})` : '')}
                             ${kv('예상 사용', escHtml(t.band_expected_months || ''))}
@@ -14274,6 +14291,34 @@
             showToast('고정팀 현황표를 다운로드했습니다.');
         }
 
+        // 고정팀 안내 문자(승인/거절, 2026-11-07) — /send-sms 가 운영자 세션(sb_token)을 검증하고 band_sms_log(profile_id, kind) 로 1회 보장.
+        // 자동 호출(승인·거절 직후)은 성공·실패를 토스트로만 알리고(delay 로 앞 토스트가 먼저 보이게), manual(팀 카드 [승인 문자])은 resend 로 다시 보낸다.
+        const BAND_SMS_LABEL = { approve: '승인 안내', reject: '거절 안내' };
+        async function _bandSendSms(id, kind, opts = {}) {
+            if (!supabaseClient) return null;
+            let token = null;
+            try { const { data } = await supabaseClient.auth.getSession(); token = data && data.session && data.session.access_token; } catch (_) {}
+            if (!token) { if (opts.manual) showToast('로그인 세션이 없습니다. 다시 로그인해주세요.'); return null; }
+            const label = BAND_SMS_LABEL[kind] || '';
+            const toast = (msg, ms) => { if (opts.delay) setTimeout(() => showToast(msg, ms), opts.delay); else showToast(msg, ms); };
+            try {
+                const res = await fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ band_profile_id: id, kind, sb_token: token, ...(opts.resend ? { resend: true } : {}) }) });
+                const out = await res.json().catch(() => ({}));
+                if (out.ok) { toast(`${out.to ? out.to + '로 ' : ''}${label} 문자를 보냈습니다.`); return out; }
+                if (out.skipped === 'already-sent' || out.error === 'sms-disabled') { if (opts.manual) toast(out.message || '문자를 보내지 않았습니다.'); return out; }
+                console.error('band sms:', res.status, out);
+                toast(out.message || `${label} 문자를 보내지 못했습니다.`, 5000);
+                return out;
+            } catch (e) { console.error('band sms error:', e); if (opts.manual) toast('서버와 통신하지 못했습니다.'); return null; }
+        }
+        async function bandResendApproveSms(id, btn) {
+            if (!isBandAdmin()) return;
+            if (!confirm('이 팀 리더 번호로 승인 안내 문자를 보낼까요?\n계약 정보의 보증금·이용료 금액과 고정 시간·시작일이 들어갑니다.')) return;
+            _bandBusy(btn, true, '발송 중…');
+            try { await _bandSendSms(id, 'approve', { resend: true, manual: true }); } finally { _bandBusy(btn, false); }
+        }
+
         async function approveBandProfile(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
             // 타임 신청이 있으면 승인 폼(시작일·겹치는 주 → 달력 반영)으로, 없으면 종전처럼 상태만 승인
@@ -14285,6 +14330,7 @@
             _bandBusy(btn, false);
             if (error) { console.error('band approve error:', error); showToast('승인하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
             showToast('가입을 승인했습니다. 팀 관리에서 계약 정보를 입력해주세요.');
+            _bandSendSms(id, 'approve', { delay: 1500 }).catch(() => {});
             renderBandAdminTab();
             fetchAndRenderBandTeamList();
         }
@@ -14297,6 +14343,7 @@
             _bandBusy(btn, false);
             if (error) { console.error('band reject error:', error); showToast('처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
             showToast('가입 신청을 거절했습니다.');
+            _bandSendSms(id, 'reject', { delay: 1500 }).catch(() => {});
             renderBandAdminTab();
         }
 

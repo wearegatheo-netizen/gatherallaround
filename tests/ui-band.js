@@ -226,7 +226,7 @@ const FAKE_SB = `
   chk('알림 테스트 탭: 서브탭 활성 + 문자 테스트 3종 + 푸시 테스트 버튼 + 정오 발송(크론 대기) 안내', await p.evaluate(() => document.querySelector('#bandAdminSection .admin-subtab[data-tab="test"]').classList.contains('active'))
     && testHtml.includes('12:00에 자동 발송') && testHtml.includes('06:37') && testHtml.includes('정오까지 기다렸다') && testHtml.includes("sendBandSmsTest(this, 'due')") && testHtml.includes("sendBandSmsTest(this, 'week4')") && testHtml.includes("sendBandSmsTest(this, 'last')") && testHtml.includes("sendBandSmsTest(this, 'due', 'push')")
     && testHtml.includes('내 번호로만') && testHtml.includes('운영 총괄'));
-  chk('알림 테스트 탭: 버튼은 gaa-btn-sm(38px), 팀 카드 없음', await p.evaluate(() => { const b = document.querySelectorAll('#bandAdminView .gaa-btn-sm'); return b.length === 4 && [...b].every(x => x.offsetHeight >= 38) && !document.querySelector('#bandAdminView .band-team-card'); }));
+  chk('알림 테스트 탭: 버튼 7개(입금 3·가입 안내 3·푸시 1) 모두 gaa-btn-sm(38px), 팀 카드 없음', await p.evaluate(() => { const b = document.querySelectorAll('#bandAdminView .gaa-btn-sm'); return b.length === 7 && [...b].every(x => x.offsetHeight >= 38) && !document.querySelector('#bandAdminView .band-team-card'); }));
   chk('푸시 테스트 버튼 → /send-reminders 에 push:"only" 로 요청(문자 아님)', await p.evaluate(async () => {
     const orig = window.__fakeSb.auth.getSession;
     window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-test' } } });
@@ -250,6 +250,8 @@ const FAKE_SB = `
     return !!b && b.kind === 'week4' && !('push' in b);
   }));
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-test-tab-light.png'), fullPage: true });
+  chk('알림 테스트 탭: 가입 안내 문자 3종(접수/승인/거절) 버튼 + 팀 카드 [승인 문자] 재발송 버튼', await p.evaluate(() => { const h = document.getElementById('bandAdminView').innerHTML; return ['signup', 'approve', 'reject'].every(k => h.includes(`sendBandSmsTest(this, '${k}')`)) && typeof bandResendApproveSms === 'function'; }));
+  chk('가입 문자 테스트 → /send-sms {band_test:"approve", sb_token}', await p.evaluate(async () => { const g = window.__fakeSb.auth.getSession; window.__fakeSb.auth.getSession = async () => ({ data: { session: { access_token: 'tok-admin' } } }); window.__fetchCalls = []; await sendBandSmsTest(document.createElement('button'), 'approve'); window.__fakeSb.auth.getSession = g; const c = (window.__fetchCalls || []).find(x => x.url === '/send-sms'); const b = c && JSON.parse(c.body); return !!b && b.band_test === 'approve' && b.sb_token === 'tok-admin'; }));
 
   // ── 5. 탈퇴 처리 → band_ended_at 기록
   await p.evaluate(() => setBandAdminTab('teams'));
@@ -314,6 +316,7 @@ const FAKE_SB = `
   const notify = await p.evaluate(() => (window.__fetchCalls || []).find(c => c.url === '/notify-admins'));
   const signupDbg = await p.evaluate(() => 'result=' + document.getElementById('bandSignupResult').textContent + ' calls=' + JSON.stringify((window.__fetchCalls || []).map(c => c.url)));
   chk('가입 신청 → /notify-admins 푸시(팀명·리더·타임)', !!notify && (() => { const b = JSON.parse(notify.body); return b.title.includes('고정팀 가입 신청') && b.body.includes('새팀') && b.body.includes('홍길동') && b.body.includes('목 야간'); })(), notify ? notify.body : signupDbg);
+  chk('가입 직후: /send-sms {band_signup_id} 접수 확인 문자 요청(fire-and-forget)', await p.evaluate(() => (window.__fetchCalls || []).some(c => c.url === '/send-sms' && JSON.parse(c.body).band_signup_id === 'f0000000-0000-4000-8000-000000000006')), await p.evaluate(() => JSON.stringify((window.__fetchCalls || []).map(c => c.url))));
   chk('가입: 아이디는 밴드 영문명(NewTeam → newteam@band.gatheo.kr) 자동 지정 · 아이디 입력칸 없음', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.email === 'newteam@band.gatheo.kr' && !document.getElementById('bandSignupId')), await p.evaluate(() => JSON.stringify(window.__signUpArgs)));
   chk('로그인 칸: 안내 "아이디 (밴드 영문명)" + 입력 "New Team" 도 newteam 으로 정리', await p.evaluate(() => document.getElementById('bandLoginId').placeholder.includes('밴드 영문명') && bandIdFromName('New Team') === 'newteam' && bandIdFromName('GatheO Band!') === 'gatheoband'));
   await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);
