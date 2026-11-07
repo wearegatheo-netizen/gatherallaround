@@ -18,15 +18,15 @@ const TABLES = {
     { id: ADMIN_ID, member_type: 'band', status: 'approved', band_name_kr: '게더링', band_name_en: 'GatheO', leader_name: '최경수', leader_phone: '010-5109-1042', instruments: 'wearegatheo', email: 'wearegatheo@band.gatheo.kr', timeslots: ['금_야간'], created_at: '2026-01-01T00:00:00Z' },
     { id: VANDOR, member_type: 'band', status: 'approved', band_name_kr: '벤더', band_name_en: 'Vandor', leader_name: '권율', leader_phone: '010-7484-0121', instruments: 'vandor', email: 'vandor@band.gatheo.kr', timeslots: ['금_야간'],
       band_start_date: '2026-05-17', band_fee: 250000, created_at: '2026-05-01T00:00:00Z' },
-    { id: NEWBIE, member_type: 'band', status: 'pending', band_cabinet: true, band_name_kr: '신규팀', band_name_en: 'Newbie', leader_name: '김신규', leader_phone: '010-1111-2222', instruments: 'newbie', email: 'newbie@band.gatheo.kr', timeslots: ['토_오전'], band_start_date: '2026-11-14', band_expected_months: '2개월', created_at: '2026-11-01T00:00:00Z' },
+    { id: NEWBIE, member_type: 'band', status: 'pending', band_cabinet: true, band_deposit: 200000, band_name_kr: '신규팀', band_name_en: 'Newbie', leader_name: '김신규', leader_phone: '010-1111-2222', instruments: 'newbie', email: 'newbie@band.gatheo.kr', timeslots: ['토_오전'], band_start_date: '2026-11-14', band_expected_months: '2개월', created_at: '2026-11-01T00:00:00Z' },
   ],
   band_slot_defs: [
-    { id: D.monDay, day_of_week: 1, start_time: '12:00', end_time: '18:00', label: '주간', band_ok: true, rental_ok: true, open_from: null, note: null },
+    { id: D.monDay, day_of_week: 1, start_time: '12:00', end_time: '18:00', label: '주간', band_ok: true, rental_ok: true, open_from: null, note: null, fee: 250000 },
     { id: D.monNight, day_of_week: 1, start_time: '18:00', end_time: '23:00', label: '야간', band_ok: true, rental_ok: true, open_from: '2026-12-01', note: null },
     { id: D.tueNight, day_of_week: 2, start_time: '18:00', end_time: '23:00', label: '야간', band_ok: false, rental_ok: true, open_from: null, note: '기존 고정팀', off_reason: 'team' },
     { id: D.wedDay, day_of_week: 3, start_time: '12:00', end_time: '18:00', label: '주간', band_ok: true, rental_ok: true, open_from: null, note: null },
     { id: D.friNight, day_of_week: 5, start_time: '18:00', end_time: '23:00', label: '야간', band_ok: true, rental_ok: true, open_from: null, note: null },
-    { id: D.satAm, day_of_week: 6, start_time: '09:00', end_time: '14:00', label: '오전', band_ok: true, rental_ok: true, open_from: null, note: null },
+    { id: D.satAm, day_of_week: 6, start_time: '09:00', end_time: '14:00', label: '오전', band_ok: true, rental_ok: true, open_from: null, note: null, fee: 200000 },
     { id: D.satDay, day_of_week: 6, start_time: '14:00', end_time: '18:00', label: '주간', band_ok: false, rental_ok: true, open_from: null, note: '고정팀 불가 · 대관 가능', off_reason: 'rental' },
   ],
   band_slot_claims: [
@@ -201,6 +201,7 @@ const FAKE_SB = `
   chk('가입: profiles upsert timeslots ["월_주간"] + band_start_date 11/12 + band_expected_months "3개월"', !!up && JSON.stringify(up.payload.timeslots) === '["월_주간"]' && up.payload.band_start_date === '2026-11-12' && up.payload.band_expected_months === '3개월' && up.payload.status === 'pending', JSON.stringify(up && [up.payload.timeslots, up.payload.band_expected_months]));
   chk('가입: band_slot_claims insert(def·요일 1·12:00~18:00·시작일·pending)', !!cl && Array.isArray(cl.payload) && cl.payload.length === 1 && cl.payload[0].def_id === 'def-mon-day' && cl.payload[0].day_of_week === 1 && cl.payload[0].start_time === '12:00' && cl.payload[0].end_time === '18:00' && cl.payload[0].start_date === '2026-11-12' && cl.payload[0].status === 'pending' && cl.payload[0].profile_id === 'f0000000-0000-4000-8000-000000000006', JSON.stringify(cl && cl.payload));
   chk('가입: 관리자 푸시 본문에 "월 주간 · 11/12 시작 희망 · 3개월"', !!push && /월 주간/.test(push.body) && /11\/12 시작 희망 · 3개월/.test(push.body), push && push.body);
+  chk('가입: 월 주간(4주 250,000원) 선택 → 보증금 안내문 「보증금(1개월분) 250,000원」 + profiles upsert band_fee·band_deposit 250000', await p.evaluate(() => { const t = window.__T.profiles.find(x => x.id === 'f0000000-0000-4000-8000-000000000006'); const note = document.getElementById('bandSignupDepositNote').textContent; return !!t && t.band_fee === 250000 && t.band_deposit === 250000 && /보증금\(1개월분\) 250,000원/.test(note) && /입금이 확인되면 운영팀이 가입을 승인/.test(note); }), await p.evaluate(() => document.getElementById('bandSignupDepositNote').textContent));
   chk('가입: profiles upsert band_cabinet true(캐비넷 사용함) + 예상 기간 저장', await p.evaluate(() => { const t = window.__T.profiles.find(x => x.id === 'f0000000-0000-4000-8000-000000000006'); return !!t && t.band_cabinet === true && /개월$/.test(t.band_expected_months || ''); }), await p.evaluate(() => JSON.stringify(window.__T.profiles.find(x => x.id === 'f0000000-0000-4000-8000-000000000006'))));
   chk('가입: auth.signUp 비밀번호 = "pw1234"(접두 + 숫자 4자리) · 아이디 중복(newteam)이면 신청자에게 알리지 않고 newteam2 로 접수 · 결과 문구에 오류 없음', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.password === 'pw1234' && JSON.stringify(window.__signUpTries) === JSON.stringify(['newteam@band.gatheo.kr', 'newteam2@band.gatheo.kr']) && window.__T.profiles.find(x => x.id === 'f0000000-0000-4000-8000-000000000006').instruments === 'newteam2' && !document.getElementById('bandSignupResult').textContent.includes('이미')), await p.evaluate(() => JSON.stringify([window.__signUpTries, window.__signUpArgs])));
   const pinIns = await lastCall('band_pins', 'insert');
@@ -225,6 +226,11 @@ const FAKE_SB = `
   chk('관리자 서브탭에 ⏱️ 시간 띠', await p.evaluate(() => !!document.querySelector('#bandAdminSection .admin-subtab[data-tab="slots"]')));
   const pendHtml = await p.evaluate(() => document.getElementById('bandAdminView').innerHTML);
   chk('가입 신청 카드: 신청 타임 "토 9~14시" · 희망 시작일 11/14(토) · 등록 비밀번호 4444(운영자만)', pendHtml.includes('신청 타임 <strong>토 9~14시</strong>') && pendHtml.includes('희망 시작일 11/14(토)') && pendHtml.includes('<span class="band-pin">4444</span>'), pendHtml.match(/신청 타임[^<]*<strong>[^<]*/)?.[0]);
+  chk('가입 신청 카드: 보증금(1개월분) 200,000원 · 입금 확인 전 칩 + [입금 확인] 버튼', pendHtml.includes('보증금(1개월분) <strong>200,000원</strong>') && pendHtml.includes('입금 확인 전') && pendHtml.includes(`bandMarkDepositPaid('${NEWBIE}'`), pendHtml.match(/보증금\(1개월분\)[^<]*<strong>[^<]*/)?.[0]);
+  await p.evaluate((id) => bandMarkDepositPaid(id, document.createElement('button')), NEWBIE);
+  await p.waitForTimeout(500);
+  const depUpd = (await calls('profiles', 'update')).filter(c => c.payload && c.payload.band_deposit_paid_at).pop();
+  chk('[입금 확인] → profiles.band_deposit_paid_at = 오늘(2026-11-05), 금액이 있어 prompt 없음 · 카드에 「11/5 입금 확인」', !!depUpd && depUpd.payload.band_deposit_paid_at === '2026-11-05' && dialogs.length === 0 && (await p.evaluate(() => document.getElementById('bandAdminView').innerHTML)).includes('11/5 입금 확인'), JSON.stringify(depUpd && depUpd.payload));
   chk('가입 신청 카드: 캐비넷 사용 여부 표시(사용함 · 회차당 2만원 — 예상 2개월) + 복귀 팀 판정은 연락처·이름+밴드명으로', pendHtml.includes('캐비넷 <strong>사용함 · 회차당 2만원</strong>') && await p.evaluate((v) => { const list = window.__T.profiles; const byPhone = bandReturningMatches({ id: 'x', leader_name: '다른이름', leader_phone: '010 7484 0121' }, list); const byName = bandReturningMatches({ id: 'x', leader_name: '권율', leader_phone: '010-0000-0000', band_name_en: 'VANDOR' }, list); const none = bandReturningMatches({ id: 'x', leader_name: '권율', leader_phone: '010-0000-0000', band_name_en: 'Other' }, list); return byPhone.length === 1 && byPhone[0].id === v && byName.length === 1 && byName[0].id === v && none.length === 0 && /복귀 팀 가능성/.test(bandReturningHTML({ id: 'x', leader_name: '권율', leader_phone: '01074840121' })) && /연락처 일치/.test(bandReturningHTML({ id: 'x', leader_name: '권율', leader_phone: '01074840121' })); }, VANDOR), pendHtml.match(/캐비넷 <strong>[^<]*/)?.[0]);
   await p.evaluate(([a, b]) => bandAdoptPrevious(a, b, document.createElement('button')), [NEWBIE, VANDOR]);
   await p.waitForTimeout(500);
@@ -257,7 +263,7 @@ const FAKE_SB = `
   chk('신규팀 카드: 승인된 고정 시간 "토 9~14시 · 11/14부터" + 건너뛰기권(11/21 미선택 · 11/14까지)', teamsHtml.includes('<strong>토 9~14시</strong>') && teamsHtml.includes('11/14부터') && teamsHtml.includes('11/21(토) 9~14시') && teamsHtml.includes('미선택 · 11/14까지'));
   // 벤더 05/17 시작: 11/05 는 6차(11/01~) 안, 다음 7차 11/29 — 11/20 미선택(마감 11/13 전)이라 아직 연장 없음 → 입금일 11/15
   chk('벤더 회차: 연장 전 다음 7차 11/29 시작 · 입금일 11/15', teamsHtml.includes('<strong>7차</strong> 11/29(일) 시작') && teamsHtml.includes('입금일 <strong>11/15</strong>'), teamsHtml.match(/다음 회차 <strong>[^<]*<\/strong>[^·]*·[^·]*/)?.[0]);
-  chk('신규팀 카드(등록 회차): 「보증금(1개월분) 입금으로 등록 확정 · 이용료는 시작일 전날(11/13)까지 · 다음 회차부터 사용 3주차」', teamsHtml.includes('보증금(1개월분) 입금으로 등록 확정') && teamsHtml.includes('시작일 전날(11/13)까지') && teamsHtml.includes('사용 3주차'));
+  chk('신규팀 카드(등록 회차): 「보증금(1개월분) 입금 확인 후 승인 · 이용료는 시작일 전날(11/13)까지 · 다음 회차부터 사용 3주차」', teamsHtml.includes('보증금(1개월분) 입금 확인 후 승인') && teamsHtml.includes('시작일 전날(11/13)까지') && teamsHtml.includes('사용 3주차'));
   chk('벤더 계약 정보: 등록 비밀번호(4자리) 0921 표시 + 계약 폼 칸에 미리 채움 · 신규팀은 4444', teamsHtml.includes('등록 비밀번호(4자리)') && teamsHtml.includes('<span class="band-pin">0921</span>') && teamsHtml.includes('<span class="band-pin">4444</span>') && (await p.evaluate((id) => document.getElementById('bc-pin-' + id).value, VANDOR)) === '0921');
   await p.evaluate((id) => { document.getElementById('bc-pin-' + id).value = '7788'; return saveBandContract(id, document.querySelector(`#bc-form-${id} .gaa-btn-primary`)); }, VANDOR);
   await p.waitForTimeout(600);
@@ -321,7 +327,7 @@ const FAKE_SB = `
   await p.evaluate((id) => { document.getElementById(`def-ok-${id}`).checked = true; document.getElementById(`def-note-${id}`).value = ''; document.getElementById(`def-off-${id}`).value = 'rental'; return bandDefSave(id, document.querySelector(`#def-row-${id} .gaa-btn-primary`)); }, D.tueNight);
   await p.waitForTimeout(600);
   const defUpd = await lastCall('band_slot_defs', 'update');
-  chk('띠 저장: band_ok true · note null · off_reason rental', !!defUpd && defUpd.payload.band_ok === true && defUpd.payload.note === null && defUpd.payload.rental_ok === true && defUpd.payload.off_reason === 'rental', JSON.stringify(defUpd && defUpd.payload));
+  chk('띠 저장: band_ok true · note null · off_reason rental · fee(4주 이용료) 칸 포함', !!defUpd && defUpd.payload.band_ok === true && defUpd.payload.note === null && defUpd.payload.rental_ok === true && defUpd.payload.off_reason === 'rental' && 'fee' in defUpd.payload && (await p.evaluate(() => !!document.querySelector('#bandAdminView input[id^="def-fee-"]') && !!document.getElementById('def-new-fee') && document.getElementById('bandAdminView').innerHTML.includes('4주 250,000원'))), JSON.stringify(defUpd && defUpd.payload));
   await p.evaluate(() => { document.getElementById('def-new-dow').value = '4'; document.getElementById('def-new-start').value = '18:00'; document.getElementById('def-new-end').value = '23:00'; document.getElementById('def-new-label').value = '야간'; return bandDefAdd(document.querySelector('#def-new-result').previousElementSibling.querySelector('.gaa-btn-primary')); });
   await p.waitForTimeout(600);
   const defIns = await lastCall('band_slot_defs', 'insert');

@@ -124,21 +124,27 @@ export function bandSignupText(p, claims) {
     const startLine = p.band_start_date ? `\n- 희망 시작일: ${mdw(p.band_start_date)}부터${monthsOf(p) ? ` · 예상 ${monthsOf(p)}` : ''}` : '';
     const idLine = p.instruments ? `\n- 로그인 아이디: ${p.instruments} (밴드 영문명)` : '';
     const cabLine = bandCabinetLine(p) ? `\n- 캐비넷: ${bandCabinetLine(p)}` : '';
+    // 보증금(1개월분) 안내는 접수 단계에서(2026-11-07): 입금이 확인되면 운영자가 승인한다. 금액은 가입 때 고른 띠의 4주 이용료 합(band_deposit) — 없으면 금액 없이
+    const dep = Number(p.band_deposit) > 0 ? `보증금(1개월분, ${won(p.band_deposit)})` : '보증금(1개월분 = 4주 이용료, 금액은 운영팀이 확인해 안내)';
     return `${BAND_GREETING}
 
 [${teamNameOf(p)}] 팀의 고정 합주팀 가입 신청이 접수되었습니다.
 
 - 신청 타임: ${slot || '미정'}${startLine}${cabLine}${idLine}
 
-운영팀이 일정을 확인한 뒤 승인 여부를 문자로 안내드립니다. 승인되면 보증금 입금 안내를 함께 보내드립니다.
-승인 전에는 로그인하셔도 대기 화면만 보입니다.
+${dep}을 아래 계좌로 입금해주시면 운영팀이 입금과 일정을 확인한 뒤 가입을 승인하고 승인 문자를 보내드립니다.
 
-※ 신청 내용 변경·문의: ${BAND_CONTACT}`;
+${BAND_BANK_LINE}
+
+※ 보증금은 사용 종료 시 반환되며, 등록 회차 이용료는 승인 뒤 시작일 전날까지 입금합니다.
+※ 승인 전에는 로그인하셔도 대기 화면만 보입니다. 신청 내용 변경·문의: ${BAND_CONTACT}`;
 }
 export function bandApproveText(p, claims) {
     const slot = bandSlotText(claims, p.timeslots);
     const start = p.band_start_date;
     const deposit = Number(p.band_deposit) > 0 ? `보증금(1개월분, ${won(p.band_deposit)})` : '보증금(1개월분)';
+    // 승인은 보증금 입금 확인 뒤가 원칙(2026-11-07): 입금일이 기록돼 있으면 확정 문구, 아니면 입금 확인 후 확정
+    const depLine = p.band_deposit_paid_at ? `${deposit} 입금이 확인되어 등록이 확정되었습니다.` : `${deposit} 입금 확인 후 등록이 확정됩니다. 아직 입금 전이면 아래 계좌로 입금해주세요.`;
     const fee = Number(p.band_fee) > 0 ? `고정 사용 이용료(${won(p.band_fee)})` : '고정 사용 이용료';
     const eve = start ? `시작일 전날(${mdOf(ymdAdd(start, -1))})까지` : '시작일 전날까지';
     return `${BAND_GREETING}
@@ -149,8 +155,8 @@ export function bandApproveText(p, claims) {
 - 시작일: ${start ? mdw(start) + '부터 4주 단위' : '추후 안내'}
 - 로그인: ${BAND_SITE} · 아이디 ${p.instruments || '(밴드 영문명)'} · 비밀번호 pw+숫자 4자리
 
-${deposit}을 아래 계좌로 입금해주시면 등록이 확정됩니다.
-${fee}는 ${eve} 입금해주세요.
+${depLine}
+${fee}는 ${eve} 아래 계좌로 입금해주세요.
 
 ${BAND_BANK_LINE}
 
@@ -169,7 +175,7 @@ export function bandRejectText(p) {
 }
 const BAND_TEXT = { signup: bandSignupText, approve: bandApproveText, reject: bandRejectText };
 const BAND_SUBJECT = { signup: '게더 올 어라운드 가입 접수', approve: '게더 올 어라운드 가입 승인', reject: '게더 올 어라운드 가입 안내' };
-const BAND_SAMPLE = { band_name_kr: '게더링', band_name_en: 'GatheO', instruments: 'gatheo', band_start_date: null, band_expected_months: '6개월', band_fee: 250000, band_deposit: 250000, timeslots: ['금_야간'], band_cabinet: true };
+const BAND_SAMPLE = { band_name_kr: '게더링', band_name_en: 'GatheO', instruments: 'gatheo', band_start_date: null, band_expected_months: '6개월', band_fee: 250000, band_deposit: 250000, band_deposit_paid_at: '2026-01-01', timeslots: ['금_야간'], band_cabinet: true };
 const isAdminBand = (t) => {
     const loginId = String(t.instruments || '').trim().toLowerCase();
     const emailId = String(t.email || '').trim().toLowerCase().split('@')[0];
@@ -193,7 +199,7 @@ async function solapiSend(env, to, text, subject) {
         body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject } }),
     });
 }
-const PROFILE_SEL = 'id,name,band_name_kr,band_name_en,instruments,email,member_type,status,leader_phone,phone,timeslots,band_start_date,band_expected_months,band_fee,band_deposit,created_at,band_cabinet';
+const PROFILE_SEL = 'id,name,band_name_kr,band_name_en,instruments,email,member_type,status,leader_phone,phone,timeslots,band_start_date,band_expected_months,band_fee,band_deposit,band_deposit_paid_at,created_at,band_cabinet';
 const PROFILE_SEL_NO_CABINET = PROFILE_SEL.replace(',band_cabinet', ''); // 마이그레이션(20261107_band_cabinet) 전 폴백
 // 고정 합주팀 문자 분기. 응답은 json(obj, status).
 async function handleBandSms(body, env, json) {

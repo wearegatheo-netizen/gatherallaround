@@ -139,14 +139,16 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
 // ── 6. 본문
 {
   const t1 = bandSignupText(TEAM(), CLAIMS);
-  chk('접수 문구: 팀명·금요일 18~23시·희망 시작일 11/14(토)·예상 6개월·아이디 vandor·승인되면 보증금 안내·문의 번호', ['[벤더] 팀의 고정 합주팀 가입 신청이 접수', '- 신청 타임: 금요일 18~23시', '- 희망 시작일: 11/14(토)부터 · 예상 6개월', '- 로그인 아이디: vandor (밴드 영문명)', '승인되면 보증금 입금 안내', '010-5109-1042'].every(x => t1.includes(x)) && !/[\u{1F300}-\u{1FAFF}]/u.test(t1), t1.slice(0, 120));
+  chk('접수 문구: 팀명·금요일 18~23시·희망 시작일 11/14(토)·예상 6개월·아이디 vandor·보증금(1개월분) 계좌 안내 → 입금 확인 뒤 승인·문의 번호', ['[벤더] 팀의 고정 합주팀 가입 신청이 접수', '- 신청 타임: 금요일 18~23시', '- 희망 시작일: 11/14(토)부터 · 예상 6개월', '- 로그인 아이디: vandor (밴드 영문명)', '보증금(1개월분 = 4주 이용료, 금액은 운영팀이 확인해 안내)을 아래 계좌로 입금해주시면 운영팀이 입금과 일정을 확인한 뒤 가입을 승인', '토스뱅크 1000-2274-7678 최경수', '등록 회차 이용료는 승인 뒤 시작일 전날까지', '010-5109-1042'].every(x => t1.includes(x)) && !/[\u{1F300}-\u{1FAFF}]/u.test(t1), t1.slice(0, 120));
+  chk('접수 문구(띠 이용료로 보증금 금액이 정해진 경우): 「보증금(1개월분, 250,000원)을 아래 계좌로」', bandSignupText(TEAM({ band_deposit: 250000, band_fee: 250000 }), CLAIMS).includes('보증금(1개월분, 250,000원)을 아래 계좌로 입금해주시면'));
   const t2 = bandApproveText(TEAM({ status: 'approved', band_fee: 250000, band_deposit: 250000 }), [{ ...CLAIMS[0], status: 'approved' }]);
-  chk('승인 문구: 매주 금요일 18~23시·11/14(토)부터 4주 단위·아이디·보증금(1개월분, 250,000원) 확정·이용료 시작일 전날(11/13)·계좌·캐비넷 2만원/숫자 4자리·사용 3주차·보증금 반환',
-    ['- 고정 시간: 매주 금요일 18~23시', '- 시작일: 11/14(토)부터 4주 단위', '아이디 vandor · 비밀번호 pw+숫자 4자리', '보증금(1개월분, 250,000원)을 아래 계좌로 입금해주시면 등록이 확정', '고정 사용 이용료(250,000원)는 시작일 전날(11/13)까지', '토스뱅크 1000-2274-7678 최경수',
+  chk('승인 문구: 매주 금요일 18~23시·11/14(토)부터 4주 단위·아이디·보증금(1개월분, 250,000원) 입금 확인 후 확정(입금일 미기록)·이용료 시작일 전날(11/13)·계좌·캐비넷 2만원/숫자 4자리·사용 3주차·보증금 반환',
+    ['- 고정 시간: 매주 금요일 18~23시', '- 시작일: 11/14(토)부터 4주 단위', '아이디 vandor · 비밀번호 pw+숫자 4자리', '보증금(1개월분, 250,000원) 입금 확인 후 등록이 확정됩니다', '고정 사용 이용료(250,000원)는 시작일 전날(11/13)까지', '토스뱅크 1000-2274-7678 최경수',
      '[캐비넷 이용 안내]', '회차당 2만원', '숫자 4자리가 캐비넷 비밀번호', '사용 3주차에 입금 안내 문자', '보증금은 사용 종료 시 반환'].every(x => t2.includes(x)), t2);
   chk('승인 문구 길이: LMS 한도 2,000byte 안(EUC-KR 근사)', kb(t2) < 2000, kb(t2) + 'byte');
   const t3 = bandApproveText(TEAM({ status: 'approved', band_start_date: null }), []);
-  chk('승인 문구(계약 정보·시작일·신청 행 없음): 금액 없이 「보증금(1개월분)을」·「고정 사용 이용료는 시작일 전날까지」·시작일 추후 안내·timeslots 폴백 「금요일 야간」', t3.includes('보증금(1개월분)을 아래') && t3.includes('고정 사용 이용료는 시작일 전날까지') && t3.includes('- 시작일: 추후 안내') && t3.includes('매주 금요일 야간'), t3.split('\n').slice(2, 8).join(' | '));
+  chk('승인 문구(계약 정보·시작일·신청 행 없음): 금액 없이 「보증금(1개월분) 입금 확인 후」·「고정 사용 이용료는 시작일 전날까지」·시작일 추후 안내·timeslots 폴백 「금요일 야간」', t3.includes('보증금(1개월분) 입금 확인 후 등록이 확정') && t3.includes('고정 사용 이용료는 시작일 전날까지') && t3.includes('- 시작일: 추후 안내') && t3.includes('매주 금요일 야간'), t3.split('\n').slice(2, 8).join(' | '));
+  chk('승인 문구(보증금 입금일 기록됨): 「보증금(1개월분, 250,000원) 입금이 확인되어 등록이 확정되었습니다」', bandApproveText(TEAM({ status: 'approved', band_deposit: 250000, band_deposit_paid_at: '2026-11-10' }), CLAIMS).includes('보증금(1개월분, 250,000원) 입금이 확인되어 등록이 확정되었습니다.'));
   const t4 = bandRejectText(TEAM({ status: 'rejected' }));
   chk('거절 문구: 아쉽게도 … 자리가 나면 다시 안내 · 문의 번호', t4.includes('[벤더] 팀의 고정 합주팀 가입 신청은 아쉽게도') && t4.includes('자리가 나면 다시 안내') && t4.includes('010-5109-1042'));
   chk('bandSlotText: 여러 타임 요일순 「월요일 18~23시, 금요일 9~14시」', bandSlotText([{ day_of_week: 5, start_time: '09:00', end_time: '14:00' }, { day_of_week: 1, start_time: '18:00', end_time: '23:00' }]) === '월요일 18~23시, 금요일 9~14시');
@@ -198,7 +200,7 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
 {
   mockFetch(bandRoutes(TEAM({ status: 'approved', band_fee: 250000, band_deposit: 250000 }), { claims: [{ ...CLAIMS[0], status: 'approved' }] }));
   const r = await run({ band_profile_id: TEAM_ID, kind: 'approve', sb_token: 'tok' }); const j = await r.json(); const m = solapiText();
-  chk('승인 문자: 세션 검증 → 운영자 확인 → 팀(approved) → log(approve, return=minimal) → 발송(제목 「가입 승인」, 금액 포함)', r.status === 200 && j.ok && calls.some(c => c.url.includes('/auth/v1/user')) && m && m.subject === '게더 올 어라운드 가입 승인' && m.text.includes('보증금(1개월분, 250,000원)') && m.text.includes('매주 금요일 18~23시') && calls.find(c => c.url.endsWith('/band_sms_log') && c.method === 'POST').headers.Prefer === 'return=minimal', JSON.stringify(j));
+  chk('승인 문자: 세션 검증 → 운영자 확인 → 팀(approved) → log(approve, return=minimal) → 발송(제목 「가입 승인」, 금액 포함)', r.status === 200 && j.ok && calls.some(c => c.url.includes('/auth/v1/user')) && m && m.subject === '게더 올 어라운드 가입 승인' && m.text.includes('보증금(1개월분, 250,000원)') && m.text.includes('매주 금요일 18~23시') && calls.some(c => c.url.includes('profiles?id=eq.' + TEAM_ID) && c.url.includes('band_deposit_paid_at')) && calls.find(c => c.url.endsWith('/band_sms_log') && c.method === 'POST').headers.Prefer === 'return=minimal', JSON.stringify(j));
   chk('승인 문자: 승인 상태 신청 행만 조회(status=in.(approved))', calls.some(c => c.url.includes('band_slot_claims') && c.url.includes('status=in.(approved)')));
   mockFetch(bandRoutes(TEAM({ status: 'approved' })));
   chk('승인 문자: sb_token 없음 → 401', (await run({ band_profile_id: TEAM_ID, kind: 'approve' })).status === 401);

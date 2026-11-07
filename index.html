@@ -2649,6 +2649,8 @@
                     <label style="display:flex;justify-content:center"><input type="checkbox" class="band-timeslot-checkbox" value="일_야간"></label>
                 </div>
 
+                <!-- 보증금 안내(2026-11-07): 접수 문자로 계좌·금액(띠별 4주 이용료 합 = 1개월분)을 안내하고, 입금 확인 뒤 운영자가 승인한다 -->
+                <div class="band-id-note" id="bandSignupDepositNote">신청이 접수되면 문자로 <strong>보증금(1개월분 = 4주 이용료)</strong> 입금 계좌를 안내해드려요. 입금이 확인되면 운영팀이 가입을 승인합니다.</div>
                 <!-- 캐비넷 사용 여부(2026-11-07): 6개월 이상 사용 팀 무료 · 미만 회차당 2만원 — 6개월 이상 팀도 쓸지 말지는 받아야 한다 -->
                 <div style="text-align:left;margin-bottom:4px;margin-top:8px">
                     <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">캐비넷 사용 <span style="color:#e74c3c">*</span></label>
@@ -12766,8 +12768,8 @@
                     '고정 시간 변경·추가는 로그인 후 <strong>요청사항</strong>으로 남겨주시면 운영팀이 달력에 반영합니다.'), true)}
                 ${sec('✍️', '등록 절차와 첫 회차', ol(
                     '[고정 가능 시간 보기]에서 희망 시작일·예상 사용 기간을 넣고 타임을 고른 뒤 <strong>가입 신청</strong>(팀 리더 이름·연락처, 밴드명, 비밀번호, 캐비넷 사용 여부)을 보냅니다.',
-                    '접수되면 팀 리더 번호로 <strong>접수 확인 문자</strong>가 갑니다. 운영팀이 일정을 확인해 승인하면 <strong>승인 안내 문자</strong>(고정 시간·시작일·입금 안내)를 보내드려요.',
-                    '<strong>보증금(1개월분)</strong>을 입금하면 등록이 확정됩니다.',
+                    '접수되면 팀 리더 번호로 <strong>접수 확인 문자</strong>가 가고, 그 문자에 <strong>보증금(1개월분 = 4주 이용료)</strong> 입금 계좌가 있어요.',
+                    '보증금 입금이 확인되면 운영팀이 일정을 확인해 승인하고 <strong>승인 안내 문자</strong>(고정 시간·시작일·이용료 안내)를 보내드립니다.',
                     '등록 회차 <strong>이용료는 시작일 전날까지</strong> 입금해주세요.') + note(`로그인 <strong>아이디는 밴드 영문명</strong>(영문·숫자만 소문자)으로 자동 지정되고, 비밀번호는 <strong>pw + 숫자 4자리</strong>예요. 이 숫자 4자리는 6개월 이상 사용·캐비넷 이용 시 등록 비밀번호가 됩니다.`))}
                 ${sec('💰', '회차와 이용료', ul(
                     '한 회차는 <strong>시작일부터 4주(28일)</strong>입니다. 회차가 끝나기 전에 다음 회차 이용료를 입금하면 자동으로 연장돼요.',
@@ -12816,7 +12818,7 @@
         }
         function showBandSignupForm() {
             _bandLandingShow('band-signup-form');
-            bandSignupAvailInit().then(() => bandSignupCabinetNote()).catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
+            bandSignupAvailInit().then(() => { bandSignupCabinetNote(); bandSignupDepositNote(); }).catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -12926,6 +12928,8 @@
                         band_cabinet: cabinet,
                     };
                     if (picked) { meta.band_start_date = picked.start; meta.band_expected_months = `${picked.months}개월`; } // 희망 시작일·예상 사용 기간(현황표 「등록 예정일·사용 개월수」, 승인 때 확정·겹침 계산 범위)
+                    const signupFee = picked ? bandSignupFeeOf(picked.defs) : null; // 띠별 4주 이용료 합 → 이용료·보증금(1개월분) 미리 채움(접수 문자 금액·계약 정보 기본값, 운영자가 수정 가능)
+                    if (signupFee) { meta.band_fee = signupFee; meta.band_deposit = signupFee; }
                     let { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
                     if (pErr && /band_cabinet/.test(pErr.message || '')) { // 마이그레이션(20261107_band_cabinet) 전 — 캐비넷 없이 저장(가입은 진행)
                         console.warn('profiles.band_cabinet 컬럼 없음 — 20261107_band_cabinet.sql 실행 필요');
@@ -13702,7 +13706,20 @@
             const next = document.getElementById('bandScheduleNextBtn');
             if (next) { next.disabled = false; next.textContent = picked.length ? `이 타임으로 가입 신청하기 (${picked.length}개)` : '가입 신청으로'; }
         }
-        function bandSignupToggleSlot(id) { if (_bandSignupSel.has(id)) _bandSignupSel.delete(id); else _bandSignupSel.add(id); bandSignupAvailRender(); }
+        function bandSignupToggleSlot(id) { if (_bandSignupSel.has(id)) _bandSignupSel.delete(id); else _bandSignupSel.add(id); bandSignupAvailRender(); bandSignupDepositNote(); }
+        // 선택한 띠의 4주 이용료 합(모든 띠에 fee 가 있을 때만) — 보증금(1개월분)과 같은 금액. 없으면 null(접수 문자가 금액 없이 안내)
+        function bandSignupFeeOf(defs) {
+            if (!defs || !defs.length || !defs.every(d => Number(d.fee) > 0)) return null;
+            return defs.reduce((n, d) => n + Number(d.fee), 0);
+        }
+        function bandSignupDepositNote() {
+            const el = document.getElementById('bandSignupDepositNote'); if (!el) return;
+            const picked = bandSignupSelection();
+            const fee = picked ? bandSignupFeeOf(picked.defs) : null;
+            el.innerHTML = fee
+                ? `선택한 타임 기준 4주 이용료 <strong>${bandWon(fee)}</strong> → 접수 문자로 <strong>보증금(1개월분) ${bandWon(fee)}</strong> 입금 계좌를 안내해드려요. 입금이 확인되면 운영팀이 가입을 승인하고, 등록 회차 이용료는 시작일 전날까지 입금해요.`
+                : `신청이 접수되면 문자로 <strong>보증금(1개월분 = 4주 이용료)</strong> 입금 계좌를 안내해드려요. 입금이 확인되면 운영팀이 가입을 승인합니다.`;
+        }
         // 가입 신청 제출용: 새 표가 살아 있으면 {defs, start} / 폴백(종전 체크박스)이면 null
         function bandSignupSelection() {
             if (!_bandSignupUsesTable()) return null;
@@ -14008,13 +14025,14 @@
             const endOpt = (sel) => TIMES.map((t, i) => { const e = TIMES[i + 1] || '23:00'; return `<option value="${e}"${e === sel ? ' selected' : ''}>${e}</option>`; }).join('');
             const defRow = (d) => `
                 <div class="band-def-row" id="def-row-${d.id}">
-                    <div class="band-def-main"><strong>${BAND_DOW[d.day_of_week]} ${_bandRangeText(d.start_time, d.end_time)}</strong> <span class="band-muted">${escHtml(d.label || '')}</span>
+                    <div class="band-def-main"><strong>${BAND_DOW[d.day_of_week]} ${_bandRangeText(d.start_time, d.end_time)}</strong> <span class="band-muted">${escHtml(d.label || '')}${d.fee ? ` · 4주 ${bandWon(d.fee)}` : ''}</span>
                         <span class="status-badge sm ${BAND_KIND_CHIP[rows.find(r => r.def.id === d.id)?.st.kind] || 'status-neutral'}">${escHtml(rows.find(r => r.def.id === d.id)?.st.label || '')}</span></div>
                     <div class="band-def-ctl">
                         <label class="band-def-chk"><input type="checkbox" id="def-ok-${d.id}"${d.band_ok !== false ? ' checked' : ''}> 고정팀</label>
                         <label class="band-def-chk"><input type="checkbox" id="def-rent-${d.id}"${d.rental_ok !== false ? ' checked' : ''}> 대관</label>
                         <select id="def-off-${d.id}" class="band-input" title="고정팀을 끄면 표에 보일 사유"><option value="rental"${d.off_reason !== 'team' ? ' selected' : ''}>불가 사유: 대관만</option><option value="team"${d.off_reason === 'team' ? ' selected' : ''}>불가 사유: 고정팀 사용 중</option></select>
                         <input type="date" id="def-from-${d.id}" class="band-input" value="${escAttr(d.open_from || '')}" title="이 날짜부터 신청 가능">
+                        <input type="number" id="def-fee-${d.id}" class="band-input" value="${d.fee ?? ''}" min="0" step="1000" placeholder="4주 이용료(원)" title="4주 이용료 — 보증금(1개월분)도 같은 금액으로 가입 접수 문자에 안내">
                         <input type="text" id="def-note-${d.id}" class="band-input" value="${escAttr(d.note || '')}" placeholder="메모(운영자용)">
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandDefSave('${d.id}', this)">저장</button>
                         <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="bandDefDelete('${d.id}', this)">삭제</button>
@@ -14038,6 +14056,7 @@
                         <span>~</span>
                         <select id="def-new-end" class="band-input">${endOpt('18:00')}</select>
                         <select id="def-new-label" class="band-input"><option value="오전">오전</option><option value="주간" selected>주간</option><option value="야간">야간</option></select>
+                        <input type="number" id="def-new-fee" class="band-input" min="0" step="1000" placeholder="4주 이용료(원)">
                         <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="bandDefAdd(this)">추가</button>
                     </div>
                     <div id="def-new-result" class="band-form-result"></div>
@@ -14045,15 +14064,20 @@
         }
         async function bandDefSave(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
+            const feeRaw = (document.getElementById(`def-fee-${id}`)?.value || '').trim();
+            const fee = feeRaw === '' ? null : parseInt(feeRaw, 10);
+            if (feeRaw !== '' && !(Number.isInteger(fee) && fee >= 0)) { showToast('4주 이용료는 숫자(원)로 적어주세요.'); return; }
             const upd = { band_ok: !!document.getElementById(`def-ok-${id}`)?.checked, rental_ok: !!document.getElementById(`def-rent-${id}`)?.checked,
                 open_from: document.getElementById(`def-from-${id}`)?.value || null, note: (document.getElementById(`def-note-${id}`)?.value || '').trim() || null,
-                off_reason: document.getElementById(`def-off-${id}`)?.value === 'team' ? 'team' : 'rental' };
+                off_reason: document.getElementById(`def-off-${id}`)?.value === 'team' ? 'team' : 'rental', fee };
             _bandBusy(btn, true);
             let { error } = await supabaseClient.from('band_slot_defs').update(upd).eq('id', id);
-            if (error && /off_reason/.test(error.message || '')) { // 마이그레이션(20261105_band_slot_off_reason) 전 — 사유 없이 저장
-                const { off_reason, ...plain } = upd;
-                ({ error } = await supabaseClient.from('band_slot_defs').update(plain).eq('id', id));
-                if (!error) showToast('불가 사유 컬럼(off_reason)이 없어 사유 없이 저장했습니다. 20261105_band_slot_off_reason.sql 을 실행해주세요.', 6000);
+            // 새 컬럼 마이그레이션 전이면 그 값만 빼고 다시 저장(off_reason 2026-11-05 / fee 2026-11-07)
+            for (const [col, mig] of [['off_reason', '20261105_band_slot_off_reason'], ['fee', '20261107_band_slot_def_fee']]) {
+                if (!error || !new RegExp(col).test(error.message || '')) continue;
+                delete upd[col];
+                ({ error } = await supabaseClient.from('band_slot_defs').update(upd).eq('id', id));
+                if (!error) showToast(`${col} 컬럼이 없어 그 값 없이 저장했습니다. ${mig}.sql 을 실행해주세요.`, 6000);
             }
             _bandBusy(btn, false);
             if (error) { console.error(error); showToast('저장하지 못했습니다.'); return; }
@@ -14074,8 +14098,12 @@
             const showErr = (m) => { if (res) { res.textContent = m; res.style.color = '#e74c3c'; } };
             const dow = parseInt(document.getElementById('def-new-dow').value, 10), s = document.getElementById('def-new-start').value, e = document.getElementById('def-new-end').value, label = document.getElementById('def-new-label').value;
             if (!(TIMES.indexOf(s) < TIMES.indexOf(_bandBlockEnd(e)) + 1)) { showErr('끝 시각이 시작보다 늦어야 합니다.'); return; }
+            const feeRaw = (document.getElementById('def-new-fee')?.value || '').trim();
+            const row = { day_of_week: dow, start_time: s, end_time: e, label, band_ok: true, rental_ok: true };
+            if (feeRaw !== '') { const f = parseInt(feeRaw, 10); if (!(Number.isInteger(f) && f >= 0)) { showErr('4주 이용료는 숫자(원)로 적어주세요.'); return; } row.fee = f; }
             _bandBusy(btn, true);
-            const { error } = await supabaseClient.from('band_slot_defs').insert({ day_of_week: dow, start_time: s, end_time: e, label, band_ok: true, rental_ok: true });
+            let { error } = await supabaseClient.from('band_slot_defs').insert(row);
+            if (error && 'fee' in row && /fee/.test(error.message || '')) { delete row.fee; ({ error } = await supabaseClient.from('band_slot_defs').insert(row)); if (!error) showToast('fee 컬럼이 없어 이용료 없이 추가했습니다. 20261107_band_slot_def_fee.sql 을 실행해주세요.', 6000); }
             _bandBusy(btn, false);
             if (error) { showErr(error.code === '23505' ? '같은 요일·시작 시각의 띠가 이미 있습니다.' : '추가하지 못했습니다. (' + error.message + ')'); return; }
             showToast('시간 띠를 추가했습니다.'); renderBandAdminTab();
@@ -14237,7 +14265,7 @@
         function bandCycleSummaryHTML(t, info) {
             if (info.mode === 'none') return '<div class="band-muted">시작일이 없어 회차·입금 안내를 계산할 수 없습니다. [계약 정보]에서 첫 회차 시작일을 입력해주세요.</div>';
             if (info.mode === 'legacy') return `<div class="band-muted">시작일 미설정 — 마지막 납부일(${escHtml(info.lastPaid)}) 기준 다음 납부 예정 ${escHtml(info.next)}. 계약 정보를 입력하면 회차·문자 안내가 시작됩니다.</div>`;
-            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 보증금(1개월분) 입금으로 등록 확정 · 등록 회차 이용료는 <strong>시작일 전날(${bandMD(_bandAddDays(info.start, -1))})까지</strong> 입금 · 다음 회차부터는 사용 3주차에 입금 안내</div>`;
+            if (info.n === 0) return `<div>등록 회차 <strong>${bandMD(info.start)}(${bandWD(info.start)})</strong> 시작 예정 · 보증금(1개월분) 입금 확인 후 승인 · 등록 회차 이용료는 <strong>시작일 전날(${bandMD(_bandAddDays(info.start, -1))})까지</strong> 입금 · 다음 회차부터는 사용 3주차에 입금 안내</div>`;
             if (info.ended) return `<div>고정 사용이 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong>에 종료되었습니다.</div>`;
             if (info.ending) return `<div>이번 회차 <strong>${bandCycleLabel(info.cur)}</strong> ${bandMD(info.curStart)} ~ ${bandMD(info.curEnd)} · 고정 사용 <strong>${bandMD(info.endDate)}(${bandWD(info.endDate)})</strong> 종료 예정 · 다음 회차 없음</div>`;
             const endNote = info.endDate ? ` · 종료 예정 ${bandMD(info.endDate)}` : '';
@@ -14274,7 +14302,8 @@
                 slotSection = pendingClaims.length
                     ? `<div class="band-muted" style="margin-top:8px">신청 타임 <strong>${escHtml(bandClaimsText(pendingClaims))}</strong> · 희망 시작일 ${escHtml(_bandMDW(pendingClaims[0].start_date))} — [승인]을 누르면 겹치는 주를 계산해 달력에 반영합니다.</div>`
                     : '';
-                slotSection = `<div class="band-muted" style="margin-top:6px">캐비넷 <strong>${escHtml(bandCabinetLabel(t))}</strong>${t.band_expected_months ? ` · 예상 ${escHtml(t.band_expected_months)}` : ''}</div>` + bandReturningHTML(t) + slotSection;
+                const depositLine = `<div class="band-muted" style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span>보증금(1개월분) <strong>${t.band_deposit ? bandWon(t.band_deposit) : '금액 미정'}</strong> · ${t.band_deposit_paid_at ? `<span class="status-badge sm status-approved">${bandMD(t.band_deposit_paid_at)} 입금 확인</span>` : '<span class="status-badge sm status-pending">입금 확인 전</span>'}</span>${t.band_deposit_paid_at ? '' : `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandMarkDepositPaid('${t.id}', this)">입금 확인</button>`}</div>`;
+                slotSection = depositLine + `<div class="band-muted" style="margin-top:6px">캐비넷 <strong>${escHtml(bandCabinetLabel(t))}</strong>${t.band_expected_months ? ` · 예상 ${escHtml(t.band_expected_months)}` : ''}</div>` + bandReturningHTML(t) + slotSection;
                 const pin = (cache.pinsMap || {})[t.id];
                 if (pin) slotSection = `<div class="band-muted" style="margin-top:6px">등록 비밀번호(숫자 4자리) <span class="band-pin">${escHtml(pin)}</span> · 6개월 이상·캐비넷 이용 시 등록</div>` + slotSection;
                 slotSection += `<div id="ba-form-${t.id}" class="band-inline-form" hidden></div>`;
@@ -14502,8 +14531,31 @@
             try { await _bandSendSms(id, 'approve', { resend: true, manual: true }); } finally { _bandBusy(btn, false); }
         }
 
+        // 가입 신청 카드 [입금 확인]: 보증금(1개월분) 입금일을 오늘로 기록(금액이 비어 있으면 묻는다) — 승인은 입금 확인 뒤가 원칙(2026-11-07)
+        async function bandMarkDepositPaid(id, btn) {
+            if (!supabaseClient || !isBandAdmin()) return;
+            const t = ((state.bandAdminCache || {}).teams || []).find(x => x.id === id) || {};
+            const upd = { band_deposit_paid_at: bandTodayStr() };
+            if (!t.band_deposit) {
+                const raw = prompt('보증금(1개월분) 금액을 원 단위로 적어주세요.', t.band_fee ? String(t.band_fee) : '');
+                if (raw === null) return;
+                const n = parseInt(String(raw).replace(/\D/g, ''), 10);
+                if (!(n > 0)) { showToast('금액을 숫자로 적어주세요.'); return; }
+                upd.band_deposit = n;
+                if (!t.band_fee) upd.band_fee = n;
+            }
+            _bandBusy(btn, true, '저장 중…');
+            try {
+                const { error } = await supabaseClient.from('profiles').update(upd).eq('id', id);
+                if (error) { console.error('band deposit paid:', error); showToast('저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                showToast('보증금 입금을 확인으로 기록했습니다. 이제 [승인]을 눌러주세요.');
+                renderBandAdminTab();
+            } finally { _bandBusy(btn, false); }
+        }
         async function approveBandProfile(id, btn) {
             if (!supabaseClient || !isBandAdmin()) return;
+            const tq = ((state.bandAdminCache || {}).teams || []).find(x => x.id === id);
+            if (tq && !tq.band_deposit_paid_at && !confirm('보증금(1개월분) 입금 확인 전입니다. 그래도 승인할까요?\n(원칙: 접수 문자로 안내한 보증금이 입금되면 [입금 확인] → [승인])')) return;
             // 타임 신청이 있으면 승인 폼(시작일·겹치는 주 → 달력 반영)으로, 없으면 종전처럼 상태만 승인
             const pendingClaims = (((state.bandAdminCache || {}).claimsMap || {})[id] || []).filter(c => c.status === 'pending');
             if (pendingClaims.length && !_bandSlotsUnavailable) { openBandApproval(id); return; }
