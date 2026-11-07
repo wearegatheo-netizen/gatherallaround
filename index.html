@@ -1646,6 +1646,9 @@
         .band-pw-row { display: flex; align-items: stretch; gap: 8px; }
         .band-pw-row > input { flex: 1; min-width: 0; }
         .band-pw-prefix { display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 0 14px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); background: var(--wds-gray-100); font-weight: 800; font-size: 1rem; color: var(--wds-gray-700); letter-spacing: 0.5px; }
+        .band-radio-row { display: flex; gap: 18px; margin: 2px 0 10px; text-align: left; }
+        .band-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 0.92rem; cursor: pointer; }
+        .band-radio input { width: 18px; height: 18px; margin: 0; accent-color: var(--wds-primary); }
         .band-pw-note, .band-id-note { margin-top: -4px; font-size: 0.8rem; line-height: 1.55; color: var(--wds-gray-600); text-align: left; padding: 10px 12px; border-radius: 10px; background: var(--wds-gray-100); }
         .band-menu { display: flex; flex-direction: column; gap: 10px; }
         .band-menu-intro { margin: 0 0 6px; font-size: 0.9rem; line-height: 1.6; color: var(--wds-gray-700); }
@@ -2626,9 +2629,19 @@
                     <label style="display:flex;justify-content:center"><input type="checkbox" class="band-timeslot-checkbox" value="일_야간"></label>
                 </div>
 
+                <!-- 캐비넷 사용 여부(2026-11-07): 6개월 이상 사용 팀 무료 · 미만 회차당 2만원 — 6개월 이상 팀도 쓸지 말지는 받아야 한다 -->
+                <div style="text-align:left;margin-bottom:4px;margin-top:8px">
+                    <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">캐비넷 사용 <span style="color:#e74c3c">*</span></label>
+                </div>
+                <div class="band-radio-row" id="bandSignupCabinetRow">
+                    <label class="band-radio"><input type="radio" name="bandSignupCabinet" value="1"> 사용함</label>
+                    <label class="band-radio"><input type="radio" name="bandSignupCabinet" value="0"> 사용 안 함</label>
+                </div>
+                <div class="band-id-note" id="bandSignupCabinetNote">캐비넷은 <strong>6개월 이상</strong> 사용 팀은 무료, 그 미만은 <strong>회차당 2만원</strong>(이용료와 함께 입금)이에요. 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록돼요.</div>
+
                 <div class="privacy-box">
                     <strong>개인정보 수집·이용 동의 (필수)</strong><br>
-                    • 수집 항목: 팀 리더 이름, 전화번호, 밴드명(국문/영문), 아이디, 합주 타임<br>
+                    • 수집 항목: 팀 리더 이름, 전화번호, 밴드명(국문/영문), 아이디, 합주 타임, 캐비넷 사용 여부<br>
                     • 수집 목적: 고정 합주팀 서비스 제공 및 팀 관리, 신청 접수·승인 결과·이용료 안내 문자 발송<br>
                     • 보유 기간: 회원 탈퇴 시까지<br>
                     • 동의를 거부할 권리가 있으며, 거부 시 회원가입이 제한됩니다.<br><br>
@@ -12718,7 +12731,7 @@
         }
         function showBandSignupForm() {
             _bandLandingShow('band-signup-form');
-            bandSignupAvailInit().catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
+            bandSignupAvailInit().then(() => bandSignupCabinetNote()).catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
         }
 
         const BAND_ID_DOMAIN = '@band.gatheo.kr';
@@ -12775,6 +12788,8 @@
             const pwDigits2 = (document.getElementById('bandSignupPwDigitsConfirm').value || '').trim();
             const password = 'pw' + pwDigits; // 규칙: pw + 숫자 4자리
             const consent = document.getElementById('bandPrivacyConsent').checked;
+            const cabinetEl = document.querySelector('input[name="bandSignupCabinet"]:checked');
+            const cabinet = cabinetEl ? cabinetEl.value === '1' : null; // 캐비넷 사용 여부(필수)
             // 실시간 타임표(새)에서 고른 띠 → timeslots(종전 표기 월_야간)·band_slot_claims. 표가 없으면 종전 체크박스 값.
             const picked = bandSignupSelection();
             const timeslots = picked ? picked.defs.map(bandSlotLegacyKey) : Array.from(document.querySelectorAll('.band-timeslot-checkbox:checked')).map(cb => cb.value);
@@ -12791,6 +12806,7 @@
             if (!/^010-\d{4}-\d{4}$/.test(leaderPhone) && !/^01[0-9]{8,9}$/.test(leaderPhone.replace(/-/g,''))) { showErr('올바른 전화번호를 입력해주세요.'); return; }
             if (!/^\d{4}$/.test(pwDigits) || !BAND_PW_RE.test(password)) { showErr('비밀번호는 pw 뒤에 숫자 4자리로 정해주세요. (예: pw1234)'); return; }
             if (pwDigits !== pwDigits2) { showErr('비밀번호 확인의 숫자 4자리가 일치하지 않습니다.'); return; }
+            if (cabinet === null) { showErr('캐비넷 사용 여부를 선택해주세요.'); return; }
             if (!consent) { showErr('개인정보 수집·이용에 동의해주세요.'); return; }
             if (!supabaseClient) { showErr('서비스 연결 오류입니다.'); return; }
 
@@ -12801,7 +12817,7 @@
             try {
                 const email = bandIdToEmail(rawId);
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) { showErr(/already|exist|registered/i.test(error.message || '') ? `이미 같은 아이디(${rawId})로 가입한 팀이 있어요. 밴드 영문명을 조금 바꿔주세요.` : '가입 신청 실패: ' + error.message); return; }
+                if (error) { showErr(/already|exist|registered/i.test(error.message || '') ? `이미 같은 아이디(${rawId})로 가입한 팀이 있어요. 예전에 이용한 팀이면 기존 아이디로 로그인하거나 ${PORTAL_PHONE} 로 문의해주시고, 새 팀이면 밴드 영문명을 조금 바꿔주세요.` : '가입 신청 실패: ' + error.message); return; }
                 if (data?.user) {
                     const meta = {
                         id: data.user.id,
@@ -12815,10 +12831,16 @@
                         member_type: 'band',
                         instruments: rawId,
                         status: 'pending',
-                        role: '일반'
+                        role: '일반',
+                        band_cabinet: cabinet,
                     };
                     if (picked) { meta.band_start_date = picked.start; meta.band_expected_months = `${picked.months}개월`; } // 희망 시작일·예상 사용 기간(현황표 「등록 예정일·사용 개월수」, 승인 때 확정·겹침 계산 범위)
-                    const { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
+                    let { error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' });
+                    if (pErr && /band_cabinet/.test(pErr.message || '')) { // 마이그레이션(20261107_band_cabinet) 전 — 캐비넷 없이 저장(가입은 진행)
+                        console.warn('profiles.band_cabinet 컬럼 없음 — 20261107_band_cabinet.sql 실행 필요');
+                        delete meta.band_cabinet;
+                        ({ error: pErr } = await supabaseClient.from('profiles').upsert(meta, { onConflict: 'id' }));
+                    }
                     if (pErr) console.error('Band profile upsert error:', pErr);
                     // 비밀번호 숫자 4자리 → 운영자 전용 표(band_pins, 마이그레이션 20261105_band_pins.sql) — 캐비넷·6개월 이상 등록용. 표가 없어도 가입은 진행.
                     try { const { error: pinErr } = await supabaseClient.from('band_pins').upsert({ profile_id: data.user.id, pin: pwDigits }, { onConflict: 'profile_id' }); if (pinErr) console.error('band_pins upsert error:', pinErr); } catch (e) { console.error('band_pins:', e); }
@@ -12830,7 +12852,7 @@
                     // 접수 확인 문자(팀 리더 번호) — /send-sms 가 서비스 롤로 대조·15분 안·band_sms_log 1회 선점. 실패해도 가입은 완료.
                     fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ band_signup_id: data.user.id }) }).catch(() => {});
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
-                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''}`).catch(() => {}), 400);
+                    setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''} · 캐비넷 ${cabinet ? '사용' : '미사용'}`).catch(() => {}), 400);
                 }
                 showToast('가입 신청이 완료되었습니다! 관리자 승인 후 이용 가능합니다.');
                 showBandLoginForm();
@@ -13118,6 +13140,7 @@
                 <div class="band-form-grid">
                     <label>첫 회차 시작일<input type="date" id="bc-start-${id}" class="band-input" value="${escAttr(t.band_start_date || '')}"></label>
                     <label>예상 사용 개월수<input type="text" id="bc-months-${id}" class="band-input" placeholder="예: 6개월 이상" value="${escAttr(t.band_expected_months || '')}"></label>
+                    <label>캐비넷(6개월 이상 무료 · 미만 회차당 2만원)<select id="bc-cabinet-${id}" class="band-input"><option value=""${t.band_cabinet == null ? ' selected' : ''}>미응답</option><option value="1"${t.band_cabinet === true ? ' selected' : ''}>사용함</option><option value="0"${t.band_cabinet === false ? ' selected' : ''}>사용 안 함</option></select></label>
                     <label>보증금(원)<input type="number" id="bc-deposit-${id}" class="band-input" inputmode="numeric" placeholder="200000" value="${escAttr(t.band_deposit ?? '')}"></label>
                     <label>보증금 입금일<input type="date" id="bc-deposit-at-${id}" class="band-input" value="${escAttr(t.band_deposit_paid_at || '')}"></label>
                     <label>고정 사용 종료 예정일<input type="date" id="bc-end-${id}" class="band-input" value="${escAttr(t.band_end_date || '')}" title="마지막 사용일 — 비우면 기한 없음"></label>
@@ -13143,7 +13166,7 @@
             const res = document.getElementById(`bc-result-${teamId}`);
             const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
             if (res) res.textContent = '';
-            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo'), pin = v('bc-pin'), endDate = v('bc-end');
+            const start = v('bc-start'), months = v('bc-months'), deposit = v('bc-deposit'), depositAt = v('bc-deposit-at'), fee = v('bc-fee'), memo = v('bc-memo'), pin = v('bc-pin'), endDate = v('bc-end'), cabinet = v('bc-cabinet');
             if (pin && !/^\d{4}$/.test(pin)) { showErr('등록 비밀번호는 숫자 4자리여야 합니다.'); return; }
             if (start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) { showErr('시작일 형식이 올바르지 않습니다.'); return; }
             if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) { showErr('종료 예정일 형식이 올바르지 않습니다.'); return; }
@@ -13158,12 +13181,15 @@
                     band_start_date: start || null, band_expected_months: months || null,
                     band_deposit: toInt(deposit), band_deposit_paid_at: depositAt || null,
                     band_fee: toInt(fee), band_memo: memo || null, band_end_date: endDate || null,
+                    band_cabinet: cabinet === '' ? null : cabinet === '1',
                 };
                 let { error } = await supabaseClient.from('profiles').update(payload).eq('id', teamId);
-                if (error && /band_end_date/.test(error.message || '')) { // 마이그레이션(20261105_band_end_date) 전 — 종료 예정일 없이 저장
-                    const { band_end_date, ...plain } = payload;
-                    ({ error } = await supabaseClient.from('profiles').update(plain).eq('id', teamId));
-                    if (!error && endDate) showToast('종료 예정일 컬럼(band_end_date)이 없어 그 값은 저장하지 못했습니다. 20261105_band_end_date.sql 을 실행해주세요.', 6000);
+                // 새 컬럼 마이그레이션 전이면 그 값만 빼고 다시 저장 + 안내(2026-11-05 종료 예정일 / 2026-11-07 캐비넷)
+                for (const [col, mig] of [['band_end_date', '20261105_band_end_date'], ['band_cabinet', '20261107_band_cabinet']]) {
+                    if (!error || !new RegExp(col).test(error.message || '')) continue;
+                    delete payload[col];
+                    ({ error } = await supabaseClient.from('profiles').update(payload).eq('id', teamId));
+                    if (!error) showToast(`${col} 컬럼이 없어 그 값은 저장하지 못했습니다. ${mig}.sql 을 실행해주세요.`, 6000);
                 }
                 if (error) { console.error('band contract save error:', error); showErr('저장하지 못했습니다. 잠시 후 다시 시도해주세요. (컬럼이 없다면 20260915 마이그레이션을 먼저 실행하세요)'); return; }
                 if ((endDate || null) !== prevEnd) await _bandApplyEndDate(teamId, endDate || null); // 고정 시간 차단·타임 신청의 end_date 도 같이
@@ -13442,9 +13468,47 @@
         const _bandAddMonths = (ymd, m) => { const d = new Date(ymd + 'T00:00:00'); d.setMonth(d.getMonth() + m); return d.toLocaleDateString('en-CA'); };
         const bandMonthsFromText = (t) => { const m = parseInt((String(t || '').match(/(\d+)\s*개월/) || [])[1], 10); return m > 0 && m <= 36 ? m : BAND_MONTHS_DEFAULT; }; // '6개월 이상' → 6
         const bandAvailDaysFor = (start, months) => Math.max(7, bandDiffDays(_bandAddMonths(start, months), start));
+        // ── 캐비넷(2026-11-07): 6개월 이상 사용 팀 무료 · 미만 회차당 2만원. 기준은 예상 사용 기간(band_expected_months, 계약 정보에서 수정 가능).
+        //    profiles.band_cabinet(마이그레이션 20261107_band_cabinet.sql) true/false/null(미응답). 문자 문구는 functions/send-sms.js·send-reminders.js 와 같은 규칙.
+        const BAND_CABINET_FEE = 20000, BAND_CABINET_FREE_MONTHS = 6;
+        const bandMonthsStrict = (txt) => { const m = parseInt((String(txt || '').match(/(\d+)\s*개월/) || [])[1], 10); return m > 0 ? m : null; }; // 없으면 null(기본값 대입 안 함)
+        const bandCabinetFree = (months) => months != null && months >= BAND_CABINET_FREE_MONTHS;
+        function bandCabinetLabel(t) {
+            if (t.band_cabinet === true) { const m = bandMonthsStrict(t.band_expected_months); return m == null ? '사용함 · 기간 미정(6개월 이상 무료)' : bandCabinetFree(m) ? '사용함 · 무료(6개월 이상)' : '사용함 · 회차당 2만원'; }
+            if (t.band_cabinet === false) return '사용 안 함';
+            return '미응답';
+        }
+        function bandSignupCabinetNote() {
+            const el = document.getElementById('bandSignupCabinetNote'); if (!el) return;
+            const m = bandWishMonths();
+            const now = _bandSignupUsesTable() ? `예상 사용 기간 <strong>${m}개월</strong> → 캐비넷 <strong>${bandCabinetFree(m) ? '무료' : '회차당 2만원(이용료와 함께 입금)'}</strong>. ` : '';
+            el.innerHTML = `${now}캐비넷은 <strong>6개월 이상</strong> 사용 팀은 무료, 그 미만은 <strong>회차당 2만원</strong>이에요. 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록돼요.`;
+        }
+        // 복귀 팀 체크: 리더 연락처(숫자만)가 같거나, 리더 이름 + 밴드명(국문/영문)이 같은 다른 밴드 프로필 — 사용 중단했다가 다시 신청한 팀을 운영자가 알아보게
+        function bandReturningMatches(t, teams) {
+            const list = teams || ((state.bandAdminCache || {}).teams || []);
+            const digits = (v) => String(v || '').replace(/\D/g, '');
+            const norm = (v) => String(v || '').trim().toLowerCase();
+            const ph = digits(t.leader_phone || t.phone), nm = norm(t.leader_name || t.name), kr = norm(t.band_name_kr), en = norm(t.band_name_en);
+            return list.filter(o => o && o.id !== t.id && o.member_type === 'band' && !_isAdminBandProfile(o) && (
+                (ph.length >= 10 && digits(o.leader_phone || o.phone) === ph) ||
+                (nm && norm(o.leader_name || o.name) === nm && ((kr && norm(o.band_name_kr) === kr) || (en && norm(o.band_name_en) === en)))));
+        }
+        function bandReturningHTML(t) {
+            const hits = bandReturningMatches(t);
+            if (!hits.length) return '';
+            const desc = hits.slice(0, 3).map(o => {
+                const ended = bandEndedDate(o);
+                const st = ended ? `${bandYMDShort(ended)} 종료` : o.status === 'approved' ? '이용 중' : o.status === 'rejected' ? '거절/탈퇴' : '대기';
+                const why = String(o.leader_phone || o.phone || '').replace(/\D/g, '') === String(t.leader_phone || t.phone || '').replace(/\D/g, '') ? '연락처 일치' : '리더 이름·밴드명 일치';
+                return `「${escHtml(o.band_name_kr || o.name || '-')}」(${o.band_start_date ? bandYMDShort(o.band_start_date) + ' 시작 · ' : ''}${st} · ${why})`;
+            }).join(', ');
+            return `<div class="band-muted" style="margin-top:6px">🔁 <strong>복귀 팀 가능성</strong> — 이전 기록 ${desc}. 현황표 히스토리에서 납부·이용 이력을 확인하세요.</div>`;
+        }
         function bandWishMonthsChange(v) {
             state.bandWishMonths = v;
             _bandMonthsInputs().forEach(i => { i.value = String(bandWishMonths()); });
+            bandSignupCabinetNote();
             bandSignupAvailRefresh();
         }
         // 희망 시작일 변경(두 화면 입력칸 동기화) → 다시 계산
@@ -14093,6 +14157,7 @@
                 slotSection = pendingClaims.length
                     ? `<div class="band-muted" style="margin-top:8px">신청 타임 <strong>${escHtml(bandClaimsText(pendingClaims))}</strong> · 희망 시작일 ${escHtml(_bandMDW(pendingClaims[0].start_date))} — [승인]을 누르면 겹치는 주를 계산해 달력에 반영합니다.</div>`
                     : '';
+                slotSection = `<div class="band-muted" style="margin-top:6px">캐비넷 <strong>${escHtml(bandCabinetLabel(t))}</strong>${t.band_expected_months ? ` · 예상 ${escHtml(t.band_expected_months)}` : ''}</div>` + bandReturningHTML(t) + slotSection;
                 const pin = (cache.pinsMap || {})[t.id];
                 if (pin) slotSection = `<div class="band-muted" style="margin-top:6px">등록 비밀번호(숫자 4자리) <span class="band-pin">${escHtml(pin)}</span> · 6개월 이상·캐비넷 이용 시 등록</div>` + slotSection;
                 slotSection += `<div id="ba-form-${t.id}" class="band-inline-form" hidden></div>`;
@@ -14113,6 +14178,7 @@
                             ${kv('보증금', t.band_deposit ? `${bandWon(t.band_deposit)}${t.band_deposit_paid_at ? ' · ' + bandMD(t.band_deposit_paid_at) + ' 입금' : ' · 미입금'}` : '')}
                             ${kv('이용료(4주)', bandWon(t.band_fee))}
                             ${kv('종료 예정일', t.band_end_date ? `${escHtml(t.band_end_date)}(${bandWD(t.band_end_date)})${t.band_end_date < bandTodayStr() ? ' · 종료됨' : ''}` : '')}
+                            ${kv('캐비넷', escHtml(bandCabinetLabel(t)))}
                             ${kv('등록 비밀번호(4자리)', (cache.pinsMap || {})[t.id] ? `<span class="band-pin">${escHtml(cache.pinsMap[t.id])}</span>` : '')}
                         </div>
                         ${_bandDisplayNote(t.band_memo) ? `<div class="band-muted">메모: ${escHtml(_bandDisplayNote(t.band_memo))}</div>` : ''}
@@ -14385,6 +14451,7 @@
                 <div class="band-kv-grid" style="margin-top:8px">
                     <div class="band-kv"><span>보증금</span><strong>${deposit}</strong></div>
                     <div class="band-kv"><span>이용료(4주)</span><strong>${bandWon(profile.band_fee) || '-'}</strong></div>
+                    <div class="band-kv"><span>캐비넷</span><strong>${escHtml(bandCabinetLabel(profile))}</strong></div>
                 </div>
                 <details class="band-skip-past" id="bandMyPayHist"><summary class="band-muted">납부 내역 ${rows.length}건 보기</summary><div class="band-pay-hist">${bandPaymentHistoryHTML(profile, rows, { readOnly: true })}</div></details>
                 <div class="band-muted" style="margin-top:4px">입금 계좌: <strong>토스뱅크 1000-2274-7678 최경수</strong> · 입금일에 안내 문자를 보내드립니다. 내역이 다르면 요청사항으로 알려주세요.</div>`;

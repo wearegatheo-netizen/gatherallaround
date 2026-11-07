@@ -307,6 +307,7 @@ const FAKE_SB = `
     document.getElementById('bandSignupPwDigits').value = '1234';
     document.getElementById('bandSignupPwDigitsConfirm').value = '1234';
     document.querySelector('.band-timeslot-checkbox[value="목_야간"]').checked = true;
+    document.querySelector('input[name="bandSignupCabinet"][value="0"]').checked = true;
     document.getElementById('bandPrivacyConsent').checked = true;
     return handleBandEmailSignup();
   });
@@ -317,6 +318,7 @@ const FAKE_SB = `
   const signupDbg = await p.evaluate(() => 'result=' + document.getElementById('bandSignupResult').textContent + ' calls=' + JSON.stringify((window.__fetchCalls || []).map(c => c.url)));
   chk('가입 신청 → /notify-admins 푸시(팀명·리더·타임)', !!notify && (() => { const b = JSON.parse(notify.body); return b.title.includes('고정팀 가입 신청') && b.body.includes('새팀') && b.body.includes('홍길동') && b.body.includes('목 야간'); })(), notify ? notify.body : signupDbg);
   chk('가입 직후: /send-sms {band_signup_id} 접수 확인 문자 요청(fire-and-forget)', await p.evaluate(() => (window.__fetchCalls || []).some(c => c.url === '/send-sms' && JSON.parse(c.body).band_signup_id === 'f0000000-0000-4000-8000-000000000006')), await p.evaluate(() => JSON.stringify((window.__fetchCalls || []).map(c => c.url))));
+  chk('가입(폴백 폼): 캐비넷 「사용 안 함」 → profiles upsert band_cabinet false · 푸시 본문 「캐비넷 미사용」', await p.evaluate(() => { const up = (window.__sbCalls || []).filter(c => c.table === 'profiles' && c.op === 'insert').pop(); const n = (window.__fetchCalls || []).find(c => c.url === '/notify-admins'); return !!up && up.payload.band_cabinet === false && !!n && JSON.parse(n.body).body.includes('캐비넷 미사용'); }), await p.evaluate(() => JSON.stringify(((window.__sbCalls || []).filter(c => c.table === 'profiles' && c.op === 'insert').pop() || {}).payload)));
   chk('가입: 아이디는 밴드 영문명(NewTeam → newteam@band.gatheo.kr) 자동 지정 · 아이디 입력칸 없음', await p.evaluate(() => window.__signUpArgs && window.__signUpArgs.email === 'newteam@band.gatheo.kr' && !document.getElementById('bandSignupId')), await p.evaluate(() => JSON.stringify(window.__signUpArgs)));
   chk('로그인 칸: 안내 "아이디 (밴드 영문명)" + 입력 "New Team" 도 newteam 으로 정리', await p.evaluate(() => document.getElementById('bandLoginId').placeholder.includes('밴드 영문명') && bandIdFromName('New Team') === 'newteam' && bandIdFromName('GatheO Band!') === 'gatheoband'));
   await p.evaluate((admin) => loginBandUI(admin), TABLES.profiles[0]);

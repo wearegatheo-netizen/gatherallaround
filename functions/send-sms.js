@@ -96,15 +96,39 @@ export function bandSlotText(claims, timeslots) {
 }
 const teamNameOf = (p) => p.band_name_kr || p.name || '';
 const monthsOf = (p) => String(p.band_expected_months || '').trim();
+// 캐비넷(2026-11-07): 6개월 이상 사용 팀 무료 · 미만 회차당 2만원 — index.html bandCabinetLabel · send-reminders.js 와 같은 규칙. band_cabinet true/false/null(미응답)
+const monthsStrict = (txt) => { const m = parseInt((String(txt || '').match(/(\d+)\s*개월/) || [])[1], 10); return m > 0 ? m : null; };
+const cabinetFree = (months) => months != null && months >= 6;
+export function bandCabinetLine(p) {
+    if (p.band_cabinet === true) { const m = monthsStrict(p.band_expected_months); return m == null ? '사용함 (6개월 이상 무료, 미만 회차당 2만원)' : cabinetFree(m) ? '사용함 (6개월 이상 무료)' : '사용함 (회차당 2만원, 이용료와 함께 입금)'; }
+    if (p.band_cabinet === false) return '사용 안 함';
+    return '';
+}
+function cabinetBlock(p) {
+    const m = monthsStrict(p.band_expected_months);
+    if (p.band_cabinet === true) {
+        return cabinetFree(m)
+            ? `[캐비넷 이용 안내]
+- 신청하신 캐비넷은 6개월 이상 사용 팀 무료로 제공됩니다.
+- 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록됩니다.`
+            : `[캐비넷 이용 안내]
+- 신청하신 캐비넷은 회차당 2만원이며, 이용료와 함께 입금해주시면 됩니다(6개월 이상 사용 시 무료).
+- 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록됩니다.`;
+    }
+    return `[캐비넷 이용 안내]
+- 캐비넷은 6개월 이상 사용 팀 무료, 그 미만은 회차당 2만원(이용료와 함께 입금)입니다.
+- 이용을 원하시면 로그인 후 [요청사항] 또는 문자(${BAND_CONTACT})로 알려주세요. 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록됩니다.`;
+}
 export function bandSignupText(p, claims) {
     const slot = bandSlotText(claims, p.timeslots);
     const startLine = p.band_start_date ? `\n- 희망 시작일: ${mdw(p.band_start_date)}부터${monthsOf(p) ? ` · 예상 ${monthsOf(p)}` : ''}` : '';
     const idLine = p.instruments ? `\n- 로그인 아이디: ${p.instruments} (밴드 영문명)` : '';
+    const cabLine = bandCabinetLine(p) ? `\n- 캐비넷: ${bandCabinetLine(p)}` : '';
     return `${BAND_GREETING}
 
 [${teamNameOf(p)}] 팀의 고정 합주팀 가입 신청이 접수되었습니다.
 
-- 신청 타임: ${slot || '미정'}${startLine}${idLine}
+- 신청 타임: ${slot || '미정'}${startLine}${cabLine}${idLine}
 
 운영팀이 일정을 확인한 뒤 승인 여부를 문자로 안내드립니다. 승인되면 보증금 입금 안내를 함께 보내드립니다.
 승인 전에는 로그인하셔도 대기 화면만 보입니다.
@@ -130,10 +154,7 @@ ${fee}는 ${eve} 입금해주세요.
 
 ${BAND_BANK_LINE}
 
-[캐비넷 이용 안내]
-- 캐비넷은 회차당 2만원이며, 이용료와 함께 입금해주시면 됩니다.
-- 가입 때 정한 숫자 4자리가 캐비넷 비밀번호로 등록됩니다.
-- 이용을 원하시면 로그인 후 [요청사항] 또는 문자(${BAND_CONTACT})로 알려주세요.
+${cabinetBlock(p)}
 
 ※ 다음 회차부터는 사용 3주차에 입금 안내 문자를 보내드립니다.
 ※ 건너뛰기권·대체 합주 등 이용 규칙은 로그인 후 [합주 시간·건너뛰기권]에서 확인하실 수 있습니다.
@@ -148,7 +169,7 @@ export function bandRejectText(p) {
 }
 const BAND_TEXT = { signup: bandSignupText, approve: bandApproveText, reject: bandRejectText };
 const BAND_SUBJECT = { signup: '게더 올 어라운드 가입 접수', approve: '게더 올 어라운드 가입 승인', reject: '게더 올 어라운드 가입 안내' };
-const BAND_SAMPLE = { band_name_kr: '게더링', band_name_en: 'GatheO', instruments: 'gatheo', band_start_date: null, band_expected_months: '6개월', band_fee: 250000, band_deposit: 250000, timeslots: ['금_야간'] };
+const BAND_SAMPLE = { band_name_kr: '게더링', band_name_en: 'GatheO', instruments: 'gatheo', band_start_date: null, band_expected_months: '6개월', band_fee: 250000, band_deposit: 250000, timeslots: ['금_야간'], band_cabinet: true };
 const isAdminBand = (t) => {
     const loginId = String(t.instruments || '').trim().toLowerCase();
     const emailId = String(t.email || '').trim().toLowerCase().split('@')[0];
@@ -172,7 +193,8 @@ async function solapiSend(env, to, text, subject) {
         body: JSON.stringify({ message: { to, from: String(env.SMS_SENDER).replace(/\D/g, ''), text, subject } }),
     });
 }
-const PROFILE_SEL = 'id,name,band_name_kr,band_name_en,instruments,email,member_type,status,leader_phone,phone,timeslots,band_start_date,band_expected_months,band_fee,band_deposit,created_at';
+const PROFILE_SEL = 'id,name,band_name_kr,band_name_en,instruments,email,member_type,status,leader_phone,phone,timeslots,band_start_date,band_expected_months,band_fee,band_deposit,created_at,band_cabinet';
+const PROFILE_SEL_NO_CABINET = PROFILE_SEL.replace(',band_cabinet', ''); // 마이그레이션(20261107_band_cabinet) 전 폴백
 // 고정 합주팀 문자 분기. 응답은 json(obj, status).
 async function handleBandSms(body, env, json) {
     const SUPABASE_URL = env.SUPABASE_URL, SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
@@ -180,7 +202,12 @@ async function handleBandSms(body, env, json) {
     const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
     const smsOn = !!(env.SOLAPI_API_KEY && env.SOLAPI_API_SECRET && env.SMS_SENDER);
     const getProfile = async (id) => {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=${PROFILE_SEL}&limit=1`, { headers: sbHeaders });
+        let r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=${PROFILE_SEL}&limit=1`, { headers: sbHeaders });
+        if (r.status === 400) { // band_cabinet 컬럼이 아직 없으면 그 컬럼 없이 다시 조회
+            const detail = await r.text().catch(() => '');
+            if (!/band_cabinet/.test(detail)) return { err: json({ error: 'profile lookup failed', status: 400, detail: detail.slice(0, 300) }, 502) };
+            r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=${PROFILE_SEL_NO_CABINET}&limit=1`, { headers: sbHeaders });
+        }
         if (!r.ok) return { err: json({ error: 'profile lookup failed', status: r.status, detail: (await r.text().catch(() => '')).slice(0, 300) }, 502) };
         const [p] = await r.json().catch(() => []);
         return { p };

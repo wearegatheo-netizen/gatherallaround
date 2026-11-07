@@ -136,8 +136,17 @@ ${fee}를 아래 계좌로 입금해주시면 다음 회차 이용이 연장됩�
 
 ${BAND_BANK_LINE}
 
-※ 캐비넷 추가 이용시 위 금액에 2만원 추가해서 보내주시면 됩니다.
+${bandCabinetNote(team)}
 ※ 연장하지 않으실 경우 미리 말씀해주시면 감사하겠습니다. 보증금은 사용 종료 시 반환됩니다.`;
+}
+// 캐비넷(2026-11-07): 6개월 이상 사용 팀 무료 · 미만 회차당 2만원(index.html bandCabinetLabel · send-sms.js 와 같은 규칙). band_cabinet true/false/null(미응답·컬럼 없음)
+const monthsStrict = (txt) => { const m = parseInt((String(txt || '').match(/(\d+)\s*개월/) || [])[1], 10); return m > 0 ? m : null; };
+export function bandCabinetNote(team) {
+    if (team.band_cabinet === true) {
+        const m = monthsStrict(team.band_expected_months);
+        return m != null && m >= 6 ? '※ 캐비넷은 6개월 이상 사용 팀 무료로 이용 중입니다.' : '※ 캐비넷 이용료(회차당 2만원)를 위 금액에 더해 보내주시면 됩니다.';
+    }
+    return '※ 캐비넷 추가 이용시 위 금액에 2만원 추가해서 보내주시면 됩니다(6개월 이상 사용 팀은 무료).';
 }
 
 // Supabase 세션 토큰 검증 — GoTrue 가 토큰 주인을 돌려준다 (밴드 계정은 Supabase auth 로그인)
@@ -196,9 +205,11 @@ export function bandRentTargets(teams, payments, reminders, today, skips) {
 
 async function loadBandRentTargets(env, sbHeaders, today) {
     const base = `${env.SUPABASE_URL}/rest/v1/`;
-    const sel = 'id,name,band_name_kr,leader_phone,phone,band_start_date,band_fee,instruments,email,band_end_date';
-    const tRes = await fetch(`${base}profiles?member_type=eq.band&status=eq.approved&band_start_date=not.is.null&band_ended_at=is.null&select=${sel}`,
-        { headers: sbHeaders });
+    const sel = 'id,name,band_name_kr,leader_phone,phone,band_start_date,band_fee,instruments,email,band_end_date,band_expected_months,band_cabinet';
+    const teamsUrl = (s) => `${base}profiles?member_type=eq.band&status=eq.approved&band_start_date=not.is.null&band_ended_at=is.null&select=${s}`;
+    let tRes = await fetch(teamsUrl(sel), { headers: sbHeaders });
+    if (tRes.status === 400 && /band_cabinet/.test(await tRes.clone().text().catch(() => ''))) // 마이그레이션(20261107_band_cabinet) 전 — 캐비넷 컬럼 없이 조회
+        tRes = await fetch(teamsUrl(sel.replace(',band_cabinet', '')), { headers: sbHeaders });
     if (!tRes.ok) throw new Error('band teams lookup failed: ' + tRes.status);
     const teams = (await tRes.json().catch(() => [])).filter(t => t && t.band_start_date && !isAdminBand(t));
     if (!teams.length) return [];

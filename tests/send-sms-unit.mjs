@@ -1,6 +1,6 @@
 // /send-sms Cloudflare 함수 단위 테스트 — fetch 목으로 시나리오 검증
 // 실행: node tests/send-sms-unit.mjs
-import { onRequest, bandSignupText, bandApproveText, bandRejectText, bandSlotText } from '../functions/send-sms.js';
+import { onRequest, bandSignupText, bandApproveText, bandRejectText, bandSlotText, bandCabinetLine } from '../functions/send-sms.js';
 
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
@@ -27,7 +27,8 @@ function mockFetch(routes) {
     for (const [pat, resp] of routes) {
       if (rec.url.includes(pat) && (!resp.method || resp.method === rec.method)) {
         const body = typeof resp.body === 'function' ? resp.body(rec) : resp.body;
-        return new Response(JSON.stringify(body ?? {}), { status: resp.status ?? 200 });
+        const status = typeof resp.status === 'function' ? resp.status(rec) : (resp.status ?? 200);
+        return new Response(JSON.stringify(body ?? {}), { status });
       }
     }
     throw new Error('unexpected fetch: ' + rec.method + ' ' + rec.url);
@@ -149,7 +150,15 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
   const t4 = bandRejectText(TEAM({ status: 'rejected' }));
   chk('거절 문구: 아쉽게도 … 자리가 나면 다시 안내 · 문의 번호', t4.includes('[벤더] 팀의 고정 합주팀 가입 신청은 아쉽게도') && t4.includes('자리가 나면 다시 안내') && t4.includes('010-5109-1042'));
   chk('bandSlotText: 여러 타임 요일순 「월요일 18~23시, 금요일 9~14시」', bandSlotText([{ day_of_week: 5, start_time: '09:00', end_time: '14:00' }, { day_of_week: 1, start_time: '18:00', end_time: '23:00' }]) === '월요일 18~23시, 금요일 9~14시');
-  if (process.env.SHOW_TEXT) console.log('\n──── 접수 ────\n' + t1 + '\n──── 승인 ────\n' + t2 + '\n──── 거절 ────\n' + t4 + '\n');
+  // 캐비넷(2026-11-07): 6개월 이상 무료 · 미만 회차당 2만원 · 미응답은 안내만
+  const c1 = bandApproveText(TEAM({ status: 'approved', band_cabinet: true, band_expected_months: '6개월' }), CLAIMS);
+  const c2 = bandApproveText(TEAM({ status: 'approved', band_cabinet: true, band_expected_months: '3개월' }), CLAIMS);
+  const c3 = bandApproveText(TEAM({ status: 'approved', band_cabinet: false }), CLAIMS);
+  chk('승인 문구 캐비넷: 사용함+6개월 → 「6개월 이상 사용 팀 무료로 제공」 / 사용함+3개월 → 「회차당 2만원이며, 이용료와 함께」 / 사용 안 함 → 「이용을 원하시면 … 요청사항」',
+    c1.includes('신청하신 캐비넷은 6개월 이상 사용 팀 무료로 제공') && !c1.includes('회차당 2만원이며') && c2.includes('신청하신 캐비넷은 회차당 2만원이며, 이용료와 함께') && c3.includes('이용을 원하시면 로그인 후 [요청사항]') && [c1, c2, c3].every(x => x.includes('숫자 4자리가 캐비넷 비밀번호')));
+  chk('접수 문구 캐비넷 줄: 사용함(6개월 이상 무료) / 사용함(회차당 2만원) / 사용 안 함 / 미응답은 줄 없음', bandSignupText(TEAM({ band_cabinet: true, band_expected_months: '6개월' }), CLAIMS).includes('- 캐비넷: 사용함 (6개월 이상 무료)') && bandSignupText(TEAM({ band_cabinet: true, band_expected_months: '2개월' }), CLAIMS).includes('- 캐비넷: 사용함 (회차당 2만원, 이용료와 함께 입금)') && bandSignupText(TEAM({ band_cabinet: false }), CLAIMS).includes('- 캐비넷: 사용 안 함') && !bandSignupText(TEAM(), CLAIMS).includes('- 캐비넷') && bandCabinetLine(TEAM({ band_cabinet: true, band_expected_months: null })) === '사용함 (6개월 이상 무료, 미만 회차당 2만원)');
+  chk('승인 문구(캐비넷 사용) 길이도 2,000byte 안', kb(c2) < 2000, kb(c2) + 'byte');
+  if (process.env.SHOW_TEXT) console.log('\n──── 접수 ────\n' + t1 + '\n──── 승인 ────\n' + t2 + '\n──── 승인(캐비넷 3개월) ────\n' + c2 + '\n──── 거절 ────\n' + t4 + '\n');
 }
 // ── 7. 가입 접수(공개): 선점 → 발송, 제목·수신번호
 {
@@ -170,6 +179,16 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
   mockFetch(bandRoutes(TEAM(), { logStatus: 404 }));
   const j2 = await (await run({ band_signup_id: TEAM_ID })).json();
   chk('접수 문자: band_sms_log 표 없음(404) → no-table 안내, 발송 안 함', j2.skipped === 'no-table' && /20261107_band_sms_log/.test(j2.message) && !calls.some(c => c.url.includes('api.solapi.com')));
+  // band_cabinet 컬럼 마이그레이션 전: select 400(column … band_cabinet) → 컬럼 없이 재조회해 정상 발송
+  mockFetch([
+    ['/auth/v1/user', { body: { id: ADMIN_ID } }],
+    ['profiles?id=eq.' + TEAM_ID, { status: (rec) => rec.url.includes('band_cabinet') ? 400 : 200, body: (rec) => rec.url.includes('band_cabinet') ? { code: '42703', message: 'column profiles.band_cabinet does not exist' } : [TEAM()] }],
+    ['band_slot_claims?profile_id=eq.' + TEAM_ID, { body: CLAIMS }],
+    ['band_sms_log', { method: 'POST', status: 201, body: {} }],
+    ['api.solapi.com/messages', { method: 'POST', body: {} }],
+  ]);
+  const jf = await (await run({ band_signup_id: TEAM_ID })).json();
+  chk('profiles 조회 400(band_cabinet 컬럼 없음) → 컬럼 없이 재조회 후 발송', jf.ok === true && calls.filter(c => c.url.includes('profiles?id=eq.' + TEAM_ID)).length === 2 && !calls[1].url.includes('band_cabinet'), JSON.stringify(jf));
   mockFetch([]);
   chk('band_signup_id UUID 아니면 400', (await run({ band_signup_id: 'nope' })).status === 400);
   const j3 = await (await run({ band_signup_id: TEAM_ID }, 'POST', { ...ENV, SOLAPI_API_KEY: '' })).json();
