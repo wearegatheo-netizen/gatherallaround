@@ -213,7 +213,7 @@
   → 바로가기 4(`.gt-qa`) → 게시판 새 글 3(`gtOpenPost`). 데이터 갱신은 `gtHomeRefresh()`(render()/공지/일정/댓글 fetch 끝에서 호출, 60ms 디바운스). 옛 `#notice_container`·`#schedule_banner` 는
   숨긴 채 데이터만 유지(renderNotices 가 다시 보이게 하지 않음; 공지 편집은 관리자 탭).
   **대관 대기도 자리 차지(2026-11-04)**: `fetchReservations` 가 `performance_bookings` 를 approved **+ pending**(`_pbExpired` 로 4시간 지난 대기 제외)으로 받아 가상 예약 행(`__perf`, status pending/approved)으로 합친다 — 대관 달력(`loadPerfRangeConflicts`)과 같은 규칙. 종전엔 approved 만 받아 입금 대기 시간에 멤버가 겹쳐 예약할 수 있었다.
-  주간 칸 「🎭 대관 대기」/「🎭 공간 대관」, 일 보기 「(외부 예약 · 입금 대기)」, 제출 충돌 검사(rejected/cancelled 만 제외)는 그대로 pending 을 막는다. 테스트 `tests/ui-gatheo-perf-block.js`(4).
+  주간 칸 「🎭 대관 대기」/「🎭 공간 대관」, 일 보기 「(외부 예약 · 입금 대기)」, 제출 충돌 검사(rejected/cancelled 만 제외)는 그대로 pending 을 막는다. **관리자 예약승인 탭 「승인 대기」는 가상 행(`__perf`)을 제외**하고 「🎭 공간 대관 입금 대기 N건 … 공간대관 탭」 안내만(`.admin-perf-pending-note`) — 2026-11-07 승인 버튼이 `reservations` 에 `perf-<uuid>` 를 보내 uuid 오류 났던 것. 테스트 `tests/ui-gatheo-perf-block.js`(5).
     **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
   → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
   **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,

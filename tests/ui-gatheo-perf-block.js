@@ -85,6 +85,9 @@ const FAKE_SB = `
   const inserted = await p.evaluate(() => window.__sbCalls.some(c => c.table === 'reservations' && c.op === 'insert'));
   chk('대기 중 대관 시간에 제출하면 「이미 예약된 시간대」 알림 + reservations insert 없음', !noForm && dialogs.some(m => /이미 예약된 시간대/.test(m)) && !inserted, (noForm ? 'form not found' : dialogs.join(' | ').slice(0, 120)));
 
+  // 관리자 예약승인 탭: 대관 대기 가상 행은 승인/거절 대상이 아니다(2026-11-07 — 승인 누르면 uuid 오류였음)
+  const adm = await p.evaluate(() => { state.user.role = '운영 총괄'; const box = document.createElement('div'); renderAdminApprovalSection(box); return { html: box.innerHTML, title: box.querySelector('.admin-section-title')?.textContent, note: box.querySelector('.admin-perf-pending-note')?.textContent || '' }; });
+  chk('관리자 승인 대기: 가상 행 제외(0건) + 「공간 대관 입금 대기 1건 … 공간대관 탭」 안내, perf- id 승인 버튼 없음', (adm.title || '').includes('승인 대기 (0건)') && /공간 대관 입금 대기 1건/.test(adm.note) && /공간대관 탭/.test(adm.note) && !adm.html.includes("approveReservation('perf-") && !adm.html.includes("rejectReservation('perf-"), (adm.title || '') + ' / ' + adm.note.slice(0, 80));
   chk('pageerror 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
   await br.close();
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

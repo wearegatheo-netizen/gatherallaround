@@ -7610,11 +7610,14 @@
         }
 
         function renderAdminApprovalSection(container) {
-            // 승인 대기
-            const allPending = state.reservations.filter(r => r.status === 'pending').sort((a, b) => new Date(a.res_date) - new Date(b.res_date));
+            // 승인 대기 — 공간 대관 입금 대기 가상 행(__perf, id 'perf-…')은 reservations 표에 없으므로 승인/거절 대상이 아니다(2026-11-07: 승인 누르면 uuid 오류).
+            // 달력 자리만 차지하게 두고 여기선 건수 안내 + 공간대관 탭으로 보낸다.
+            const perfPending = state.reservations.filter(r => r.status === 'pending' && r.__perf);
+            const allPending = state.reservations.filter(r => r.status === 'pending' && !r.__perf).sort((a, b) => new Date(a.res_date) - new Date(b.res_date));
             const pendingSection = document.createElement('div');
             pendingSection.className = 'admin-section';
             pendingSection.innerHTML = `<div class="admin-section-title">⏳ 승인 대기 (${allPending.length}건)</div>`;
+            if (perfPending.length) pendingSection.innerHTML += `<div class="admin-perf-pending-note" style="font-size:0.8rem;color:var(--wds-gray-500);padding:0 0 8px">🎭 공간 대관 입금 대기 ${perfPending.length}건은 달력에서 자리만 차지하며, 입금 확인·승인은 ${isSuper() ? `<a href="#" onclick="event.preventDefault();state.adminTab='perfbooking';renderGatheOAdmin()">공간대관 탭</a>` : '공간대관 탭'}에서 합니다.</div>`;
             if (allPending.length === 0) {
                 pendingSection.innerHTML += '<p style="text-align:center;padding:20px;color:var(--wds-gray-500);">대기 중인 예약이 없습니다.</p>';
             } else {
