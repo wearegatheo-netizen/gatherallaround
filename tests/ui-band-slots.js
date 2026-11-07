@@ -371,6 +371,23 @@ const FAKE_SB = `
   const notice2 = await p.evaluate(() => document.getElementById('bandCycleNotice').innerHTML);
   chk('연장 뒤 회차 안내: 11/27 연장은 7차(11/29) 전이라 7차 12/6 시작 · 입금일 11/22 · 연장 반영 안내', notice2.includes('<strong>7차</strong> 12/6(일) 시작') && notice2.includes('입금일 <strong>11/22</strong>') && notice2.includes('1주 연장 1회가 반영'), notice2.replace(/<[^>]+>/g, '').slice(0, 160));
   chk('이미 정해진 권은 다시 바꿀 수 없음(토스트)', await p.evaluate(async (id) => { const n = window.__sbCalls.length; await bandSkipExtend(id, null); return window.__sbCalls.length === n; }, sk2));
+  // ── 팀이 직접 요청하는 대체 합주(이용 기간 중 1회, 2026-11-07)
+  await p.evaluate(() => renderBandSlotSection(state.bandProfile)); await p.waitForTimeout(400);
+  chk('팀 화면: 「대체 합주 요청권 · 이용 기간 중 1회 · 3일 전까지」 줄 + [대체 합주 요청] 버튼', await p.evaluate(() => { const r = document.getElementById('bandTeamSubRow'); return !!r && r.textContent.includes('이용 기간 중 1회') && r.textContent.includes('3일 전까지') && !!r.querySelector('button[onclick="bandTeamSubSheet()"]'); }));
+  await p.evaluate(() => bandTeamSubSheet()); await p.waitForTimeout(200);
+  const subDates = await p.evaluate(() => [...document.querySelectorAll('#gtSheet .cm-sheet-body button[onclick^="bandTeamSubPickDate"]')].map(b => b.textContent));
+  chk('요청 1단계: 건너뛸 날 후보 = 3일 뒤부터의 금요일 중 이미 건너뛰는 11/20·11/27 제외(11/13, 12/4, 12/11…) 8개', subDates.length === 8 && subDates[0].startsWith('11/13(금)') && subDates[1].startsWith('12/4(금)') && !subDates.some(t => t.startsWith('11/20') || t.startsWith('11/27')), JSON.stringify(subDates));
+  await p.evaluate(() => bandTeamSubPickDate('cl-vandor', '2026-12-04')); await p.waitForTimeout(600);
+  const subCand = await p.evaluate(() => ({ title: document.querySelector('#gtSheet .cm-sheet-head')?.textContent.trim(), days: [...document.querySelectorAll('#gtSheet .band-sub-day .d')].map(e => e.textContent), sat: [...document.querySelectorAll('#gtSheet .band-sub-day')].find(e => e.textContent.startsWith('12/5(토)'))?.querySelectorAll('button').length }));
+  chk('요청 2단계: 12/4 대신 · 앞뒤 1주일(11/27~12/11) 후보 · 12/5(토) 5시간 빈 시간 있음', (subCand.title || '').includes('12/4(금) 대신') && subCand.days.length === 15 && subCand.days[0].includes('11/27(금)') && subCand.sat > 0, JSON.stringify(subCand));
+  const nTeam = dialogs.length;
+  await p.evaluate(() => bandTeamSubPick('cl-vandor', '2026-12-04', '2026-12-05', '14:00')); await p.waitForTimeout(800);
+  const teamSkip = await p.evaluate(() => window.__T.band_skips.find(s => s.granted_by === 'team'));
+  const teamBlk = (await calls('time_blocks', 'insert')).map(c => c.payload).find(b => b.start_date === '2026-12-05');
+  const teamSkipDates = await p.evaluate(() => window.__T.time_blocks.find(b => b.id === 'blk-vandor').skip_dates);
+  const teamPush = await p.evaluate(() => (window.__fetchCalls || []).filter(c => c.url === '/notify-admins').map(c => JSON.parse(c.body)).find(b => b.title.includes('대체 합주 요청')));
+  chk('요청 저장: band_skips(team · 팀 요청 · substitute 12/5 14~19시) + 1회 차단 [고정팀 대체] 벤더 12/5 14:00~18:00 + 반복 차단 skip_dates 에 12/4 + 운영자 푸시 + 확인창', dialogs.length === nTeam + 1 && !!teamSkip && teamSkip.reason === '팀 요청' && teamSkip.resolution === 'substitute' && teamSkip.substitute_date === '2026-12-05' && teamSkip.substitute_end === '19:00' && teamSkip.skip_date === '2026-12-04' && !!teamBlk && teamBlk.reason === '[고정팀 대체] 벤더' && teamBlk.end_time === '18:00' && teamSkipDates.includes('2026-12-04') && !!teamPush && teamPush.body.includes('12/4(금)') && teamPush.body.includes('12/5(토)'), JSON.stringify([teamSkip, teamBlk, teamSkipDates, teamPush]));
+  chk('사용 뒤: 「사용함」 칩 + 12/4 대신 12/5 안내, 버튼 없음 · 다시 요청하면 토스트만(저장 없음)', await p.evaluate(async () => { const r = document.getElementById('bandTeamSubRow'); const n = window.__sbCalls.filter(c => c.op !== 'select').length; await bandTeamSubSheet(); return !!r && r.textContent.includes('사용함') && r.textContent.includes('12/4(금) 대신 12/5(토)') && !r.querySelector('button') && window.__sbCalls.filter(c => c.op !== 'select').length === n && !document.getElementById('gtSheet'); }));
   chk('페이지 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 300));
 
   await br.close();

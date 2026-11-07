@@ -2572,7 +2572,7 @@
                     </div>
                     <details class="band-sv-more">
                         <summary>건너뛰기권과 신청 절차</summary>
-                        <p><strong>건너뛰기권</strong> · 희망 시작일부터 예상 사용 기간 안에 이미 잡힌 예약·대관과 겹치는 주마다 1장. 같은 고정 사용 시간의 <strong>대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르고, 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</p>
+                        <p><strong>건너뛰기권</strong> · 희망 시작일부터 예상 사용 기간 안에 이미 잡힌 예약·대관과 겹치는 주마다 1장. 같은 고정 사용 시간의 <strong>대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르고, 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요. 그 밖에 <strong>팀 사정</strong>으로 일정이 어려운 날이 생기면 <strong>이용 기간 중 1회</strong>, 건너뛸 날 3일 전까지 같은 조건의 대체 합주를 직접 요청할 수 있어요.</p>
                         <p><strong>신청 절차</strong> · 타임 선택 → 가입 신청 → 운영자 확인·승인 → 그 시간이 예약 달력에서 고정팀 자리로 막혀요. 고정 합주팀은 4주 단위 회차로 운영돼요.</p>
                     </details>
                 </div>
@@ -12784,7 +12784,8 @@
                     '공연·공간 대관 등으로 고정 시간을 쓸 수 없는 주가 생기면 <strong>건너뛰기권</strong>을 드립니다(가입 때 겹치는 주는 자동 발급, 이후 생기는 주는 운영팀이 미리 안내).',
                     `건너뛰기권마다 <strong>대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안, 원래 고정 사용 시간과 같은 시간, 비어 있는 시간) 또는 <strong>1주 무료 연장</strong>(회차 종료일과 다음 입금일이 1주 뒤로) 중 하나를 고릅니다.`,
                     `선택 마감은 <strong>건너뛰는 날 ${BAND_SKIP_DEADLINE_DAYS}일 전</strong>이고, 그때까지 고르지 않으면 1주 연장으로 처리돼요. 한 번 정하면 바꿀 수 없습니다.`,
-                    '로그인 후 「합주 시간·건너뛰기권」 카드에서 권 목록과 선택 버튼을 볼 수 있어요.'))}
+                    `<strong>팀 사정</strong>으로 일정이 어려운 날이 생기면 <strong>이용 기간 중 1회</strong>, 건너뛸 날 ${BAND_TEAM_SUB_MIN_DAYS}일 전까지 같은 조건(앞뒤 1주일 안 빈 시간, 같은 사용 시간)의 대체 합주를 직접 요청할 수 있어요. 이 요청은 1주 연장으로 바꿀 수 없어요.`,
+                    '로그인 후 「합주 시간·건너뛰기권」 카드에서 권 목록·요청 버튼을 볼 수 있어요.'))}
                 ${sec('📱', '안내 문자와 연락', ul(
                     '문자 안내: 가입 접수 확인 → 승인(또는 거절) 안내 → 회차마다 입금 안내(입금일 정오 무렵).',
                     `장비·시설·일정 요청은 로그인 후 <strong>요청사항</strong>에 남겨주세요. 급한 연락은 <strong>${PORTAL_PHONE}</strong>(전화·문자)로.`,
@@ -13405,6 +13406,7 @@
         const BAND_HARD_BLOCK_DAYS = 56;      // 이보다 오래 남은 반복 차단은 "사용 중"(건너뛰기 아님)
         const BAND_SKIP_DEADLINE_DAYS = 7;    // 보상 선택 마감 = 건너뛰는 날 − 7일
         const BAND_SUB_RANGE_DAYS = 7;        // 대체 합주 범위 = 건너뛰는 날 앞뒤 1주일 [−7, +7] (2026-11-05, 종전 −7~전날)
+        const BAND_TEAM_SUB_MIN_DAYS = 3;     // 팀이 직접 요청하는 대체 합주(이용 기간 중 1회, 2026-11-07): 건너뛸 날 3일 전까지 요청
         const _bandH = (t) => parseInt(String(t || '0'), 10);
         const _bandRangeText = (s, e) => `${_bandH(s)}~${_bandH(e)}시`;
         const _bandBlockEnd = (endExcl) => (endExcl >= '23:00' ? TIMES[TIMES.length - 1] : TIMES[TIMES.indexOf(endExcl) - 1]);
@@ -13688,7 +13690,7 @@
                     + (skipItems.length
                         ? `<div class="band-sv-skips">겹치는 주 <strong>${skipItems.length}주</strong> → 건너뛰기권 ${skipItems.length}장
                            <ul>${skipItems.map(s => `<li><span class="d">${_bandMDW(s.date)}</span> <span>${_bandRangeText(s.def.start_time, s.def.end_time)} · ${escHtml(s.reasons.join(', '))}</span></li>`).join('')}</ul>
-                           <div class="band-sv-note">주마다 같은 고정 사용 시간의 대체 합주(건너뛰는 날 앞뒤 1주일 안) 또는 1주 무료 연장 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요.</div></div>`
+                           <div class="band-sv-note">주마다 같은 고정 사용 시간의 대체 합주(건너뛰는 날 앞뒤 1주일 안) 또는 1주 무료 연장 중 하나를 고를 수 있어요. 건너뛰는 날 일주일 전까지 고르지 않으면 자동으로 1주 연장돼요. 팀 사정으로 일정이 어려운 날은 이용 기간 중 1회 대체 합주를 직접 요청할 수 있어요(건너뛸 날 3일 전까지).</div></div>`
                         : `<div class="band-sv-skips">예상 사용 기간(${bandMD(ctx.startDate)}~${bandMD(ctx.endDate)}) 안에 겹치는 일정이 없어요.</div>`)
                     + '</div>';
             } else detail = '<div class="band-sv-hint">타임을 누르면 선택돼요 · 여러 개 가능 · 「N주 건너뛰기」는 그 주만 건너뛰는 조건으로 신청할 수 있어요.</div>';
@@ -14138,6 +14140,8 @@
                 <div class="band-section-title">📅 합주 시간·건너뛰기권</div>
                 ${approved.length ? `<div class="band-kv-grid">${approved.map(c => `<div class="band-kv"><span>매주 ${BAND_DOW[c.day_of_week]}요일</span><strong>${_bandRangeText(c.start_time, c.end_time)}<span class="band-muted" style="font-weight:400"> · ${bandMD(c.start_date)}부터</span></strong></div>`).join('')}</div>` : ''}
                 ${pending.length ? `<div class="band-muted" style="margin-top:6px">승인 대기 중인 타임: ${escHtml(bandClaimsText(pending))}</div>` : ''}
+                ${approved.some(c => c.block_id) ? (() => { const used = bandTeamSubUsed(skips); return `<div class="band-skip-row" id="bandTeamSubRow" style="margin-top:8px"><div><strong>대체 합주 요청권</strong> <span class="band-muted">· 이용 기간 중 1회 · 팀 사정으로 일정이 어려운 날, 건너뛸 날 ${BAND_TEAM_SUB_MIN_DAYS}일 전까지</span>${used ? `<div class="band-muted">${_bandMDW(used.skip_date)} 대신 ${_bandMDW(used.substitute_date)} ${_bandRangeText(used.substitute_start, used.substitute_end)} 로 사용했어요.</div>` : ''}</div>
+                    <div class="band-skip-right">${used ? '<span class="status-badge sm status-neutral">사용함</span>' : '<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-primary" onclick="bandTeamSubSheet()">대체 합주 요청</button>'}</div></div>`; })() : ''}
                 ${upcoming.length ? `<div class="band-card-section"><div class="band-card-head"><span>건너뛰기권 ${upcoming.length}장</span></div>
                     <div class="band-muted" style="margin:-2px 0 8px">예약·대관과 겹쳐 건너뛰는 주마다 1장. <strong>같은 고정 사용 시간의 대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안) 또는 <strong>1주 무료 연장</strong> 중 하나를 고르면 끝이에요.</div>
                     ${upcoming.map(skipRow).join('')}</div>` : (approved.length ? '<div class="band-muted" style="margin-top:8px">예정된 건너뛰기가 없어요.</div>' : '')}
@@ -14160,10 +14164,18 @@
             const s = (state.bandSkips || []).find(x => x.id === skipId);
             if (!s || !supabaseClient) return;
             if (bandSkipResolution(s)) { showToast('이미 보상이 정해진 건너뛰기권입니다.'); return; }
-            const today = bandTodayStr();
             const dur = _bandSlotIdx(s.skip_start, s.skip_end).e - _bandSlotIdx(s.skip_start, s.skip_end).s + 1; // 슬롯 수
-            const from = _bandAddDays(s.skip_date, -BAND_SUB_RANGE_DAYS), to = _bandAddDays(s.skip_date, BAND_SUB_RANGE_DAYS);
             gtSheetOpen(`대체 합주 고르기 · ${_bandMDW(s.skip_date)} 대신`, _bandLoadingHTML());
+            const days = await _bandSubDays(s.skip_date, dur);
+            const body = document.querySelector('#gtSheet .cm-sheet-body');
+            if (!body) return;
+            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">건너뛰는 날 앞뒤 1주일 안에서, 원래 고정 사용 시간과 같은 ${dur}시간으로 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
+                + _bandSubDaysHTML(days, dur, (d, t) => `bandSubstitutePick('${s.id}','${d}','${t}')`);
+        }
+        // 대체 합주 후보: 건너뛰는 날 앞뒤 1주일(오늘 이후), 같은 슬롯 수(dur)로 비어 있는 시작 시각 목록 — 건너뛰기권·팀 요청 공용
+        async function _bandSubDays(skipDate, dur) {
+            const today = bandTodayStr();
+            const from = _bandAddDays(skipDate, -BAND_SUB_RANGE_DAYS), to = _bandAddDays(skipDate, BAND_SUB_RANGE_DAYS);
             const ctx = await bandAvailLoad(from, BAND_SUB_RANGE_DAYS * 2);
             const now = new Date();
             const days = [];
@@ -14176,13 +14188,83 @@
                 }
                 days.push({ d, opts });
             }
+            return days;
+        }
+        function _bandSubDaysHTML(days, dur, onclickFor) {
+            return days.length ? days.map(({ d, opts }) => `<div class="band-sub-day"><div class="d"><strong>${_bandMDW(d)}</strong></div><div class="chips">${opts.length
+                ? opts.map(i => `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="${onclickFor(d, TIMES[i])}">${_bandRangeText(TIMES[i], _bandBlockEndExcl(TIMES[i + dur - 1]))}</button>`).join('')
+                : '<span class="band-muted">가능한 시간 없음</span>'}</div></div>`).join('')
+                : _bandEmptyHTML('대체 합주를 고를 수 있는 날짜가 지났어요.');
+        }
+        // ── 팀이 직접 요청하는 대체 합주(2026-11-07, 마이그레이션 20261107_band_team_skip.sql): 이용 기간 중 1회, 건너뛸 날 BAND_TEAM_SUB_MIN_DAYS 일 전까지,
+        //    앞뒤 1주일 안 빈 시간으로 같은 고정 사용 시간 1회 차단. band_skips 에 granted_by='team'·resolution='substitute' 로 바로 확정(연장 없음) + 반복 차단 skip_dates. DB 부분 유니크로 1회 보장.
+        const bandTeamSubUsed = (skips) => (skips || []).find(s => s.granted_by === 'team') || null;
+        function _bandTeamSubDates(claims, skips) {
+            const today = bandTodayStr(), minDate = _bandAddDays(today, BAND_TEAM_SUB_MIN_DAYS);
+            const skipped = new Set((skips || []).map(s => s.skip_date));
+            const out = [];
+            for (const c of claims.filter(c => c.status === 'approved' && c.block_id)) {
+                let d = c.start_date > minDate ? c.start_date : minDate;
+                const want = c.day_of_week, cur = new Date(d + 'T00:00:00').getDay();
+                d = _bandAddDays(d, (want - cur + 7) % 7);
+                for (let n = 0; n < 8; n++, d = _bandAddDays(d, 7)) {
+                    if (c.end_date && d > c.end_date) break;
+                    if (!skipped.has(d)) out.push({ claim: c, date: d });
+                }
+            }
+            return out.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+        }
+        async function bandTeamSubSheet() {
+            if (!state.bandProfile || !supabaseClient) return;
+            if (bandTeamSubUsed(state.bandSkips)) { showToast('대체 합주 요청권은 이용 기간 중 1회예요. 추가 요청은 요청사항으로 남겨주세요.'); return; }
+            const dates = _bandTeamSubDates(state.bandMyClaims || [], state.bandSkips || []);
+            gtSheetOpen('대체 합주 요청 · 건너뛸 날 고르기', `<div class="band-muted" style="margin-bottom:10px">팀 사정으로 고정 시간을 쓰기 어려운 날을 고르세요. <strong>이용 기간 중 1회</strong>, 건너뛸 날 <strong>${BAND_TEAM_SUB_MIN_DAYS}일 전까지</strong> 요청할 수 있고, 다음 단계에서 앞뒤 1주일 안 빈 시간으로 같은 고정 사용 시간의 대체 합주를 바로 잡아요(1주 연장은 없어요).</div>`
+                + (dates.length ? `<div class="gaa-btn-row" style="flex-wrap:wrap">${dates.map(x => `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="bandTeamSubPickDate('${x.claim.id}','${x.date}')">${_bandMDW(x.date)} ${_bandRangeText(x.claim.start_time, x.claim.end_time)}</button>`).join('')}</div>` : _bandEmptyHTML('요청할 수 있는 합주일이 없어요.')));
+        }
+        async function bandTeamSubPickDate(claimId, skipDate) {
+            const c = (state.bandMyClaims || []).find(x => x.id === claimId);
+            if (!c) return;
+            const dur = _bandSlotIdx(c.start_time, c.end_time).e - _bandSlotIdx(c.start_time, c.end_time).s + 1;
+            gtSheetOpen(`대체 합주 요청 · ${_bandMDW(skipDate)} 대신`, _bandLoadingHTML());
+            const days = await _bandSubDays(skipDate, dur);
             const body = document.querySelector('#gtSheet .cm-sheet-body');
             if (!body) return;
-            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">건너뛰는 날 앞뒤 1주일 안에서, 원래 고정 사용 시간과 같은 ${dur}시간으로 비어 있는 시간만 보여줘요. 고르면 그 시간이 바로 팀 합주로 잡히고 바꿀 수 없어요.</div>`
-                + (days.length ? days.map(({ d, opts }) => `<div class="band-sub-day"><div class="d"><strong>${_bandMDW(d)}</strong></div><div class="chips">${opts.length
-                    ? opts.map(i => `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="bandSubstitutePick('${s.id}','${d}','${TIMES[i]}')">${_bandRangeText(TIMES[i], _bandBlockEndExcl(TIMES[i + dur - 1]))}</button>`).join('')
-                    : '<span class="band-muted">가능한 시간 없음</span>'}</div></div>`).join('')
-                : _bandEmptyHTML('대체 합주를 고를 수 있는 날짜가 지났어요.'));
+            body.innerHTML = `<div class="band-muted" style="margin-bottom:10px">${_bandMDW(skipDate)} ${_bandRangeText(c.start_time, c.end_time)} 대신 쓸 시간이에요. 앞뒤 1주일 안, 같은 ${dur}시간으로 비어 있는 시간만 보여줘요. 고르면 바로 잡히고 바꿀 수 없어요. <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="bandTeamSubSheet()">‹ 날짜 다시 고르기</button></div>`
+                + _bandSubDaysHTML(days, dur, (d, t) => `bandTeamSubPick('${c.id}','${skipDate}','${d}','${t}')`);
+        }
+        async function bandTeamSubPick(claimId, skipDate, date, startT) {
+            const c = (state.bandMyClaims || []).find(x => x.id === claimId), p = state.bandProfile;
+            if (!c || !p || !supabaseClient) return;
+            if (bandTeamSubUsed(state.bandSkips)) { showToast('대체 합주 요청권은 이용 기간 중 1회예요.'); return; }
+            const dur = _bandSlotIdx(c.start_time, c.end_time).e - _bandSlotIdx(c.start_time, c.end_time).s + 1;
+            const endBlock = TIMES[TIMES.indexOf(startT) + dur - 1], endExcl = _bandBlockEndExcl(endBlock);
+            if (!confirm(`${_bandMDW(skipDate)} ${_bandRangeText(c.start_time, c.end_time)} 를 건너뛰고 ${_bandMDW(date)} ${_bandRangeText(startT, endExcl)} 에 대체 합주를 잡을까요?\n이용 기간 중 1회 요청권을 사용하며, 선택 후에는 바꿀 수 없어요.`)) return;
+            let skipId = null;
+            try {
+                const fresh = await bandAvailLoad(date, 0); // 고르는 사이 잡힌 예약·대관이 없는지 다시 확인
+                if (bandDateConflicts(fresh, date, TIMES.indexOf(startT), TIMES.indexOf(startT) + dur - 1, { weeklyToo: true }).length) { showToast('그 시간은 방금 다른 일정이 잡혔어요. 다른 시간을 골라주세요.'); return; }
+                // 1) 요청권 행(팀당 1회 — DB 부분 유니크) → 2) 1회 차단 → 3) 반복 차단에서 그 날짜 제외
+                const { data: ins, error: sErr } = await supabaseClient.from('band_skips').insert({ profile_id: p.id, claim_id: c.id, skip_date: skipDate, skip_start: c.start_time, skip_end: c.end_time, reason: '팀 요청',
+                    resolution: 'substitute', substitute_date: date, substitute_start: startT, substitute_end: endExcl, resolved_at: new Date().toISOString(), granted_by: 'team' }).select().single();
+                if (sErr) {
+                    if (sErr.code === '23505') { showToast('대체 합주 요청권은 이용 기간 중 1회예요.'); return; }
+                    if (sErr.code === '23514' || sErr.code === '42501') { showToast('대체 합주 요청 기능이 아직 준비되지 않았어요. 운영팀에 요청사항으로 남겨주세요. (마이그레이션 20261107_band_team_skip.sql)', 6000); return; }
+                    throw sErr;
+                }
+                skipId = ins && ins.id;
+                const blockId = await _bandInsertBlock({ day_of_week: new Date(date + 'T00:00:00').getDay(), start_time: startT, end_time: endBlock,
+                    reason: _bandSubReason(p), start_date: date, end_date: date, band_claim_id: c.id, skip_dates: [] });
+                if (skipId) await supabaseClient.from('band_skips').update({ substitute_block_id: blockId }).eq('id', skipId);
+                await _bandBlockSkipDates(c.block_id, skipDate, true);
+                sendAdminPush('🔁 고정팀 대체 합주 요청', `${p.band_name_kr || p.name || ''} · ${_bandMDW(skipDate)} ${_bandRangeText(c.start_time, c.end_time)} 건너뜀 → ${_bandMDW(date)} ${_bandRangeText(startT, endExcl)}`).catch(() => {});
+                gtSheetClose();
+                showToast(`${_bandMDW(skipDate)} 대신 ${_bandMDW(date)} ${_bandRangeText(startT, endExcl)} 로 대체 합주를 잡았습니다.`);
+                await renderBandSlotSection(p); renderBandCycleNotice(p);
+            } catch (e) {
+                console.error('team substitute:', e);
+                if (skipId) await supabaseClient.from('band_skips').delete().eq('id', skipId).then(() => {}, () => {}); // 차단을 못 만들었으면 요청권 행도 되돌린다
+                showToast('저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+            }
         }
         async function bandSubstitutePick(skipId, date, startT) {
             const s = (state.bandSkips || []).find(x => x.id === skipId);
