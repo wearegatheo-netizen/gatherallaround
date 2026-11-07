@@ -112,6 +112,8 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   chk('/perf → 200 셸(ASSETS /) + #perf 라우트(base 없음 — 쿼리 유지)', r.status === 200 && assetCalls.join() === '/' && routeOf(html) === 'perf' && !html.includes('<base ') && r.headers.get('cache-control') === 'no-store');
   chk('/perf: 공간 대관 OG(title·url), 이미지는 기본', html.includes('<meta property="og:title" content="공간 대관 | Gather all around">') && html.includes('<meta property="og:url" content="https://gatherallaround.com/perf">') && html.includes('og:image:width'));
   chk('/perf: 셸 머리 스크립트보다 라우트 치환이 먼저', html.indexOf("'#perf'") < html.indexOf('URLSearchParams(location.search)'));
+  html = await (await runA('/band/guide')).text();
+  chk('/band/guide → #band/guide + 운영 안내 OG', routeOf(html) === 'band/guide' && html.includes('고정 합주팀 운영 안내'), routeOf(html));
   html = await (await runA('/band/times')).text();
   chk('/band/times → #band/times + 고정 합주팀 가능 시간 OG', routeOf(html) === 'band/times' && html.includes('고정 합주팀 가능 시간 | Gather all around'));
   html = await (await runA('/gatheo/board/11111111-1111-4111-8111-111111111111')).text();

@@ -36,6 +36,7 @@ const SECTION_OG = {
     shows: ['공연 예매 | Gather all around', '게더 올 어라운드에서 열리는 공연을 예매하세요.'],
     community: ['커뮤니티 | Gather all around', '게더 올 어라운드 커뮤니티 모임에 참여해 보세요.'],
     'band/times': ['고정 합주팀 가능 시간 | Gather all around', '매주 같은 시간, 4주 단위로 쓰는 고정 합주팀 — 지금 신청할 수 있는 시간을 확인하세요.'],
+    'band/guide': ['고정 합주팀 운영 안내 | Gather all around', '가입·회차·이용료·캐비넷·건너뛰기권 — 고정 합주팀 운영 방식을 한 곳에 모았어요.'],
     band: ['고정 합주팀 | Gather all around', '매주 같은 시간, 4주 단위로 쓰는 고정 합주팀 — 가능 시간 확인·가입 신청.'],
     'band-news': ['어제 하루, 밴드씬에서 생긴 일?! | Gather all around', '국내외 밴드씬 이슈를 한 번에 읽어보자'],
     host: ['호스트 센터 | Gather all around', '공연 등록·예매 관리'],

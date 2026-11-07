@@ -327,6 +327,16 @@ export async function onRequest(context) {
                 } else {
                     out.컬럼_오류 = (await colRes.text().catch(() => '')).slice(0, 200);
                 }
+                // 고정팀 문자(2026-11-07): 발송 기록 표·캐비넷 컬럼 유무 — 없으면 어떤 마이그레이션을 돌려야 하는지 바로 보인다
+                try {
+                    const logRes = await fetch(`${env.SUPABASE_URL}/rest/v1/band_sms_log?select=kind,sent_at,to_phone&order=sent_at.desc&limit=5`, { headers: sbHeaders });
+                    out.고정팀_문자기록_표 = logRes.ok ? true : `없음 — supabase/migrations/20261107_band_sms_log.sql 실행 필요 (${logRes.status})`;
+                    if (logRes.ok) out.최근_고정팀_문자 = await logRes.json().catch(() => []);
+                } catch (e) { out.고정팀_문자기록_표 = '확인 실패: ' + String(e && e.message || e); }
+                try {
+                    const cabRes = await fetch(`${env.SUPABASE_URL}/rest/v1/profiles?select=band_cabinet&limit=1`, { headers: sbHeaders });
+                    out.캐비넷_컬럼 = cabRes.ok ? true : '없음 — supabase/migrations/20261107_band_cabinet.sql 실행 필요';
+                } catch (e) { out.캐비넷_컬럼 = '확인 실패: ' + String(e && e.message || e); }
             }
             if (out.환경변수_SOLAPI) {
                 const bal = await solapiGet('/cash/v1/balance', env);

@@ -121,7 +121,7 @@ const FAKE_SB = `
   // ── 1. 합주팀 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 → 고정 가능 시간 보기(설명 + 실시간 표)
   await p.evaluate(() => { _hideAllScreens(); showBandSection(); document.getElementById('portalLoadingScreen')?.remove(); });
   await p.waitForTimeout(300);
-  chk('첫 화면: 메뉴 2개(고정 가능 시간 보기 · 가입 신청 / 로그인) 표시 — 가입 신청 단독 버튼 없음, 로그인 폼·시간표·가입 폼 숨김', await p.evaluate(() => { const m = document.getElementById('band-menu'); const b = [...m.querySelectorAll('.band-menu-btn b')].map(e => e.textContent); return !m.classList.contains('hidden') && b.join('|') === '고정 가능 시간 보기 · 가입 신청|로그인' && !m.querySelector('[onclick="showBandSignupForm()"]') && document.querySelector('#band-login-form button[onclick="showBandScheduleView()"]') && ['band-login-form', 'band-schedule-view', 'band-signup-form'].every(id => document.getElementById(id).classList.contains('hidden')); }));
+  chk('첫 화면: 메뉴 3개(고정 가능 시간 보기 · 가입 신청 / 운영 안내 / 로그인) 표시 — 가입 신청 단독 버튼 없음, 로그인 폼·시간표·가입 폼 숨김', await p.evaluate(() => { const m = document.getElementById('band-menu'); const b = [...m.querySelectorAll('.band-menu-btn b')].map(e => e.textContent); return !m.classList.contains('hidden') && b.join('|') === '고정 가능 시간 보기 · 가입 신청|운영 안내|로그인' && !m.querySelector('[onclick="showBandSignupForm()"]') && document.querySelector('#band-login-form button[onclick="showBandScheduleView()"]') && ['band-login-form', 'band-schedule-view', 'band-signup-form'].every(id => document.getElementById(id).classList.contains('hidden')); }));
   await p.evaluate(() => showBandScheduleView());
   await p.waitForTimeout(700);
   await p.screenshot({ path: path.join(SHOT_DIR, 'band-slots-schedule.png'), fullPage: true });
@@ -172,6 +172,8 @@ const FAKE_SB = `
     return handleBandEmailSignup();
   });
   chk('타임 미선택 제출 → 인라인 오류 "합주 타임을 1개 이상"', (await p.evaluate(() => document.getElementById('bandSignupResult').textContent)).includes('합주 타임을 1개 이상'));
+  // 운영 안내(2026-11-07): 랜딩 메뉴 → 안내 화면(아코디언 7절·계좌·캐비넷·건너뛰기 규칙) → 가입 신청 CTA
+  chk('운영 안내(랜딩): 메뉴 [운영 안내] → 아코디언 7절 · 계좌·08:00~23:00·캐비넷 6개월 무료/2만원·앞뒤 1주일·사용 3주차 · CTA 가입 신청', await p.evaluate(() => { showBandGuideView(); const v = document.getElementById('band-guide-view'); const t = v.textContent; const ok = !v.classList.contains('hidden') && document.getElementById('band-signup-form').classList.contains('hidden') && v.querySelectorAll('details.band-guide-sec').length === 7 && t.includes('토스뱅크 1000-2274-7678') && t.includes('08:00 ~ 23:00') && t.includes('6개월 이상') && t.includes('회차당 2만원') && t.includes('앞뒤 1주일') && t.includes('사용 3주차') && t.includes('010-5109-1042') && !!v.querySelector('.band-guide-cta .gaa-btn-primary'); _bandLandingShow('band-signup-form'); return ok; }), await p.evaluate(() => document.getElementById('band-guide-view').querySelectorAll('details').length + ' sections'));
   // 아이디 = 밴드 영문명 자동 지정(아이디 칸 없음): 미리보기·짧은 이름 오류
   chk('아이디 칸 없음 + 영문명 "New Team 2!" → 미리보기 "newteam2"(영문·숫자 소문자)', await p.evaluate(() => { const en = document.getElementById('bandSignupNameEn'); en.value = 'New Team 2!'; en.dispatchEvent(new Event('input')); return !document.getElementById('bandSignupId') && document.getElementById('bandSignupIdPreview').textContent === 'newteam2' && /밴드 영문명/.test(document.getElementById('bandSignupIdNote').textContent); }));
   await p.evaluate(() => { document.getElementById('bandSignupNameEn').value = 'AB'; return handleBandEmailSignup(); });

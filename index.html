@@ -1646,6 +1646,27 @@
         .band-pw-row { display: flex; align-items: stretch; gap: 8px; }
         .band-pw-row > input { flex: 1; min-width: 0; }
         .band-pw-prefix { display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 0 14px; border: 1px solid var(--wds-gray-300); border-radius: var(--wds-radius-m); background: var(--wds-gray-100); font-weight: 800; font-size: 1rem; color: var(--wds-gray-700); letter-spacing: 0.5px; }
+        /* 운영 안내(2026-11-07): 랜딩 메뉴·팀 화면 탭 공용 아코디언 */
+        .band-page-seg { margin: 0 0 12px; }
+        .band-page > [hidden] { display: none !important; }
+        .band-guide-head { padding: 2px 0 10px; text-align: left; }
+        .band-guide-eyebrow { font-size: 0.78rem; font-weight: 700; color: var(--wds-primary); letter-spacing: 0.02em; }
+        .band-guide-head h2 { font-size: 1.3rem; margin: 2px 0 6px; font-family: 'KkuBulLim', sans-serif; color: var(--wds-black); }
+        .band-guide-head p { margin: 0; color: var(--wds-gray-600); font-size: 0.9rem; line-height: 1.55; }
+        .band-guide-sec { border-top: 1px solid var(--wds-gray-200); text-align: left; }
+        .band-guide-sec:last-of-type { border-bottom: 1px solid var(--wds-gray-200); }
+        .band-guide-sec summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 13px 2px; cursor: pointer; font-weight: 700; font-size: 0.97rem; color: var(--wds-black); }
+        .band-guide-sec summary::-webkit-details-marker { display: none; }
+        .band-guide-sec summary .ic { width: 30px; height: 30px; border-radius: 9px; background: var(--wds-gray-100); display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; flex: none; }
+        .band-guide-sec summary .ar { margin-left: auto; color: var(--wds-gray-400); font-size: 1.2rem; transition: transform .15s; }
+        .band-guide-sec[open] summary .ar { transform: rotate(90deg); }
+        .band-guide-body { padding: 0 2px 14px 42px; font-size: 0.9rem; line-height: 1.6; color: var(--wds-gray-800); }
+        .band-guide-body ul, .band-guide-body ol { margin: 0; padding-left: 18px; }
+        .band-guide-body li { margin: 5px 0; }
+        .band-guide-body li::marker { color: var(--wds-gray-500); }
+        .band-guide-note { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--wds-gray-100); font-size: 0.84rem; color: var(--wds-gray-600); line-height: 1.55; }
+        .band-guide-cta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+        @media (max-width: 480px) { .band-guide-body { padding-left: 2px; } }
         .band-radio-row { display: flex; gap: 18px; margin: 2px 0 10px; text-align: left; }
         .band-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 0.92rem; cursor: pointer; }
         .band-radio input { width: 18px; height: 18px; margin: 0; accent-color: var(--wds-primary); }
@@ -2516,9 +2537,18 @@
             <div id="band-menu" class="band-menu">
                 <p class="band-menu-intro">매주 같은 요일·같은 시간에 합주실을 고정으로 쓰는 팀을 위한 공간이에요.<br>처음이라면 <strong>고정 가능 시간</strong>을 확인하고 바로 가입 신청할 수 있어요.</p>
                 <button type="button" class="band-menu-btn" onclick="showBandScheduleView()"><span class="ic">📅</span><span class="tx"><b>고정 가능 시간 보기 · 가입 신청</b><small>요일별 가능 시간을 실시간으로 확인하고 타임을 골라 신청해요</small></span><span class="ar">›</span></button>
+                <button type="button" class="band-menu-btn" onclick="showBandGuideView()"><span class="ic">📖</span><span class="tx"><b>운영 안내</b><small>회차·이용료·캐비넷·건너뛰기권 등 고정팀 운영 방식</small></span><span class="ar">›</span></button>
                 <button type="button" class="band-menu-btn" onclick="showBandLoginForm()"><span class="ic">🔑</span><span class="tx"><b>로그인</b><small>승인된 고정팀 계정으로 입장</small></span><span class="ar">›</span></button>
             </div>
 
+            <!-- 운영 안내(2026-11-07): 비회원도 보는 운영 방식 — 팀 화면 [운영 안내] 탭과 같은 bandGuideHTML() -->
+            <div id="band-guide-view" class="hidden" style="text-align:left">
+                <div id="bandGuideLanding"></div>
+                <div class="band-guide-cta">
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="showBandScheduleView()">고정 가능 시간 보기 · 가입 신청</button>
+                    <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="showBandMenu()">← 처음으로</button>
+                </div>
+            </div>
             <!-- 로그인 폼 -->
             <div id="band-login-form" class="email-form hidden">
                 <input type="text" id="bandLoginId" placeholder="아이디 (밴드 영문명)" autocomplete="username" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();handleBandEmailLogin();}">
@@ -2671,6 +2701,12 @@
             </div>
         </div>
         <div class="band-page">
+            <!-- 팀 화면 탭(2026-11-07): 내 팀 | 운영 안내 — bandPageTab() 이 .band-page 직계 카드에 hidden 토글 -->
+            <div class="cm-seg band-page-seg" id="bandPageTabs">
+                <button type="button" class="on" onclick="bandPageTab('home')">내 팀</button>
+                <button type="button" onclick="bandPageTab('guide')">운영 안내</button>
+            </div>
+            <div id="bandGuideSection" class="band-section-card" hidden></div>
             <!-- 밴드 정보 카드 -->
             <div id="bandInfoCard" class="band-section-card">
                 <div class="band-section-title">🎵 밴드 정보</div>
@@ -8460,7 +8496,7 @@
                     return _UUID_RE.test(segs[2]) ? 'gatheo/board/' + segs[2].toLowerCase() : 'gatheo/board';
                 return segs.slice(0, 2).join('/');
             }
-            if (segs[0] === 'band' && segs[1] === 'times') return 'band/times'; // 고정 가능 시간 보기(가입 전 일정 확인, 2026-11-05)
+            if (segs[0] === 'band' && (segs[1] === 'times' || segs[1] === 'guide')) return 'band/' + segs[1]; // 고정 가능 시간 보기(2026-11-05) · 운영 안내(2026-11-07)
             if (segs[0] === 'community' && segs[1]) {
                 if (segs[1] === 'meeting' && _UUID_RE.test(segs[2] || '')) return 'community/meeting/' + segs[2].toLowerCase();
                 return _COMMUNITY_TABS.includes(segs[1]) ? segs.slice(0, 2).join('/') : 'community';
@@ -8517,8 +8553,8 @@
                     }
                 }
                 else if (page === 'band') {
-                    if (state.bandProfile) loginBandUI(state.bandProfile);
-                    else { showBandSection(); if (segs[1] === 'times') showBandScheduleView(); } // #band/times = 고정 가능 시간 보기(가입 전 일정 확인)
+                    if (state.bandProfile) { loginBandUI(state.bandProfile); if (segs[1] === 'guide') setTimeout(() => bandPageTab('guide'), 0); }
+                    else { showBandSection(); if (segs[1] === 'times') showBandScheduleView(); else if (segs[1] === 'guide') showBandGuideView(); } // #band/times = 고정 가능 시간 보기 · #band/guide = 운영 안내
                 }
                 else if (page === 'community') {
                     // showCommunitySection이 탭을 'current'로 리셋하므로, 원하는 탭을 미리 맡겨둔다
@@ -12718,12 +12754,69 @@
         // Band section form helpers
         // 합주팀 랜딩 4화면: 메뉴(#band-menu: 시간표 보기·가입 신청·로그인) / 로그인 / 고정 가능 시간(#band-schedule-view, 설명 포함) / 가입 폼 — 2026-11-05
         function _bandLandingShow(which) {
-            ['band-menu', 'band-login-form', 'band-schedule-view', 'band-signup-form'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', id !== which));
+            ['band-menu', 'band-login-form', 'band-schedule-view', 'band-signup-form', 'band-guide-view'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', id !== which));
             const r1 = document.getElementById('bandLoginResult'); if (r1) r1.textContent = '';
             const r2 = document.getElementById('bandSignupResult'); if (r2) r2.textContent = '';
             try { if (which !== 'band-menu') document.getElementById('landing-page-band')?.scrollIntoView({ block: 'start' }); } catch (_) {}
         }
         function showBandMenu() { _bandLandingShow('band-menu'); }
+        // ── 운영 안내(2026-11-07): 고정 합주팀 운영 방식을 한 곳에. 숫자·계좌·연락처는 코드 상수(문자·화면과 동일). 랜딩 메뉴·팀 화면 탭·딥링크 #band/guide(/band/guide) 공용
+        function bandGuideHTML() {
+            const sec = (icon, title, body, open) => `<details class="band-guide-sec"${open ? ' open' : ''}><summary><span class="ic">${icon}</span><span>${title}</span><span class="ar">›</span></summary><div class="band-guide-body">${body}</div></details>`;
+            const ul = (...items) => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+            const ol = (...items) => `<ol>${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
+            const note = (t) => `<div class="band-guide-note">${t}</div>`;
+            const first = TIMES[0], last = TIMES[TIMES.length - 1];
+            const closeH = parseInt(last, 10) + 1;
+            return `
+                <div class="band-guide-head"><div class="band-guide-eyebrow">고정 합주팀</div><h2>운영 안내</h2><p>가입부터 회차·이용료, 캐비넷, 건너뛰기권까지 고정팀이 알아야 할 규칙을 모았어요. 문자와 화면 안내도 모두 이 규칙을 따릅니다.</p></div>
+                ${sec('⏰', '이용 시간과 고정 타임', ul(
+                    `합주실은 <strong>매일 ${first} ~ ${String(closeH).padStart(2, '0')}:00</strong> 운영하고, 고정팀은 <strong>매주 같은 요일·같은 시간</strong>을 4주 단위로 씁니다.`,
+                    '요일마다 <strong>오전 · 주간 · 야간</strong> 띠가 있어요. 지금 신청할 수 있는 띠는 [고정 가능 시간 보기]에서 실시간으로 확인합니다(고정팀 사용 중 · 대관만 · 개방 예정 · 겹치는 주 표시).',
+                    '고정 시간 변경·추가는 로그인 후 <strong>요청사항</strong>으로 남겨주시면 운영팀이 달력에 반영합니다.'), true)}
+                ${sec('✍️', '가입 신청부터 시작까지', ol(
+                    '[고정 가능 시간 보기]에서 희망 시작일·예상 사용 기간을 넣고 타임을 고른 뒤 <strong>가입 신청</strong>(팀 리더 이름·연락처, 밴드명, 비밀번호, 캐비넷 사용 여부)을 보냅니다.',
+                    '접수되면 팀 리더 번호로 <strong>접수 확인 문자</strong>가 갑니다. 운영팀이 일정을 확인해 승인하면 <strong>승인 안내 문자</strong>(고정 시간·시작일·입금 안내)를 보내드려요.',
+                    '<strong>보증금(1개월분)</strong>을 입금하면 등록이 확정됩니다.',
+                    '등록 회차 <strong>이용료는 시작일 전날까지</strong> 입금해주세요.') + note(`로그인 <strong>아이디는 밴드 영문명</strong>(영문·숫자만 소문자)으로 자동 지정되고, 비밀번호는 <strong>pw + 숫자 4자리</strong>예요. 이 숫자 4자리는 6개월 이상 사용·캐비넷 이용 시 등록 비밀번호가 됩니다.`))}
+                ${sec('💰', '회차와 이용료', ul(
+                    '한 회차는 <strong>시작일부터 4주(28일)</strong>입니다. 회차가 끝나기 전에 다음 회차 이용료를 입금하면 자동으로 연장돼요.',
+                    `다음 회차 <strong>입금일은 사용 3주차</strong>(다음 시작 2주 전)이고, 그날 입금 안내 문자를 보내드립니다. 아직 입금 전이면 <strong>시작 1주 전</strong>과 <strong>시작 전날</strong>에 한 번씩 더 안내해요(회차당 최대 3회).`,
+                    `입금 계좌: <strong>${BAND_BANK_LINE_UI}</strong>`,
+                    '연장하지 않으실 때는 입금일 전에 요청사항이나 문자로 미리 알려주세요. 보증금은 사용 종료 시 반환됩니다.') + note('이용료·보증금 금액과 납부 내역은 로그인 후 「회차·입금 안내」 카드에서 확인할 수 있어요. 내역이 다르면 요청사항으로 알려주세요.'))}
+                ${sec('🗄️', '캐비넷', ul(
+                    `예상 사용 기간 <strong>${BAND_CABINET_FREE_MONTHS}개월 이상</strong> 팀은 <strong>무료</strong>, 그 미만은 <strong>회차당 ${(BAND_CABINET_FEE / 10000)}만원</strong>(이용료와 함께 입금)입니다.`,
+                    '가입 때 정한 <strong>숫자 4자리</strong>가 캐비넷 비밀번호로 등록됩니다.',
+                    '가입 때 「사용함/사용 안 함」을 고르고, 이후 신청·해지는 요청사항으로 알려주세요.'))}
+                ${sec('🔁', '건너뛰기권과 대체 합주', ul(
+                    '공연·공간 대관 등으로 고정 시간을 쓸 수 없는 주가 생기면 <strong>건너뛰기권</strong>을 드립니다(가입 때 겹치는 주는 자동 발급, 이후 생기는 주는 운영팀이 미리 안내).',
+                    `건너뛰기권마다 <strong>대체 합주</strong>(건너뛰는 날 앞뒤 1주일 안, 원래 고정 사용 시간과 같은 시간, 비어 있는 시간) 또는 <strong>1주 무료 연장</strong>(회차 종료일과 다음 입금일이 1주 뒤로) 중 하나를 고릅니다.`,
+                    `선택 마감은 <strong>건너뛰는 날 ${BAND_SKIP_DEADLINE_DAYS}일 전</strong>이고, 그때까지 고르지 않으면 1주 연장으로 처리돼요. 한 번 정하면 바꿀 수 없습니다.`,
+                    '로그인 후 「합주 시간·건너뛰기권」 카드에서 권 목록과 선택 버튼을 볼 수 있어요.'))}
+                ${sec('📱', '안내 문자와 연락', ul(
+                    '문자 안내: 가입 접수 확인 → 승인(또는 거절) 안내 → 회차마다 입금 안내(입금일 정오 무렵).',
+                    `장비·시설·일정 요청은 로그인 후 <strong>요청사항</strong>에 남겨주세요. 급한 연락은 <strong>${PORTAL_PHONE}</strong>(전화·문자)로.`,
+                    '공지사항 카드에 운영 공지가 올라오니 가끔 확인해주세요.'))}
+                ${sec('👋', '종료와 복귀', ul(
+                    '사용을 마치려면 종료 예정일을 미리 알려주세요. 그날까지 사용한 뒤 보증금을 돌려드립니다.',
+                    '쉬었다가 다시 시작할 때는 <strong>기존 아이디(밴드 영문명)로 로그인</strong>하거나 운영팀에 문의해주세요. 같은 리더 연락처로 다시 신청하면 운영팀이 이전 기록을 확인합니다.'))}`;
+        }
+        const BAND_BANK_LINE_UI = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js·send-reminders.js 와 동일 문자열 유지
+        function showBandGuideView() {
+            const box = document.getElementById('bandGuideLanding');
+            if (box && !box.innerHTML) box.innerHTML = bandGuideHTML();
+            _bandLandingShow('band-guide-view');
+        }
+        // 팀 화면 탭: 'home' = 기존 카드 전부 / 'guide' = 운영 안내 카드만
+        function bandPageTab(tab) {
+            const guide = tab === 'guide';
+            const sec = document.getElementById('bandGuideSection');
+            if (sec && guide && !sec.innerHTML) sec.innerHTML = bandGuideHTML();
+            document.querySelectorAll('.band-page > .band-section-card').forEach(el => { if (el.id !== 'bandGuideSection') el.hidden = guide; });
+            if (sec) sec.hidden = !guide;
+            document.querySelectorAll('#bandPageTabs button').forEach((b, i) => b.classList.toggle('on', (i === 1) === guide));
+            if (guide) { try { const el = document.getElementById('bandPageTabs'); if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 64), behavior: 'smooth' }); } catch (_) {} } // 고정 머리(52px) 아래로
+        }
         function showBandLoginForm() { _bandLandingShow('band-login-form'); }
         function showBandScheduleView() {
             _bandLandingShow('band-schedule-view');
@@ -12876,6 +12969,7 @@
         }
 
         function loginBandUI(profile) {
+            if (document.getElementById('bandGuideSection') && !document.getElementById('bandGuideSection').hidden) bandPageTab('home'); // 안내 탭에서 다시 들어오면 내 팀으로
             try { localStorage.removeItem('gaa_portal_required'); } catch(e) {} // 게더링 로그아웃 표식이 남아 있으면 합주팀 세션도 다음 부팅에서 지워진다
             // fullwidth-view: 본문 좌우 패딩 없이 페이지 배경을 화면 끝까지 (공연 예매·대관과 동일)
             document.body.classList.add('portal-view', 'fullwidth-view');
