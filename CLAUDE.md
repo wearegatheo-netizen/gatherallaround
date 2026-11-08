@@ -224,6 +224,8 @@
   주간 칸 「🎭 대관 대기」/「🎭 공간 대관」, 일 보기 「(외부 예약 · 입금 대기)」, 제출 충돌 검사(rejected/cancelled 만 제외)는 그대로 pending 을 막는다. **관리자 예약승인 탭 「승인 대기」는 가상 행(`__perf`)을 제외**하고 「🎭 공간 대관 입금 대기 N건 … 공간대관 탭」 안내만(`.admin-perf-pending-note`) — 2026-11-07 승인 버튼이 `reservations` 에 `perf-<uuid>` 를 보내 uuid 오류 났던 것. 테스트 `tests/ui-gatheo-perf-block.js`(5).
     **예약** 탭: 내 예약 줄 `#gtMyResRow`(`gtUpdateMyResRow` 승인/대기 칩 → 마이 › 내 예약) → `.gt-seg` 알약 [월간|주간](`.tab[data-view]` 는 종전 onTabClick 그대로, 달력 안 「내 예약」 탭은 제거) + [ⓘ 예약 안내]=`gtRulesSheet()`
   → 달력 카드(`.gt-card`, 월간에 내 예약은 `.cal-day-info .mine` 파란 칩, 범례 `.gt-leg`) → 참여 멤버 카드 → 제출. 공용 바닥 시트 `gtSheetOpen(title, html)/gtSheetClose()`(커뮤니티 `.cm-sheet` 스킨 재사용, `_hideAllScreens` 가 닫음).
+  **고르면 바로 추가(2026-11-08, 「오른쪽 [+ 추가]를 안 누르면 안 들어가서 불편」)**: 예약 참여 멤버 `#participantSelect`·참여 멤버 수정 모달 `#editParticipantSelect`·시간차단 여러 날짜 `#blockMultiInput`(date) 은 **`onchange` 로 즉시 추가**하고 [+ 추가] 버튼은 없앴다(안내문 「고르면 바로 추가돼요(칩의 ×로 빼기)」, 셀렉트는 추가 뒤 '' 로 초기화).
+  중복·빈 팀은 `alert` 대신 `showToast`(고르자마자 추가되는 흐름을 알림창이 끊지 않게). 글자 입력(팀 연습곡 직접 입력 `#manualSongTitle/#manualSongArtist`, 합주팀 팀원)은 **Enter** 로도 추가 — 버튼은 그대로. 테스트 `tests/ui-gatheo-blocks.js` 13절.
   **멤버** 탭: 알약 `#memberSeg .seg-btn[data-tab]` 멤버(수)/팀(수)/일정표/참여횟수(`setMemberTab` 이 `.on` 토글, `_MEMBER_SUBTABS` 의 docs/activity 는 딥링크 호환용으로만 남음), 멤버 카드 `.mlist-card` 앞에 `gaAvatar`,
   팀 카드는 수정/삭제 버튼 대신 `.team-more` ⋯ → `gtTeamMenu` 시트, 멤버 아바타 묶음 `.gt-stack`. **게시판**: 제목은 앱 바, `#main-content #comments_container` 평면, 글쓴이 아바타(`_gtMemberByKakao`).
   **마이** `renderMypagePanel()`: 프로필 카드 `.gt-prof`(아바타·역할 칩·세션 칩·[수정]) → 숫자 타일 `.gt-tiles` → 설정형 목록 `.gt-list`(내 예약·음악 취향·연락처·소속 팀·운영안내·활동 앨범·관리자(관리자만) / 푸시 알림·다크 모드·로그아웃).

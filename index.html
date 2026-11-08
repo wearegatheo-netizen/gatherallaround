@@ -1374,14 +1374,6 @@
         .block-form-input:focus { outline: none; border-color: var(--wds-primary); }
         /* 전역 input[type="text"]{height:52px;font-size:1.1rem} 규칙이 특이도에서 이기므로 명시 재정의 */
         input.block-form-input { height: auto; font-size: 0.85rem; padding: 7px 10px; }
-        .block-add-mini-btn {
-            padding: 7px 12px;
-            background: var(--wds-primary); color: white; border: none;
-            border-radius: 8px;
-            font-size: 0.78rem; font-weight: 700; cursor: pointer;
-            white-space: nowrap; font-family: inherit;
-        }
-        .block-add-mini-btn:hover { background: var(--wds-primary-hover); }
         .multi-date-chip {
             display: inline-flex; align-items: center; gap: 4px;
             background: var(--wds-primary-light); color: var(--wds-primary);
@@ -2951,9 +2943,9 @@
         <div style="background:white;border-radius:14px;padding:24px;max-width:480px;width:100%;margin:5vh auto;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
             <h2 style="margin:0 0 6px 0;font-size:1.15rem">참여 멤버 수정</h2>
             <p id="editParticipantsResInfo" style="color:var(--wds-gray-600);font-size:0.85rem;margin:0 0 14px 0"></p>
+            <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:0 0 6px">멤버·팀을 고르면 바로 추가돼요(칩의 ×로 빼기).</p>
             <div style="display:flex;gap:6px;margin-bottom:8px">
-                <select id="editParticipantSelect" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
-                <button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="addEditParticipant()">+ 추가</button>
+                <select id="editParticipantSelect" onchange="addEditParticipant()" aria-label="참여 멤버·팀 선택 (고르면 바로 추가)" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
             </div>
             <div id="editParticipantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
             <div style="margin-top:10px">
@@ -3051,10 +3043,9 @@
 
                 <div class="gt-card" id="participantSection" style="display:none">
                     <span class="label">👥 참여 멤버 <span style="font-size:0.78rem;font-weight:400;color:#e74c3c">(필수, 1명 이상)</span></span>
-                    <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요.</p>
+                    <p style="font-size:0.8rem;color:var(--wds-gray-500);margin:4px 0 8px 0">누가 사용하는 지 정확히 작성해주세요. 멤버·팀을 고르면 바로 추가돼요(칩의 ×로 빼기).</p>
                     <div style="display:flex;gap:6px;margin-bottom:8px">
-                        <select id="participantSelect" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
-                        <button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="addParticipantFromSelect()">+ 추가</button>
+                        <select id="participantSelect" onchange="addParticipantFromSelect()" aria-label="참여 멤버·팀 선택 (고르면 바로 추가)" style="flex:1;height:38px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;background:white"></select>
                     </div>
                     <div id="participantChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
                     <div style="margin-top:10px">
@@ -5257,7 +5248,7 @@
             const [type, id] = sel.value.split(':');
             if (type === 'M') {
                 if (state.participantIds.includes(id)) {
-                    alert('이미 추가된 멤버입니다. 중복을 확인해주세요.');
+                    showToast('이미 추가된 멤버예요.');
                     sel.value = ''; return;
                 }
                 state.participantIds.push(id);
@@ -5266,7 +5257,7 @@
                 if (!team) { sel.value = ''; return; }
                 const teamMemberIds = (team.members || []).map(s => s.memberId).filter(Boolean);
                 if (teamMemberIds.length === 0) {
-                    alert('이 팀에 등록된 멤버가 없습니다.');
+                    showToast('이 팀에 등록된 멤버가 없어요.');
                     sel.value = ''; return;
                 }
                 const dups = teamMemberIds.filter(mid => state.participantIds.includes(mid));
@@ -5275,7 +5266,8 @@
                         const m = state.cachedMembers.find(x => x.id === mid);
                         return m ? (m.name || '?') : '?';
                     }).join(', ');
-                    alert(`이 팀의 멤버 중 ${dupNames}이(가) 이미 추가되어 있습니다.\n중복 선택을 수정해주세요. (기존 항목을 제거 후 팀을 추가하거나, 팀 대신 개별 멤버를 추가)`);
+                    showToast(`이 팀의 멤버 중 ${dupNames}이(가) 이미 추가되어 있어요. 기존 칩을 빼고 팀을 고르거나, 팀 대신 나머지 멤버를 따로 골라주세요.`, 5000);
+
                     sel.value = ''; return;
                 }
                 teamMemberIds.forEach(mid => state.participantIds.push(mid));
@@ -5366,20 +5358,20 @@
             const [type, id] = sel.value.split(':');
             const cur = state.editingResParticipantIds || [];
             if (type === 'M') {
-                if (cur.includes(id)) { alert('이미 추가된 멤버입니다. 중복을 확인해주세요.'); sel.value = ''; return; }
+                if (cur.includes(id)) { showToast('이미 추가된 멤버예요.'); sel.value = ''; return; }
                 cur.push(id);
             } else if (type === 'T') {
                 const team = (state.teams || []).find(t => t.id === id);
                 if (!team) { sel.value = ''; return; }
                 const teamMemberIds = (team.members || []).map(s => s.memberId).filter(Boolean);
-                if (teamMemberIds.length === 0) { alert('이 팀에 등록된 멤버가 없습니다.'); sel.value = ''; return; }
+                if (teamMemberIds.length === 0) { showToast('이 팀에 등록된 멤버가 없어요.'); sel.value = ''; return; }
                 const dups = teamMemberIds.filter(mid => cur.includes(mid));
                 if (dups.length > 0) {
                     const dupNames = dups.map(mid => {
                         const m = state.cachedMembers.find(x => x.id === mid);
                         return m ? (m.name || '?') : '?';
                     }).join(', ');
-                    alert(`이 팀의 멤버 중 ${dupNames}이(가) 이미 추가되어 있습니다.\n중복 선택을 수정해주세요.`);
+                    showToast(`이 팀의 멤버 중 ${dupNames}이(가) 이미 추가되어 있어요. 기존 칩을 빼고 팀을 고르거나, 팀 대신 나머지 멤버를 따로 골라주세요.`, 5000);
                     sel.value = ''; return;
                 }
                 teamMemberIds.forEach(mid => cur.push(mid));
@@ -6375,8 +6367,8 @@
                         <div style="padding-top:8px;border-top:1px dashed var(--wds-gray-300)">
                             <div style="font-size:0.75rem;color:var(--wds-gray-500);margin-bottom:6px;font-weight:600">직접 입력</div>
                             <div style="display:flex;gap:6px">
-                                <input type="text" id="manualSongTitle" placeholder="곡 제목" style="flex:2;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
-                                <input type="text" id="manualSongArtist" placeholder="아티스트 (선택)" style="flex:1;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
+                                <input type="text" id="manualSongTitle" placeholder="곡 제목" onkeydown="if(event.key==='Enter'){event.preventDefault();addManualSong();}" style="flex:2;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
+                                <input type="text" id="manualSongArtist" placeholder="아티스트 (선택)" onkeydown="if(event.key==='Enter'){event.preventDefault();addManualSong();}" style="flex:1;min-width:0;height:36px;padding:0 10px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.85rem;font-family:inherit;box-sizing:border-box">
                                 <button class="gaa-btn gaa-btn-xs gaa-btn-primary" style="height:36px;flex-shrink:0;white-space:nowrap" type="button" onclick="addManualSong()">+ 추가</button>
                             </div>
                         </div>
@@ -6914,7 +6906,7 @@
         function addManualSong() {
             const title = document.getElementById('manualSongTitle').value.trim();
             const artist = document.getElementById('manualSongArtist').value.trim();
-            if (!title) { alert('곡 제목을 입력해주세요.'); return; }
+            if (!title) { showToast('곡 제목을 입력해주세요.'); document.getElementById('manualSongTitle')?.focus(); return; }
             if (!state.editingSongs.find(s => s.title === title && s.artist === artist)) {
                 state.editingSongs.push({ title, artist, artwork: '' });
                 renderSongList();
@@ -7366,10 +7358,8 @@
                     <div id="multiOptions" class="block-form-row" style="display:none;align-items:flex-start">
                         <label class="block-form-label" style="padding-top:8px">날짜 목록</label>
                         <div style="flex:1;min-width:0">
-                            <div style="display:flex;gap:6px">
-                                <input type="date" id="blockMultiInput" class="block-form-input" style="flex:1">
-                                <button type="button" class="block-add-mini-btn" onclick="addMultiDate()">+ 추가</button>
-                            </div>
+                            <input type="date" id="blockMultiInput" class="block-form-input" onchange="addMultiDate()" aria-label="차단할 날짜 (고르면 바로 목록에 추가)" style="width:100%">
+                            <div class="block-form-hint" style="margin-top:4px">날짜를 고르면 바로 목록에 추가돼요. 칩의 ×로 빼기.</div>
                             <div id="multiDateList" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
                         </div>
                     </div>
@@ -7413,11 +7403,13 @@
             renderBlockList();
         }
 
+        // 날짜 input 의 change 로 바로 추가(2026-11-08, [+ 추가] 버튼 제거) — 같은 날짜는 토스트
         window.addMultiDate = function () {
             const inp = document.getElementById('blockMultiInput');
             const v = inp.value;
             if (!v) return;
-            if (!multiDates.includes(v)) multiDates.push(v);
+            if (multiDates.includes(v)) showToast('이미 목록에 있는 날짜예요.');
+            else multiDates.push(v);
             multiDates.sort();
             inp.value = '';
             renderMultiDateList();

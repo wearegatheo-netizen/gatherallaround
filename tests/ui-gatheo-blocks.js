@@ -225,6 +225,35 @@ const FAKE_SB = `
   });
   chk('달력: 11/13 18시 = 고정팀 + 공연 리허설 2개, 고정팀 먼저, 라벨 「[고정팀] 벤더 +1」 / 11/20 18시 = 새 1회 차단만', cal.n === 2 && cal.first === 'b-band' && cal.label === '[고정팀] 벤더 +1' && cal.skipN === 1 && cal.skipFirst === null, JSON.stringify(cal));
 
+  // ── 13) 고르면 바로 추가(2026-11-08): 여러 날짜 입력·예약 참여 멤버·멤버 수정 모달은 [+ 추가] 없이 change 로 추가, 중복은 토스트(알림창 없음)
+  dialogs.length = 0;
+  const multi = await p.evaluate(() => {
+    multiDates = []; renderMultiDateList();
+    const inp = document.getElementById('blockMultiInput');
+    const fire = (v) => { inp.value = v; inp.dispatchEvent(new Event('change', { bubbles: true })); };
+    fire('2026-12-10'); const afterFirst = { n: multiDates.length, cleared: inp.value === '', chip: document.querySelectorAll('#multiDateList .multi-date-chip').length };
+    fire('2026-12-10'); fire('2026-12-03');
+    return { afterFirst, list: multiDates.slice(), chips: document.querySelectorAll('#multiDateList .multi-date-chip').length, noBtn: !document.querySelector('#multiOptions button:not(.multi-date-chip button)'), hint: /바로 목록에 추가/.test(document.getElementById('multiOptions').textContent) };
+  });
+  chk('여러 날짜: 날짜를 고르면(change) 바로 칩 추가 + 입력 비움, 같은 날짜는 안 늘고, 정렬, [+ 추가] 버튼 없음·안내문', multi.afterFirst.n === 1 && multi.afterFirst.cleared && multi.afterFirst.chip === 1 && multi.list.join() === '2026-12-03,2026-12-10' && multi.chips === 2 && multi.noBtn && multi.hint && dialogs.length === 0, JSON.stringify(multi));
+  const part = await p.evaluate((ME) => {
+    state.currentView = 'week'; state.startTime = '10:00'; state.endTime = '11:00'; state.participantIds = [];
+    renderParticipantSelector();
+    const sel = document.getElementById('participantSelect');
+    const pick = (v) => { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); };
+    pick('M:' + ME); const one = state.participantIds.slice();
+    pick('M:' + ME);
+    return { one, two: state.participantIds.slice(), reset: sel.value === '', chip: document.getElementById('participantChips').textContent.includes('운영자'), noBtn: !document.querySelector('#participantSection button.gaa-btn-primary'), hint: /고르면 바로 추가/.test(document.getElementById('participantSection').textContent), hasOnchange: sel.getAttribute('onchange') === 'addParticipantFromSelect()' };
+  }, ME);
+  chk('예약 참여 멤버: 셀렉트에서 고르면 바로 칩 추가·셀렉트 초기화, 중복은 알림창 없이 토스트, [+ 추가] 버튼 없음·안내문', part.one.length === 1 && part.two.length === 1 && part.reset && part.chip && part.noBtn && part.hint && part.hasOnchange && dialogs.length === 0, JSON.stringify(part));
+  const edit = await p.evaluate((ME) => {
+    state.editingResParticipantIds = []; renderEditParticipantSelector();
+    const sel = document.getElementById('editParticipantSelect');
+    sel.value = 'M:' + ME; sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return { ids: state.editingResParticipantIds.slice(), chip: document.getElementById('editParticipantChips').textContent.includes('운영자'), noBtn: !document.querySelector('#editParticipantsModal button[onclick="addEditParticipant()"]'), hasOnchange: sel.getAttribute('onchange') === 'addEditParticipant()' };
+  }, ME);
+  chk('참여 멤버 수정 모달: 고르면 바로 추가, [+ 추가] 버튼 없음', edit.ids.length === 1 && edit.chip && edit.noBtn && edit.hasOnchange, JSON.stringify(edit));
+
   chk('pageerror 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
   await br.close();
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
