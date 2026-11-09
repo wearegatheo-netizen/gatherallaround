@@ -281,6 +281,23 @@ const FAKE_SB = `
   await p.evaluate(() => { setGatheOTab('reservation'); state.selectedDate = null; state.startTime = null; const f = document.getElementById('reservationForm'); f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); }); await p.waitForTimeout(400);
   chk('예약 폼 검증은 알림창 대신 인라인(#reserveResult)', dialogs.length === 0 && await p.evaluate(() => { const r = document.getElementById('reserveResult'); return !!r && r.classList.contains('on') && /날짜와 시간/.test(r.textContent); }));
 
+  // ── 15) 관리자 오류는 토스트 · 게시판 필수 표시 · 권한표 카드형(폰)
+  dialogs.length = 0;
+  await p.evaluate(() => { setGatheOTab('admin'); state.adminTab = 'notice'; renderGatheOAdmin(); }); await p.waitForTimeout(600);
+  await p.evaluate(() => { document.getElementById('noticeTitle').value = ''; document.getElementById('noticeContent').value = ''; postNotice(); }); await p.waitForTimeout(300);
+  const toastTxt = await p.evaluate(() => (document.getElementById('auto-toast') || {}).textContent || '');
+  chk('관리자 공지 검증: 알림창 없이 토스트(제목과 내용)', dialogs.length === 0 && /제목과 내용/.test(toastTxt), toastTxt);
+  await p.evaluate(() => { setGatheOTab('board'); const f = document.getElementById('boardWriteForm'); if (f) f.style.display = 'block'; document.getElementById('boardTitleInput').value = ''; document.getElementById('commentInput').value = '본문만'; postComment(); }); await p.waitForTimeout(300);
+  chk('게시판: 제목·내용 라벨에 필수(*) 표시 + 빈 제목은 빨간 테두리·포커스, 알림창 없음', dialogs.length === 0 && await p.evaluate(() => document.querySelectorAll('#boardWriteForm .gt-field-label em').length === 2 && document.getElementById('boardTitleInput').classList.contains('gt-field-err') && document.activeElement === document.getElementById('boardTitleInput')));
+  await p.evaluate(() => { const i = document.getElementById('boardTitleInput'); i.value = '제목'; i.dispatchEvent(new Event('input')); });
+  chk('게시판: 입력하면 빨간 테두리 해제', await p.evaluate(() => !document.getElementById('boardTitleInput').classList.contains('gt-field-err')));
+  await p.evaluate(() => { setGatheOTab('admin'); state.adminTab = 'members'; renderGatheOAdmin(); }); await p.waitForTimeout(900);
+  const roles390 = await p.evaluate(() => ({ cards: document.querySelectorAll('.role-card').length, cardsVisible: getComputedStyle(document.querySelector('.role-cards')).display !== 'none', tableVisible: getComputedStyle(document.querySelector('.role-table-wrap')).display !== 'none', first: document.querySelector('.role-card')?.textContent.replace(/\s+/g, ' ').trim().slice(0, 60), overflow: document.documentElement.scrollWidth > window.innerWidth + 1 }));
+  await p.setViewportSize({ width: 820, height: 1000 }); await p.waitForTimeout(200);
+  const roles820 = await p.evaluate(() => ({ cardsVisible: getComputedStyle(document.querySelector('.role-cards')).display !== 'none', tableVisible: getComputedStyle(document.querySelector('.role-table-wrap')).display !== 'none' }));
+  await p.setViewportSize({ width: 420, height: 950 });
+  chk('권한표: 폰(390px)은 기능별 카드 15장(표 숨김) · 820px 은 표(카드 숨김)', roles390.cards === 15 && roles390.cardsVisible && !roles390.tableVisible && !roles390.overflow && !roles820.cardsVisible && roles820.tableVisible && /합주실 예약 신청.*운영 총괄/.test(roles390.first), JSON.stringify({ roles390, roles820 }));
+
   chk('pageerror 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
   await br.close();
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

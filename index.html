@@ -747,6 +747,18 @@
         .gt-qa button { background: var(--wds-white); border: 1px solid var(--wds-gray-200); border-radius: 14px; padding: 12px 4px; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--wds-gray-800); font-family: inherit; cursor: pointer; }
         .gt-qa button i { display: block; font-style: normal; font-size: 1.3rem; margin-bottom: 6px; }
         .gt-sec { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 4px; }
+        .role-cards { display: none; flex-direction: column; gap: 8px; }
+        .role-card { border: 1px solid var(--wds-gray-200); border-radius: 10px; padding: 10px 12px; background: var(--wds-white); }
+        .role-card-title { font-size: 0.86rem; font-weight: 700; color: var(--wds-black); margin-bottom: 6px; }
+        .role-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 0.78rem; }
+        .role-card-grid > div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
+        .role-card-grid span { font-weight: 700; white-space: nowrap; }
+        .role-card-grid b { font-weight: 600; color: var(--wds-gray-800); text-align: right; }
+        .role-card-grid b.no { color: var(--wds-gray-400); font-weight: 400; }
+        @media (max-width: 640px) { .role-cards { display: flex; } .role-table-wrap { display: none; } }
+        .gt-field-label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--wds-gray-600); margin-bottom: 4px; }
+        .gt-field-label em { font-style: normal; color: #e74c3c; }
+        .gt-field-err { border-color: #e74c3c !important; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15) !important; }
         .gt-res-msg { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #FEF2F2; color: #b91c1c; font-size: 0.86rem; line-height: 1.5; word-break: keep-all; }
         .gt-res-msg.on { display: block; }
         body.dark .gt-res-msg { background: #3b1111; color: #fca5a5; }
@@ -3099,8 +3111,10 @@
         </div>
         <div id="boardWriteForm" style="display:none;margin-bottom:16px;background:white;border:1px solid var(--wds-gray-300);border-radius:10px;padding:14px">
             <div class="comment-form" style="margin-bottom:0">
-                <input type="text" id="boardTitleInput" placeholder="제목을 입력하세요" maxlength="100" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box">
-                <textarea id="commentInput" placeholder="내용을 입력하세요..." style="min-height:100px"></textarea>
+                <label for="boardTitleInput" class="gt-field-label">제목 <em>*</em></label>
+                <input type="text" id="boardTitleInput" placeholder="제목 (필수) — 예: 11/15 합주 참석 여부" maxlength="100" oninput="this.classList.remove('gt-field-err')" style="width:100%;height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:8px;font-size:0.92rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box">
+                <label for="commentInput" class="gt-field-label" style="margin-top:8px">내용 <em>*</em></label>
+                <textarea id="commentInput" placeholder="내용을 입력하세요..." style="min-height:100px" oninput="this.classList.remove('gt-field-err')"></textarea>
                 <div style="display:flex;gap:8px;justify-content:flex-end">
                     <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" type="button" onclick="toggleBoardWriteForm()">취소</button>
                     <button type="button" class="comment-submit-btn" onclick="postComment()">등록</button>
@@ -3314,7 +3328,7 @@
                 return;
             }
             if (data.status === 'rejected') {
-                alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.');
+                showToast('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.');
                 logoutUI();
                 return;
             }
@@ -3361,8 +3375,8 @@
             if (_kakaoLinkBusy) return;
             const name = document.getElementById('klName').value.trim();
             const phone = document.getElementById('klPhone').value.trim();
-            if (!name) { alert('이름을 입력해주세요.'); return; }
-            if (!phone) { alert('전화번호를 입력해주세요.'); return; }
+            if (!name) { showToast('이름을 입력해주세요.'); return; }
+            if (!phone) { showToast('전화번호를 입력해주세요.'); return; }
             const phoneNorm = phone.replace(/-/g, '');
 
             _kakaoLinkBusy = true;
@@ -3374,11 +3388,11 @@
                     .select('id, name, phone')
                     .eq('name', name)
                     .is('kakao_id', null);
-                if (error) { alert('오류: ' + error.message); return; }
+                if (error) { showToast('오류: ' + error.message, 5000); return; }
 
                 const match = (data || []).find(p => (p.phone || '').replace(/-/g, '') === phoneNorm);
                 if (!match) {
-                    alert('일치하는 계정을 찾을 수 없습니다.\n이름과 전화번호를 다시 확인해주세요.');
+                    showToast('일치하는 계정을 찾을 수 없습니다. 이름과 전화번호를 다시 확인해주세요.', 6000);
                     return;
                 }
 
@@ -3386,7 +3400,7 @@
                     .from('profiles')
                     .update({ kakao_id: state.user.kakaoId })
                     .eq('id', match.id);
-                if (upErr) { alert('연동 실패: ' + upErr.message); return; }
+                if (upErr) { showToast('연동 실패: ' + upErr.message, 5000); return; }
 
                 hideKakaoSignupModal();
                 showToast('계정이 연동되었습니다! 기존 계정으로 로그인됩니다.');
@@ -3403,19 +3417,19 @@
             const name = document.getElementById('ksName').value.trim();
             const email = document.getElementById('ksEmail').value.trim();
             const phone = document.getElementById('ksPhone').value.trim();
-            if (!name) { alert('이름을 입력해주세요.'); return; }
-            if (!phone) { alert('전화번호를 입력해주세요.'); return; }
+            if (!name) { showToast('이름을 입력해주세요.'); return; }
+            if (!phone) { showToast('전화번호를 입력해주세요.'); return; }
             if (!/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g, ''))) {
-                alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
+                showToast('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
             }
             const selectedInsts = Array.from(document.querySelectorAll('#ksInstBtns .inst-btn.selected')).map(b => b.dataset.inst);
             const customInst = document.getElementById('ksCustomInst').value.trim();
             const customs = customInst ? customInst.split(',').map(s => s.trim()).filter(s => s) : [];
             const instruments = [...selectedInsts, ...customs].join(', ');
-            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
+            if (!instruments) { showToast('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             const music_taste = getMtEditValue('mtEdit_ks');
-            if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
+            if (!music_taste) { showToast('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _kakaoSignupBusy = true;
             const submitBtn = document.querySelector('button[onclick="submitKakaoSignup()"]');
@@ -3429,7 +3443,7 @@
                     status: 'pending',
                     role: '일반'
                 }]);
-                if (error) { alert('가입 신청 실패: ' + error.message); return; }
+                if (error) { showToast('가입 신청 실패: ' + error.message, 5000); return; }
                 hideKakaoSignupModal();
                 showToast('가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.');
                 setTimeout(() => sendAdminPush('🙋 새 가입 신청', `${name} · ${instruments || '세션 미입력'}`), 400);
@@ -4584,7 +4598,7 @@
                     const { data: urlData } = supabaseClient.storage.from('community-images').getPublicUrl(path);
                     await gtAvatarSave(profileId, urlData.publicUrl);
                     showToast('프로필 사진을 바꿨습니다.');
-                } catch (e) { console.error('avatar upload:', e); alert('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.'); }
+                } catch (e) { console.error('avatar upload:', e); showToast('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.'); }
             };
             inp.click();
         }
@@ -4594,7 +4608,7 @@
         }
         async function gtAvatarSave(profileId, url) {
             const { error } = await supabaseClient.from('profiles').update({ avatar_url: url }).eq('id', profileId);
-            if (error) { console.error(error); if (/avatar_url/.test(error.message || '')) alert('프로필 사진 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261015_profile_avatar.sql 을 실행해야 합니다.'); else alert('저장하지 못했습니다.'); return; }
+            if (error) { console.error(error); if (/avatar_url/.test(error.message || '')) showToast('프로필 사진 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261015_profile_avatar.sql 을 실행해야 합니다.', 6000); else showToast('저장하지 못했습니다.'); return; }
             if (state.user) state.user.avatarUrl = url;
             const me = _gtMe(); if (me) me.avatar_url = url;
             await renderMypagePanel(); showMypageEditForm(); gtUpdateBar();
@@ -4672,7 +4686,7 @@
             const phoneEl = document.getElementById(isNew ? 'regPhone' : 'mypagePhone');
             const phone = phoneEl ? phoneEl.value.trim() : '';
             if (phone && !/^010-\d{4}-\d{4}$/.test(phone) && !/^01[0-9]{8,9}$/.test(phone.replace(/-/g,''))) {
-                alert('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
+                showToast('올바른 전화번호를 입력해주세요. (예: 010-0000-0000)'); return;
             }
             const instBtnsId = isNew ? 'regInstBtns' : 'mypageInstBtns';
             const customInstId = isNew ? 'regCustomInst' : 'mypageCustomInst';
@@ -4680,16 +4694,16 @@
             const customInst = document.getElementById(customInstId).value.trim();
             const customs = customInst ? customInst.split(',').map(s=>s.trim()).filter(s=>s) : [];
             const instruments = [...selectedInsts, ...customs].join(', ');
-            if (!instruments) { alert('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
+            if (!instruments) { showToast('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             const music_taste = getMtEditValue(isNew ? 'mtEdit_reg' : 'mtEdit_mypage');
-            if (isNew && !music_taste) { alert('음악 취향을 입력해주세요.'); return; }
+            if (isNew && !music_taste) { showToast('음악 취향을 입력해주세요.'); return; }
 
             let result;
             if (isNew) {
                 const name = document.getElementById('regName').value.trim();
                 const email = document.getElementById('regEmail').value.trim();
-                if (!name) { alert('이름을 입력해주세요.'); return; }
+                if (!name) { showToast('이름을 입력해주세요.'); return; }
                 result = await supabaseClient.from('profiles').insert([{
                     id: genUUID(),
                     kakao_id: state.user.kakaoId,
@@ -5296,11 +5310,11 @@
         }
 
         function openEditParticipantsModal(resId) {
-            if (String(resId).startsWith('perf-')) { alert('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
+            if (String(resId).startsWith('perf-')) { showToast('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
             const r = (state.reservations || []).find(x => x.id === resId);
             if (!r) return;
             // 총괄은 지난 예약도 보정할 수 있어야 한다(관리자 목록에 지난 예약이 노출되므로).
-            if (!isReservationEditable(r) && !isSuper()) { alert('이미 지나간 예약은 수정할 수 없습니다.'); return; }
+            if (!isReservationEditable(r) && !isSuper()) { showToast('이미 지나간 예약은 수정할 수 없습니다.'); return; }
             state.editingResId = resId;
             state.editingResParticipantIds = Array.isArray(r.participant_ids) ? [...r.participant_ids] : [];
             const endIdx = TIMES.indexOf(r.end_time);
@@ -5925,7 +5939,7 @@
         }
         function schedEditorAddGroup() { state.scheduleEditorGroups.push({ name: '', entries: [{ startTime: '', endTime: '', teamId: '', customName: '', note: '' }] }); renderScheduleEditor(); }
         function schedEditorRemoveGroup(gi) {
-            if (state.scheduleEditorGroups.length <= 1) { alert('최소 1개 그룹이 필요합니다.'); return; }
+            if (state.scheduleEditorGroups.length <= 1) { showToast('최소 1개 그룹이 필요합니다.'); return; }
             state.scheduleEditorGroups.splice(gi, 1); renderScheduleEditor();
         }
         function schedEditorAddEntry(gi) { if (state.scheduleEditorGroups[gi]) { state.scheduleEditorGroups[gi].entries.push({ startTime: '', endTime: '', teamId: '', customName: '', note: '' }); renderScheduleEditor(); } }
@@ -5957,9 +5971,9 @@
         }
 
         async function saveScheduleForDate() {
-            if (!canApproveRes()) { alert('세션장 이상 권한이 필요합니다.'); return; }
+            if (!canApproveRes()) { showToast('세션장 이상 권한이 필요합니다.'); return; }
             const date = state.scheduleEditorDate;
-            if (!date) { alert('날짜를 선택해주세요.'); return; }
+            if (!date) { showToast('날짜를 선택해주세요.'); return; }
             const showBanner = !!(document.getElementById('schedBannerToggle')?.checked ?? state.scheduleEditorShowBanner);
             state.scheduleEditorShowBanner = showBanner;
             const allowGuests = !!(document.getElementById('schedGuestToggle')?.checked ?? state.scheduleEditorAllowGuests);
@@ -6004,12 +6018,12 @@
                     payload = stripGuests(records);
                     ({ error: insErr } = await supabaseClient.from('schedules').insert(payload));
                 }
-                if (insErr) { alert('저장 실패: ' + insErr.message + '\n(기존 일정은 그대로 남아 있습니다)'); return; }
+                if (insErr) { showToast('저장 실패: ' + insErr.message + ' (기존 일정은 그대로 남아 있습니다)', 5000); return; }
                 if (payload !== records && allowGuests) showToast('외부인 참여 설정은 Supabase 에서 20261102_schedules_allow_guests.sql 을 실행한 뒤 저장돼요.', 5000);
             }
             if (oldIds.length) {
                 const { error: delErr } = await supabaseClient.from('schedules').delete().in('id', oldIds);
-                if (delErr) { console.error('schedules old rows delete error:', delErr); alert('새 일정은 저장됐지만 이전 일정을 지우지 못했습니다. 화면에 두 벌이 보이면 [편집]으로 다시 저장해주세요.'); }
+                if (delErr) { console.error('schedules old rows delete error:', delErr); showToast('새 일정은 저장됐지만 이전 일정을 지우지 못했습니다. 화면에 두 벌이 보이면 [편집]으로 다시 저장해주세요.'); }
             }
             showToast('일정이 저장되었습니다.');
             await fetchSchedules();
@@ -6022,7 +6036,7 @@
             if (!canApproveRes()) return;
             if (!confirm(`${date} 일정 전체를 삭제할까요?`)) return;
             const { error } = await supabaseClient.from('schedules').delete().eq('date', date);
-            if (error) { alert('삭제 실패: ' + error.message); return; }
+            if (error) { showToast('삭제 실패: ' + error.message, 5000); return; }
             showToast('삭제되었습니다.');
             await fetchSchedules();
             const container = document.getElementById('memberPanelView');
@@ -6846,7 +6860,7 @@
 
         async function saveTeam() {
             const name = document.getElementById('teamName').value.trim();
-            if (!name) { alert('팀 이름을 입력해주세요.'); return; }
+            if (!name) { showToast('팀 이름을 입력해주세요.'); return; }
             const startDate = document.getElementById('teamStartDate').value || null;
             const endDate = document.getElementById('teamEndDate').value || null;
 
@@ -6870,7 +6884,7 @@
             }
             if (error) {
                 console.warn('팀 저장 실패. songs 컬럼 확인: ALTER TABLE teams ADD COLUMN IF NOT EXISTS songs jsonb;');
-                alert('팀 저장 실패: ' + error.message);
+                showToast('팀 저장 실패: ' + error.message, 5000);
                 return;
             }
             const editingId = state.editingTeam ? state.editingTeam.id : null;
@@ -6887,8 +6901,8 @@
         async function deleteTeam(id) {
             if (!confirm('이 팀을 삭제하시겠습니까?')) return;
             const { data, error } = await supabaseClient.from('teams').delete().eq('id', id).select();
-            if (error) { alert('삭제 실패: ' + error.message); return; }
-            if (!data || data.length === 0) { alert('삭제 권한이 없습니다.'); return; }
+            if (error) { showToast('삭제 실패: ' + error.message, 5000); return; }
+            if (!data || data.length === 0) { showToast('삭제 권한이 없습니다.'); return; }
             await fetchTeams();
             renderMemberPanel();
         }
@@ -7974,21 +7988,7 @@
 
             const roleSection = document.createElement('div');
             roleSection.className = 'admin-section';
-            roleSection.innerHTML = `
-                <div class="admin-section-title">🔐 권한 안내</div>
-                <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:600px">
-                    <thead>
-                        <tr style="background:var(--wds-gray-100)">
-                            <th style="padding:10px 8px;text-align:left;border-bottom:2px solid var(--wds-gray-300);white-space:nowrap">기능 / 권한</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#e04000;white-space:nowrap">운영 총괄</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#3366FF;white-space:nowrap">총괄</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#00b894;white-space:nowrap">세션장</th>
-                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#999;white-space:nowrap">일반</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${[
+            const ROLE_MATRIX = [
                             ['합주실 예약 신청',                 '✅', '✅', '✅', '✅'],
                             ['예약 즉시 확정 (승인 불필요)',     '✅', '✅', '✅', '2시간 이하만'],
                             ['미래 예약 가능 기간',              '제한 없음', '제한 없음', '제한 없음', '최대 2개월'],
@@ -8004,7 +8004,26 @@
                             ['운영 안내 문서 관리',             '✅', '✅', '✅', '—'],
                             ['전체 푸시 알림 발송',             '✅', '✅', '✅', '—'],
                             ['예약 불가 시간 설정 · BGM',       '✅', '—', '—', '—'],
-                        ].map((row, i) => `
+                        ];
+            const ROLE_HEADS = [['운영 총괄', '#e04000'], ['총괄', '#3366FF'], ['세션장', '#00b894'], ['일반', '#999']];
+            // 폰(≤640px)에선 가로 600px 표 대신 기능별 카드(2026-11-09 QA) — CSS 가 폭에 따라 하나만 보인다
+            const roleCards = ROLE_MATRIX.map(row => `<div class="role-card"><div class="role-card-title">${row[0]}</div><div class="role-card-grid">${ROLE_HEADS.map(([h, c], k) => `<div><span style="color:${c}">${h}</span><b class="${row[k + 1] === '—' ? 'no' : ''}">${row[k + 1]}</b></div>`).join('')}</div></div>`).join('');
+            roleSection.innerHTML = `
+                <div class="admin-section-title">🔐 권한 안내</div>
+                <div class="role-cards">${roleCards}</div>
+                <div class="role-table-wrap" style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:600px">
+                    <thead>
+                        <tr style="background:var(--wds-gray-100)">
+                            <th style="padding:10px 8px;text-align:left;border-bottom:2px solid var(--wds-gray-300);white-space:nowrap">기능 / 권한</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#e04000;white-space:nowrap">운영 총괄</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#3366FF;white-space:nowrap">총괄</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#00b894;white-space:nowrap">세션장</th>
+                            <th style="padding:10px 8px;text-align:center;border-bottom:2px solid var(--wds-gray-300);color:#999;white-space:nowrap">일반</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ROLE_MATRIX.map((row, i) => `
                             <tr style="${i % 2 === 0 ? 'background:white' : 'background:var(--wds-gray-100)'}">
                                 <td style="padding:8px;border-bottom:1px solid var(--wds-gray-200)">${row[0]}</td>
                                 <td style="padding:8px;text-align:center;border-bottom:1px solid var(--wds-gray-200);font-weight:600;color:#e04000">${row[1]}</td>
@@ -16288,13 +16307,13 @@
         }
 
         async function subscribePush() {
-            if (!_swReg) { alert('서비스 워커가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'); return; }
+            if (!_swReg) { showToast('서비스 워커가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'); return; }
             const perm = await Notification.requestPermission();
-            if (perm !== 'granted') { alert('알림 권한을 허용해주세요.'); return; }
+            if (perm !== 'granted') { showToast('알림 권한을 허용해주세요.'); return; }
             try {
                 const res = await fetch('/push?key');
                 const { key } = await res.json();
-                if (!key) { alert('VAPID 키가 설정되지 않았습니다. Cloudflare 환경 변수를 확인해주세요.'); return; }
+                if (!key) { showToast('VAPID 키가 설정되지 않았습니다. Cloudflare 환경 변수를 확인해주세요.', 6000); return; }
                 const sub = await _swReg.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(key)
@@ -16305,7 +16324,7 @@
                 await q;
                 showToast('✅ 푸시 알림이 활성화되었습니다.');
                 render();
-            } catch (e) { alert('구독 실패: ' + e.message); }
+            } catch (e) { showToast('구독 실패: ' + e.message, 5000); }
         }
 
         async function unsubscribePush() {
@@ -16320,7 +16339,7 @@
                 await q2;
                 showToast('푸시 알림이 비활성화되었습니다.');
                 render();
-            } catch (e) { alert('구독 해제 실패: ' + e.message); }
+            } catch (e) { showToast('구독 해제 실패: ' + e.message, 5000); }
         }
 
         async function getPushSubscriptionStatus() {
@@ -16376,7 +16395,7 @@
             btn.textContent = '전송 중...';
             try {
                 const subs = await getAdminPushSubscriptions();
-                if (!subs.length) { alert('저장된 구독 정보가 없습니다.\n\nSupabase profiles 테이블에서 push_subscription 컬럼이 있는지, 값이 저장됐는지 확인해주세요.'); return; }
+                if (!subs.length) { showToast('저장된 구독 정보가 없습니다. Supabase profiles 테이블에서 push_subscription 컬럼이 있는지, 값이 저장됐는지 확인해주세요.', 6000); return; }
                 const results = await Promise.allSettled(subs.map(async sub => {
                     const r = await fetch('/push', {
                         method: 'POST',
@@ -16391,9 +16410,9 @@
                     const { httpStatus, contentType, body } = r.value;
                     return `구독${i+1}: HTTP ${httpStatus} · ${contentType}\n${body.slice(0, 300)}`;
                 }).join('\n\n');
-                alert(`테스트 결과 (${subs.length}개 구독):\n\n${msgs}`);
+                gtSheetOpen(`푸시 테스트 결과 · ${subs.length}개 구독`, `<div style="white-space:pre-wrap;font-size:0.86rem;line-height:1.6;word-break:break-all">${escapeHtml(msgs)}</div>`);
             } catch (e) {
-                alert('오류: ' + e.message);
+                showToast('오류: ' + e.message, 5000);
             } finally {
                 btn.disabled = false;
                 btn.textContent = '테스트 알림';
@@ -16723,9 +16742,9 @@
             const title = document.getElementById('newDocTitle').value.trim();
             const summary = (document.getElementById('newDocSummary')?.value || '').trim();
             const content = rteValue('newDocContent');
-            if (!category || !title || !content) { alert('카테고리/제목/내용을 모두 입력해주세요.'); return; }
+            if (!category || !title || !content) { showToast('카테고리/제목/내용을 모두 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('documents').insert([{ category, title, summary, content }]);
-            if (error) { alert('추가 실패: ' + error.message); return; }
+            if (error) { showToast('추가 실패: ' + error.message, 5000); return; }
             document.getElementById('newDocCategory').value = '';
             document.getElementById('newDocTitle').value = '';
             const sumEl = document.getElementById('newDocSummary');
@@ -16767,9 +16786,9 @@
             const co = rteValue(`doc-edit-content-${id}`);
             const sumEl = document.getElementById(`doc-edit-summary-${id}`);
             const s = sumEl ? sumEl.value.trim() : '';
-            if (!c || !t || !co) { alert('카테고리/제목/내용 모두 입력해주세요.'); return; }
+            if (!c || !t || !co) { showToast('카테고리/제목/내용 모두 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('documents').update({ category: c, title: t, content: co, summary: s, updated_at: new Date().toISOString() }).eq('id', id);
-            if (error) { alert('수정 실패: ' + error.message); return; }
+            if (error) { showToast('수정 실패: ' + error.message, 5000); return; }
             showToast('문서가 수정되었습니다.');
             await refreshDocsViews();
         }
@@ -16777,7 +16796,7 @@
         async function deleteDoc(id) {
             if (!confirm('이 문서를 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('documents').delete().eq('id', id);
-            if (error) { alert('삭제 실패: ' + error.message); return; }
+            if (error) { showToast('삭제 실패: ' + error.message, 5000); return; }
             showToast('문서가 삭제되었습니다.');
             await refreshDocsViews();
         }
@@ -16819,7 +16838,7 @@
         }
 
         function editResInfo(id) {
-            if (String(id).startsWith('perf-')) { alert('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
+            if (String(id).startsWith('perf-')) { showToast('공간 대관 건은 관리자 탭의 🎭 공간대관에서 관리해주세요.'); return; }
             const row = document.getElementById(`admin-res-row-${id}`);
             if (!row) return;
             const { resDate, startTime, endTime, userName, etc } = row.dataset;
@@ -16871,13 +16890,13 @@
             const userName  = document.getElementById(`er-name-${id}`)?.value.trim();
             const etcText   = document.getElementById(`er-etc-${id}`)?.value.trim();
             const etcCount  = document.getElementById(`er-etccnt-${id}`)?.value;
-            if (!resDate || !startTime || !endTime || !userName) { alert('날짜·시간·예약자명은 필수입니다.'); return; }
+            if (!resDate || !startTime || !endTime || !userName) { showToast('날짜·시간·예약자명은 필수입니다.'); return; }
             // 종료 슬롯은 포함형(1시간 예약은 start_time === end_time). 시작이 종료보다 늦을 때만 거부.
-            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { showToast('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
             const { error } = await supabaseClient.from('reservations')
                 .update({ res_date: resDate, start_time: startTime, end_time: endTime, user_name: userName, participant_etc: joinEtc(etcText, etcCount) || null })
                 .eq('id', id);
-            if (error) { alert('저장 실패: ' + error.message); return; }
+            if (error) { showToast('저장 실패: ' + error.message, 5000); return; }
             showToast('예약이 수정되었습니다.');
             await refreshAdminApprovalView();
         }
@@ -16912,9 +16931,9 @@
             const phone = document.getElementById(`em-phone-${id}`)?.value.trim();
             const email = document.getElementById(`em-email-${id}`)?.value.trim();
             const instruments = document.getElementById(`em-inst-${id}`)?.value.trim();
-            if (!name) { alert('이름을 입력해주세요.'); return; }
+            if (!name) { showToast('이름을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('profiles').update({ name, phone, email, instruments }).eq('id', id);
-            if (error) { alert('저장 실패: ' + error.message); return; }
+            if (error) { showToast('저장 실패: ' + error.message, 5000); return; }
             const m = (state.allMembers || []).find(x => x.id === id);
             if (m) { m.name = name; m.phone = phone || ''; m.email = email || ''; m.instruments = instruments || ''; }
             const memberList = document.getElementById('memberList');
@@ -16927,7 +16946,7 @@
             _memberActionInflight.add(id);
             try {
                 const { error } = await supabaseClient.from('profiles').update({ status: 'approved' }).eq('id', id);
-                if (error) { alert('승인 실패: ' + error.message); return; }
+                if (error) { showToast('승인 실패: ' + error.message, 5000); return; }
                 state.paging.adminMemberPending = 0;
                 const fresh = await fetchMembers(); state.allMembers = fresh;
                 const el = document.getElementById('memberList');
@@ -16943,7 +16962,7 @@
             _memberActionInflight.add(id);
             try {
                 const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
-                if (error) { alert('거절 실패: ' + error.message); return; }
+                if (error) { showToast('거절 실패: ' + error.message, 5000); return; }
                 state.paging.adminMemberApproved = 0;
                 const fresh = await fetchMembers(); state.allMembers = fresh;
                 const el = document.getElementById('memberList');
@@ -16955,7 +16974,7 @@
 
         async function updateMemberRole(id, role) {
             const { error } = await supabaseClient.from('profiles').update({ role }).eq('id', id);
-            if (error) { alert('권한 변경 실패: ' + error.message); return; }
+            if (error) { showToast('권한 변경 실패: ' + error.message, 5000); return; }
             const m = (state.allMembers || []).find(x => x.id === id); if (m) m.role = role;
         }
 
@@ -17063,7 +17082,7 @@
             const content = prompt('공지 내용');
             if (!content) return;
             const { error } = await supabaseClient.from('notices').insert([{ title: title.trim(), content: content.trim() }]);
-            if (error) { alert('추가 실패: ' + error.message); return; }
+            if (error) { showToast('추가 실패: ' + error.message, 5000); return; }
             await fetchNotices();
         }
 
@@ -17110,9 +17129,9 @@
             const contentEl = document.getElementById(`notice-edit-content-${id}`);
             const title = titleEl ? titleEl.value.trim() : '';
             const content = contentEl ? contentEl.value.trim() : '';
-            if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+            if (!title || !content) { showToast('제목과 내용을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('notices').update({ title, content }).eq('id', id);
-            if (error) { alert('수정 실패: ' + error.message); return; }
+            if (error) { showToast('수정 실패: ' + error.message, 5000); return; }
             const idx = notices.findIndex(n => String(n.id) === String(id));
             if (idx !== -1) notices[idx] = { ...notices[idx], title, content };
             renderAdminNotices();
@@ -17122,9 +17141,9 @@
         async function postNotice() {
             const title = document.getElementById('noticeTitle').value.trim();
             const content = document.getElementById('noticeContent').value.trim();
-            if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+            if (!title || !content) { showToast('제목과 내용을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('notices').insert([{ title, content }]);
-            if (error) { alert('공지 등록 실패: ' + error.message); return; }
+            if (error) { showToast('공지 등록 실패: ' + error.message, 5000); return; }
             document.getElementById('noticeTitle').value = '';
             document.getElementById('noticeContent').value = '';
             await fetchNotices();
@@ -17306,8 +17325,9 @@
             const input = document.getElementById('commentInput');
             const rawContent = input.value.trim();
             const titleVal = (document.getElementById('boardTitleInput') || {}).value?.trim() || '';
-            if (!titleVal) { showToast('제목을 입력해주세요.'); document.getElementById('boardTitleInput')?.focus(); return; }
-            if (!rawContent) { showToast('내용을 입력해주세요.'); input.focus(); return; }
+            const markErr = (el) => { if (!el) return; el.classList.add('gt-field-err'); el.focus(); };
+            if (!titleVal) { showToast('제목을 입력해주세요.'); markErr(document.getElementById('boardTitleInput')); return; }
+            if (!rawContent) { showToast('내용을 입력해주세요.'); markErr(input); return; }
             // 본문에 구분자(\x1F)가 섞여 글이 깨지는 것 방지
             const content = `\x1F${titleVal.replace(/\x1F/g, '')}\x1F\n${rawContent.replace(/\x1F/g, '')}`;
 
