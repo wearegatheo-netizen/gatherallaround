@@ -129,7 +129,34 @@ async function wappenOg(env, url) {
         image: row.thumb_url || row.base_image_url, w: null, h: null, url: `${WAPPEN_SHARE}/wp/${id}` };
 }
 
+// ── 보안 헤더(2026-11-09, 「보안이 널널하대」) ───────────────────────────────
+// 모든 응답(정적 자산·섹션 셸·OG 페이지·302·Functions JSON)에 공통으로 붙인다. 원본이 이미 같은 이름의 헤더를 냈으면 그대로 둔다.
+// _headers 파일에도 같은 값을 적어 두었다(이중 안전망 — Functions 응답엔 _headers 가 적용되지 않고, 정적 자산은 둘 다 거친다).
+// CSP 는 단일 파일 SPA(인라인 스크립트·onclick 핸들러·CDN 라이브러리)라 'unsafe-inline'·'unsafe-eval' 을 허용한 느슨한 정책이다 —
+// 그래도 http: 리소스(upgrade-insecure-requests)·플러그인(object-src)·<base> 탈취(base-uri)·다른 사이트의 iframe 삽입(frame-ancestors = 클릭재킹)은 막는다.
+// wss: 는 Supabase Realtime, data:/blob: 는 QR·캔버스 미리보기·다운로드. 더 조이려면 인라인 스크립트를 파일로 빼고 nonce 를 써야 한다(index.html 전면 수정).
+// X-Frame-Options 도 같이(옛 브라우저). Permissions-Policy: 카메라·마이크·위치는 사이트가 쓰지 않는다(QR 체크인은 폰 카메라 앱으로 링크를 연다).
+export const SECURITY_HEADERS = {
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    'Content-Security-Policy': "default-src 'self' https: wss: data: blob: 'unsafe-inline' 'unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; upgrade-insecure-requests",
+};
+export function withSecurityHeaders(response) {
+    if (!response || !response.headers) return response;
+    const missing = Object.entries(SECURITY_HEADERS).filter(([k]) => !response.headers.has(k));
+    if (!missing.length) return response;
+    const out = new Response(response.body, response); // ASSETS/next() 응답은 헤더가 불변이라 복제해서 붙인다
+    missing.forEach(([k, v]) => out.headers.set(k, v));
+    return out;
+}
 export async function onRequest(context) {
+    return withSecurityHeaders(await handle(context));
+}
+
+async function handle(context) {
     const { request, next, env } = context;
     const DRIVE_API_KEY = (env && env.DRIVE_API_KEY) || DRIVE_API_KEY_FALLBACK;
     const url = new URL(request.url);

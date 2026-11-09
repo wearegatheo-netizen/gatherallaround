@@ -1,4 +1,13 @@
 # Cloudflare Pages 응답 헤더
+# 보안 헤더(2026-11-09) — functions/_middleware.js SECURITY_HEADERS 와 같은 값(동기화 대상). Functions 응답은 미들웨어가, 정적 자산은 둘 다 붙인다.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self' https: wss: data: blob: 'unsafe-inline' 'unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; upgrade-insecure-requests
+
 # 폰트는 파일명에 내용이 고정돼 있으므로 1년 불변 캐시.
 # 폰트 교체 시 반드시 파일명을 바꿀 것 (예: -latin.v2.woff2) — 안 그러면 캐시가 갱신되지 않음.
 /fonts/*

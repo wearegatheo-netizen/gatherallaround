@@ -1,6 +1,6 @@
 // functions/_middleware.js 단위 테스트 — ?news= 회귀 + 와펜 공유 쿼리형(/?wp=|?ww=, 예전 /wappen/?p=|?w=): 사람 UA 302 · 크롤러 OG 주입
 // 실행: node tests/middleware-unit.mjs
-import { onRequest } from '../functions/_middleware.js';
+import { onRequest, SECURITY_HEADERS } from '../functions/_middleware.js';
 import { readFileSync } from 'node:fs';
 
 let pass = 0, fail = 0;
@@ -140,6 +140,20 @@ const WORK = { title: '첫 작품', author_name: '길동', preview_url: 'https:/
   mockFetch([]);
   html = await (await runA('/community/test')).text();
   chk('/community/test → #community/test + 커뮤니티 OG', routeOf(html) === 'community/test' && html.includes('커뮤니티 | Gather all around'));
+
+  // ── 보안 헤더(2026-11-09): 모든 응답에 HSTS·CSP·XFO·nosniff·Referrer·Permissions, 원본 헤더 보존, 이미 있으면 덮지 않음
+  const SEC = ['strict-transport-security', 'content-security-policy', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy'];
+  const hasSec = (res) => SEC.every(hh => !!res.headers.get(hh));
+  const rPass = await run('/wappen/#/');
+  const rShell = await runA('/perf', { ua: SAFARI });
+  const r302s = await run(`/?wp=${PID}`, { ua: SAFARI });
+  const rKeep = await onRequest({ request: new Request('https://gatherallaround.com/x'), env: ENV, next: async () => new Response('x', { headers: { 'content-type': 'text/plain', 'X-Frame-Options': 'DENY' } }) });
+  const csp = rPass.headers.get('content-security-policy') || '';
+  chk('보안 헤더: 통과 응답·섹션 셸·302 모두에 6종 + 원본 x-keep 유지 · CSP 에 frame-ancestors self·wss·upgrade-insecure-requests · HSTS 1년',
+    hasSec(rPass) && rPass.headers.get('x-keep') === '1' && hasSec(rShell) && hasSec(r302s) && r302s.status === 302 && /frame-ancestors 'self'/.test(csp) && /wss:/.test(csp) && /upgrade-insecure-requests/.test(csp) && /max-age=31536000/.test(rPass.headers.get('strict-transport-security')) && rPass.headers.get('x-content-type-options') === 'nosniff',
+    SEC.map(hh => hh + '=' + (rPass.headers.get(hh) || '').slice(0, 40)).join(' | '));
+  chk('보안 헤더: 원본이 이미 낸 헤더(X-Frame-Options: DENY)는 덮지 않고 본문 그대로', rKeep.headers.get('x-frame-options') === 'DENY' && hasSec(rKeep) && (await rKeep.text()) === 'x');
+  chk('보안 헤더: _headers 파일의 /* 블록이 미들웨어 SECURITY_HEADERS 와 같은 값', (() => { const f = readFileSync(new URL('../_headers', import.meta.url), 'utf8'); return Object.entries(SECURITY_HEADERS).every(([k, v]) => f.includes(`  ${k}: ${v}`)); })());
 }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
