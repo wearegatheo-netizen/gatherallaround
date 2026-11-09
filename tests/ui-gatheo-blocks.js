@@ -254,6 +254,33 @@ const FAKE_SB = `
   }, ME);
   chk('참여 멤버 수정 모달: 고르면 바로 추가, [+ 추가] 버튼 없음', edit.ids.length === 1 && edit.chip && edit.noBtn && edit.hasOnchange, JSON.stringify(edit));
 
+  // ── 14) 2026-11-09 전체 QA 후속: 취향 파싱 내성·참여횟수 대관 제외·주간 7일 한 화면·탭 타깃·문서 빠른 추가 경로·예약 인라인 안내
+  const qa = await p.evaluate(() => {
+    const r = {};
+    r.tasteObj = (() => { try { return musicTasteTags({ artists: ['A', 'B'], genres: ['록'], songs: [] }).includes('A') && musicTasteTags(JSON.stringify({ artists: 'C, D' })).includes('D') && parseMusicTaste({ artists: 'x' }).artists === 'x'; } catch (e) { return 'err ' + e.message; } })();
+    state.reservations = [{ id: 'r1', res_date: '2026-11-20', start_time: '10:00', end_time: '11:00', status: 'approved', participant_ids: [] }, { id: 'perf-x', __perf: true, res_date: '2026-11-20', start_time: '12:00', end_time: '13:00', status: 'approved' }];
+    r.statsBase = state.reservations.filter(x => !x.__perf && (x.status === 'approved' || x.status === 'pending')).length;
+    return r;
+  });
+  chk('음악 취향: 객체/배열로 와도 칩을 그린다(멤버 목록·마이가 멈추지 않음)', qa.tasteObj === true, String(qa.tasteObj));
+  await p.evaluate(() => { setGatheOTab('member'); setMemberTab('stats'); }); await p.waitForTimeout(900);
+  chk('참여횟수: 「예약 (전체)」 건수에 공간 대관 가상 행 제외', await p.evaluate(() => /예약 \(전체\)\s*1건/.test(document.getElementById('memberPanelContent')?.textContent.replace(/\s+/g, ' ') || '')), await p.evaluate(() => (document.getElementById('memberPanelContent')?.textContent.replace(/\s+/g, ' ') || '').slice(0, 80)));
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.evaluate(() => { setGatheOTab('reservation'); const t = document.querySelector('.tab[data-view="week"]'); if (t) t.click(); state.viewDate = new Date('2026-11-13T00:00:00'); render(); }); await p.waitForTimeout(500);
+  const wk = await p.evaluate(() => { const g = document.querySelector('.weekly-grid'); const vc = document.getElementById('viewContainer'); const cells = [...document.querySelectorAll('.weekly-header-cell')].map(e => e.textContent.replace(/\s+/g, ' ').trim()); return { gridW: Math.round(g.getBoundingClientRect().width), boxW: Math.round(vc.getBoundingClientRect().width), scroll: vc.scrollWidth - vc.clientWidth, heads: cells.length, blockedShort: [...new Set([...document.querySelectorAll('.slot-blocked')].map(e => e.textContent.trim()))] }; });
+  chk('주간 시간표(390px): 7일이 가로 스크롤 없이 한 화면 + 차단 칸은 짧은 라벨(고정팀)', wk.gridW <= wk.boxW && wk.scroll <= 1 && wk.heads >= 8 && wk.blockedShort.some(t => /고정팀/.test(t) && !/\[고정팀\]/.test(t)), JSON.stringify(wk));
+  await p.evaluate(() => { onSlotClick(new Date('2026-11-13T00:00:00'), '10:00'); onSlotClick(new Date('2026-11-13T00:00:00'), '11:00'); }); await p.waitForTimeout(300);
+  const chipX = await p.evaluate(() => { const b = document.querySelector('#participantChips button'); return b ? [b.offsetWidth, b.offsetHeight] : null; });
+  chk('참여 멤버 칩의 × 는 24px 탭 타깃', chipX && chipX[0] >= 24 && chipX[1] >= 24, JSON.stringify(chipX));
+  await p.evaluate(() => setGatheOTab('home')); await p.waitForTimeout(500);
+  const homeBtn = await p.evaluate(() => { const b = document.querySelector('.gt-sec button'); return b ? b.offsetHeight : 0; });
+  chk('홈 「전체 보기 ›」 버튼 높이 ≥ 32px', homeBtn >= 32, String(homeBtn));
+  dialogs.length = 0;
+  await p.evaluate(() => quickAddDoc()); await p.waitForTimeout(700);
+  chk('운영안내 [+ 새 문서 추가]: prompt 없이 관리자 › 문서관리 편집기로 이동', dialogs.length === 0 && await p.evaluate(() => state.adminTab === 'docs' && state.gatheoTab === 'admin' && !!document.getElementById('newDocTitle')));
+  await p.evaluate(() => { setGatheOTab('reservation'); state.selectedDate = null; state.startTime = null; const f = document.getElementById('reservationForm'); f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); }); await p.waitForTimeout(400);
+  chk('예약 폼 검증은 알림창 대신 인라인(#reserveResult)', dialogs.length === 0 && await p.evaluate(() => { const r = document.getElementById('reserveResult'); return !!r && r.classList.contains('on') && /날짜와 시간/.test(r.textContent); }));
+
   chk('pageerror 없음', errs.length === 0, errs.join(' | ').slice(0, 200));
   await br.close();
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

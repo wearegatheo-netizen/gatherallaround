@@ -75,7 +75,7 @@ const FAKE_SB = `
   await p.evaluate((D) => { setGatheOTab('reservation'); state.currentView = 'week'; state.viewDate = new Date(D + 'T00:00:00'); state.selectedDate = new Date(D + 'T00:00:00'); render(); }, D);
   await p.waitForTimeout(600);
   const labels = await p.evaluate(() => [...document.querySelectorAll('.slot-occupied')].map(s => s.textContent.trim()));
-  chk('주간 칸: 「🎭 대관 대기」·「🎭 공간 대관」 라벨, 만료 건 없음', labels.includes('🎭 대관 대기') && labels.includes('🎭 공간 대관') && labels.filter(l => /대관/.test(l)).length >= 2, JSON.stringify(labels.slice(0, 6)));
+  chk('주간 칸(420px 압축 라벨): 「🎭 대기」·「🎭 대관」, 만료 건 없음', labels.includes('🎭 대기') && labels.includes('🎭 대관') && labels.filter(l => /대관/.test(l)).length >= 2, JSON.stringify(labels.slice(0, 6)));
 
   // 대기 건과 겹치는 시간에 제출 → 충돌 알림, insert 없음
   await p.evaluate((D) => { state.selectedDate = new Date(D + 'T00:00:00'); state.startTime = '14:00'; state.endTime = '15:00'; }, D);
@@ -83,7 +83,8 @@ const FAKE_SB = `
   await p.waitForTimeout(900);
   const noForm = await p.evaluate(() => !!window.__noForm);
   const inserted = await p.evaluate(() => window.__sbCalls.some(c => c.table === 'reservations' && c.op === 'insert'));
-  chk('대기 중 대관 시간에 제출하면 「이미 예약된 시간대」 알림 + reservations insert 없음', !noForm && dialogs.some(m => /이미 예약된 시간대/.test(m)) && !inserted, (noForm ? 'form not found' : dialogs.join(' | ').slice(0, 120)));
+  const resMsg = await p.evaluate(() => /이미 예약된 시간대/.test((document.getElementById('reserveResult') || {}).textContent || '') && document.getElementById('reserveResult').classList.contains('on'));
+  chk('대기 중 대관 시간에 제출하면 「이미 예약된 시간대」 인라인 안내(알림창 없음) + reservations insert 없음', !noForm && resMsg && !inserted && !dialogs.some(m => /이미 예약된 시간대/.test(m)), (noForm ? 'form not found' : dialogs.join(' | ').slice(0, 120)));
 
   // 관리자 예약승인 탭: 대관 대기 가상 행은 승인/거절 대상이 아니다(2026-11-07 — 승인 누르면 uuid 오류였음)
   const adm = await p.evaluate(() => { state.user.role = '운영 총괄'; const box = document.createElement('div'); renderAdminApprovalSection(box); return { html: box.innerHTML, title: box.querySelector('.admin-section-title')?.textContent, note: box.querySelector('.admin-perf-pending-note')?.textContent || '' }; });

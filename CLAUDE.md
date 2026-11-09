@@ -260,6 +260,11 @@
   팀 `paint()`(열린 팀 폼은 안 덮음), 일정표·마이는 `{quick:true}` 재귀 호출. 기다리는 동안 다른 하위 탭으로 옮기면 쓰지 않음(`state.memberPanelTab` 확인). `fetchScheduleAttendees` 는 요청 날짜 + 이미 받은 날짜(`state._attLoaded`)를
   합쳐 받고 응답 뒤 한 번에 상태를 바꾼다(홈·일정표·참여횟수가 서로 지우지 않게, 120일 초과면 요청분만). 로그아웃이 캐시를 비운다. 계측은 scratchpad `gatheo/probe.js`(탭별 요청 수·자리표시 노출).
   검증 scratchpad `gatheo/test.js`(Playwright, `gatheo/seed.js` 가짜 supabase — profiles/reservations(participant_ids)/schedules/schedule_attendees/documents/comments/teams, `.eq/.in` 만 흉내), 시안 목업 `gatheo/mock.html`, 캡처 `gatheo/shoot-new.js`(`W/H/OUT/DARK` 환경변수).
+- **게더링 전체 QA(2026-11-09, scratchpad `qa/gatheo-qa.js` — 멤버·관리자 두 역할로 모든 탭·흐름을 돌며 pageerror·알림창·가로 넘침·작은 버튼을 수집, 390/820px·다크 캡처)**: 고친 것 —
+  ① `parseMusicTaste`/`musicTasteTags` 가 객체·배열(jsonb)도 받는다(문자열만 가정해 한 행 때문에 멤버 목록·마이 탭이 「불러오는 중…」에서 멈추던 것), 마이 `data-music-taste` 도 문자열 강제. ② 참여횟수 「예약 (전체)」 건수에서 공간 대관 가상 행(`__perf`) 제외. ③ 공간대관 관리 카드 인원 없으면 「인원 미정」(종전 `undefined명`).
+  ④ **예약 폼 검증·충돌 안내는 인라인 `#reserveResult.gt-res-msg`**(날짜 미선택·지난 시간·차단·겹침·2개월·5분 제한·실패 — `showErr`, 성공 때 비움), 로그아웃·예약 취소 성공은 토스트, 게시판 글쓰기 검증·일정표 신청/외부인/팀 신청 안내(`checkSignupPeriod` 등)는 토스트. 관리자 쪽 오류 alert 는 그대로.
+  ⑤ 탭 타깃: `.gt-link`·`.gt-sec button` 32px, 참여 멤버 칩 ×·음악 취향 칩 × 24px, 일정표 「🙋 N명」 28px. ⑥ **주간 시간표가 폰(≤480px)에서 7일 한 화면**(종전 `min-width:460px` 로 금·토가 가로 스크롤 뒤에 숨음) — 칸이 좁아 라벨은 `_weekCellNarrow()` 때 압축(`_blockCellShort`: 고정팀/대체/모임/사유 5자, 대관 「🎭 대기/🎭 대관」; 전체는 title).
+  ⑦ 운영안내 [+ 새 문서 추가](`quickAddDoc`)는 prompt 3번 대신 관리자 › 문서관리 편집기로 이동. ⑧ 관리자 멤버현황의 비동기 렌더가 탭을 바꾼 뒤 사라진 `#memberDash` 에 쓰던 오류 가드. 테스트 `tests/ui-gatheo-blocks.js` 14절(42)·`tests/ui-gatheo-perf-block.js`(압축 라벨). 확인된 정상: 예약 취소는 행 삭제(상태 변경 아님), 숨은 멤버 판정은 이름 기반 `isHiddenMember`.
 - **게더링 관리자 「시간차단」 탭(2026-11-08 재점검 — 「중복 차단 오류」)**: 판정은 한 곳 `timeBlocksOverlap(a, b, today)`(겹치면 `{s,e,from,to}`) — **오늘 이후만** 본다(지난 1회 차단·끝난 반복 차단은 무시; 종전엔 지난 날짜의 1회 차단 때문에 같은 요일 반복 차단을 못 넣었다),
   1회 차단 날짜가 상대 반복 차단의 `skip_dates` 면 안 겹침, 두 기간이 겹쳐도 그 안에 해당 요일 날짜가 없으면(`_rangeHasDow`) 안 겹침. `timeBlocksConflict(a,b)` 는 `!!timeBlocksOverlap` 로 남김.
   **추가/수정 정책**: `blockFullyCovered(ins, blocks)` 로 **완전 중복(추가해도 달라지는 칸이 없음)만 막고**(인라인 `#blockFormResult` 「이미 전부 차단된 시간입니다: …」), 일부 겹침은 `confirm` 에 겹치는 차단(`_blockText`)을 보여준 뒤 추가(겹친 칸은 두 차단 모두 적용). 여러 날짜는 덮인 날짜만 건너뛰고 나머지 추가(결과칸 「건너뜀」).
