@@ -146,6 +146,136 @@ async function notifyOrganizer(env, m, decision) {
     } catch (_) { return false; }
 }
 
+// ───────── 모임 신청자 명단(community_applications) — 2026-11-10 ─────────
+// 이름·연락처가 든 표라 공개 키(anon)로는 읽고 쓸 수 없게 잠그고(20261110_community_applications_lockdown.sql) 전부 여기를 거친다.
+//   app_counts  {meeting_ids[]}                 → { counts:{모임:신청 수(거절 제외)} }            누구나
+//   app_public  {meeting_id}                    → { rows:[{status, form_data(선택형 답만)}] }      누구나 — 이름·연락처 없음(정원·선택지 마감 계산용)
+//   app_apply   {meeting_id, name, phone, email?, form_data} → { id } | 409 dup                     누구나
+//   app_mine    {name, phone}                   → { rows } 이름+연락처가 모두 맞는 내 신청          누구나
+//   app_cancel  {app_id, phone}                 → { cancelled }                                    본인(연락처 일치)
+//   app_auth    {meeting_id, pw}                → { token, exp } 모임장·마스터 비밀번호 확인 → 2시간 토큰
+//   app_list    {meeting_id, token}             → { rows } 전체 명단                               모임장
+//   app_status  {meeting_id, app_id, token, status}  /  app_delete {meeting_id, app_id, token}     모임장
+const digits = (v) => String(v || '').replace(/\D/g, '');
+const enc = encodeURIComponent;
+const ORG_TOKEN_MS = 2 * 60 * 60 * 1000;
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function orgKey(env) {
+    const raw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('community-organizer:v1:' + env.SUPABASE_SERVICE_ROLE_KEY));
+    return crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+}
+export async function signOrganizer(env, meetingId, now = Date.now()) {
+    const exp = now + ORG_TOKEN_MS;
+    const sig = b64u(await crypto.subtle.sign('HMAC', await orgKey(env), new TextEncoder().encode(`${meetingId}.${exp}`)));
+    return { token: `${exp}.${sig}`, exp };
+}
+export async function verifyOrganizer(env, meetingId, token, now = Date.now()) {
+    if (!token || typeof token !== 'string' || token.length > 200 || !isUuid(meetingId)) return false;
+    const [exp, sig] = token.split('.');
+    if (!(Number(exp) > now) || !sig) return false;
+    const want = b64u(await crypto.subtle.sign('HMAC', await orgKey(env), new TextEncoder().encode(`${meetingId}.${exp}`)));
+    if (want.length !== sig.length) return false;
+    let diff = 0; for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ sig.charCodeAt(i);
+    return diff === 0;
+}
+// 비밀번호 확인 — 화면(checkCommunityOrganizer)과 같은 순서: 모임별 비밀번호 → 마스터 비밀번호. DB RPC 가 있으면 먼저 쓴다.
+async function organizerPwOk(env, meetingId, pw) {
+    if (!pw || typeof pw !== 'string' || pw.length > 200) return false;
+    try {
+        const r = await sbFetch(env, 'rpc/community_can_edit', { method: 'POST', body: JSON.stringify({ p_id: meetingId, p_pw: pw }) });
+        if (r.ok && (await r.json().catch(() => false)) === true) return true;
+    } catch (_) {}
+    const edge = async (fn, payload) => {
+        try {
+            const r = await fetch(`${env.SUPABASE_URL}/functions/v1/${fn}`, { method: 'POST',
+                headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!r.ok) return false;
+            const j = await r.json().catch(() => null);
+            return !!(j && j.ok);
+        } catch (_) { return false; }
+    };
+    if (await edge('verify-meeting-password', { meetingId, password: pw })) return true;
+    return edge('verify-community-admin', { password: pw });
+}
+const rowsOf = async (r) => (r.ok ? ((await r.json().catch(() => [])) || []) : null);
+const optionLabels = (fields) => (Array.isArray(fields) ? fields : []).filter(f => f && (f.type === 'select' || f.type === 'multi')).map(f => String(f.label));
+
+export async function handleApplications(env, body) {
+    const action = body.action, bad = (m = '요청 형식이 올바르지 않습니다.') => [400, { ok: false, error: 'bad_request', message: m }];
+    if (action === 'app_counts') {
+        const ids = (Array.isArray(body.meeting_ids) ? body.meeting_ids : []).filter(isUuid).slice(0, 300);
+        if (!ids.length) return [200, { ok: true, counts: {} }];
+        let rows = await rowsOf(await sbFetch(env, `community_applications?select=meeting_id,status&meeting_id=in.(${ids.join(',')})`));
+        if (rows === null) rows = await rowsOf(await sbFetch(env, `community_applications?select=meeting_id&meeting_id=in.(${ids.join(',')})`)) || []; // status 컬럼 이전
+        const counts = {};
+        rows.forEach(a => { if ((a.status || 'pending') !== 'rejected') counts[a.meeting_id] = (counts[a.meeting_id] || 0) + 1; });
+        return [200, { ok: true, counts }];
+    }
+    if (action === 'app_mine') {
+        const name = String(body.name || '').trim(), phone = digits(body.phone);
+        if (!name || phone.length < 10) return bad('이름과 연락처를 정확히 입력해주세요.');
+        const rows = await rowsOf(await sbFetch(env, `community_applications?select=*&applicant_name=eq.${enc(name)}&order=created_at.desc&limit=200`));
+        if (rows === null) return [500, { ok: false, error: 'db', message: '조회 중 오류가 발생했습니다.' }];
+        return [200, { ok: true, rows: rows.filter(a => digits(a.applicant_phone) === phone) }]; // 연락처까지 맞아야 — 이름만으로는 내보내지 않는다
+    }
+    if (action === 'app_cancel') {
+        const phone = digits(body.phone);
+        if (!isUuid(body.app_id) || phone.length < 10) return bad();
+        const [a] = (await rowsOf(await sbFetch(env, `community_applications?id=eq.${body.app_id}&select=id,applicant_phone&limit=1`))) || [];
+        if (!a || digits(a.applicant_phone) !== phone) return [200, { ok: true, cancelled: false }];
+        const d = await sbFetch(env, `community_applications?id=eq.${a.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+        return d.ok ? [200, { ok: true, cancelled: true }] : [500, { ok: false, error: 'db', message: '취소하지 못했습니다.' }];
+    }
+
+    if (!isUuid(body.meeting_id)) return bad();
+    const mid = body.meeting_id;
+    if (action === 'app_auth') {
+        if (!(await organizerPwOk(env, mid, body.pw))) return [403, { ok: false, error: 'forbidden', message: '비밀번호가 틀렸습니다.' }];
+        return [200, { ok: true, ...(await signOrganizer(env, mid)) }];
+    }
+    if (action === 'app_public' || action === 'app_apply') {
+        const [m] = (await rowsOf(await sbFetch(env, `community_meetings?id=eq.${mid}&select=id,form_fields&limit=1`))) || [];
+        if (!m) return [404, { ok: false, error: 'not_found', message: '모임 정보를 찾을 수 없습니다.' }];
+        let apps = await rowsOf(await sbFetch(env, `community_applications?select=id,applicant_phone,status,form_data&meeting_id=eq.${mid}`));
+        if (apps === null) apps = (await rowsOf(await sbFetch(env, `community_applications?select=id,applicant_phone,form_data&meeting_id=eq.${mid}`))) || [];
+        const keep = optionLabels(m.form_fields);
+        const slim = (a) => { const fd = {}; const src = a.form_data && typeof a.form_data === 'object' ? a.form_data : {}; keep.forEach(k => { if (k in src) fd[k] = src[k]; }); return { status: a.status || 'pending', form_data: fd }; };
+        if (action === 'app_public') return [200, { ok: true, rows: apps.map(slim) }];
+        const name = String(body.name || '').trim().slice(0, 60), phoneRaw = String(body.phone || '').trim().slice(0, 30), phone = digits(phoneRaw);
+        if (!name || phone.length < 9) return bad('이름과 연락처를 확인해주세요.');
+        if (apps.some(a => digits(a.applicant_phone) === phone)) return [409, { ok: false, error: 'dup', message: '이미 신청하셨습니다.', rows: apps.map(slim) }];
+        const fd = body.form_data && typeof body.form_data === 'object' && !Array.isArray(body.form_data) ? body.form_data : {};
+        if (JSON.stringify(fd).length > 20000) return bad('답변이 너무 깁니다.');
+        const email = String(body.email || '').trim().slice(0, 120) || null;
+        const ins = await sbFetch(env, 'community_applications?select=id', { method: 'POST', headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({ meeting_id: mid, applicant_name: name, applicant_email: email, applicant_phone: phoneRaw, form_data: fd }) });
+        if (!ins.ok) {
+            const e = await ins.json().catch(() => ({}));
+            if (e.code === '23505') return [409, { ok: false, error: 'dup', message: '이미 신청하셨습니다.' }];
+            return [500, { ok: false, error: 'db', message: '신청하지 못했습니다. 잠시 후 다시 시도해주세요.' }];
+        }
+        const [row] = await ins.json().catch(() => []);
+        return [200, { ok: true, id: row && row.id }];
+    }
+    // 이하 모임장 전용
+    if (!['app_list', 'app_status', 'app_delete'].includes(action)) return [400, { ok: false, error: 'bad_action', message: '지원하지 않는 요청입니다.' }];
+    if (!(await verifyOrganizer(env, mid, body.token))) return [401, { ok: false, error: 'auth', message: '모임장 인증이 만료되었습니다. 비밀번호를 다시 입력해주세요.' }];
+    if (action === 'app_list') {
+        const rows = await rowsOf(await sbFetch(env, `community_applications?select=*&meeting_id=eq.${mid}&order=created_at.asc`));
+        return rows === null ? [500, { ok: false, error: 'db', message: '명단을 불러오지 못했습니다.' }] : [200, { ok: true, rows }];
+    }
+    if (!isUuid(body.app_id)) return bad();
+    const target = `community_applications?id=eq.${body.app_id}&meeting_id=eq.${mid}&select=id`; // 이 모임의 신청만
+    if (action === 'app_status') {
+        if (!['accepted', 'rejected', 'pending'].includes(body.status)) return bad();
+        const r = await sbFetch(env, target, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ status: body.status }) });
+        if (!r.ok) return [500, { ok: false, error: 'db', message: '처리하지 못했습니다. (status 컬럼 마이그레이션 확인)' }];
+        return [200, { ok: true, changed: ((await r.json().catch(() => [])) || []).length }];
+    }
+    const r = await sbFetch(env, target, { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+    return r.ok ? [200, { ok: true, changed: ((await r.json().catch(() => [])) || []).length }] : [500, { ok: false, error: 'db', message: '삭제하지 못했습니다.' }];
+}
+
 export async function onRequest(context) {
     const { request, env } = context;
     const cors = corsFor(request.headers.get('Origin'));
@@ -160,6 +290,10 @@ export async function onRequest(context) {
     if (!body || typeof body !== 'object') return fail(400, 'bad_json', '요청 본문이 올바르지 않습니다.');
 
     try {
+        if (String(body.action || '').startsWith('app_')) {
+            const [status, obj] = await handleApplications(env, body);
+            return json(obj, status);
+        }
         if (body.action === 'review_meeting') {
             const decision = String(body.decision || '');
             if (!isUuid(body.meeting_id) || !['approved', 'rejected'].includes(decision)) return fail(400, 'bad_request', '요청 형식이 올바르지 않습니다.');

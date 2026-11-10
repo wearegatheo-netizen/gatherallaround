@@ -1,6 +1,6 @@
 // /community-admin Cloudflare 함수 단위 테스트 — 관리자 인증(카카오/Supabase)·수락(time_blocks)·거절·경합·메일
 // 실행: node tests/community-admin-unit.mjs
-import { onRequest, meetingSlots } from '../functions/community-admin.js';
+import { onRequest, meetingSlots, signOrganizer, verifyOrganizer } from '../functions/community-admin.js';
 
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
@@ -110,6 +110,58 @@ const blockCall = () => calls.find(c => c.url.endsWith('/time_blocks') && c.meth
   // 슬롯은 shared/rules.js TIMES(08:00~22:00) 기준 — 종전 사본은 10:00~ 라 오전 8·9시 모임 수락이 실패했다(2026-11-10)
   chk('meetingSlots: "10:00 ~ 13:00" → [2,4], "22:00 ~ 23:00" → [14,14], "08:00 ~ 10:00" → [0,1], 깨진 값 null',
     JSON.stringify(meetingSlots('10:00 ~ 13:00')) === '[2,4]' && JSON.stringify(meetingSlots('22:00 ~ 23:00')) === '[14,14]' && JSON.stringify(meetingSlots('08:00 ~ 10:00')) === '[0,1]' && meetingSlots('') === null && meetingSlots('07:00 ~ 08:00') === null)
+}
+
+// ── 7. 신청자 명단(app_*) — 이름·연락처는 본인(연락처 일치)과 모임장(토큰)에게만
+{
+  const APP = (o = {}) => ({ id: '44444444-4444-4444-8444-444444444444', meeting_id: MID, applicant_name: '김신청', applicant_phone: '010-1234-5678', status: 'pending', form_data: { 세션: '드럼', 경력: '3년' }, ...o });
+  const MEET = [`community_meetings?id=eq.${MID}&select=id,form_fields`, { method: 'GET', body: [{ id: MID, form_fields: [{ label: '세션', type: 'select', options: ['기타', '드럼'] }, { label: '경력', type: 'textarea' }] }] }];
+  const LIST = (rows) => ['community_applications?select=id,applicant_phone,status,form_data', { method: 'GET', body: rows }];
+  const j = async (r) => ({ status: r.status, ...(await r.json()) });
+  let r;
+  mockFetch([MEET, LIST([APP(), APP({ id: 'x', applicant_phone: '010-9999-0000', status: 'rejected', form_data: { 세션: '기타' } })])]);
+  r = await j(await run({ action: 'app_public', meeting_id: MID }));
+  chk('app_public: 이름·연락처 없이 선택형 답만', r.ok && r.rows.length === 2 && JSON.stringify(r.rows[0]) === JSON.stringify({ status: 'pending', form_data: { 세션: '드럼' } }) && !JSON.stringify(r).includes('010') && !JSON.stringify(r).includes('김신청') && !JSON.stringify(r).includes('3년'), JSON.stringify(r));
+  mockFetch([['community_applications?select=meeting_id,status', { method: 'GET', body: [{ meeting_id: MID, status: 'pending' }, { meeting_id: MID, status: 'rejected' }, { meeting_id: MID, status: 'accepted' }] }]]);
+  r = await j(await run({ action: 'app_counts', meeting_ids: [MID, 'bad id'] }));
+  chk('app_counts: 거절 제외 수', r.counts[MID] === 2 && !calls[0].url.includes('bad'));
+  mockFetch([MEET, LIST([APP()]), ['community_applications?select=id', { method: 'POST', body: [{ id: 'new1' }] }]]);
+  r = await j(await run({ action: 'app_apply', meeting_id: MID, name: '김신청', phone: '01012345678', form_data: {} }));
+  chk('app_apply: 같은 연락처 중복 409(숫자 기준)', r.status === 409 && r.error === 'dup' && !calls.some(c => c.method === 'POST' && c.url.includes('community_applications')));
+  r = await j(await run({ action: 'app_apply', meeting_id: MID, name: ' 새사람 ', phone: '010-2222-3333', form_data: { 세션: '기타' } }));
+  const ins = calls.find(c => c.method === 'POST' && c.url.includes('community_applications'));
+  chk('app_apply: 저장', r.ok && r.id === 'new1' && JSON.parse(ins.body).applicant_name === '새사람' && JSON.parse(ins.body).applicant_email === null && JSON.parse(ins.body).meeting_id === MID);
+  r = await j(await run({ action: 'app_apply', meeting_id: MID, name: '', phone: '1' })); chk('app_apply: 형식 400', r.status === 400);
+  mockFetch([['community_applications?select=*&applicant_name=eq.', { method: 'GET', body: [APP(), APP({ id: 'other', applicant_phone: '010-0000-0000' })] }]]);
+  r = await j(await run({ action: 'app_mine', name: '김신청', phone: '010 1234 5678' }));
+  chk('app_mine: 연락처까지 맞는 것만', r.rows.length === 1 && r.rows[0].applicant_phone === '010-1234-5678');
+  r = await j(await run({ action: 'app_mine', name: '김신청', phone: '123' })); chk('app_mine: 형식 400', r.status === 400);
+  mockFetch([['community_applications?id=eq.44444444', { method: 'GET', body: [APP()] }], ['community_applications?id=eq.44444444', { method: 'DELETE', body: [] }]]);
+  r = await j(await run({ action: 'app_cancel', app_id: APP().id, phone: '01099990000' }));
+  chk('app_cancel: 남의 신청은 못 지움', r.cancelled === false && !calls.some(c => c.method === 'DELETE'));
+  r = await j(await run({ action: 'app_cancel', app_id: APP().id, phone: '01012345678' }));
+  chk('app_cancel: 본인 취소', r.cancelled === true && calls.some(c => c.method === 'DELETE'));
+
+  // 모임장 인증
+  mockFetch([['rpc/community_can_edit', { method: 'POST', body: false }], ['functions/v1/verify-meeting-password', { method: 'POST', body: { ok: false } }], ['functions/v1/verify-community-admin', { method: 'POST', body: { ok: false } }]]);
+  r = await j(await run({ action: 'app_auth', meeting_id: MID, pw: 'wrong' })); chk('app_auth: 틀린 비밀번호 403', r.status === 403 && !r.token);
+  mockFetch([['rpc/community_can_edit', { method: 'POST', body: true }]]);
+  r = await j(await run({ action: 'app_auth', meeting_id: MID, pw: 'right' })); chk('app_auth: 토큰 발급', r.ok && typeof r.token === 'string' && r.exp > Date.now());
+  const token = r.token;
+  mockFetch([['rpc/community_can_edit', { method: 'POST', status: 404, body: {} }], ['functions/v1/verify-meeting-password', { method: 'POST', body: { ok: false } }], ['functions/v1/verify-community-admin', { method: 'POST', body: { ok: true } }]]);
+  r = await j(await run({ action: 'app_auth', meeting_id: MID, pw: 'master' })); chk('app_auth: RPC 없어도 마스터 비밀번호(Edge Function)로', r.ok && !!r.token);
+  chk('토큰: 다른 모임·변조·만료 거부', await verifyOrganizer(ENV, MID, token) && !(await verifyOrganizer(ENV, UID, token)) && !(await verifyOrganizer(ENV, MID, token.slice(0, -2) + 'zz')) && !(await verifyOrganizer(ENV, MID, token, Date.now() + 3 * 3600e3)) && !(await verifyOrganizer(ENV, MID, (await signOrganizer({ ...ENV, SUPABASE_SERVICE_ROLE_KEY: 'x' }, MID)).token)));
+  mockFetch([['community_applications?select=*&meeting_id=eq.', { method: 'GET', body: [APP()] }]]);
+  r = await j(await run({ action: 'app_list', meeting_id: MID })); chk('app_list: 토큰 없으면 401', r.status === 401 && calls.length === 0);
+  r = await j(await run({ action: 'app_list', meeting_id: UID, token })); chk('app_list: 다른 모임 토큰 401', r.status === 401);
+  r = await j(await run({ action: 'app_list', meeting_id: MID, token })); chk('app_list: 모임장은 전체 명단', r.ok && r.rows[0].applicant_phone === '010-1234-5678');
+  mockFetch([[`community_applications?id=eq.${APP().id}&meeting_id=eq.${MID}`, { body: [{ id: APP().id }] }]]);
+  r = await j(await run({ action: 'app_status', meeting_id: MID, app_id: APP().id, token, status: 'accepted' }));
+  chk('app_status: 이 모임의 신청만 변경', r.changed === 1 && calls[0].method === 'PATCH' && JSON.parse(calls[0].body).status === 'accepted');
+  r = await j(await run({ action: 'app_status', meeting_id: MID, app_id: APP().id, token, status: 'hacked' })); chk('app_status: 모르는 상태 400', r.status === 400);
+  r = await j(await run({ action: 'app_delete', meeting_id: MID, app_id: APP().id, token })); chk('app_delete', r.changed === 1 && calls[calls.length - 1].method === 'DELETE');
+  r = await j(await run({ action: 'app_delete', meeting_id: MID, app_id: APP().id })); chk('app_delete: 토큰 없으면 401', r.status === 401);
+  r = await run({ action: 'app_public', meeting_id: MID }, ENV, 'https://evil.example'); chk('app_*: 다른 출처 403', r.status === 403);
 }
 
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

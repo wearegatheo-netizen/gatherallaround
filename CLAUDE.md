@@ -313,6 +313,13 @@
   **숨김 멤버**: `profiles.hidden`(마이그레이션 `20261110_profile_hidden.sql`) — `isHiddenMember(m)` 는 boolean 이면 그 값, 컬럼 없으면 종전 이름 목록(`_LEGACY_HIDDEN_NAMES`). 관리자 › 멤버 수정에 「멤버 목록에서 숨김」 체크(바뀔 때만 전송, 컬럼 없으면 빼고 저장), 관리자 목록에 「숨김」 칩. 서버 `MGR_PROFILE_COLS` 에 hidden.
   **자동 테스트**: `bash tests/run-all.sh [unit]`(단위 전부 + 8765/8766 서버 띄워 화면 전부, 요약·종료 코드) = `.github/workflows/tests.yml`(push master·claude/**, playwright **1.47.0 고정** — 최신 버전은 포스터 꾸미기 테스트가 흔들렸다). 화면 테스트의 브라우저 경로는 `PW_CHROMIUM`(run-all 이 이 컨테이너의 `/opt/pw-browsers/chromium` 을 자동 지정). 배포를 막지는 않는다(빨간 표시·메일).
   **화면 QA(합주팀·공연·호스트·커뮤니티·대관, scratchpad `qa2/run.js` — 390/820px)**: pageerror·넘침 0. 한 줄 `alert` 131곳을 `showToast` 로(여러 줄·SQL 안내 15곳은 alert 유지), `#auto-toast` 는 줄바꿈 허용·`max-width: 100vw−32px`·z 100000(시트 위). 탭 영역: `.portal-back-btn` 36px(음수 마진으로 위치 유지), 호스트 센터 링크·문의하기 `.lnk`·합주팀 바닥 연락처·`<summary>` 2종·시간 띠 체크박스 32px.
+- **커뮤니티 신청자 명단은 서버 경유(2026-11-10)**: `community_applications`(이름·연락처·답변)를 공개 키로 읽고 쓰지 않는다 — 종전엔 모임 상세가 방문자 브라우저로 명단 전체(`select('*')`)를 내려받았다.
+  서버 `functions/community-admin.js handleApplications`(action 이 `app_` 로 시작): `app_counts {meeting_ids}`(거절 제외 수) · `app_public {meeting_id}`(행마다 `{status, form_data(select·multi 질문 답만)}` — 정원·선택지 마감 계산용, 이름·연락처 없음) ·
+  `app_apply {meeting_id, name, phone, email, form_data}`(같은 연락처(숫자 기준) 409 `dup`, 저장) · `app_mine {name, phone}`(둘 다 맞는 행만) · `app_cancel {app_id, phone}`(연락처 일치) ·
+  `app_auth {meeting_id, pw}` → 모임장 토큰(HMAC, 모임 id 에 묶임·2시간; 비밀번호 확인은 RPC `community_can_edit` → Edge `verify-meeting-password` → `verify-community-admin` 순 = 화면 `checkCommunityOrganizer` 와 같은 순서) · `app_list` / `app_status {app_id, status}` / `app_delete {app_id}`(토큰 필수, `meeting_id=eq.` 로 이 모임 신청만).
+  브라우저(`js/app-5-community.js`): `_cmApi(action, payload)`(404/405/501 이면 `_cmApiDown` → 종전 직접 조회 폴백)·`_cmOrgApi`(토큰 첨부, 401 이면 `communityEditAuth`·`communityOrgTok` 해제). `renderCommunityDetail` 은 인증된 모임장이면 `app_list`, 아니면 `app_public` — `state.communityCurrentAppList` 에 공개 방문자는 이름이 없다.
+  `checkCommunityOrganizer` 성공 때 `app_auth` 로 `state.communityOrgTok[id]` 를 받는다. 마이그레이션 `20261110_community_applications_lockdown.sql`(정책 전부 삭제 + RLS, 정책 없음 = service role 만; 끝에 되돌리기) — **배포 확인 뒤 실행**. `/send-email` 은 service role 이라 무관.
+  테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(15).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

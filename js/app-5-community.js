@@ -219,6 +219,26 @@
         // 모임장 알림 메일 — Cloudflare 함수 /send-email이 DB에서 직접 조회해 구성·발송한다.
         // (기존 Supabase Edge Function 'send-email'은 배포돼 있지 않아 항상 실패했음)
         // 실패·미설정 시 false 반환 → 호출부가 mailto 폴백을 쓴다.
+        // ── 신청자 명단은 서버 경유(2026-11-10) ── 이름·연락처가 든 community_applications 는 공개 키로 읽고 쓰지 않는다.
+        // /community-admin 의 app_* 액션: 공개 화면은 인원 수·선택형 답만, 내 신청은 이름+연락처 일치, 전체 명단은 모임장 토큰.
+        // 서버 함수가 없는 환경(정적 서버·테스트: 404/405/501)은 { down:true } → 호출부가 종전 직접 조회.
+        let _cmApiDown = false;
+        async function _cmApi(action, payload = {}) {
+            if (_cmApiDown) return { down: true };
+            let r;
+            try { r = await fetch('/community-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }) }); }
+            catch (_) { return { ok: false, message: '네트워크 오류로 서버에 연결하지 못했습니다.' }; }
+            if (r.status === 404 || r.status === 405 || r.status === 501) { _cmApiDown = true; return { down: true }; }
+            const j = await r.json().catch(() => null);
+            return j ? { ...j, status: r.status } : { ok: false, status: r.status, message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
+        }
+        // 모임장 전용 호출 — 토큰이 없거나 만료면 인증을 풀고 안내
+        async function _cmOrgApi(action, meetingId, payload = {}) {
+            const res = await _cmApi(action, { meeting_id: meetingId, token: state.communityOrgTok[meetingId], ...payload });
+            if (!res.down && res.status === 401) { delete state.communityEditAuth[meetingId]; delete state.communityOrgTok[meetingId]; }
+            return res;
+        }
+
         async function sendOrganizerMail(meetingId, applicationId) {
             try {
                 const r = await fetch('/send-email', {
@@ -248,6 +268,7 @@
             if (window.__routeCommunityTab) { state.communityTab = window.__routeCommunityTab; window.__routeCommunityTab = null; }
             state.communityEditAuth = {};
             state.communityEditPw = {};
+            state.communityOrgTok = {}; // 모임장 토큰(신청자 명단 조회·처리용, /community-admin app_auth 가 발급 — 2시간)
             state.communityTestType = null;
             state.communityTestStep = 0;
             state.communityTestAnswers = [];
@@ -349,7 +370,10 @@
                 state.communityMeetings = data.filter(m => (m.status || 'active') === 'active');
                 // Fetch application counts — 거절 건은 정원에서 제외 (status 컬럼 마이그레이션 전이면 전체 집계 폴백)
                 const ids = state.communityMeetings.map(m => m.id);
-                if (ids.length > 0) {
+                const srvCounts = ids.length > 0 ? await _cmApi('app_counts', { meeting_ids: ids }) : null;
+                if (srvCounts && !srvCounts.down) {
+                    if (srvCounts.ok) state.communityApplicationCounts = srvCounts.counts || {};
+                } else if (ids.length > 0) {
                     let { data: appData, error: appErr } = await supabaseClient
                         .from('community_applications')
                         .select('meeting_id,status')
@@ -1088,11 +1112,20 @@
             state.communityCurrentMeeting = meeting;
             _pushNav('community/meeting/' + id); // 모임별 공유 링크 — 뒤로가기로 목록 복귀
 
-            const { data: apps } = await supabaseClient
-                .from('community_applications')
-                .select('*')
-                .eq('meeting_id', id)
-                .order('created_at', { ascending: true });
+            // 공개 화면은 이름·연락처 없는 요약(상태 + 선택형 답)만 받고, 모임장 인증 뒤에만 전체 명단을 받는다
+            let apps = null, srv = null;
+            if (state.communityEditAuth[id] && state.communityOrgTok[id]) {
+                srv = await _cmOrgApi('app_list', id);
+                if (!srv.down && !srv.ok) { showToast(srv.message || '모임장 인증이 만료되었습니다. 비밀번호를 다시 입력해주세요.', 5000); srv = null; }
+            }
+            if (!srv) srv = await _cmApi('app_public', { meeting_id: id });
+            if (srv.down) {
+                ({ data: apps } = await supabaseClient
+                    .from('community_applications')
+                    .select('*')
+                    .eq('meeting_id', id)
+                    .order('created_at', { ascending: true }));
+            } else apps = srv.ok ? srv.rows : [];
             const appList = apps || [];
             const cnt = appList.length;
             // 정원·신청 현황은 거절 건 제외 — 거절하면 자리가 다시 열린다 (status 컬럼 이전 데이터는 pending 취급)
@@ -1425,7 +1458,12 @@
             // 실패 시 마스터 비번(verify-community-admin)으로 재시도.
             let ok = (await verifyMeetingPassword(meeting.id, pw)) === true;
             if (!ok) ok = await verifyCommunityAdminPw(pw);
-            if (ok) state.communityEditPw[meeting.id] = pw; // 이후 수정/삭제 서버 검증에 사용
+            if (ok) {
+                state.communityEditPw[meeting.id] = pw; // 이후 수정/삭제 서버 검증에 사용
+                const t = await _cmApi('app_auth', { meeting_id: meeting.id, pw }); // 신청자 명단용 모임장 토큰(2시간)
+                if (!t.down && t.ok && t.token) state.communityOrgTok[meeting.id] = t.token;
+                else if (!t.down) showToast('신청자 명단 권한을 확인하지 못했습니다. 명단이 비어 보이면 다시 인증해주세요.', 5000);
+            }
             return ok;
         }
 
@@ -1600,11 +1638,18 @@
             // ※ DB의 (meeting_id, applicant_email) unique는 이메일 칸 제거 후 모든 신청이
             //   ''로 저장되며 서로 충돌하는 오작동을 일으켰다 — 이메일은 null로 저장해 회피.
             const phoneDigits = phone.replace(/\D/g, '');
-            let { data: dupCheck, error: dupErr } = await supabaseClient.from('community_applications')
-                .select('applicant_phone,status,form_data').eq('meeting_id', id);
-            if (dupErr) ({ data: dupCheck } = await supabaseClient.from('community_applications').select('applicant_phone').eq('meeting_id', id)); // status 컬럼 이전 폴백
-            if ((dupCheck || []).some(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits)) {
-                return alert('이미 신청하셨습니다.\n신청 내역은 목록의 [신청 조회]에서 확인·취소할 수 있습니다.');
+            const pre = await _cmApi('app_public', { meeting_id: id }); // 서버 경유: 정원 계산용 요약(이름·연락처 없음)
+            let dupCheck, dupErr;
+            if (pre.down) {
+                ({ data: dupCheck, error: dupErr } = await supabaseClient.from('community_applications')
+                    .select('applicant_phone,status,form_data').eq('meeting_id', id));
+                if (dupErr) ({ data: dupCheck } = await supabaseClient.from('community_applications').select('applicant_phone').eq('meeting_id', id)); // status 컬럼 이전 폴백
+                if ((dupCheck || []).some(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits)) {
+                    return alert('이미 신청하셨습니다.\n신청 내역은 목록의 [신청 조회]에서 확인·취소할 수 있습니다.');
+                }
+            } else {
+                if (!pre.ok) return showToast(pre.message || '신청 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.', 5000);
+                dupCheck = pre.rows || [];
             }
             // 선택지 정원 — 제출 직전에 다시 센다(그 사이 마감됐으면 되돌림)
             const optCounts = cmOptionCounts(formFields, dupCheck || []);
@@ -1615,13 +1660,22 @@
                 if (full) { showToast(`"${f.label}"의 "${full}" 선택지가 방금 마감되었어요. 다른 선택지를 골라주세요.`); return renderCommunityDetail(id); }
             }
 
-            const { data: newApp, error } = await supabaseClient.from('community_applications').insert({
-                meeting_id: id,
-                applicant_name: name,
-                applicant_email: email || null,
-                applicant_phone: phone || null,
-                form_data: formData
-            }).select('id').single();
+            let newApp, error;
+            if (pre.down) {
+                ({ data: newApp, error } = await supabaseClient.from('community_applications').insert({
+                    meeting_id: id,
+                    applicant_name: name,
+                    applicant_email: email || null,
+                    applicant_phone: phone || null,
+                    form_data: formData
+                }).select('id').single());
+            } else {
+                // 중복(같은 연락처) 확인과 저장은 서버가 한다
+                const res = await _cmApi('app_apply', { meeting_id: id, name, phone, email: email || null, form_data: formData });
+                if (res.error === 'dup') return alert('이미 신청하셨습니다.\n신청 내역은 목록의 [신청 조회]에서 확인·취소할 수 있습니다.');
+                if (!res.ok) error = { message: res.message || '서버 오류' };
+                else newApp = { id: res.id };
+            }
 
             if (error) {
                 if (error.code === '23505') return showToast('이미 신청하셨습니다.');
@@ -1659,20 +1713,28 @@
 
         async function deleteCommunityApplication(meetingId, appId) {
             if (!confirm('해당 신청을 삭제하시겠습니까?')) return;
-            const { error } = await supabaseClient.from('community_applications').delete().eq('id', appId);
-            if (error) return showToast('삭제 실패: ' + error.message);
+            let error;
+            const srv = await _cmOrgApi('app_delete', meetingId, { app_id: appId });
+            if (srv.down) ({ error } = await supabaseClient.from('community_applications').delete().eq('id', appId));
+            else if (!srv.ok) error = { message: srv.message || '서버 오류' };
+            if (error) return showToast('삭제 실패: ' + error.message, 5000);
             state.communityApplicationCounts[meetingId] = Math.max(0, (state.communityApplicationCounts[meetingId] || 1) - 1);
             renderCommunityDetail(meetingId);
         }
 
         async function downloadCommunityApplicantsCsv(id) {
             const meeting = state.communityMeetings.find(m => m.id === id);
-            const { data: apps, error } = await supabaseClient
-                .from('community_applications')
-                .select('*')
-                .eq('meeting_id', id)
-                .order('created_at', { ascending: true });
-            if (error) return showToast('다운로드 실패: ' + error.message);
+            let apps, error;
+            const srv = await _cmOrgApi('app_list', id);
+            if (srv.down) {
+                ({ data: apps, error } = await supabaseClient
+                    .from('community_applications')
+                    .select('*')
+                    .eq('meeting_id', id)
+                    .order('created_at', { ascending: true }));
+            } else if (!srv.ok) error = { message: srv.message || '서버 오류' };
+            else apps = srv.rows;
+            if (error) return showToast('다운로드 실패: ' + error.message, 5000);
 
             const formFields = (meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : []).filter(f => f.type !== 'note'); // 안내문은 답이 없다
             const headers = ['이름', '이메일', '전화번호', '상태', '신청일시', ...formFields.map(f => f.label)];
@@ -1837,11 +1899,18 @@
             const phoneDigits = (document.getElementById('myAppPhone')?.value || '').replace(/\D/g, '');
             if (!name) { showErr('이름을 입력해주세요.'); return; }
             if (phoneDigits.length < 10) { showErr('연락처를 정확히 입력해주세요.'); return; }
-            const { data, error } = await supabaseClient.from('community_applications')
-                .select('*').eq('applicant_name', name).order('created_at', { ascending: false });
-            if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
-            // 연락처까지 일치해야 표시 — 이름만으로는 노출하지 않는다
-            const mine = (data || []).filter(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits);
+            // 서버가 이름+연락처가 모두 맞는 신청만 돌려준다(같은 이름의 다른 사람 연락처가 브라우저로 내려오지 않게)
+            let mine;
+            const srv = await _cmApi('app_mine', { name, phone: phoneDigits });
+            if (srv.down) {
+                const { data, error } = await supabaseClient.from('community_applications')
+                    .select('*').eq('applicant_name', name).order('created_at', { ascending: false });
+                if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
+                mine = (data || []).filter(a => String(a.applicant_phone || '').replace(/\D/g, '') === phoneDigits);
+            } else {
+                if (!srv.ok) { showErr(srv.message || '조회 중 오류가 발생했습니다.'); return; }
+                mine = srv.rows || [];
+            }
             if (!mine.length) { showErr('일치하는 신청 내역이 없습니다. 이름과 연락처를 확인해주세요.'); return; }
             if (!state.communityMeetings.length) await fetchCommunityMeetings();
             const today = new Date().toLocaleDateString('en-CA');
@@ -1871,9 +1940,12 @@
 
         async function cancelMyCommunityApplication(appId, meetingId) {
             if (!confirm('신청을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.')) return;
-            const { data, error } = await supabaseClient.from('community_applications')
-                .delete().eq('id', appId).select('id');
-            if (error) { showToast('취소 중 오류가 발생했습니다: ' + error.message); return; }
+            let data, error;
+            const srv = await _cmApi('app_cancel', { app_id: appId, phone: (document.getElementById('myAppPhone')?.value || '').replace(/\D/g, '') });
+            if (srv.down) ({ data, error } = await supabaseClient.from('community_applications').delete().eq('id', appId).select('id'));
+            else if (!srv.ok) error = { message: srv.message || '서버 오류' };
+            else data = srv.cancelled ? [{ id: appId }] : [];
+            if (error) { showToast('취소 중 오류가 발생했습니다: ' + error.message, 5000); return; }
             if (!data || !data.length) { showToast('이미 처리된 신청입니다.'); }
             else {
                 state.communityApplicationCounts[meetingId] = Math.max(0, (state.communityApplicationCounts[meetingId] || 1) - 1);
@@ -1886,8 +1958,11 @@
         async function setCommunityApplicationStatus(meetingId, appId, status) {
             const label = status === 'accepted' ? '수락' : '거절';
             if (!confirm(`이 신청을 ${label}하시겠습니까?`)) return;
-            const { data, error } = await supabaseClient.from('community_applications')
-                .update({ status }).eq('id', appId).select('id');
+            let data, error;
+            const srv = await _cmOrgApi('app_status', meetingId, { app_id: appId, status });
+            if (srv.down) ({ data, error } = await supabaseClient.from('community_applications').update({ status }).eq('id', appId).select('id'));
+            else if (!srv.ok) error = { message: srv.message || '서버 오류' };
+            else data = srv.changed ? [{ id: appId }] : [];
             if (error) { alert(`${label} 실패: ` + error.message + '\n\nstatus 컬럼이 없다면 20260901 SQL 실행이 필요합니다.'); return; }
             if (!data || !data.length) { showToast('신청을 찾을 수 없습니다. 목록을 새로고침합니다.'); }
             else showToast(`${label} 처리되었습니다.`);
