@@ -24,20 +24,30 @@
 // 에러 규약: HTTP 는 400/401/403/500, db 액션의 규칙 위반·DB 오류는 200 + { data:null, error:{message, code} }
 //   (화면의 기존 오류 처리 — error.message / error.code — 가 그대로 동작하도록)
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+import '../shared/rules.js';
 
 const ADMIN_KAKAO_ID = '4883868250'; // index.html ADMIN_ID 와 동일
-export const TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+export const TIMES = globalThis.GAA_RULES.TIMES;
 const SESSION_DAYS = 30;
-const PERF_EXPIRE_MS = 4 * 60 * 60 * 1000;
+const PERF_EXPIRE_MS = globalThis.GAA_RULES.PERF_EXPIRE_MS;
 const PERF_SAFE_COLS = ['id', 'date', 'start_time', 'end_time', 'status', 'created_at']; // 달력용 — anon 도 직접 읽는다
 const BAND_PUBLIC_COLS = ['id', 'band_name_kr', 'band_name_en', 'leader_name', 'leader_phone', 'timeslots', 'band_ended_at', 'band_end_date'];
 const SELF_COLS = ['phone', 'instruments', 'music_taste', 'avatar_url', 'push_subscription'];
 const BAND_SELF_COLS = ['band_name_kr', 'band_name_en', 'leader_name', 'leader_phone', 'name', 'phone', 'push_subscription', 'avatar_url'];
-const MGR_PROFILE_COLS = ['name', 'phone', 'email', 'instruments', 'status', 'avatar_url', 'music_taste'];
+const MGR_PROFILE_COLS = ['name', 'phone', 'email', 'instruments', 'status', 'avatar_url', 'music_taste', 'hidden'];
 const SIGNUP_COLS = ['id', 'kakao_id', 'name', 'email', 'phone', 'instruments', 'music_taste', 'avatar_url', 'status', 'role'];
 const BAND_SIGNUP_COLS = ['id', 'name', 'phone', 'leader_name', 'leader_phone', 'band_name_kr', 'band_name_en', 'timeslots', 'member_type', 'instruments',
     'status', 'role', 'band_cabinet', 'band_start_date', 'band_expected_months', 'band_fee', 'band_deposit'];
 const PERF_INSERT_COLS = ['name', 'phone', 'purpose', 'how_found', 'date', 'start_time', 'end_time', 'headcount', 'booking_code'];
+
+// 백업 내려받기 대상(운영 총괄 전용) — 로그인 세션·시도 기록·오류 기록처럼 복구에 쓸모없는 표는 뺀다. 사진 파일(Storage)은 포함되지 않는다.
+export const BACKUP_TABLES = ['profiles', 'reservations', 'time_blocks', 'performance_bookings', 'comments', 'notices', 'documents', 'teams',
+    'schedules', 'schedule_attendees', 'schedule_guests', 'polls', 'poll_votes', 'app_settings',
+    'community_meetings', 'community_applications', 'community_visits',
+    'band_members', 'band_comments', 'band_notices', 'band_payments', 'band_rent_reminders', 'band_slot_defs', 'band_slot_claims', 'band_skips', 'band_pins', 'band_sms_log',
+    'events', 'event_hosts', 'event_host_profiles', 'event_host_members', 'event_host_invites', 'event_co_teams', 'event_co_invites', 'event_tickets', 'event_ticket_seats', 'event_ticket_transfers',
+    'wappen_users', 'wappen_projects', 'wappen_works', 'wappen_items', 'wappen_reactions', 'wappen_item_requests', 'wappen_reports'];
+const BACKUP_PAGE = 1000;
 
 function hostOf(u) { try { return new URL(u).hostname; } catch { return ''; } }
 const isOurHost = (h) => h === 'gatherallaround.com' || h === 'localhost' || h === '127.0.0.1' || /\.(gatherallaround\.com|pages\.dev)$/.test(h);
@@ -543,6 +553,28 @@ export async function handle(env, body) {
         const u = await sbFetch(env, `profiles?id=eq.${match.id}&kakao_id=is.null`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ kakao_id: actor.kid }) });
         if (!u.ok) return [500, { ok: false, error: 'db', message: '연동하지 못했습니다.' }];
         return [200, { ok: true, linked: true }];
+    }
+
+    // ── 운영 도구(운영 총괄만): 브라우저 오류 기록 · 백업 내려받기 ──
+    if (action === 'client_errors' || action === 'client_errors_clear' || action === 'backup_tables' || action === 'backup_table') {
+        if (!actors.some(x => x.sup)) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: NEED_ROLE }];
+        if (action === 'client_errors') {
+            const r = await sbFetch(env, 'client_errors?select=*&order=created_at.desc&limit=200');
+            if (!r.ok) return [200, { ok: true, missing: true, rows: [] }]; // 표 없음(마이그레이션 전)
+            return [200, { ok: true, rows: (await r.json().catch(() => [])) || [] }];
+        }
+        if (action === 'client_errors_clear') {
+            const r = await sbFetch(env, 'client_errors?id=gt.0', { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+            return [r.ok ? 200 : 500, { ok: r.ok }];
+        }
+        if (action === 'backup_tables') return [200, { ok: true, tables: BACKUP_TABLES, page: BACKUP_PAGE }];
+        const table = String(body.table || '');
+        if (!BACKUP_TABLES.includes(table)) return [400, { ok: false, error: 'bad_table', message: '백업 대상이 아닙니다.' }];
+        const offset = Math.max(0, parseInt(body.offset, 10) || 0);
+        const r = await sbFetch(env, `${table}?select=*&limit=${BACKUP_PAGE}&offset=${offset}`);
+        if (!r.ok) return [200, { ok: true, missing: true, rows: [] }]; // 표가 없는 환경은 건너뛴다
+        const rows = (await r.json().catch(() => [])) || [];
+        return [200, { ok: true, rows, more: rows.length === BACKUP_PAGE }];
     }
 
     if (action === 'db') return [200, await dbAction(env, actors, body)];

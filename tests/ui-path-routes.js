@@ -15,7 +15,7 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 
 (async () => {
   const mw = await import(path.join(ROOT, 'functions/_middleware.js'));
   const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 
   async function open(mode, urlPath) {
     const ctx = await br.newContext({ viewport: { width: 420, height: 900 }, locale: 'ko-KR' });

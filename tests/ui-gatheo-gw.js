@@ -23,7 +23,7 @@ const FAKE_SB = `
 })();`;
 
 (async () => {
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const ctx = await br.newContext({ viewport: { width: 420, height: 900 }, timezoneId: 'Asia/Seoul', locale: 'ko-KR' });
   const p = await ctx.newPage();
   const api = []; let mode = 'ok'; // ok | 401once | 501
@@ -37,6 +37,15 @@ const FAKE_SB = `
     if (body.action === 'ping') return send(200, { ok: true });
     if (body.action === 'login') return send(200, { ok: true, session: 'new-session', exp: Date.now() + 86400e3, kakao_id: 'k-me', profile: null });
     if (body.action === 'perf_lookup') return send(200, { ok: true, booking: body.phone === '01012345678' ? { id: 'pb1', name: '고객', booking_code: body.code, phone: '010-1234-5678', status: 'pending', date: '2026-12-01', start_time: '10:00', end_time: '12:00', headcount: 5, purpose: '공연', created_at: new Date().toISOString() } : null });
+    if (body.action === 'client_errors') return send(200, { ok: true, rows: [
+      { id: 2, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", stack: 'at renderX (/index.html:100:5)', page: 'gatheo/reservation', role: 'member', ua: 'iPhone KAKAOTALK' },
+      { id: 1, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", page: 'gatheo/home', role: 'admin', ua: 'Android' }] });
+    if (body.action === 'backup_tables') return send(200, { ok: true, tables: ['profiles', 'reservations', 'band_pins'], page: 2 });
+    if (body.action === 'backup_table') {
+      if (body.table === 'band_pins') return send(200, { ok: true, missing: true, rows: [] });
+      if (body.table === 'reservations') return send(200, body.offset ? { ok: true, rows: [{ id: 3 }], more: false } : { ok: true, rows: [{ id: 1 }, { id: 2 }], more: true });
+      return send(200, { ok: true, rows: [{ id: 'p1', name: '홍길동' }], more: false });
+    }
     if (mode === '401once' && body.session === 'old-session') return send(401, { ok: false, message: '로그인이 필요합니다.' });
     if (body.table === 'notices') return send(200, { data: null, error: { message: '이 작업을 할 권한이 없습니다.', code: 'FORBIDDEN' } });
     if (body.table === 'profiles') return send(200, { data: [{ id: 'a1', name: '홍길동', status: 'approved', kakao_id: 'k-me' }], error: null });
@@ -137,6 +146,32 @@ const FAKE_SB = `
     await p.evaluate(async () => await lookupPerfBooking());
     chk('연락처 다르면 못 찾음', /찾을 수 없습니다/.test(await p.evaluate(() => document.getElementById('perfLookupResult').textContent)));
   } else chk('조회 폼을 찾음', false);
+
+  // 9. 운영 도구: 오류 기록(같은 메시지 묶음) + 백업 내려받기
+  await setup(); api.length = 0;
+  await p.evaluate(() => { state.user.role = '운영 총괄'; loginUI('홍길동'); });
+  await p.waitForTimeout(600);
+  await p.evaluate(() => { state.adminTab = 'ops'; setGatheOTab('admin'); });
+  await p.waitForTimeout(800);
+  const ops = await p.evaluate(() => ({ tab: [...document.querySelectorAll('.admin-subtab')].some(e => e.textContent.includes('운영 도구')), errs: document.querySelectorAll('.ops-err').length, meta: (document.querySelector('.ops-err-meta') || {}).textContent || '' }));
+  chk('운영 도구 탭 + 오류 묶음 1건(2회)', ops.tab && ops.errs === 1 && /2회/.test(ops.meta) && /멤버/.test(ops.meta), JSON.stringify(ops));
+  await p.evaluate(() => { window.__dl = null; const oc = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__dl = { name: this.download, href: this.href }; return; } return oc.call(this); }; });
+  await p.click('#opsBackupBtn'); await p.waitForTimeout(800);
+  const dl = await p.evaluate(async () => { if (!window.__dl) return null; const j = await (await fetch(window.__dl.href)).json(); return { name: window.__dl.name, tables: Object.keys(j.tables), res: j.tables.reservations.length, missing: j.missing, msg: document.getElementById('opsBackupMsg').textContent }; });
+  chk('백업 파일: 표 2개·쪽 넘김 3행·없는 표 기록', dl && /^gatherallaround-backup-\d{8}\.json$/.test(dl.name) && dl.tables.join() === 'profiles,reservations' && dl.res === 3 && dl.missing.join() === 'band_pins' && /완료/.test(dl.msg), JSON.stringify(dl));
+  await p.evaluate(() => { state.user.role = '일반'; state.adminTab = 'ops'; });
+  chk('일반 멤버에겐 운영 도구 없음', await p.evaluate(async () => { const d = document.createElement('div'); await renderAdminOpsSection(d); return /운영 총괄만/.test(d.textContent); }));
+
+  // 10. 브라우저 오류 수집: 같은 메시지는 한 번, /client-log 로
+  const logs = [];
+  await p.route('**/client-log', r => { logs.push(JSON.parse(r.request().postData() || '{}')); return r.fulfill({ status: 204, body: '' }); });
+  await p.evaluate(() => { window.__gaaLogTest = true; location.hash = '#gatheo/board'; _gaaReportError('error', 'TypeError: boom', 'at x', '/index.html:1:1'); _gaaReportError('error', 'TypeError: boom', 'at x', ''); _gaaReportError('promise', 'Other', '', ''); _gaaReportError('error', 'Script error.', '', ''); });
+  await p.waitForTimeout(2000);
+  const sentErrs = logs.flatMap(l => l.errors || []);
+  chk('오류 2건만 전송(중복·빈 Script error 제외)', sentErrs.length === 2 && sentErrs[0].message === 'TypeError: boom' && sentErrs[0].page === 'gatheo/board' && sentErrs[1].kind === 'promise', JSON.stringify(sentErrs));
+  await p.evaluate(() => { window.__gaaLogTest = false; _gaaReportError('error', 'local only', '', ''); });
+  await p.waitForTimeout(1700);
+  chk('로컬에서는 보내지 않음', logs.flatMap(l => l.errors || []).length === 2);
 
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

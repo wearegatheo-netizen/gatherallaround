@@ -27,6 +27,8 @@
 // 푸시 전송 자체는 기존 /notify-admins → /push (VAPID) 경로를 그대로 재사용.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, (월세 문자) SOLAPI_API_KEY, SOLAPI_API_SECRET, SMS_SENDER
 // 사전 준비(1회, Supabase SQL Editor): supabase/migrations/20260831_reminder.sql, 20260915_band_cycles.sql
+import '../shared/rules.js';
+const RULES = globalThis.GAA_RULES;
 
 function corsFor(origin) {
     const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
@@ -62,43 +64,12 @@ function reminderText(bk, todayStr) {
 }
 
 // ── 고정 합주팀 회차 수식 (index.html bandCycle* 와 동일) ─────────────────────
-const BAND_CYCLE_DAYS = 28;
-const DAY_MS = 86400e3;
+// 수식 본체는 shared/rules.js 한 곳(브라우저 index.html 도 같은 파일을 읽는다) — 여기선 이름만 다시 내보낸다.
 const GATHEO_ADMIN_BAND_ID = 'wearegatheo'; // index.html GATHEO_ADMIN_BAND_ID 와 동일 — 관리자 팀은 문자 대상 아님
-const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js buildText · index.html 대관 조회 카드와 동일 문자열 유지
-export const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * DAY_MS).toISOString().slice(0, 10);
-// 1주 무료 연장(건너뛰기권 extend, 2026-11-05): ext = 연장이 적용되는 건너뛴 날짜 목록. 그 날짜 뒤의 회차 경계가 날짜마다 7일씩 밀린다
-// — 시작일_n = start + 28n + 7×|{d ∈ ext : start ≤ d < 시작일_n}| (밀린 뒤 새로 포함되는 날짜가 있으면 다시 센다). index.html bandExtOffset 와 동일.
-export const bandExtOffset = (start, n, ext) => {
-    if (!ext || !ext.length) return 0;
-    let off = 0;
-    for (let i = 0; i < 60; i++) {
-        const s = addDays(start, BAND_CYCLE_DAYS * n + off);
-        const cnt = ext.filter(d => d >= start && d < s).length * 7;
-        if (cnt === off) break;
-        off = cnt;
-    }
-    return off;
-};
-export const bandCycleStart = (start, n, ext) => addDays(start, BAND_CYCLE_DAYS * n + bandExtOffset(start, n, ext));
-export const bandCycleEnd = (start, n, ext) => addDays(bandCycleStart(start, n + 1, ext), -7); // 마지막 주 첫 합주일(= 다음 시작일 − 7)
-export const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (3주차 사용일)
-export const bandCycleDue = (start, n, ext) => (n <= 0 ? start : addDays(bandCycleStart(start, n, ext), -BAND_DUE_OFFSET));
-// 다음 회차 번호: 오늘이 속한 회차 + 1 (시작일 전이면 0 = 등록 회차, 문자 대상 아님)
-export const bandNextCycle = (start, today, ext) => {
-    if (today < start) return 0;
-    let n = 0; while (n < 400 && bandCycleStart(start, n + 1, ext) <= today) n++;
-    return n + 1;
-};
-// 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7) — 입금일(시작 2주 전) 일주일 앞부터 시작 후 일주일까지
-export const bandInferCycle = (start, paidAt, ext) => {
-    let n = 0; while (n < 400 && addDays(bandCycleStart(start, n + 1, ext), -21) <= paidAt) n++;
-    return n;
-};
-// 건너뛰기권(band_skips) 보상 실효 판정: 선택값 또는 마감(건너뛰는 날 − 7일) 뒤 자동 1주 연장 — index.html bandSkipResolution 와 동일
-export const BAND_SKIP_DEADLINE_DAYS = 7;
-export const bandSkipResolution = (s, today) => s.resolution || (today > addDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS) ? 'extend' : null);
-export const bandExtDates = (skips, today) => (skips || []).filter(s => bandSkipResolution(s, today) === 'extend').map(s => s.skip_date).sort();
+const BAND_BANK_LINE = RULES.BANK_LINE;
+export const { addDays, bandExtOffset, bandCycleStart, bandCycleEnd, BAND_DUE_OFFSET, bandCycleDue, bandNextCycle, bandInferCycle,
+    BAND_SKIP_DEADLINE_DAYS, bandSkipResolution, bandExtDates } = RULES;
+const DAY_MS = 86400e3;
 const extOf = (t) => (Array.isArray(t._ext) ? t._ext : []);
 
 const isAdminBand = (t) => {
@@ -340,6 +311,16 @@ export async function onRequest(context) {
             sent++;
         }
 
+        // 공간 대관 4시간 자동취소를 DB 에도 반영(2026-11-10) — 화면은 lazy 로 만료 취급하지만 기록은 관리자 탭을 열 때만 정리됐다.
+        // scope 와 무관하게 크론이 올 때마다(하루 6회쯤) 기한 지난 입금 대기 건을 expired 로. 실패해도 나머지는 진행.
+        let expired = 0;
+        try {
+            const cutoff = new Date(Date.now() - RULES.PERF_EXPIRE_MS).toISOString();
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/performance_bookings?status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&select=id`,
+                { method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify({ status: 'expired' }) });
+            if (r.ok) { const rows = await r.json().catch(() => []); expired = Array.isArray(rows) ? rows.length : 0; }
+        } catch (_) {}
+
         // 고정 합주팀 입금 안내 문자 — band_rent_reminders 행 INSERT 로 선점(PK 중복 = 이미 발송 → 409 → skip)
         let bandSent = 0;
         for (const x of bandTargets) {
@@ -390,7 +371,7 @@ export async function onRequest(context) {
                 purged = Array.isArray(deleted) ? deleted.length : 0;
             }
         }
-        return json({ ok: true, scope, checked: scope === 'band' ? 0 : bookings.length, sent, purged,
+        return json({ ok: true, scope, checked: scope === 'band' ? 0 : bookings.length, sent, purged, expired,
             band_checked: bandTargets.length, band_sent: bandSent,
             ...(!smsOn ? { band: 'sms-disabled' } : (bandActive && !bandWindowOpen ? { band: 'before-window', band_window_from: `${BAND_SMS_EARLIEST_HOUR}:00 KST` } : {})) });
     } catch (e) {

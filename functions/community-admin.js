@@ -16,10 +16,11 @@
 //   400 형식 / 401 인증 실패 / 403 출처·권한 / 404 없음 / 409 대기 상태 아님 / 500 DB·서버
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY(선택), RESEND_FROM(선택)
 // 사전 준비(1회, SQL Editor): supabase/migrations/20261013_community_meeting_status.sql
+import '../shared/rules.js';
 
 const ADMIN_KAKAO_ID = '4883868250'; // index.html ADMIN_ID / event-api·wappen-api 와 동일 — 관리자 백스톱
 const ADMIN_ROLES = ['운영 총괄'];
-const TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+const TIMES = globalThis.GAA_RULES.TIMES; // 08:00~22:00 (종전 사본은 10:00~ 로 낡아 있었다)
 const SITE = 'https://gatherallaround.com';
 
 function hostOf(u) { try { return new URL(u).hostname; } catch { return ''; } }

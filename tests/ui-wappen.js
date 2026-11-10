@@ -81,7 +81,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
 `;
 
 (async () => {
-    const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+    const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined, headless: true });
     const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, locale: 'ko-KR', hasTouch: VW < 600 });
     const p = await ctx.newPage();
     const errors = [];

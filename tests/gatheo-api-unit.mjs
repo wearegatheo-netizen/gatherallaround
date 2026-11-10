@@ -224,6 +224,26 @@ const future = (d) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStrin
     [st, b] = await handle(env, { action: 'kakao_link', name: '옛멤버', phone: '01033334444', session: await sess('k-member') }); ok('이미 가입한 사람 연동 409', st === 409);
     canned = {};
 }
+// ── 5. 운영 도구(운영 총괄만) ──
+{
+    const sup = await sess('k-sup'), mem = await sess('k-member');
+    let [st, b] = await handle(env, { action: 'client_errors', session: mem }); ok('오류 기록: 멤버 403', st === 403);
+    [st, b] = await handle(env, { action: 'backup_table', table: 'profiles' }); ok('백업: 익명 401', st === 401);
+    [st, b] = await handle(env, { action: 'backup_table', table: 'profiles', session: await sess('k-lead') }); ok('백업: 총괄 403', st === 403);
+    canned = { 'client_errors?select': [{ id: 1, message: 'boom' }] };
+    [st, b] = await handle(env, { action: 'client_errors', session: sup }); ok('오류 기록: 운영 총괄', st === 200 && b.rows.length === 1);
+    canned = { 'client_errors?select': () => json({ message: 'no table' }, 404) };
+    [st, b] = await handle(env, { action: 'client_errors', session: sup }); ok('오류 기록: 표 없음', b.missing === true);
+    canned = {};
+    [st, b] = await handle(env, { action: 'backup_tables', session: sup }); ok('백업 표 목록', b.tables.includes('profiles') && b.tables.includes('event_tickets') && !b.tables.includes('wappen_sessions') && !b.tables.includes('client_errors'));
+    [st, b] = await handle(env, { action: 'backup_table', table: 'wappen_sessions', session: sup }); ok('백업: 목록 밖 표 400', st === 400);
+    [st, b] = await handle(env, { action: 'backup_table', table: 'profiles; drop', session: sup }); ok('백업: 이상한 이름 400', st === 400);
+    canned = { 'reservations?select=*&limit=1000&offset=1000': Array.from({ length: 1000 }, (_, i) => ({ id: i })) };
+    log = []; [st, b] = await handle(env, { action: 'backup_table', table: 'reservations', offset: 1000, session: sup }); ok('백업: 쪽 넘김', b.rows.length === 1000 && b.more === true);
+    canned = { 'band_pins?': () => json({ message: 'x' }, 404) };
+    [st, b] = await handle(env, { action: 'backup_table', table: 'band_pins', session: sup }); ok('백업: 없는 표는 건너뜀', b.missing === true);
+    canned = {};
+}
 {
     const a = makeActor({ kid: ADMIN_KID });
     ok('백스톱 ID 는 프로필 없어도 운영 총괄', a.sup && a.mgr && !a.member);

@@ -107,8 +107,9 @@ const blockCall = () => calls.find(c => c.url.endsWith('/time_blocks') && c.meth
 }
 // ── 6. meetingSlots
 {
-  chk('meetingSlots: "10:00 ~ 13:00" → [0,2], "22:00 ~ 23:00" → [12,12], 깨진 값 null',
-    JSON.stringify(meetingSlots('10:00 ~ 13:00')) === '[0,2]' && JSON.stringify(meetingSlots('22:00 ~ 23:00')) === '[12,12]' && meetingSlots('') === null && meetingSlots('09:00 ~ 10:00') === null);
+  // 슬롯은 shared/rules.js TIMES(08:00~22:00) 기준 — 종전 사본은 10:00~ 라 오전 8·9시 모임 수락이 실패했다(2026-11-10)
+  chk('meetingSlots: "10:00 ~ 13:00" → [2,4], "22:00 ~ 23:00" → [14,14], "08:00 ~ 10:00" → [0,1], 깨진 값 null',
+    JSON.stringify(meetingSlots('10:00 ~ 13:00')) === '[2,4]' && JSON.stringify(meetingSlots('22:00 ~ 23:00')) === '[14,14]' && JSON.stringify(meetingSlots('08:00 ~ 10:00')) === '[0,1]' && meetingSlots('') === null && meetingSlots('07:00 ~ 08:00') === null)
 }
 
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

@@ -12,6 +12,8 @@
 //      SOLAPI_API_KEY, SOLAPI_API_SECRET, SMS_SENDER (미설정이면 발송 기능 꺼짐)
 // 사전 준비(1회, Supabase SQL Editor):
 //   alter table performance_bookings add column if not exists sms_sent_at timestamptz;
+import '../shared/rules.js';
+const RULES = globalThis.GAA_RULES;
 
 function corsFor(origin) {
     const host = (() => { try { return new URL(origin).hostname; } catch { return ''; } })();
@@ -64,7 +66,7 @@ function buildText(bk) {
 
 ${codeLine}이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 입금해주시면 예약이 확정됩니다!
 
-토스뱅크 1000-2274-7678 최경수
+${RULES.BANK_LINE}
 
 ※ 신청 후 4시간 안에 입금 확인이 되지 않으면 예약이 자동 취소됩니다.
 ※ 예약 상태는 홈페이지 [공간 대관 > 예약 조회]에서 예약번호와 연락처로 확인하실 수 있습니다.
@@ -76,7 +78,7 @@ ${codeLine}이용요금(${fee.toLocaleString('ko-KR')}원)을 아래 계좌로 �
 //   보증금(1개월분) 입금으로 등록 확정 · 등록 회차 이용료는 시작일 전날까지 · 다음 회차부터 입금일 = 사용 3주차(문자 자동 안내)
 //   캐비넷 = 회차당 2만원 추가 · 가입 때 정한 숫자 4자리가 캐비넷 비밀번호. 이모지 없음(EUC-KR), LMS 한도 2,000byte 안.
 const GATHEO_ADMIN_BAND_ID = 'wearegatheo';
-const BAND_BANK_LINE = '토스뱅크 1000-2274-7678 최경수'; // send-reminders.js · index.html 과 동일 문자열 유지
+const BAND_BANK_LINE = RULES.BANK_LINE; // send-reminders.js · index.html 과 동일 문자열 유지
 const BAND_CONTACT = '010-5109-1042';                     // index.html PORTAL_PHONE
 const BAND_SITE = 'gatherallaround.com/band';
 const BAND_DOW = ['일', '월', '화', '수', '목', '금', '토'];

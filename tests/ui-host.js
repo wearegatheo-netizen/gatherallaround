@@ -9,7 +9,7 @@ const TK_ID = '22222222-2222-4222-8222-222222222222';
 const FUTURE = new Date(Date.now() + 7 * 86400e3).toISOString();
 
 (async () => {
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const p = await br.newPage({ viewport: { width: 420, height: 950 }, deviceScaleFactor: 2 });
   await p.route('**://**', async r => {
     const u = new URL(r.request().url());

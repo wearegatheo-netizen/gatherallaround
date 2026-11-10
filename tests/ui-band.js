@@ -81,7 +81,7 @@ const FAKE_SB = `
 })();`;
 
 (async () => {
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const ctx = await br.newContext({ viewport: { width: 420, height: 950 }, deviceScaleFactor: 2, timezoneId: 'Asia/Seoul', locale: 'ko-KR' });
   const p = await ctx.newPage();
   await p.clock.setFixedTime(new Date('2026-09-15T10:00:00+09:00'));

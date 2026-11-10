@@ -1,0 +1,31 @@
+# 자동 테스트 — master·작업 브랜치에 올릴 때마다 단위 테스트와 화면 테스트(Playwright)를 돌린다.
+# 배포(Cloudflare Pages)를 막지는 않는다: 실패하면 커밋 옆에 빨간 표시가 뜨고 메일이 온다 → 바로 확인.
+# 로컬에서도 같은 스크립트: bash tests/run-all.sh
+name: tests
+
+on:
+  push:
+    branches: [master, 'claude/**']
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (Chromium)
+        run: |
+          npm init -y >/dev/null
+          npm i --no-save --no-audit --no-fund playwright@1
+          npx playwright install --with-deps chromium
+      - name: Run all tests
+        run: bash tests/run-all.sh

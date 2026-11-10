@@ -700,6 +700,20 @@
         .gt-title { flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 800; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gatheo-topbar .cm-ib.active { color: var(--wds-primary); }
         .gatheo-topbar .gt-back { margin-right: 2px; flex-shrink: 0; }
+        /* 관리자 › 운영 도구 */
+        .ops-card { padding: 16px; margin-bottom: 12px; }
+        .ops-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.98rem; color: var(--wds-black); }
+        .ops-actions { display: inline-flex; gap: 6px; }
+        .ops-note { font-size: 0.82rem; color: var(--wds-gray-600); line-height: 1.55; margin: 8px 0 12px; word-break: keep-all; }
+        .ops-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ops-msg { font-size: 0.82rem; color: var(--wds-gray-600); }
+        .ops-empty { font-size: 0.86rem; color: var(--wds-gray-500); text-align: center; padding: 14px 0; margin: 0; }
+        .ops-err { border-top: 1px solid var(--wds-gray-200); padding: 10px 0; }
+        .ops-err summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+        .ops-err summary::-webkit-details-marker { display: none; }
+        .ops-err-msg { font-size: 0.86rem; font-weight: 700; color: var(--wds-black); overflow-wrap: anywhere; }
+        .ops-err-meta { font-size: 0.76rem; color: var(--wds-gray-500); }
+        .ops-err-stack { font-size: 0.72rem; line-height: 1.5; background: var(--wds-gray-100); color: var(--wds-gray-700); border-radius: 8px; padding: 10px; margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
         .band-header .band-back { margin: 0 2px 0 -8px; flex-shrink: 0; }
         .gt-avbtn { width: 36px; height: 36px; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; }
         .gt-avbtn .ga-avatar { width: 30px; height: 30px; font-size: 0.82rem; }
@@ -3133,6 +3147,7 @@
     <!-- Scripts -->
     <!-- Supabase SDK -->
     <script src="/vendor/supabase/supabase.v2.119.0.js"></script>
+    <script src="/shared/rules.js?v=1"></script>
     <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
     <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
@@ -3157,6 +3172,45 @@
         // RESEND_API_KEY는 Cloudflare 환경변수에만 저장, 미설정이면 mailto 폴백.
 
         let supabaseClient = null;
+
+        // ── 브라우저 오류 수집(2026-11-10) ── 방문자 폰에서 난 스크립트 오류를 /client-log 로 보낸다(운영 총괄이 관리자 › 운영 도구에서 확인).
+        // 세션당 최대 8건·같은 메시지는 한 번, 개인정보 없음(메시지·스택·화면 경로만; 서버가 전화·이메일·토큰 모양을 한 번 더 가림).
+        // 로컬(127.0.0.1·localhost)에서는 보내지 않는다(테스트는 window.__gaaLogTest 로 켬).
+        (function () {
+            const seen = new Set(); let count = 0, queue = [], timer = null;
+            const enabled = () => window.__gaaLogTest || !/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+            const page = () => ((location.hash || '').replace(/^#/, '') || location.pathname.replace(/^\//, '') || 'portal').split('/').slice(0, 2).join('/').slice(0, 60);
+            const role = () => {
+                try {
+                    const bandEl = document.getElementById('band-main-content');
+                    if (state.bandProfile && bandEl && !bandEl.classList.contains('hidden')) return 'band';
+                    if (state.user) return isAdminUser() ? 'admin' : 'member';
+                } catch (_) {}
+                return 'guest';
+            };
+            function flush() {
+                if (!queue.length) return;
+                const body = JSON.stringify({ errors: queue.splice(0) });
+                try { if (navigator.sendBeacon && navigator.sendBeacon('/client-log', new Blob([body], { type: 'application/json' }))) return; } catch (_) {}
+                try { fetch('/client-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {}); } catch (_) {}
+            }
+            function report(kind, message, stack, source) {
+                try {
+                    if (!enabled()) return;
+                    const msg = String(message || '').slice(0, 500);
+                    if (!msg || (/^Script error\.?$/.test(msg) && !stack)) return; // 다른 출처 스크립트의 내용 없는 오류
+                    const key = msg.slice(0, 120);
+                    if (seen.has(key) || count >= 8) return;
+                    seen.add(key); count++;
+                    queue.push({ kind, message: msg, stack: String(stack || '').slice(0, 3000), source: String(source || '').slice(0, 200), page: page(), role: role() });
+                    clearTimeout(timer); timer = setTimeout(flush, 1500);
+                } catch (_) {}
+            }
+            window.addEventListener('error', (e) => { if (e && e.message) report('error', e.message, e.error && e.error.stack, String(e.filename || '').replace(/^https?:\/\/[^/]+/, '').split('?')[0] + ':' + (e.lineno || 0) + ':' + (e.colno || 0)); });
+            window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; report('promise', (r && r.message) || String(r), r && r.stack, ''); });
+            window.addEventListener('pagehide', flush);
+            window._gaaReportError = report;
+        })();
 
         // ── 서버 경유 쓰기(gw, 2026-11-10 보안 개선) ──────────────────────────────────────────
         // 카카오 멤버는 DB 입장에서 익명이라 권한을 가릴 수 없었다 → 아래 표의 **쓰기 전부**와 개인정보가 든 읽기
@@ -4998,7 +5052,7 @@
         }
 
         // 예약 그리드 슬롯(시작 시각). 2026-11-05 08:00~23:00 으로 확장(종전 10:00~) — 끝 시각 표시는 TIMES[i+1] || '23:00'
-        const TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+        const TIMES = GAA_RULES.TIMES; // /shared/rules.js
 
         // --- 권한 헬퍼 ---
         function isSuper() { return state.user && (state.user.kakaoId === ADMIN_ID || state.user.role === '운영 총괄'); }
@@ -6896,8 +6950,13 @@
         }
 
         // 멤버 목록에서 숨길 계정 (중복/구 계정)
+        // profiles.hidden(마이그레이션 20261110_profile_hidden.sql, 관리자 › 멤버 정보 수정의 「멤버 목록에서 숨김」) 기준.
+        // 컬럼이 아직 없으면(값이 undefined) 종전 이름 목록으로 판정한다.
+        const _LEGACY_HIDDEN_NAMES = ['최경수(세션장)', '최경수(일반)'];
         function isHiddenMember(m) {
-            return m.name === '최경수(세션장)' || m.name === '최경수(일반)';
+            if (!m) return false;
+            if (typeof m.hidden === 'boolean') return m.hidden;
+            return _LEGACY_HIDDEN_NAMES.includes(m.name);
         }
 
         // 이름 기반 결정적 아바타 (색상 + 이니셜)
@@ -7295,7 +7354,8 @@
                 ...(canPostNotice() ? [{ key: 'notice', label: '📢 공지' }] : []),
                 ...(isSuper() ? [{ key: 'blocks', label: '🚫 시간차단' }, { key: 'bgm', label: '🎵 BGM' }] : []),
                 ...(canApproveRes() ? [{ key: 'docs', label: '📖 문서관리' }, { key: 'push', label: '🔔 알림설정' }] : []),
-                ...(isSuper() ? [{ key: 'perfbooking', label: '🎭 공간대관' }] : []) // 대관 신청엔 연락처 등 외부인 개인정보 포함 — 운영 총괄 전용
+                ...(isSuper() ? [{ key: 'perfbooking', label: '🎭 공간대관' }] : []), // 대관 신청엔 연락처 등 외부인 개인정보 포함 — 운영 총괄 전용
+                ...(isSuper() ? [{ key: 'ops', label: '🛠️ 운영 도구' }] : []) // 브라우저 오류 기록 · 백업 내려받기(2026-11-10)
             ];
             subtabDefs.forEach(t => {
                 const btn = document.createElement('div');
@@ -7323,9 +7383,89 @@
                 renderAdminDocsSection(content);
             } else if (state.adminTab === 'perfbooking') {
                 await renderPerfAdminTab(content);
+            } else if (state.adminTab === 'ops') {
+                await renderAdminOpsSection(content);
             } else {
                 renderAdminNoticeSection(content);
             }
+        }
+
+        // ── 운영 도구(운영 총괄, 2026-11-10): 브라우저 오류 기록 + 백업 내려받기. 둘 다 /gatheo-api 가 운영 총괄만 허용한다. ──
+        async function renderAdminOpsSection(container) {
+            if (!isSuper()) { container.innerHTML = '<p class="ops-empty">운영 총괄만 볼 수 있습니다.</p>'; return; }
+            container.innerHTML = `
+                <div class="gt-card ops-card">
+                    <div class="ops-head"><strong>백업 내려받기</strong></div>
+                    <p class="ops-note">예약·멤버·합주팀·대관·공연·커뮤니티·포스터 꾸미기 자료를 파일 하나(JSON)로 내려받습니다. 사진 파일은 포함되지 않습니다.<br>
+                    <b>이름·연락처가 들어 있는 파일</b>이니 개인 기기의 안전한 곳에만 보관하고 공유하지 마세요. 한 달에 한 번, 큰 변경 전에 받아 두기를 권합니다.</p>
+                    <div class="ops-row"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" id="opsBackupBtn" onclick="opsBackupDownload(this)">백업 파일 내려받기</button><span id="opsBackupMsg" class="ops-msg"></span></div>
+                </div>
+                <div class="gt-card ops-card">
+                    <div class="ops-head"><strong>브라우저 오류 기록</strong>
+                        <span class="ops-actions"><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary" onclick="opsLoadErrors()">새로고침</button>
+                        <button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" onclick="opsClearErrors()">기록 비우기</button></span></div>
+                    <p class="ops-note">방문자 화면에서 난 스크립트 오류가 자동으로 모입니다(개인정보 없음). 같은 오류가 여러 번 보이면 알려주세요.</p>
+                    <div id="opsErrorList"><p class="ops-empty">불러오는 중…</p></div>
+                </div>`;
+            await opsLoadErrors();
+        }
+        async function opsLoadErrors() {
+            const el = document.getElementById('opsErrorList'); if (!el) return;
+            const res = await _gwAction('client_errors', {}, { interactive: true });
+            if (!document.getElementById('opsErrorList')) return;
+            if (res.down) { el.innerHTML = '<p class="ops-empty">이 환경에서는 서버 함수를 쓸 수 없습니다.</p>'; return; }
+            if (!res.ok) { el.innerHTML = `<p class="ops-empty">${escapeHtml(res.message || '불러오지 못했습니다.')}</p>`; return; }
+            if (res.missing) { el.innerHTML = '<p class="ops-empty">기록 표가 아직 없습니다. supabase/migrations/20261110_client_errors.sql 을 실행하면 모이기 시작합니다.</p>'; return; }
+            const rows = res.rows || [];
+            if (!rows.length) { el.innerHTML = '<p class="ops-empty">기록된 오류가 없습니다.</p>'; return; }
+            // 같은 메시지끼리 묶어 횟수·최근 시각으로
+            const groups = new Map();
+            rows.forEach(r => { const g = groups.get(r.message) || { first: r, n: 0, pages: new Set(), roles: new Set() }; g.n++; if (r.page) g.pages.add(r.page); if (r.role) g.roles.add(r.role); groups.set(r.message, g); });
+            const roleKo = { member: '멤버', admin: '관리자', band: '합주팀', guest: '비로그인' };
+            const dev = (ua) => /iPhone|iPad/.test(ua || '') ? 'iOS' : /Android/.test(ua || '') ? '안드로이드' : /KAKAOTALK/i.test(ua || '') ? '카톡' : 'PC';
+            el.innerHTML = [...groups.values()].map(g => {
+                const r = g.first, t = new Date(r.created_at);
+                const when = `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+                return `<details class="ops-err"><summary><span class="ops-err-msg">${escapeHtml(r.message)}</span>
+                    <span class="ops-err-meta">${g.n > 1 ? `<b>${g.n}회</b> · ` : ''}최근 ${when} · ${escapeHtml([...g.pages].slice(0, 3).join(', ') || '-')} · ${escapeHtml([...g.roles].map(x => roleKo[x] || x).join('/'))} · ${dev(r.ua)}${/KAKAOTALK/i.test(r.ua || '') ? '(카톡)' : ''}</span></summary>
+                    <pre class="ops-err-stack">${escapeHtml([r.source, r.stack].filter(Boolean).join('\n') || '(스택 없음)')}</pre></details>`;
+            }).join('');
+        }
+        async function opsClearErrors() {
+            if (!confirm('오류 기록을 모두 지울까요?')) return;
+            const res = await _gwAction('client_errors_clear', {}, { interactive: true });
+            if (res.down || !res.ok) { showToast('지우지 못했습니다.', 4000); return; }
+            showToast('오류 기록을 비웠습니다.'); opsLoadErrors();
+        }
+        async function opsBackupDownload(btn) {
+            const msg = document.getElementById('opsBackupMsg');
+            const say = (t, bad) => { if (msg) { msg.textContent = t; msg.style.color = bad ? '#e74c3c' : ''; } };
+            if (btn.disabled) return;
+            btn.disabled = true;
+            try {
+                const list = await _gwAction('backup_tables', {}, { interactive: true });
+                if (list.down) { say('이 환경에서는 서버 함수를 쓸 수 없습니다.', true); return; }
+                if (!list.ok) { say(list.message || '권한을 확인하지 못했습니다.', true); return; }
+                const out = { exported_at: new Date().toISOString(), site: location.hostname, note: '게더 올 어라운드 백업 — 개인정보 포함, 공유 금지. 사진 파일(Storage)은 포함되지 않음.', tables: {}, missing: [] };
+                let total = 0;
+                for (let i = 0; i < list.tables.length; i++) {
+                    const t = list.tables[i]; say(`${i + 1}/${list.tables.length} · ${t}`);
+                    const rows = []; let offset = 0;
+                    for (let guard = 0; guard < 200; guard++) {
+                        const res = await _gwAction('backup_table', { table: t, offset });
+                        if (res.down || !res.ok) { say(`${t} 를 받지 못해 중단했습니다. 다시 시도해주세요.`, true); return; }
+                        if (res.missing) { out.missing.push(t); break; }
+                        rows.push(...(res.rows || [])); offset += (res.rows || []).length;
+                        if (!res.more) break;
+                    }
+                    if (!out.missing.includes(t)) { out.tables[t] = rows; total += rows.length; }
+                }
+                const d = new Date(), stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+                const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `gatherallaround-backup-${stamp}.json`;
+                document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+                say(`완료 · 표 ${Object.keys(out.tables).length}개 · ${total.toLocaleString()}행 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+            } finally { btn.disabled = false; }
         }
 
         function renderAdminPollsSection(container) {
@@ -8310,9 +8450,10 @@
                 const contactInfo = isS
                     ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span>${m.phone ? `<span style="font-size:0.7rem;color:var(--wds-primary);white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="클릭하여 복사" onclick="(function(el,t){const p='${jsStr(m.phone)}';if(navigator.clipboard){navigator.clipboard.writeText(p).then(function(){el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)})}else{const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)}})(this)">${escapeHtml(m.phone)}</span>` : `<span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap">-</span>`}`
                     : '';
-                const editBtn = isS && (m.status === 'pending' || m.status === 'approved')
+                const editBtn = (isHiddenMember(m) ? '<span class="status-badge sm status-neutral" title="멤버 목록에서 숨긴 계정">숨김</span>' : '')
+                    + (isS && (m.status === 'pending' || m.status === 'approved')
                     ? `<button class="gaa-btn gaa-btn-xs gaa-btn-secondary" type="button" onclick="editMemberInfo('${m.id}')">수정</button>`
-                    : '';
+                    : '');
                 return `<div class="admin-member-row" id="admin-member-row-${m.id}"
                     data-name="${escapeHtml(m.name)}" data-email="${escapeHtml(m.email||'')}" data-phone="${escapeHtml(m.phone||'')}" data-instruments="${escapeHtml(m.instruments||'')}">
                     <div class="admin-member-main">
@@ -9714,7 +9855,7 @@
         // 자동취소 정책: 신청(pending) 후 4시간 내 승인(확정)되지 않으면 취소.
         // 크론이 없으므로 lazy — 조회 화면·가용성 계산은 기한 지난 대기 건을 즉시
         // 취소로 취급하고, DB 상태('expired')는 관리자 탭 진입 시 일괄 반영(sweep)된다.
-        const PERF_EXPIRE_MS = 4 * 60 * 60 * 1000;
+        const PERF_EXPIRE_MS = GAA_RULES.PERF_EXPIRE_MS;
         function _pbExpired(b) {
             return !!(b && b.status === 'pending' && b.created_at
                 && Date.now() - new Date(b.created_at).getTime() > PERF_EXPIRE_MS);
@@ -9939,7 +10080,7 @@
                 chip = ['⏳ 입금 대기', '#FEF3C7', '#92400E'];
                 const leftMs = Math.max(0, PERF_EXPIRE_MS - (Date.now() - new Date(b.created_at).getTime()));
                 const leftH = Math.floor(leftMs / 3600000), leftM = Math.floor((leftMs % 3600000) / 60000);
-                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 <strong>토스뱅크 1000-2274-7678(최경수)</strong> 계좌로 입금해주시면 예약이 확정됩니다. `
+                note = `이용요금(<strong>${fee.toLocaleString()}원</strong>${audienceTbd ? ' + 당일 추가분' : ''})을 <strong>${GAA_RULES.BANK_NAME} ${GAA_RULES.BANK_ACCOUNT}(${GAA_RULES.BANK_HOLDER})</strong> 계좌로 입금해주시면 예약이 확정됩니다. `
                     + `남은 확정 기한은 약 <strong>${leftH > 0 ? leftH + '시간 ' : ''}${leftM}분</strong>이며, 기한 내 확정되지 않으면 자동 취소됩니다.`;
             }
             // 본인 취소: 입금 대기·확정 건만 (만료·거절·취소 건은 불가)
@@ -13321,7 +13462,7 @@
                     '사용을 마치려면 종료 예정일을 미리 알려주세요. 그날까지 사용한 뒤 보증금을 돌려드립니다.',
                     '쉬었다가 다시 시작할 때는 운영팀에 알려주세요. 이전 기록을 확인해 이어드립니다.'))}`;
         }
-        const BAND_BANK_LINE_UI = '토스뱅크 1000-2274-7678 최경수'; // send-sms.js·send-reminders.js 와 동일 문자열 유지
+        const BAND_BANK_LINE_UI = GAA_RULES.BANK_LINE; // /shared/rules.js — 문자(send-sms·send-reminders)와 같은 값
         // 비로그인으로 #band/guide 에 오면 로그인 폼으로 — 로그인(loginBandUI)이 끝나면 안내 탭을 연다
         function showBandGuideView() {
             if (state.bandProfile) { loginBandUI(state.bandProfile); setTimeout(() => bandPageTab('guide'), 0); return; }
@@ -13636,37 +13777,9 @@
         // ── 고정 합주팀 회차 모델 (functions/send-reminders.js · 내부운영 시트 "진행중인 고정팀"과 동일하게 유지) ──
         // 시작일_n = band_start_date + 28n, 종료일_n = 시작일_n + 21(마지막 주 첫 합주일),
         // 입금일_n = 시작일_n − 14 (n≥1, 3주차 사용일 = 다음 시작일 2주 전), 등록(n=0)은 시작일 당일. 문자는 입금일 당일 + 미납 시 시작 전날.
-        const BAND_CYCLE_DAYS = 28;
-        const _bandAddDays = (ymd, n) => new Date(Date.parse(ymd) + n * 86400e3).toISOString().slice(0, 10);
-        // 1주 무료 연장(건너뛰기권 extend, 2026-11-05): ext = 연장이 적용되는 건너뛴 날짜 목록(YYYY-MM-DD).
-        // 그 날짜 뒤에 오는 회차 경계(시작일·입금일)가 날짜마다 7일씩 밀린다 — 시작일_n = start + 28n + 7×|{d ∈ ext : start ≤ d < 시작일_n}|
-        // (밀린 뒤에 새로 포함되는 날짜가 있으면 다시 센다). functions/send-reminders.js · check-band-payments 와 동일.
-        const bandExtOffset = (start, n, ext) => {
-            if (!ext || !ext.length) return 0;
-            let off = 0;
-            for (let i = 0; i < 60; i++) {
-                const s = _bandAddDays(start, BAND_CYCLE_DAYS * n + off);
-                const cnt = ext.filter(d => d >= start && d < s).length * 7;
-                if (cnt === off) break;
-                off = cnt;
-            }
-            return off;
-        };
-        const bandCycleStart = (start, n, ext) => _bandAddDays(start, BAND_CYCLE_DAYS * n + bandExtOffset(start, n, ext));
-        const bandCycleEnd = (start, n, ext) => _bandAddDays(bandCycleStart(start, n + 1, ext), -7); // 마지막 주 첫 합주일(= 다음 시작일 − 7)
-        const BAND_DUE_OFFSET = 14; // 입금일 = 다음 회차 시작일 − 14일 (functions/send-reminders.js BAND_DUE_OFFSET 와 동일)
-        const bandCycleDue = (start, n, ext) => (n <= 0 ? start : _bandAddDays(bandCycleStart(start, n, ext), -BAND_DUE_OFFSET));
+        // 수식 본체는 /shared/rules.js 한 곳(서버 함수 send-reminders.js 도 같은 파일을 읽는다, 2026-11-10)
+        const { BAND_CYCLE_DAYS, BAND_DUE_OFFSET, addDays: _bandAddDays, bandExtOffset, bandCycleStart, bandCycleEnd, bandCycleDue, bandNextCycle, bandInferCycle } = GAA_RULES;
         const bandDiffDays = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400e3);
-        const bandNextCycle = (start, today, ext) => {
-            if (today < start) return 0;
-            let n = 0; while (n < 400 && bandCycleStart(start, n + 1, ext) <= today) n++;
-            return n + 1;
-        };
-        // 구형 납부 행(cycle_no 없음) 귀속: 회차 n 의 납부 창 = [시작일_n − 21, 시작일_n + 7)
-        const bandInferCycle = (start, paidAt, ext) => {
-            let n = 0; while (n < 400 && _bandAddDays(bandCycleStart(start, n + 1, ext), -21) <= paidAt) n++;
-            return n;
-        };
         const _bandExtOf = (team) => (team && Array.isArray(team._ext) ? team._ext : []);
         const bandTodayStr = () => new Date().toLocaleDateString('en-CA'); // 로컬(KST) 기준 YYYY-MM-DD
         const bandCycleLabel = (n) => (n === 0 ? '등록' : `${n}차`);
@@ -13942,7 +14055,7 @@
         const BAND_DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
         const BAND_AVAIL_DAYS = 182;          // 가용성·건너뛰기 계산 범위(시작일부터 26주)
         const BAND_HARD_BLOCK_DAYS = 56;      // 이보다 오래 남은 반복 차단은 "사용 중"(건너뛰기 아님)
-        const BAND_SKIP_DEADLINE_DAYS = 7;    // 보상 선택 마감 = 건너뛰는 날 − 7일
+        const BAND_SKIP_DEADLINE_DAYS = GAA_RULES.BAND_SKIP_DEADLINE_DAYS; // 보상 선택 마감 = 건너뛰는 날 − 7일
         const BAND_SUB_RANGE_DAYS = 7;        // 대체 합주 범위 = 건너뛰는 날 앞뒤 1주일 [−7, +7] (2026-11-05, 종전 −7~전날)
         const BAND_TEAM_SUB_MIN_DAYS = 3;     // 팀이 직접 요청하는 대체 합주(이용 기간 중 1회, 2026-11-07): 건너뛸 날 3일 전까지 요청
         const _bandH = (t) => parseInt(String(t || '0'), 10);
@@ -13959,8 +14072,8 @@
         const _bandMDW = (ymd) => `${bandMD(ymd)}(${bandWD(ymd)})`;
         // 건너뛰기권 보상의 실효 판정: 선택했으면 그 값, 마감(건너뛰는 날 − 7일)이 지났으면 1주 연장으로 간주 — send-reminders.js · check-band-payments 와 동일
         const bandSkipDeadline = (s) => _bandAddDays(s.skip_date, -BAND_SKIP_DEADLINE_DAYS);
-        const bandSkipResolution = (s, today = bandTodayStr()) => s.resolution || (today > bandSkipDeadline(s) ? 'extend' : null);
-        const bandExtDates = (skips, today = bandTodayStr()) => (skips || []).filter(s => bandSkipResolution(s, today) === 'extend').map(s => s.skip_date).sort();
+        const bandSkipResolution = (s, today = bandTodayStr()) => GAA_RULES.bandSkipResolution(s, today);
+        const bandExtDates = (skips, today = bandTodayStr()) => GAA_RULES.bandExtDates(skips, today);
         const BAND_KIND_CHIP = { ok: 'status-approved', skip: 'status-pending', later: 'status-info', wait: 'status-neutral', taken: 'status-rejected', off: 'status-neutral' };
 
         let _bandSlotsUnavailable = false; // band_slot_defs 표가 없으면(마이그레이션 전) 가입 화면은 종전 체크박스 타임표로 폴백
@@ -17101,6 +17214,10 @@
                         <input id="em-email-${id}" value="${escapeHtml(email)}" placeholder="이메일" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;flex:2;min-width:140px">
                     </div>
                     <input id="em-inst-${id}" value="${escapeHtml(instruments)}" placeholder="세션 (쉼표로 구분, 예: 기타, 보컬)" style="height:32px;padding:0 8px;border:1px solid var(--wds-gray-300);border-radius:4px;font-size:0.82rem;font-family:inherit;width:100%;box-sizing:border-box">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--wds-gray-700);min-height:32px;cursor:pointer">
+                        <input type="checkbox" id="em-hidden-${id}" ${isHiddenMember((state.allMembers || []).find(x => x.id === id)) ? 'checked' : ''} style="width:18px;height:18px;margin:0">
+                        멤버 목록에서 숨김 <span style="color:var(--wds-gray-500)">(중복·옛 계정)</span>
+                    </label>
                     <div style="display:flex;gap:6px">
                         <button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="saveMemberEdit('${id}')">저장</button>
                         <button class="gaa-btn gaa-btn-xs gaa-btn-secondary" type="button" onclick="cancelMemberEdit()">취소</button>
@@ -17120,8 +17237,18 @@
             const email = document.getElementById(`em-email-${id}`)?.value.trim();
             const instruments = document.getElementById(`em-inst-${id}`)?.value.trim();
             if (!name) { showToast('이름을 입력해주세요.'); return; }
-            const { error } = await supabaseClient.from('profiles').update({ name, phone, email, instruments }).eq('id', id);
+            const hidden = !!document.getElementById(`em-hidden-${id}`)?.checked;
+            const cur = (state.allMembers || []).find(x => x.id === id);
+            const payload = { name, phone, email, instruments };
+            if (!cur || isHiddenMember(cur) !== hidden) payload.hidden = hidden; // 바뀔 때만 보낸다(컬럼 없는 DB 에서도 일반 수정은 그대로)
+            let { error } = await supabaseClient.from('profiles').update(payload).eq('id', id);
+            if (error && 'hidden' in payload && /hidden/.test(error.message || '')) { // 마이그레이션(20261110_profile_hidden) 전
+                delete payload.hidden;
+                ({ error } = await supabaseClient.from('profiles').update(payload).eq('id', id));
+                if (!error) showToast('숨김 설정은 저장되지 않았습니다. supabase/migrations/20261110_profile_hidden.sql 실행 후 다시 시도해주세요.', 6000);
+            }
             if (error) { showToast('저장 실패: ' + error.message, 5000); return; }
+            if (cur && 'hidden' in payload) { cur.hidden = hidden; const cm = (state.cachedMembers || []).find(x => x.id === id); if (cm) cm.hidden = hidden; }
             const m = (state.allMembers || []).find(x => x.id === id);
             if (m) { m.name = name; m.phone = phone || ''; m.email = email || ''; m.instruments = instruments || ''; }
             const memberList = document.getElementById('memberList');

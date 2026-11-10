@@ -11,7 +11,7 @@ const FUTURE = (d) => new Date(Date.now() + d * 86400e3).toISOString();
 const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
 
 (async () => {
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const p = await br.newPage({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2 });
   await p.route('**://**', async r => {
     const u = new URL(r.request().url());
