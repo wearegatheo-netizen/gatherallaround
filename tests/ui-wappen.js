@@ -89,6 +89,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     p.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
     // 외부 CDN 차단 (supabase-js·Kakao SDK·폰트) — 주입 스텁이 대신한다
     await p.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, contentType: route.request().resourceType() === 'stylesheet' ? 'text/css' : 'application/javascript', body: '' }));
+    await p.route('**/vendor/supabase/**', (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' })); // 자체 호스팅 supabase-js 도 스텁이 대신(2026-11-10)
     await p.addInitScript(FAKE);
 
     // 1. 홈

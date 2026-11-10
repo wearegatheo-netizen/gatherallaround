@@ -67,8 +67,8 @@
     <link rel="preload" href="/fonts/BMKkubulim-critical.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Pretendard Font -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <script src="/vendor/marked/marked.v18.2.0.umd.js"></script>
+    <script src="/vendor/dompurify/purify.v3.4.17.min.js"></script>
     <style>
         :root {
             --wds-primary: #3366FF;
@@ -3127,7 +3127,7 @@
 
     <!-- Scripts -->
     <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/vendor/supabase/supabase.v2.119.0.js"></script>
     <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
     <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
@@ -3152,6 +3152,148 @@
         // RESEND_API_KEY는 Cloudflare 환경변수에만 저장, 미설정이면 mailto 폴백.
 
         let supabaseClient = null;
+
+        // ── 서버 경유 쓰기(gw, 2026-11-10 보안 개선) ──────────────────────────────────────────
+        // 카카오 멤버는 DB 입장에서 익명이라 권한을 가릴 수 없었다 → 아래 표의 **쓰기 전부**와 개인정보가 든 읽기
+        // (profiles 전체, performance_bookings 의 달력용 외 컬럼)는 supabaseClient.from(...) 호출을 그대로 기록해
+        // /gatheo-api(service role)로 보내고, 서버가 신원·역할을 확인한 뒤 실행한다. 호출부는 고치지 않는다.
+        // 서버 함수가 없는 환경(정적 서버·테스트: 404/405/501)에서는 종전처럼 직접 호출(_gwDown).
+        const GW_TABLES = new Set(['profiles', 'reservations', 'time_blocks', 'performance_bookings', 'comments', 'schedule_guests', 'schedule_attendees',
+            'teams', 'poll_votes', 'polls', 'schedules', 'documents', 'notices']);
+        const GW_PERF_SAFE = ['id', 'date', 'start_time', 'end_time', 'status', 'created_at'];
+        const GW_SESSION_KEY = 'gaa_session';
+        let _gwDown = false;
+        function _gwSessionGet() {
+            try { const s = JSON.parse(localStorage.getItem(GW_SESSION_KEY) || 'null'); if (s && s.t && s.e > Date.now() + 60000) return s; } catch (_) {}
+            return null;
+        }
+        function _gwSessionClear() { try { localStorage.removeItem(GW_SESSION_KEY); } catch (_) {} }
+        async function _gwPost(payload) {
+            let r;
+            try { r = await fetch('/gatheo-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
+            catch (e) { return { status: 0, body: null }; }
+            if (r.status === 404 || r.status === 405 || r.status === 501) { _gwDown = true; return { down: true }; }
+            return { status: r.status, body: await r.json().catch(() => null) };
+        }
+        function _gwKakaoToken() {
+            try { if (typeof Kakao !== 'undefined' && Kakao.Auth) { if (!Kakao.isInitialized()) initKakao(); return (Kakao.Auth.getAccessToken && Kakao.Auth.getAccessToken()) || null; } } catch (_) {}
+            return null;
+        }
+        // 카카오 토큰 → 서버 세션(30일). 성공하면 저장하고 토큰 문자열을 돌려준다.
+        let _gwLoginInflight = null;
+        async function _gwLogin(kakaoToken) {
+            if (!kakaoToken) return null;
+            if (_gwLoginInflight) return _gwLoginInflight;
+            _gwLoginInflight = (async () => {
+                const res = await _gwPost({ action: 'login', kakao_token: kakaoToken });
+                if (res.down || !res.body || !res.body.session) return null;
+                try { localStorage.setItem(GW_SESSION_KEY, JSON.stringify({ t: res.body.session, e: res.body.exp, k: res.body.kakao_id })); } catch (_) {}
+                return res.body.session;
+            })();
+            try { return await _gwLoginInflight; } finally { _gwLoginInflight = null; }
+        }
+        function _gwKakaoPopup() {
+            if (typeof Kakao === 'undefined' || !Kakao.Auth || !Kakao.Auth.login) return Promise.resolve(null);
+            return new Promise(resolve => {
+                try {
+                    if (!Kakao.isInitialized()) initKakao();
+                    Kakao.Auth.login({ success: a => resolve(a && a.access_token ? a.access_token : null), fail: () => resolve(null) });
+                } catch (_) { resolve(null); }
+            });
+        }
+        // 부팅 때 캐시된 카카오 멤버의 서버 세션 확인 — 있으면(또는 살아 있는 카카오 토큰으로 새로 받으면) true.
+        // 서버 함수가 없는 환경이면 종전처럼 통과(true).
+        async function _gwBootSessionOk(kakaoId) {
+            const s = _gwSessionGet();
+            if (s && String(s.k) === String(kakaoId)) return true;
+            if (s) _gwSessionClear();
+            if (_gwDown) return true;
+            const kt = _gwKakaoToken();
+            if (kt && await _gwLogin(kt)) { const n = _gwSessionGet(); if (n && String(n.k) === String(kakaoId)) return true; _gwSessionClear(); return false; }
+            if (_gwDown) return true;
+            const ping = await _gwPost({ action: 'ping' });
+            return !!ping.down || ping.status === 0; // 서버 없음·오프라인이면 막지 않는다
+        }
+        // 서버에 보낼 신원 — 카카오 세션과 Supabase 세션이 같이 있으면 둘 다(합주팀 화면이면 prefer:'sb')
+        async function _gwIds(opts = {}) {
+            const ids = {};
+            const kakaoUser = state.user && state.user.authType !== 'email' ? state.user.kakaoId : null;
+            let s = _gwSessionGet();
+            if (s && kakaoUser && String(s.k) !== String(kakaoUser)) { _gwSessionClear(); s = null; }
+            if (s) ids.session = s.t;
+            else {
+                const kt = _gwKakaoToken();
+                let t = kt ? await _gwLogin(kt) : null;
+                if (!t && !_gwDown && kakaoUser && opts.interactive) { const nt = await _gwKakaoPopup(); t = nt ? await _gwLogin(nt) : null; }
+                if (t) ids.session = t;
+            }
+            try { const { data } = await supabaseClient.auth.getSession(); if (data && data.session && data.session.access_token) ids.sb_token = data.session.access_token; } catch (_) {}
+            const bandEl = document.getElementById('band-main-content');
+            if (ids.sb_token && (state.bandProfile && bandEl && !bandEl.classList.contains('hidden') || !ids.session)) ids.prefer = 'sb';
+            return ids;
+        }
+        // 전용 액션(조회·취소·계정 찾기). 서버 함수가 없으면 { down:true } — 호출부가 종전 방식으로 처리
+        async function _gwAction(action, payload = {}, opts = {}) {
+            if (_gwDown) return { down: true };
+            const ids = opts.anon ? {} : await _gwIds({ interactive: !!opts.interactive });
+            if (_gwDown) return { down: true };
+            const res = await _gwPost({ action, ...payload, ...ids });
+            if (res.down) return { down: true };
+            if (res.status === 401 && ids.session) _gwSessionClear();
+            return res.body || { ok: false, message: '서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.' };
+        }
+        class GwBuilder {
+            constructor(table, real, first) { this.table = table; this.real = real; this.calls = [first]; }
+            then(onOk, onErr) { return this._run().then(onOk, onErr); }
+            catch(onErr) { return this._run().catch(onErr); }
+            _replay() { let q = this.real; for (const [m, ...a] of this.calls) q = q[m](...a); return q; }
+            async _run() {
+                if (this._p) return this._p;
+                this._p = (async () => {
+                    if (_gwDown) return this._replay();
+                    const write = this.calls[0][0] !== 'select';
+                    let ids = await _gwIds({ interactive: write });
+                    if (_gwDown) return this._replay();
+                    let res = await _gwPost({ action: 'db', table: this.table, calls: this.calls, ...ids });
+                    if (res.down) return this._replay();
+                    if (res.status === 401 && ids.session) { // 세션 만료·무효 → 한 번만 다시 받아 재시도
+                        _gwSessionClear();
+                        ids = await _gwIds({ interactive: write });
+                        res = await _gwPost({ action: 'db', table: this.table, calls: this.calls, ...ids });
+                        if (res.down) return this._replay();
+                    }
+                    if (res.status !== 200 || !res.body) {
+                        const msg = (res.body && res.body.message) || (res.status === 0 ? '네트워크 오류로 서버에 연결하지 못했습니다.' : '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                        return { data: null, error: { message: msg, code: String(res.status) }, count: null, status: res.status };
+                    }
+                    return { data: res.body.data == null ? null : res.body.data, error: res.body.error || null, count: null, status: 200 };
+                })();
+                return this._p;
+            }
+        }
+        ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'not', 'order', 'limit', 'range', 'select', 'single', 'maybeSingle'].forEach(m => {
+            GwBuilder.prototype[m] = function (...a) { this.calls.push([m, ...a]); return this; };
+        });
+        function _gwInstall(client) {
+            if (!client || client._gwInstalled) return;
+            client._gwInstalled = true;
+            const orig = client.from.bind(client);
+            client.from = (table) => {
+                const real = orig(table);
+                if (_gwDown || !GW_TABLES.has(table)) return real;
+                return {
+                    select: (cols, o) => {
+                        const list = String(cols == null ? '*' : cols).replace(/\s+/g, '').split(',');
+                        const viaServer = table === 'profiles' || (table === 'performance_bookings' && !list.every(c => GW_PERF_SAFE.includes(c)));
+                        return viaServer && !(o && (o.count || o.head)) ? new GwBuilder(table, real, ['select', cols]) : real.select(cols, o);
+                    },
+                    insert: (v, o) => new GwBuilder(table, real, o ? ['insert', v, o] : ['insert', v]),
+                    upsert: (v, o) => new GwBuilder(table, real, o ? ['upsert', v, o] : ['upsert', v]),
+                    update: (v, o) => new GwBuilder(table, real, o ? ['update', v, o] : ['update', v]),
+                    delete: () => new GwBuilder(table, real, ['delete']),
+                };
+            };
+        }
 
         // --- Kakao Auth ---
         function initKakao() {
@@ -3203,6 +3345,7 @@
                             const prof = (res.kakao_account && res.kakao_account.profile) || {};
                             const kakaoAvatar = prof.thumbnail_image_url || prof.profile_image_url || (res.properties && (res.properties.thumbnail_image || res.properties.profile_image)) || null;
                             if (supabaseClient) {
+                                { const gs = _gwSessionGet(); if (gs && String(gs.k) !== kakaoId) _gwSessionClear(); } // 다른 카카오 계정의 서버 세션이 남아 있으면 버린다
                                 const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', kakaoId).maybeSingle();
                                 if (!data) { state.user = { nickname, kakaoId }; loginUI(nickname); return; }
                                 if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
@@ -3249,6 +3392,7 @@
         async function handleLogout() {
             try { localStorage.setItem('gaa_portal_required', '1'); } catch(e) {}
             try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
+            _gwSessionClear();
             // 즉시 UI 전환 (서버 응답 기다리지 않음)
             logoutUI();
             showToast('로그아웃 되었습니다.');
@@ -3383,6 +3527,16 @@
             const btn = document.querySelector('button[onclick="submitKakaoLink()"]');
             if (btn) { btn.disabled = true; btn.textContent = '확인 중...'; }
             try {
+                // 서버가 이름+연락처를 대조해 연결한다(2026-11-10 — 다른 멤버 연락처를 브라우저로 내려받지 않게)
+                const srv = await _gwAction('kakao_link', { name, phone: phoneNorm }, { interactive: true });
+                if (!srv.down) {
+                    if (!srv.ok) { showToast(srv.message || '연동하지 못했습니다.', 5000); return; }
+                    if (!srv.linked) { showToast('일치하는 계정을 찾을 수 없습니다. 이름과 전화번호를 다시 확인해주세요.', 6000); return; }
+                    hideKakaoSignupModal();
+                    showToast('계정이 연동되었습니다! 기존 계정으로 로그인됩니다.');
+                    fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+                    return;
+                }
                 const { data, error } = await supabaseClient
                     .from('profiles')
                     .select('id, name, phone')
@@ -4957,6 +5111,7 @@
             try {
                 if (typeof window.supabase !== 'undefined') {
                     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    _gwInstall(supabaseClient);
                     console.log("Supabase 초기화 완료");
                 } else {
                     console.error("Supabase SDK 로드 실패");
@@ -5133,7 +5288,11 @@
             } catch (e) { console.warn('Supabase 세션 체크 실패:', e); }
             // 카카오 세션 캐시로 복구 (token이 메모리에 없어도 재인증)
             const cachedKakaoId = localStorage.getItem('gaa_kakao_uid');
-            if (cachedKakaoId && supabaseClient) {
+            if (cachedKakaoId && supabaseClient && !(await _gwBootSessionOk(cachedKakaoId))) {
+                // 서버 세션이 없고 카카오 토큰도 만료 — 한 번 다시 로그인해야 한다(2026-11-10 보안 개선 뒤 첫 방문)
+                try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
+                setTimeout(() => showToast('보안 업데이트로 다시 로그인이 필요합니다.', 5000), 1200);
+            } else if (cachedKakaoId && supabaseClient) {
                 try {
                     const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', cachedKakaoId).maybeSingle();
                     if (data && data.status === 'approved') {
@@ -8701,7 +8860,9 @@
 
             if (error) {
                 console.error('reservation insert:', error);
-                showErr('예약하지 못했습니다. 잠시 후 다시 시도해주세요. (' + error.message + ')');
+                if (/SLOT_TAKEN/.test((error.code || '') + ' ' + (error.message || ''))) { showErr('방금 다른 예약이 먼저 들어왔습니다. 다른 시간을 선택해주세요.'); fetchReservations().then(() => render()); }
+                else if (error.code === 'RATE_LIMIT' || error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') showErr(error.message);
+                else showErr('예약하지 못했습니다. 잠시 후 다시 시도해주세요. (' + error.message + ')');
             } else {
                 const timeStr = `${state.startTime} ~ ${TIMES[endIdx + 1] || '23:00'}`;
                 state.lastReservation = {
@@ -9625,6 +9786,7 @@
                     const r = await supabaseClient.from('performance_bookings').insert(row).select('id').single();
                     inserted = r.data; insErr = r.error;
                 }
+                if (insErr && /SLOT_TAKEN/.test((insErr.code || '') + ' ' + (insErr.message || ''))) { alert('방금 다른 예약이 먼저 들어왔습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 if (insErr || !inserted) { showErr('신청 중 오류가 발생했습니다: ' + (insErr ? insErr.message : '')); return; }
                 _perfState.lastBookingCode = inserted.booking_code || null;
                 sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
@@ -9722,11 +9884,19 @@
             const btn = document.getElementById('perfLookupBtn');
             if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
             try {
-                const { data, error } = await supabaseClient.from('performance_bookings')
-                    .select('id,name,booking_code,phone,status,date,start_time,end_time,headcount,purpose,created_at')
-                    .eq('booking_code', code).limit(1);
-                if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
-                const b = (data || [])[0];
+                // 서버가 예약번호+연락처를 함께 대조해 맞는 건만 돌려준다(2026-11-10 — 남의 예약 정보가 브라우저로 내려오지 않게)
+                const srv = await _gwAction('perf_lookup', { code, phone: phoneDigits }, { anon: true });
+                let b;
+                if (srv.down) {
+                    const { data, error } = await supabaseClient.from('performance_bookings')
+                        .select('id,name,booking_code,phone,status,date,start_time,end_time,headcount,purpose,created_at')
+                        .eq('booking_code', code).limit(1);
+                    if (error) { showErr('조회 중 오류가 발생했습니다: ' + error.message); return; }
+                    b = (data || [])[0];
+                } else {
+                    if (!srv.ok) { showErr(srv.message || '조회 중 오류가 발생했습니다.'); return; }
+                    b = srv.booking;
+                }
                 // 연락처까지 일치해야 표시 — 불일치 시 존재 여부도 알리지 않는다
                 if (!b || String(b.phone || '').replace(/\D/g, '') !== phoneDigits) {
                     showErr('일치하는 예약을 찾을 수 없습니다. 예약번호와 연락처를 확인해주세요.');
@@ -9793,10 +9963,15 @@
                 : '예약 신청을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.';
             if (!confirm(msg)) return;
             // 조건부 업데이트 — 그 사이 상태가 바뀐(거절·만료 처리 등) 건은 건드리지 않는다
-            const { data, error } = await supabaseClient.from('performance_bookings')
-                .update({ status: 'cancelled' })
-                .eq('id', id).in('status', ['pending', 'approved'])
-                .select('id');
+            let data, error;
+            const srv = await _gwAction('perf_cancel', { id, phone: String(b.phone || '').replace(/\D/g, '') }, { anon: true });
+            if (srv.down) {
+                ({ data, error } = await supabaseClient.from('performance_bookings')
+                    .update({ status: 'cancelled' })
+                    .eq('id', id).in('status', ['pending', 'approved'])
+                    .select('id'));
+            } else if (!srv.ok) error = { message: srv.message || '서버 오류' };
+            else data = srv.cancelled ? [{ id }] : [];
             if (error) { alert('취소 중 오류가 발생했습니다: ' + error.message); return; }
             if (!data || !data.length) { alert('이미 처리된 예약입니다. 다시 조회해주세요.'); lookupPerfBooking(); return; }
             sendAdminPush('🚫 공간 대관 고객 취소', `${b.name || ''} · ${b.date} ${b.start_time}~${TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00'}${b.status === 'approved' ? ' (확정 건)' : ''}`).catch(() => {});
@@ -15676,6 +15851,14 @@
             const result = document.getElementById('findIdResult');
             if (!name || !phone) { result.textContent = '이름과 전화번호를 입력해주세요.'; result.style.color = '#e74c3c'; return; }
             result.textContent = '검색 중...'; result.style.color = 'var(--wds-gray-500)';
+            const srv = await _gwAction('find_id', { name, phone }, { anon: true });
+            if (!srv.down) { // 서버가 가린 이메일만 돌려준다
+                if (!srv.ok || !srv.masked) { result.textContent = '일치하는 계정을 찾을 수 없습니다.'; result.style.color = '#e74c3c'; return; }
+                const [m1, m2] = String(srv.masked).split('@');
+                result.innerHTML = `등록된 이메일: <strong>${escapeHtml(m1)}@${escapeHtml(m2 || '')}</strong>`;
+                result.style.color = 'var(--wds-primary)';
+                return;
+            }
             const { data, error } = await supabaseClient.from('profiles').select('email').eq('name', name).eq('phone', phone).single();
             if (error || !data || !data.email) {
                 result.textContent = '일치하는 계정을 찾을 수 없습니다.'; result.style.color = '#e74c3c'; return;

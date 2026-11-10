@@ -279,6 +279,27 @@
   **모든 응답**(정적 자산·섹션 셸·OG·302·Functions JSON)에 `SECURITY_HEADERS`(HSTS 1년+includeSubDomains · nosniff · X-Frame-Options SAMEORIGIN · Referrer-Policy strict-origin-when-cross-origin · Permissions-Policy 카메라/마이크/위치/결제/USB 차단 · CSP)를 붙인다(원본이 이미 낸 같은 이름 헤더는 보존). `_headers` 의 `/*` 블록에 **같은 값**(정적 자산 안전망, 동기화 대상 — 단위 테스트가 두 곳이 같은지 비교).
   CSP 는 단일 파일 SPA(인라인 스크립트·onclick·CDN) 때문에 `default-src 'self' https: wss: data: blob: 'unsafe-inline' 'unsafe-eval'` 로 느슨하지만 `object-src 'none'`·`base-uri 'self'`·`frame-ancestors 'self'`(클릭재킹)·`upgrade-insecure-requests` 는 건다. `wss:` 는 Supabase Realtime, `data:`/`blob:` 은 QR·캔버스. **http:// 이미지·외부 iframe 삽입은 이제 안 된다**(모두 https). 더 조이려면 인라인 스크립트를 파일로 빼고 nonce 필요.
   검증: `tests/middleware-unit.mjs`(47, 통과·셸·302·보존·_headers 동기화) + scratchpad `sec/csp-smoke.js`(실제 index.html·wappen 을 새 헤더로 띄워 CSP 위반 콘솔 0건). Cloudflare 대시보드 쪽(코드 밖): SSL/TLS → Edge Certificates 「Always Use HTTPS」 ON·최소 TLS 1.2, SSL 모드 Full(strict) — 운영자가 확인.
+- **쓰기는 서버 경유(gw, 2026-11-10 「A 전체 개선」)**: 카카오 멤버는 DB 입장에서 anon 이라 관리자 권한·본인 확인을 DB 가 가릴 수 없었다 → `functions/gatheo-api.js`(service role)가 대신 실행한다.
+  **브라우저**: `_gwInstall(supabaseClient)`(createClient 직후)가 `client.from` 을 감싸 `GW_TABLES`(profiles·reservations·time_blocks·performance_bookings·comments·schedule_guests·schedule_attendees·teams·poll_votes·polls·schedules·documents·notices)의
+  **쓰기 전부 + profiles 읽기 전부 + performance_bookings 의 달력용(`GW_PERF_SAFE` id·date·start_time·end_time·status·created_at) 외 컬럼 읽기**를 `GwBuilder`(메서드 호출 목록 기록, thenable)로 바꿔 `POST /gatheo-api {action:'db', table, calls, session?, sb_token?, prefer?}` 로 보낸다 — **호출부는 그대로**(응답 `{data, error{message, code}}` 모양 동일).
+  신원 `_gwIds()`: 카카오 = 서버 세션 `localStorage.gaa_session {t,e,k}`(없으면 살아 있는 카카오 토큰으로 `login` 교환, 쓰기면 카카오 팝업까지) + Supabase 세션 `sb_token`(합주팀·이메일 가입) 둘 다 보내고 합주팀 화면(`#band-main-content` 보임)이면 `prefer:'sb'`. 401 이면 세션 버리고 한 번 재시도.
+  서버 함수가 없는 환경(정적 서버·테스트: 404/405/501)은 `_gwDown=true` → 종전처럼 직접 호출(기존 UI 테스트는 `supabaseClient = __fakeSb` 로 바꿔 끼워 래퍼를 안 탄다). 부팅 때 캐시된 카카오 멤버는 `_gwBootSessionOk()` — 세션·토큰이 없고 서버가 살아 있으면 **한 번 재로그인**(토스트), 로그아웃은 `_gwSessionClear()`. 세션은 30일(자동 연장 없음).
+  전용 액션 `_gwAction()`: `perf_lookup {code, phone}`(연락처까지 맞는 예약만 내려옴)·`perf_cancel {id, phone}`·`kakao_link {name, phone}`(카카오 미연동 계정 연결)·`find_id`(가린 이메일)·`ping`·`login {kakao_token}` — `{down:true}` 면 호출부가 종전 직접 방식.
+  **서버**: 세션 = HMAC-SHA256(키는 service role 키에서 파생 — 새 환경변수·표 없음, 요청마다 프로필을 다시 읽어 승인·역할 판정 → 강등·차단 즉시 반영). `makeActor`: `member`(승인된 게더링) · `mgr`(운영 총괄/총괄/세션장) · `lead`(총괄 이상) · `sup`(운영 총괄·`ADMIN_KAKAO_ID`) · `bandOk` · `bandAdmin`(승인된 합주팀 + wearegatheo). 신원이 둘이면 규칙을 통과하는 첫 신원으로 실행.
+  `parseCalls`(허용 메서드 eq/neq/gt/gte/lt/lte/like/ilike/is/in/not/order/limit/range/select/single/maybeSingle — `or`·임베드 select 거부, update/delete 는 필터 필수) → `POLICY[table]` → `buildQuery`(PostgREST 변환, 소유권은 **추가 필터**로 강제 예: `kakao_id=eq.<나>`).
+  규칙 요약: 공지 lead / 문서·일정·투표 mgr / 팀·참석·투표 응답 member / 외부인 줄 본인 것 / 게시글 작성자 강제·수정·삭제 본인 것(mgr 전체)·좋아요 member·고정 mgr /
+  예약 insert 는 kakao_id·상태 강제(일반: 2슬롯 이하만 approved)·2개월·5분 제한·겹침(`slotTaken`: 예약 + 살아 있는 대관) 검사, 취소는 본인 것(sup 전체), 상태 변경 mgr /
+  time_blocks 는 sup·bandAdmin 전부, 승인 팀은 `[고정팀 대체]` 1회 차단 insert·`skip_dates` update 만, `[커뮤니티] 제목` 차단은 그 제목·날짜 모임이 있으면 insert·없으면 delete(익명 포함) /
+  대관 insert 누구나(허용 컬럼만·상태 못 정함·겹침 검사·응답 id,booking_code 만), `{status:'expired'}` 는 누구나(4시간 지난 pending 필터 강제), 나머지 sup /
+  profiles: 읽기 — mgr·bandAdmin 전체, member 는 게더링 행(남의 push_subscription 가림), 승인 팀은 본인 행 + 팀 목록 공개 컬럼, 그 외는 본인 행, 익명 거부. 쓰기 — 가입 insert 는 status pending·role 일반·kakao_id/id 강제, 합주팀 upsert 는 id·instruments(auth 이메일 접두) 강제,
+  본인 수정은 `SELF_COLS`/`BAND_SELF_COLS` 만, mgr 는 `MGR_PROFILE_COLS`(게더링 행), role 은 sup 만, bandAdmin 은 합주팀 행, kakao_id/member_type/id 변경·`wearegatheo` 표식 심기·delete 거부.
+  **새 표·새 쓰기 경로를 추가하면**: `GW_TABLES`(index.html) + `POLICY`(gatheo-api) + 잠금 마이그레이션 표 목록 세 곳. 본인 수정 컬럼이 늘면 `SELF_COLS`. 합주팀 전용 표(band_*)는 종전 RLS 로 직접.
+  **DB**: `20261110_booking_guard.sql`(예약·대관 INSERT 트리거 — 날짜 단위 `pg_advisory_xact_lock` + `gaa_slot_conflict` → 겹치면 `SLOT_TAKEN`(sqlstate GA001), 검사 실패는 fail-open, UPDATE 미적용; 화면은 「방금 다른 예약이 먼저 들어왔습니다」) ·
+  `20261110_gatheo_lockdown.sql`(13개 표 기존 정책 전부 삭제 → 쓰기 정책 없음, 읽기는 profiles 본인 행만(authenticated)·나머지 공개, performance_bookings 는 달력용 컬럼만 grant; 파일 끝에 되돌리기 SQL) — **새 사이트 배포·확인 뒤 실행**. 잠금 전에도 코드는 동작(service role).
+  남은 것: community_applications(신청자 이름·연락처)·community_visits 는 종전 그대로 anon, documents 읽기 공개, time_blocks 겹침은 DB 트리거가 안 봄.
+  테스트 `tests/gatheo-api-unit.mjs`(122)·`tests/ui-gatheo-gw.js`(26, `/gatheo-api` 가짜 route), 마이그레이션은 로컬 PG16 으로 검증(동시 6건 중 1건만 성공·anon 쓰기 거부·대관 이름 컬럼 거부).
+- **외부 라이브러리 자체 호스팅(2026-11-10)**: supabase-js 2.119.0·marked 18.2.0(UMD)·DOMPurify 3.4.17 을 `vendor/<이름>/<파일>.v<버전>…js` 로(파일명에 버전 = `/vendor/*` 불변 캐시, npm pack 으로 받음 — 컨테이너에서 jsdelivr 는 막혀 있음). index.html·wappen/index.html 의 `<script src>` 는 `/vendor/…` 절대 경로.
+  종전엔 버전 없는 jsdelivr 주소(`npm/marked/marked.min.js` 는 최신 marked 에 그 파일이 없어 깨졌을 수 있음). 올릴 땐 새 파일을 넣고 태그 경로를 바꾼다. 남은 외부 스크립트: 카카오 SDK 1.43.0(버전 고정)·GTM, 스타일: Pretendard(버전 고정).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.
