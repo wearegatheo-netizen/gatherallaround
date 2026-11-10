@@ -300,6 +300,7 @@
   테스트 `tests/gatheo-api-unit.mjs`(122)·`tests/ui-gatheo-gw.js`(26, `/gatheo-api` 가짜 route), 마이그레이션은 로컬 PG16 으로 검증(동시 6건 중 1건만 성공·anon 쓰기 거부·대관 이름 컬럼 거부).
 - **외부 라이브러리 자체 호스팅(2026-11-10)**: supabase-js 2.119.0·marked 18.2.0(UMD)·DOMPurify 3.4.17 을 `vendor/<이름>/<파일>.v<버전>…js` 로(파일명에 버전 = `/vendor/*` 불변 캐시, npm pack 으로 받음 — 컨테이너에서 jsdelivr 는 막혀 있음). index.html·wappen/index.html 의 `<script src>` 는 `/vendor/…` 절대 경로.
   종전엔 버전 없는 jsdelivr 주소(`npm/marked/marked.min.js` 는 최신 marked 에 그 파일이 없어 깨졌을 수 있음). 올릴 땐 새 파일을 넣고 태그 경로를 바꾼다. 남은 외부 스크립트: 카카오 SDK 1.43.0(버전 고정)·GTM, 스타일: Pretendard(버전 고정).
+- **포털로 버튼(2026-11-10)**: 게더링 앱 바 맨 왼쪽 `.cm-ib.gt-back`·합주팀 `.band-header .band-back` = `showPortal()`. **로그아웃하지 않는다**(포털 [게더링]/[고정 합주팀] 이 복구된 세션으로 바로 재진입; 자동 로그아웃은 카카오 토큰을 같이 쓰는 호스트 센터 로그인까지 끊어 채택 안 함).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

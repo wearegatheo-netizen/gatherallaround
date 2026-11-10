@@ -692,13 +692,15 @@
             background: var(--wds-white); border-bottom: 1px solid var(--wds-gray-200);
             position: sticky; top: 0; z-index: 100;
             margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%);
-            padding-left: max(16px, calc((100vw - 800px) / 2 + 16px));
+            padding-left: max(6px, calc((100vw - 800px) / 2 + 6px));
             padding-right: max(6px, calc((100vw - 800px) / 2 + 6px));
         }
         .gt-wm { font-family: 'KkuBulLim', sans-serif; font-size: 1.25rem; color: var(--wds-black); flex: 1; min-width: 0; white-space: nowrap; }
         .gt-wm .en { font-size: 0.82em; opacity: 0.75; margin-left: 1px; }
         .gt-title { flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 800; color: var(--wds-black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gatheo-topbar .cm-ib.active { color: var(--wds-primary); }
+        .gatheo-topbar .gt-back { margin-right: 2px; flex-shrink: 0; }
+        .band-header .band-back { margin: 0 2px 0 -8px; flex-shrink: 0; }
         .gt-avbtn { width: 36px; height: 36px; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; justify-content: center; }
         .gt-avbtn .ga-avatar { width: 30px; height: 30px; font-size: 0.82rem; }
         .ga-avatar.img { background-size: cover; background-position: center; color: transparent; }
@@ -2778,6 +2780,7 @@
     <!-- 고정 합주팀 메인 페이지 -->
     <div id="band-main-content" class="hidden">
         <div class="band-header">
+            <button type="button" class="cm-ib band-back" onclick="showPortal()" title="포털로" aria-label="포털로 돌아가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
             <span id="bandHeaderName" style="font-size:1.05rem;font-weight:700;color:var(--wds-black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;margin-right:8px;font-family:'KkuBulLim',sans-serif">고정 합주팀</span>
             <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
                 <!-- 다른 섹션 앱 바(.cm-bar)와 같은 부품: SVG 모드 버튼(.cm-ib, applyTheme 가 textContent 를 건드리면 안 됨) + 알약(.cm-pill) -->
@@ -3012,6 +3015,8 @@
         <!-- Sticky topbar -->
         <div id="userInfoArea" class="gatheo-topbar">
             <!-- 2026-10-15 시안 B: 워드마크(홈) / 탭 제목, 관리자 톱니(id 는 종전 gatheoTab-admin 유지 — loginUI/logoutUI 가 hidden 을 토글), SVG 모드 버튼, 아바타(→ 마이) -->
+            <!-- 포털로(2026-11-10): 로그인은 유지 — 포털의 [게더링]을 누르면 바로 다시 들어온다 -->
+            <button type="button" class="cm-ib gt-back" onclick="showPortal()" title="포털로" aria-label="포털로 돌아가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
             <span class="gt-wm" id="gtBarWm">게더링<span class="en">(GatheO)</span></span>
             <span class="gt-title hidden" id="gtBarTitle"></span>
             <strong id="userNameDisplay" hidden></strong>
