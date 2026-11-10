@@ -611,10 +611,18 @@
             display: inline-flex; align-items: center; gap: 5px;
             background: none; border: none; cursor: pointer;
             font-size: 0.85rem; color: var(--wds-gray-700);
-            font-family: inherit; padding: 0; margin-bottom: 16px;
+            font-family: inherit; padding: 9px 6px; margin: -9px -6px 7px; min-height: 36px; /* 탭 영역 36px(2026-11-10) — 음수 마진으로 보이는 위치는 그대로 */
             transition: color 0.15s;
         }
         .portal-back-btn:hover { color: var(--wds-primary); }
+        /* 탭 영역 보강(2026-11-10 화면 QA): 글자만 있던 링크·요약줄을 손가락으로 누를 수 있는 높이로 */
+        .sx-sub .r button { min-height: 32px; padding: 4px 2px; }
+        .sx-host a { display: inline-block; padding: 6px 0; }
+        .cm-rows .v a.lnk { display: inline-flex; align-items: center; min-height: 32px; padding: 0 4px; margin: -6px -4px; }
+        .band-hero-foot a { display: inline-block; padding: 8px 4px; margin: -8px -4px; }
+        .band-sv-more summary, #bandMyPayHist summary { min-height: 32px; display: flex; align-items: center; }
+        .band-def-chk { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+        .band-def-chk input[type=checkbox] { width: 18px; height: 18px; margin: 0; }
 
         /* Band landing page */
         #landing-page-band {
@@ -1186,7 +1194,7 @@
         .like-btn.liked { border-color: #ff6b6b; color: #ff6b6b; background: #fff5f5; }
 
         /* 토스트 알림 — BGM 바(56px, z-index 동급·DOM 후순위)보다 위에 떠야 문구가 가려지지 않는다 */
-        #auto-toast { position: fixed; bottom: calc(72px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: nowrap; }
+        #auto-toast { position: fixed; bottom: calc(72px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 12px 28px; border-radius: 28px; font-size: 0.9rem; z-index: 100000; opacity: 0; transition: opacity 0.35s; pointer-events: none; white-space: normal; width: max-content; max-width: calc(100vw - 32px); text-align: center; line-height: 1.45; word-break: keep-all; box-sizing: border-box; }
 
         /* 멤버 대시보드 */
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
@@ -3369,7 +3377,7 @@
         function handleLogin() {
             console.log("카카오 로그인 시퀀스 시작 (v1 Popup)...");
             if (typeof Kakao === 'undefined') {
-                alert("카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+                showToast("카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
                 return;
             }
             if (!Kakao.isInitialized()) initKakao();
@@ -3384,7 +3392,7 @@
                 },
                 fail: function(err) {
                     console.error("카카오 인증 실패:", err);
-                    alert("로그인 실패: " + (err.error_description || err.error || "알 수 없는 오류"));
+                    showToast("로그인 실패: " + (err.error_description || err.error || "알 수 없는 오류"));
                 }
             });
         }
@@ -3408,8 +3416,8 @@
                                 const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', kakaoId).maybeSingle();
                                 if (!data) { state.user = { nickname, kakaoId }; loginUI(nickname); return; }
                                 if (data.status === 'pending') { showPendingScreen(data.name || nickname); return; }
-                                if (data.status === 'rejected') { alert('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
-                                if (data.status !== 'approved') { alert('계정 상태를 확인할 수 없습니다. 관리자에게 문의해주세요.'); return; }
+                                if (data.status === 'rejected') { showToast('회원가입이 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.'); return; }
+                                if (data.status !== 'approved') { showToast('계정 상태를 확인할 수 없습니다. 관리자에게 문의해주세요.'); return; }
                                 state.user = { nickname: data.name || nickname, kakaoId, role: data.role || '일반', avatarUrl: data.avatar_url || kakaoAvatar || null, kakaoAvatar };
                                 // 아바타 기본값 = 카카오 프로필 사진(2026-10-15): 아직 없으면 저장해 둔다(컬럼 없으면 조용히 실패)
                                 if (!data.avatar_url && kakaoAvatar) supabaseClient.from('profiles').update({ avatar_url: kakaoAvatar }).eq('kakao_id', kakaoId).then(() => {}, () => {});
@@ -3422,7 +3430,7 @@
                             resolve(true);
                         },
                         fail: function(err) {
-                            alert("사용자 정보 요청 실패: " + JSON.stringify(err));
+                            showToast("사용자 정보 요청 실패: " + JSON.stringify(err));
                             resolve(false);
                         }
                     });
@@ -4927,7 +4935,7 @@
             } else {
                 result = await supabaseClient.from('profiles').update({ phone, instruments, music_taste }).eq('id', profileId);
             }
-            if (result.error) { alert('저장 실패: ' + result.error.message); return; }
+            if (result.error) { showToast('저장 실패: ' + result.error.message); return; }
             showToast(isNew ? '가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.' : '프로필이 저장되었습니다.');
             if (isNew) {
                 const regName = document.getElementById('regName') ? document.getElementById('regName').value.trim() : (state.user && state.user.nickname) || '';
@@ -5634,7 +5642,7 @@
             const countEl = document.getElementById('editParticipantCountInput');
             const etcVal = joinEtc(etcEl ? etcEl.value : '', countEl ? countEl.value : 0);
             const { error } = await supabaseClient.from('reservations').update({ participant_ids: ids, participant_etc: etcVal || null }).eq('id', state.editingResId);
-            if (error) { alert('수정 실패: ' + error.message); return; }
+            if (error) { showToast('수정 실패: ' + error.message); return; }
             closeEditParticipantsModal();
             showToast('참여 멤버가 수정되었습니다.');
             // 목록·달력을 즉시 갱신 (예전엔 fetch만 하고 다시 그리지 않아 화면이 그대로였다)
@@ -7610,9 +7618,9 @@
         window.bgmAdminAdd = function() {
             const id = document.getElementById('bgmNewId').value.trim();
             const title = document.getElementById('bgmNewTitle').value.trim();
-            if (!id || !title) { alert('곡 ID와 제목을 모두 입력해주세요.'); return; }
-            if (!/^[0-9a-f-]{36}$/i.test(id)) { alert('Suno 곡 ID는 UUID 형식이어야 합니다.'); return; }
-            if ((state.bgmTracks || []).some(t => t.id === id)) { alert('이미 등록된 곡입니다.'); return; }
+            if (!id || !title) { showToast('곡 ID와 제목을 모두 입력해주세요.'); return; }
+            if (!/^[0-9a-f-]{36}$/i.test(id)) { showToast('Suno 곡 ID는 UUID 형식이어야 합니다.'); return; }
+            if ((state.bgmTracks || []).some(t => t.id === id)) { showToast('이미 등록된 곡입니다.'); return; }
             (state.bgmTracks = state.bgmTracks || []).push({ id, title });
             document.getElementById('bgmNewId').value = '';
             document.getElementById('bgmNewTitle').value = '';
@@ -8524,7 +8532,7 @@
                 .eq('id', id);
 
             if (error) {
-                alert("취소 실패: " + error.message);
+                showToast("취소 실패: " + error.message);
             } else {
                 showToast(isAdmin ? '예약을 강제로 취소했습니다.' : '예약을 취소했습니다.');
                 fetchReservations(); // 내역 갱신
@@ -9659,14 +9667,14 @@
                 if (min <= 1 && st.endSlot === null) { st.endSlot = idx; rerender(); return; }
                 st.startSlot = null; st.endSlot = null; rerender(); return;
             }
-            if (idx - startSlot + 1 < min) { alert(`최소 ${min}시간 이상 선택해주세요.`); return; }
+            if (idx - startSlot + 1 < min) { showToast(`최소 ${min}시간 이상 선택해주세요.`); return; }
             const conflicts = _calAllowBlocked() ? getHardConflicts(dateStr) : getDateConflicts(dateStr);
             for (let j = startSlot; j <= idx; j++) {
                 const conf = conflicts.some(c => {
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
                     return j >= cs && j <= ce;
                 });
-                if (conf) { alert('선택 범위 내에 예약불가 슬롯이 있습니다.'); return; }
+                if (conf) { showToast('선택 범위 내에 예약불가 슬롯이 있습니다.'); return; }
             }
             st.endSlot = idx;
             rerender();
@@ -9909,7 +9917,7 @@
                     const cs = TIMES.indexOf(c.start_time), ce = TIMES.indexOf(c.end_time);
                     return startSlot <= ce && endSlot >= cs;
                 });
-                if (hasConflict) { alert('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
+                if (hasConflict) { showToast('선택하신 시간대에 이미 예약이 있습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 const purposeFinal = _perfState.audienceTbd ? `${purpose} ${PERF_AUDIENCE_TBD_MARK}` : purpose;
                 const row = {
                     name, phone, purpose: purposeFinal, how_found: howFound,
@@ -9932,7 +9940,7 @@
                     const r = await supabaseClient.from('performance_bookings').insert(row).select('id').single();
                     inserted = r.data; insErr = r.error;
                 }
-                if (insErr && /SLOT_TAKEN/.test((insErr.code || '') + ' ' + (insErr.message || ''))) { alert('방금 다른 예약이 먼저 들어왔습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
+                if (insErr && /SLOT_TAKEN/.test((insErr.code || '') + ' ' + (insErr.message || ''))) { showToast('방금 다른 예약이 먼저 들어왔습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 if (insErr || !inserted) { showErr('신청 중 오류가 발생했습니다: ' + (insErr ? insErr.message : '')); return; }
                 _perfState.lastBookingCode = inserted.booking_code || null;
                 sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
@@ -10118,8 +10126,8 @@
                     .select('id'));
             } else if (!srv.ok) error = { message: srv.message || '서버 오류' };
             else data = srv.cancelled ? [{ id }] : [];
-            if (error) { alert('취소 중 오류가 발생했습니다: ' + error.message); return; }
-            if (!data || !data.length) { alert('이미 처리된 예약입니다. 다시 조회해주세요.'); lookupPerfBooking(); return; }
+            if (error) { showToast('취소 중 오류가 발생했습니다: ' + error.message); return; }
+            if (!data || !data.length) { showToast('이미 처리된 예약입니다. 다시 조회해주세요.'); lookupPerfBooking(); return; }
             sendAdminPush('🚫 공간 대관 고객 취소', `${b.name || ''} · ${b.date} ${b.start_time}~${TIMES[TIMES.indexOf(b.end_time) + 1] || '23:00'}${b.status === 'approved' ? ' (확정 건)' : ''}`).catch(() => {});
             showToast('예약이 취소되었습니다.');
             lookupPerfBooking(); // 폼에 남아 있는 입력값으로 재조회 → 카드 갱신
@@ -10278,14 +10286,14 @@
             const approve = decision === 'approved';
             if (!confirm(`"${m ? m.title : '모임'}" 요청을 ${approve ? '수락' : '거절'}할까요?\n${approve ? '수락하면 모임이 커뮤니티 목록에 공개되고 시간표에 잡힙니다.' : '거절하면 모임은 공개되지 않습니다.'}\n결과는 모임장 이메일로 안내됩니다.`)) return;
             const auth = await _adminApiAuth();
-            if (!auth) { alert('관리자 인증 정보를 가져오지 못했습니다. 다시 로그인한 뒤 시도해주세요.'); return; }
+            if (!auth) { showToast('관리자 인증 정보를 가져오지 못했습니다. 다시 로그인한 뒤 시도해주세요.'); return; }
             try {
                 const r = await fetch('/community-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'review_meeting', meeting_id: id, decision, ...auth }) });
                 const j = await r.json().catch(() => ({}));
-                if (!r.ok || !j.ok) { console.error('[community-admin]', r.status, j); alert(j.message || '처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                if (!r.ok || !j.ok) { console.error('[community-admin]', r.status, j); showToast(j.message || '처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
                 showToast(approve ? `모임을 수락했습니다. 커뮤니티에 공개됩니다.${j.time_block ? '' : ' (시간표 반영은 실패 — 차단 탭에서 직접 추가)'}` : '요청을 거절했습니다.');
-            } catch (e) { console.error(e); alert('처리하지 못했습니다. 네트워크를 확인해주세요.'); return; }
+            } catch (e) { console.error(e); showToast('처리하지 못했습니다. 네트워크를 확인해주세요.'); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
@@ -10314,7 +10322,7 @@
                 if (conflict && !confirm('해당 시간대에 겹치는 예약/대관이 있습니다.\n그래도 승인할까요?')) return;
             } catch (_) { /* 검사 실패 시에도 총괄 판단으로 승인은 진행 */ }
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
-            if (error) { alert('오류: ' + error.message); return; }
+            if (error) { showToast('오류: ' + error.message); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
@@ -10322,14 +10330,14 @@
         async function rejectPerfBooking(id) {
             if (!confirm('거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
-            if (error) { alert('오류: ' + error.message); return; }
+            if (error) { showToast('오류: ' + error.message); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
         // 공간 대관 시간·인원 인라인 수정 — 운영 총괄 전용
         function editPerfBooking(id) {
-            if (!isSuper()) { alert('운영 총괄만 수정할 수 있습니다.'); return; }
+            if (!isSuper()) { showToast('운영 총괄만 수정할 수 있습니다.'); return; }
             const b = (state.perfAdminItems || []).find(x => x.id === id);
             const card = document.getElementById(`perf-card-${id}`);
             if (!b || !card) return;
@@ -10373,16 +10381,16 @@
         }
 
         async function savePerfEdit(id) {
-            if (!isSuper()) { alert('운영 총괄만 수정할 수 있습니다.'); return; }
+            if (!isSuper()) { showToast('운영 총괄만 수정할 수 있습니다.'); return; }
             const b = (state.perfAdminItems || []).find(x => x.id === id);
             const date = document.getElementById(`pe-date-${id}`)?.value;
             const startTime = document.getElementById(`pe-st-${id}`)?.value;
             const endTime = document.getElementById(`pe-et-${id}`)?.value;
             const headcount = parseInt(document.getElementById(`pe-hc-${id}`)?.value);
             const clearTbd = document.getElementById(`pe-cleartbd-${id}`)?.checked;
-            if (!date || !startTime || !endTime) { alert('날짜와 시간을 입력해주세요.'); return; }
-            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { alert('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
-            if (!headcount || headcount < 1) { alert('인원을 1명 이상 입력해주세요.'); return; }
+            if (!date || !startTime || !endTime) { showToast('날짜와 시간을 입력해주세요.'); return; }
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) { showToast('종료 시간은 시작 시간보다 이후여야 합니다.'); return; }
+            if (!headcount || headcount < 1) { showToast('인원을 1명 이상 입력해주세요.'); return; }
             // 겹침 검사 (자기 자신 제외) — 총괄 판단으로 강행 가능
             try {
                 const [resCheck, pbCheck] = await Promise.all([
@@ -10401,7 +10409,7 @@
             const payload = { date, start_time: startTime, end_time: endTime, headcount };
             if (clearTbd && b) payload.purpose = (b.purpose || '').replace(PERF_AUDIENCE_TBD_MARK, '').trim();
             const { error } = await supabaseClient.from('performance_bookings').update(payload).eq('id', id);
-            if (error) { alert('저장 실패: ' + error.message); return; }
+            if (error) { showToast('저장 실패: ' + error.message); return; }
             showToast('대관 정보가 수정되었습니다.');
             await fetchReservations();   // GatheO 달력의 가상 행도 갱신
             renderGatheOAdmin();
@@ -10410,7 +10418,7 @@
         async function cancelPerfReservation(id) {
             if (!confirm('예약을 취소하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'rejected' }).eq('id', id);
-            if (error) { alert('취소 오류: ' + error.message); return; }
+            if (error) { showToast('취소 오류: ' + error.message); return; }
             await fetchReservations();
             if (state.adminTab === 'perfbooking') renderGatheOAdmin();
         }
@@ -10418,7 +10426,7 @@
         async function deletePerfBooking(id) {
             if (!confirm('이 신청 내역을 영구적으로 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('performance_bookings').delete().eq('id', id);
-            if (error) { alert('삭제 오류: ' + error.message); return; }
+            if (error) { showToast('삭제 오류: ' + error.message); return; }
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
@@ -10543,7 +10551,7 @@
             }
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                alert('링크가 클립보드에 복사됐습니다!');
+                showToast('링크가 클립보드에 복사됐습니다!');
             } catch(e) {
                 prompt('링크를 복사하세요:', shareUrl);
             }
@@ -10620,7 +10628,7 @@
         }
 
         function showComingSoon() {
-            alert('준비 중입니다. 곧 오픈 예정입니다! 😊');
+            showToast('준비 중입니다. 곧 오픈 예정입니다! 😊');
         }
 
         // ── Community Section ──────────────────────────────────────────────────
@@ -10823,7 +10831,7 @@
                 const z = document.getElementById(prefix + '_crop_zoom'); if (z) z.value = 100;
                 cmCropCenter(prefix); cmCropApply(prefix); cmCropBind(prefix);
             };
-            img.onerror = () => { URL.revokeObjectURL(url); alert('이미지를 읽을 수 없습니다. 다른 파일을 선택해주세요.'); };
+            img.onerror = () => { URL.revokeObjectURL(url); showToast('이미지를 읽을 수 없습니다. 다른 파일을 선택해주세요.'); };
             img.src = url;
         }
         function cmCropClear(prefix) {
@@ -11349,7 +11357,7 @@
         function cmFieldError(wrapSel, msg) {
             document.querySelectorAll('#communityApplyForm .cm-f.err').forEach(w => { w.classList.remove('err'); w.querySelector('.cm-f-err')?.remove(); });
             const w = document.querySelector(wrapSel);
-            if (!w) { alert(msg); return; }
+            if (!w) { showToast(msg); return; }
             w.classList.add('err');
             const e = document.createElement('div'); e.className = 'cm-f-err'; e.textContent = msg; w.appendChild(e);
             w.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -11421,24 +11429,24 @@
             const pw2 = document.getElementById('cc_pw2').value;
             const imgFile = document.getElementById('cc_image').files[0];
 
-            if (!title) return alert('모임명을 입력해주세요.');
-            if (!date) return alert('모임 날짜를 입력해주세요.');
-            if (!startTime || !endTime) return alert('모임 시간을 선택해주세요.');
-            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return alert('시작 시간이 종료 시간보다 늦을 수 없습니다.');
-            if (!orgName) return alert('모임장 이름을 입력해주세요.');
-            if (!orgPhone) return alert('모임장 연락처를 입력해주세요.');
-            if (!orgEmail) return alert('모임장 이메일을 입력해주세요.');
-            if (!desc) return alert('모임 설명을 입력해주세요.');
-            if (!capacity || parseInt(capacity) < 1) return alert('정원은 1명 이상 필수입니다.');
-            if (deadline && date && deadline > date) return alert('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
-            if (!pw) return alert('비밀번호는 필수입니다.');
-            if (pw !== pw2) return alert('비밀번호가 일치하지 않습니다.');
-            const qProblem = cmFieldsProblem(cmCleanFields(state.communityCreateFields)); if (qProblem) return alert(qProblem);
+            if (!title) return showToast('모임명을 입력해주세요.');
+            if (!date) return showToast('모임 날짜를 입력해주세요.');
+            if (!startTime || !endTime) return showToast('모임 시간을 선택해주세요.');
+            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return showToast('시작 시간이 종료 시간보다 늦을 수 없습니다.');
+            if (!orgName) return showToast('모임장 이름을 입력해주세요.');
+            if (!orgPhone) return showToast('모임장 연락처를 입력해주세요.');
+            if (!orgEmail) return showToast('모임장 이메일을 입력해주세요.');
+            if (!desc) return showToast('모임 설명을 입력해주세요.');
+            if (!capacity || parseInt(capacity) < 1) return showToast('정원은 1명 이상 필수입니다.');
+            if (deadline && date && deadline > date) return showToast('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
+            if (!pw) return showToast('비밀번호는 필수입니다.');
+            if (pw !== pw2) return showToast('비밀번호가 일치하지 않습니다.');
+            const qProblem = cmFieldsProblem(cmCleanFields(state.communityCreateFields)); if (qProblem) return showToast(qProblem);
 
             // 예약·대관과 겹치면 불가, 게더링 차단(time_blocks)만 겹치면 운영진 수락 요청(pending)으로 진행
             await fetchCommunityReservationsAndBlocks();
             const conflict = checkCommunityTimeConflict(date, startTime, endTime);
-            if (conflict && conflict.kind !== 'block') return alert(conflict.message);
+            if (conflict && conflict.kind !== 'block') return showToast(conflict.message);
             const needsApproval = !!conflict;
             if (needsApproval && !confirm(`선택한 시간은 게더링이 막아 둔 시간과 겹칩니다.\n${conflict.range}${conflict.reason ? ' · ' + conflict.reason : ''}\n\n운영진에게 사용 요청을 보내고, 수락되면 모임이 커뮤니티에 공개됩니다.\n요청을 보낼까요?`)) return;
 
@@ -11470,8 +11478,8 @@
             if (error) {
                 console.error('community_meetings insert:', error);
                 const em = String(error.message || '');
-                if (/status/.test(em) && /column|schema/i.test(em)) return alert('모임 상태 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261013_community_meeting_status.sql 을 실행해야 합니다.');
-                return alert('모임 생성 실패: ' + em);
+                if (/status/.test(em) && /column|schema/i.test(em)) return showToast('모임 상태 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261013_community_meeting_status.sql 을 실행해야 합니다.');
+                return showToast('모임 생성 실패: ' + em);
             }
 
             if (!needsApproval) {
@@ -11506,7 +11514,7 @@
             const m = state.communityMeetings.find(x => x.id === id);
             if (!m) { await fetchCommunityMeetings(); }
             const meeting = state.communityMeetings.find(x => x.id === id);
-            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            if (!meeting) return showToast('모임 정보를 찾을 수 없습니다.');
             state.communityCurrentMeeting = meeting;
             _pushNav('community/meeting/' + id); // 모임별 공유 링크 — 뒤로가기로 목록 복귀
 
@@ -11878,11 +11886,11 @@
 
         async function communityOrganizerAuthModal(id) {
             const pw = document.getElementById('commAuthModalPw')?.value || '';
-            if (!pw) return alert('비밀번호를 입력해주세요.');
+            if (!pw) return showToast('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
-            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            if (!meeting) return showToast('모임 정보를 찾을 수 없습니다.');
             const ok = await checkCommunityOrganizer(meeting, pw);
-            if (!ok) return alert('비밀번호가 틀렸습니다.');
+            if (!ok) return showToast('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
             state.communityEditView = id;
             state.communityEditTab = 'info';
@@ -11902,9 +11910,9 @@
 
         async function saveCommunityFormFields(id) {
             const fields = cmCleanFields(state.communityEditFields);
-            const problem = cmFieldsProblem(fields); if (problem) return alert(problem);
+            const problem = cmFieldsProblem(fields); if (problem) return showToast(problem);
             const { error } = await communityUpdate(id, { form_fields: fields });
-            if (error) return alert('저장 실패: ' + error.message);
+            if (error) return showToast('저장 실패: ' + error.message);
             await fetchCommunityMeetings();
             showToast('질문이 저장되었습니다.');
             renderCommunityDetail(id);
@@ -11912,11 +11920,11 @@
 
         async function communityOrganizerAuth(id) {
             const pw = document.getElementById('comm_auth_pw').value;
-            if (!pw) return alert('비밀번호를 입력해주세요.');
+            if (!pw) return showToast('비밀번호를 입력해주세요.');
             const meeting = state.communityMeetings.find(m => m.id === id);
-            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            if (!meeting) return showToast('모임 정보를 찾을 수 없습니다.');
             const ok = await checkCommunityOrganizer(meeting, pw);
-            if (!ok) return alert('비밀번호가 틀렸습니다.');
+            if (!ok) return showToast('비밀번호가 틀렸습니다.');
             state.communityEditAuth[id] = true;
             renderCommunityDetail(id);
         }
@@ -11937,15 +11945,15 @@
             const desc = rteValue('ce_desc');
             const imgFile = document.getElementById('ce_image').files[0];
 
-            if (!title) return alert('모임명을 입력해주세요.');
-            if (document.getElementById('ce_capacity')?.value && parseInt(document.getElementById('ce_capacity').value) < 1) return alert('정원은 1명 이상이어야 합니다.');
-            if (deadline && date && deadline > date) return alert('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
+            if (!title) return showToast('모임명을 입력해주세요.');
+            if (document.getElementById('ce_capacity')?.value && parseInt(document.getElementById('ce_capacity').value) < 1) return showToast('정원은 1명 이상이어야 합니다.');
+            if (deadline && date && deadline > date) return showToast('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
 
             const meeting = state.communityMeetings.find(m => m.id === id);
             let coverImageUrl = meeting.cover_image_url;
             if (imgFile) {
                 try { coverImageUrl = await uploadCommunityImage(await cmCropExport('ce', imgFile)); cmCropClear('ce'); } // 정방형으로 잘라 올린다
-                catch (e) { alert('이미지 업로드 실패: ' + e.message); }
+                catch (e) { showToast('이미지 업로드 실패: ' + e.message); }
             }
 
             const payload = {
@@ -11961,16 +11969,16 @@
             };
 
             const { error } = await communityUpdate(id, payload);
-            if (error) return alert('수정 실패: ' + error.message);
+            if (error) return showToast('수정 실패: ' + error.message);
             await fetchCommunityMeetings();
             delete state.communityEditAuth[id];
-            alert('수정되었습니다.');
+            showToast('수정되었습니다.');
             renderCommunityDetail(id);
         }
 
         async function toggleCommunityMeetingClosed(id, currentlyClosed) {
             const { error } = await communityUpdate(id, { is_closed: !currentlyClosed });
-            if (error) return alert('상태 변경 실패: ' + error.message);
+            if (error) return showToast('상태 변경 실패: ' + error.message);
             await fetchCommunityMeetings();
             renderCommunityDetail(id);
         }
@@ -11979,7 +11987,7 @@
             if (!confirm('모임을 삭제하면 모든 신청 정보도 삭제됩니다. 정말 삭제하시겠습니까?')) return;
             const meeting = state.communityMeetings.find(m => m.id === id);
             const { error } = await communityDelete(id);
-            if (error) return alert('삭제 실패: ' + error.message);
+            if (error) return showToast('삭제 실패: ' + error.message);
             // Remove associated time_block in GatheO
             if (meeting) {
                 try {
@@ -11996,7 +12004,7 @@
 
         async function submitCommunityApplication(id) {
             const meeting = state.communityMeetings.find(m => m.id === id) || state.communityCurrentMeeting;
-            if (!meeting) return alert('모임 정보를 찾을 수 없습니다.');
+            if (!meeting) return showToast('모임 정보를 찾을 수 없습니다.');
 
             const name = (document.getElementById('ca_name') || {}).value?.trim() || '';
             const email = '';
@@ -12034,7 +12042,7 @@
                 if (!cmQHasOptions(f) || !f.limits) continue;
                 const v = formData[f.label], chosen = Array.isArray(v) ? v : (v ? [v] : []);
                 const full = chosen.find(o => cmOptFull(f, optCounts, o));
-                if (full) { alert(`"${f.label}"의 "${full}" 선택지가 방금 마감되었어요. 다른 선택지를 골라주세요.`); return renderCommunityDetail(id); }
+                if (full) { showToast(`"${f.label}"의 "${full}" 선택지가 방금 마감되었어요. 다른 선택지를 골라주세요.`); return renderCommunityDetail(id); }
             }
 
             const { data: newApp, error } = await supabaseClient.from('community_applications').insert({
@@ -12046,8 +12054,8 @@
             }).select('id').single();
 
             if (error) {
-                if (error.code === '23505') return alert('이미 신청하셨습니다.');
-                return alert('신청 실패: ' + error.message);
+                if (error.code === '23505') return showToast('이미 신청하셨습니다.');
+                return showToast('신청 실패: ' + error.message);
             }
 
             // 모임장 알림 메일 — /send-email(Resend), 실패·미설정 시 mailto 폴백
@@ -12075,14 +12083,14 @@
             }
 
             state.communityApplicationCounts[id] = (state.communityApplicationCounts[id] || 0) + 1;
-            alert('신청이 완료되었습니다! 감사합니다.');
+            showToast('신청이 완료되었습니다! 감사합니다.');
             renderCommunityDetail(id);
         }
 
         async function deleteCommunityApplication(meetingId, appId) {
             if (!confirm('해당 신청을 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('community_applications').delete().eq('id', appId);
-            if (error) return alert('삭제 실패: ' + error.message);
+            if (error) return showToast('삭제 실패: ' + error.message);
             state.communityApplicationCounts[meetingId] = Math.max(0, (state.communityApplicationCounts[meetingId] || 1) - 1);
             renderCommunityDetail(meetingId);
         }
@@ -12094,7 +12102,7 @@
                 .select('*')
                 .eq('meeting_id', id)
                 .order('created_at', { ascending: true });
-            if (error) return alert('다운로드 실패: ' + error.message);
+            if (error) return showToast('다운로드 실패: ' + error.message);
 
             const formFields = (meeting ? (Array.isArray(meeting.form_fields) ? meeting.form_fields : []) : []).filter(f => f.type !== 'note'); // 안내문은 답이 없다
             const headers = ['이름', '이메일', '전화번호', '상태', '신청일시', ...formFields.map(f => f.label)];
@@ -12140,7 +12148,7 @@
         // GatheO 멤버 목록 CSV 다운로드 (개인정보 포함 — 관리자 전용)
         // 공개 멤버&팀 목록과 동일하게 주 세션(첫 번째 악기) 기준으로 그룹화
         window.downloadMembersCsv = async function() {
-            if (!canApproveRes()) { alert('권한이 없습니다.'); return; }
+            if (!canApproveRes()) { showToast('권한이 없습니다.'); return; }
             const all = await fetchMembers();
             const members = (all || []).filter(m => m.status !== 'rejected'); // 거절 멤버 제외
             const statusLabel = { approved: '승인', pending: '대기', blocked: '차단' };
@@ -12295,8 +12303,8 @@
             if (!confirm('신청을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.')) return;
             const { data, error } = await supabaseClient.from('community_applications')
                 .delete().eq('id', appId).select('id');
-            if (error) { alert('취소 중 오류가 발생했습니다: ' + error.message); return; }
-            if (!data || !data.length) { alert('이미 처리된 신청입니다.'); }
+            if (error) { showToast('취소 중 오류가 발생했습니다: ' + error.message); return; }
+            if (!data || !data.length) { showToast('이미 처리된 신청입니다.'); }
             else {
                 state.communityApplicationCounts[meetingId] = Math.max(0, (state.communityApplicationCounts[meetingId] || 1) - 1);
                 showToast('신청이 취소되었습니다.');
@@ -12311,7 +12319,7 @@
             const { data, error } = await supabaseClient.from('community_applications')
                 .update({ status }).eq('id', appId).select('id');
             if (error) { alert(`${label} 실패: ` + error.message + '\n\nstatus 컬럼이 없다면 20260901 SQL 실행이 필요합니다.'); return; }
-            if (!data || !data.length) { alert('신청을 찾을 수 없습니다. 목록을 새로고침합니다.'); }
+            if (!data || !data.length) { showToast('신청을 찾을 수 없습니다. 목록을 새로고침합니다.'); }
             else showToast(`${label} 처리되었습니다.`);
             renderCommunityDetail(meetingId);
         }
@@ -13033,7 +13041,7 @@
         }
 
         function shareTestUrl(url) {
-            navigator.clipboard.writeText(url).then(() => alert('링크가 복사되었습니다!')).catch(() => {
+            navigator.clipboard.writeText(url).then(() => showToast('링크가 복사되었습니다!')).catch(() => {
                 prompt('아래 링크를 복사하세요:', url);
             });
         }
@@ -13044,7 +13052,7 @@
             const result = type === 'inst' ? INST_RESULTS[key] : BAND_RESULTS[key];
             if (!result) return;
             if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) {
-                alert('카카오 공유를 사용할 수 없습니다. 링크 복사를 이용해주세요.');
+                showToast('카카오 공유를 사용할 수 없습니다. 링크 복사를 이용해주세요.');
                 return;
             }
             const _kd = type === 'band' ? state.communityTestDetail : null;
@@ -13077,7 +13085,7 @@
                 } catch (e) {
                     console.error('Kakao share error:', e);
                     shareTestUrl(shareUrl);
-                    alert('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
+                    showToast('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
                 }
             }
 
@@ -13092,7 +13100,7 @@
                 } catch (e) {
                     console.error('Kakao share error:', e);
                     shareTestUrl(shareUrl);
-                    alert('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
+                    showToast('카카오 공유에 실패했습니다. 링크가 클립보드에 복사되었습니다.');
                 }
             }
 
@@ -15999,7 +16007,7 @@
             recoveryMode = false;
             await supabaseClient.auth.signOut();
             history.replaceState(null, '', window.location.pathname);
-            alert('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
+            showToast('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
             document.getElementById('reset-pw-form').classList.add('hidden');
             document.getElementById('email-login-form').classList.remove('hidden');
         }
@@ -16060,7 +16068,7 @@
             if (!instruments) { showErr('메인 세션을 1개 이상 선택하거나 입력해주세요.'); return; }
 
             const music_taste = getMtEditValue('mtEdit_signup');
-            if (!music_taste) { alert('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
+            if (!music_taste) { showToast('음악 취향을 입력해주세요. 장르를 선택하거나 가수/곡을 검색해주세요.'); return; }
 
             _signupBusy = true;
             const submitBtn = document.querySelector('button[onclick="handleEmailSignup()"]');
@@ -16114,14 +16122,14 @@
             // 로그인 폼에서 직접 호출될 때는 target 이 없으므로 항상 그 화면으로 들어간다.
             const target = opts.target || null;
             const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-            if (error || !data) { alert('프로필 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'); return; }
+            if (error || !data) { showToast('프로필 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'); return; }
 
             if (data.member_type === 'band') {
                 if (data.status === 'approved') {
                     state.bandProfile = data;
                     if (!target || target === 'band') loginBandUI(data); else _finishBoot();
                 } else if (data.status === 'rejected') {
-                    alert('가입이 거절되었습니다. 관리자에게 문의해주세요.');
+                    showToast('가입이 거절되었습니다. 관리자에게 문의해주세요.');
                     await supabaseClient.auth.signOut();
                 } else {
                     showPendingScreen(data.name || data.leader_name || '신청자');
@@ -16133,7 +16141,7 @@
                 state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반', email: data.email, avatarUrl: data.avatar_url || null };
                 if (!target || target === 'gatheo') loginUI(data.name); else _finishBoot();
             } else if (data.status === 'rejected') {
-                alert('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
+                showToast('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
                 await supabaseClient.auth.signOut();
             } else {
                 showPendingScreen(data.name);
@@ -16244,7 +16252,7 @@
         }
 
         function removePollOption(idx) {
-            if (state.editingPoll.options.length <= 2) { alert('최소 2개 옵션이 필요합니다.'); return; }
+            if (state.editingPoll.options.length <= 2) { showToast('최소 2개 옵션이 필요합니다.'); return; }
             const titleEl = document.getElementById('pollTitle');
             if (titleEl) state.editingPoll.title = titleEl.value;
             state.editingPoll.options.splice(idx, 1);
@@ -16260,14 +16268,14 @@
             const options = state.editingPoll.options.map(o => o.trim()).filter(Boolean);
             const multiSelect = document.getElementById('pollMulti').checked;
             const anonymous = document.getElementById('pollAnon').checked;
-            if (!title) { alert('투표 제목을 입력해주세요.'); return; }
-            if (options.length < 2) { alert('옵션을 2개 이상 입력해주세요.'); return; }
+            if (!title) { showToast('투표 제목을 입력해주세요.'); return; }
+            if (options.length < 2) { showToast('옵션을 2개 이상 입력해주세요.'); return; }
             const creatorName = (state.user && state.user.nickname) || '관리자';
             const { error } = await supabaseClient.from('polls').insert([{
                 title, options, multi_select: multiSelect, anonymous, status: 'open',
                 created_by: state.user.kakaoId, creator_name: creatorName
             }]);
-            if (error) { alert('투표 생성 실패: ' + error.message); return; }
+            if (error) { showToast('투표 생성 실패: ' + error.message); return; }
             state.editingPoll = { options: ['', ''], title: '' };
             await fetchPolls();
             renderAdminPollsSection(document.getElementById('adminPollContent'));
@@ -16276,14 +16284,14 @@
         async function closePoll(pollId) {
             if (!confirm('이 투표를 종료하시겠습니까?')) return;
             const { error } = await supabaseClient.from('polls').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', pollId);
-            if (error) { alert('종료 실패: ' + error.message); return; }
+            if (error) { showToast('종료 실패: ' + error.message); return; }
             await fetchPolls();
             renderAdminPollsSection(document.getElementById('adminPollContent'));
         }
 
         async function reopenPoll(pollId) {
             const { error } = await supabaseClient.from('polls').update({ status: 'open', closed_at: null }).eq('id', pollId);
-            if (error) { alert('재오픈 실패: ' + error.message); return; }
+            if (error) { showToast('재오픈 실패: ' + error.message); return; }
             await fetchPolls();
             renderAdminPollsSection(document.getElementById('adminPollContent'));
         }
@@ -16291,19 +16299,19 @@
         async function deletePoll(pollId) {
             if (!confirm('이 투표를 완전히 삭제하시겠습니까? (모든 투표 결과가 사라집니다)')) return;
             const { error } = await supabaseClient.from('polls').delete().eq('id', pollId);
-            if (error) { alert('삭제 실패: ' + error.message); return; }
+            if (error) { showToast('삭제 실패: ' + error.message); return; }
             await fetchPolls(); await fetchPollVotes();
             renderAdminPollsSection(document.getElementById('adminPollContent'));
         }
 
         async function submitVote(pollId) {
             const myId = getCurrentUserProfileId();
-            if (!myId) { alert('가입 승인된 멤버만 투표할 수 있습니다.'); return; }
+            if (!myId) { showToast('가입 승인된 멤버만 투표할 수 있습니다.'); return; }
             const checked = Array.from(document.querySelectorAll(`input[name="vote-${pollId}"]:checked`)).map(el => parseInt(el.value));
-            if (checked.length === 0) { alert('옵션을 선택해주세요.'); return; }
+            if (checked.length === 0) { showToast('옵션을 선택해주세요.'); return; }
             const poll = state.polls.find(p => p.id === pollId);
             if (!poll) return;
-            if (!poll.multi_select && checked.length > 1) { alert('1개만 선택 가능합니다.'); return; }
+            if (!poll.multi_select && checked.length > 1) { showToast('1개만 선택 가능합니다.'); return; }
             const myName = (state.cachedMembers.find(m => m.id === myId) || {}).name || '익명';
             const existing = getMyVote(pollId);
             let error;
@@ -16312,7 +16320,7 @@
             } else {
                 ({ error } = await supabaseClient.from('poll_votes').insert([{ poll_id: pollId, voter_id: myId, voter_name: myName, option_indices: checked }]));
             }
-            if (error) { alert('투표 실패: ' + error.message); return; }
+            if (error) { showToast('투표 실패: ' + error.message); return; }
             await fetchPollVotes();
             if (state.memberPanelTab === 'votes') renderMemberPanel();
         }
@@ -16322,7 +16330,7 @@
             const existing = getMyVote(pollId);
             if (!existing) return;
             const { error } = await supabaseClient.from('poll_votes').delete().eq('id', existing.id);
-            if (error) { alert('취소 실패: ' + error.message); return; }
+            if (error) { showToast('취소 실패: ' + error.message); return; }
             await fetchPollVotes();
             if (state.memberPanelTab === 'votes') renderMemberPanel();
         }
@@ -16330,7 +16338,7 @@
         function sharePollKakao(pollId) {
             const poll = state.polls.find(p => p.id === pollId);
             if (!poll) return;
-            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
+            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { showToast('카카오 SDK가 초기화되지 않았습니다.'); return; }
             const siteUrl = window.location.origin + window.location.pathname;
             const optionLines = (poll.options || []).map((o, i) => `  ${i + 1}. ${o}`).join('\n');
             const voteCount = state.pollVotes.filter(v => v.poll_id === pollId).length;
@@ -16351,7 +16359,7 @@
         }
 
         function _kakaoLink(text) {
-            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { alert('카카오 SDK가 초기화되지 않았습니다.'); return; }
+            if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) { showToast('카카오 SDK가 초기화되지 않았습니다.'); return; }
             const siteUrl = window.location.origin + window.location.pathname;
             Kakao.Link.sendDefault({ objectType: 'text', text, link: { webUrl: siteUrl, mobileWebUrl: siteUrl } });
         }
@@ -16857,7 +16865,7 @@
                     if (ph) ph.outerHTML = html; else el.insertAdjacentHTML('beforeend', html);
                 } catch (e) {
                     el.querySelector('.rte-uploading')?.remove();
-                    console.error('rteImage:', e); alert('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.');
+                    console.error('rteImage:', e); showToast('사진을 올리지 못했습니다. 잠시 후 다시 시도해주세요.');
                 }
             };
             inp.click();
@@ -17296,14 +17304,14 @@
         // --- 예약 승인/거절 ---
         async function approveReservation(id) {
             const { error } = await supabaseClient.from('reservations').update({ status: 'approved' }).eq('id', id);
-            if (error) alert('승인 실패: ' + error.message);
+            if (error) showToast('승인 실패: ' + error.message);
             else { await fetchReservations(); renderGatheOAdmin(); }
         }
 
         async function rejectReservation(id) {
             if (!confirm('이 예약을 거절하시겠습니까?')) return;
             const { error } = await supabaseClient.from('reservations').update({ status: 'rejected' }).eq('id', id);
-            if (error) alert('거절 실패: ' + error.message);
+            if (error) showToast('거절 실패: ' + error.message);
             else { await fetchReservations(); renderGatheOAdmin(); }
         }
 
@@ -17468,7 +17476,7 @@
         async function deleteNotice(id) {
             if (!confirm('공지사항을 삭제하시겠습니까?')) return;
             const { error } = await supabaseClient.from('notices').delete().eq('id', id);
-            if (error) { alert('삭제 실패: ' + error.message); return; }
+            if (error) { showToast('삭제 실패: ' + error.message); return; }
             await fetchNotices();
             renderAdminNotices();
         }
@@ -17620,10 +17628,10 @@
         }
 
         async function postReply(parentId) {
-            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            if (!state.user) { showToast('로그인이 필요합니다.'); return; }
             const input = document.getElementById('replyInput-' + parentId);
             const content = input.value.trim();
-            if (!content) { alert('답글 내용을 입력해주세요.'); return; }
+            if (!content) { showToast('답글 내용을 입력해주세요.'); return; }
             const { error } = await supabaseClient.from('comments').insert([{
                 kakao_id: state.user.kakaoId, user_name: state.user.nickname, content, parent_id: parentId
             }]);
@@ -17651,7 +17659,7 @@
                 .insert([{ kakao_id: state.user.kakaoId, user_name: state.user.nickname, content }]);
 
             if (error) {
-                alert('댓글 등록 실패: ' + error.message);
+                showToast('댓글 등록 실패: ' + error.message);
             } else {
                 input.value = '';
                 const ti = document.getElementById('boardTitleInput'); if (ti) ti.value = '';
@@ -17661,7 +17669,7 @@
         }
 
         async function likeComment(id) {
-            if (!state.user) { alert('로그인이 필요합니다.'); return; }
+            if (!state.user) { showToast('로그인이 필요합니다.'); return; }
             const likedKey = 'liked_' + state.user.kakaoId;
             const liked = (() => { try { return JSON.parse(localStorage.getItem(likedKey) || '[]'); } catch(e) { return []; } })();
             const sid = String(id);
@@ -17676,7 +17684,7 @@
             const newCount = alreadyLiked ? Math.max(0, current - 1) : current + 1;
             const { error: updErr } = await supabaseClient.from('comments').update({ likes: newCount }).eq('id', id);
             if (updErr) {
-                alert('좋아요 업데이트 실패: ' + updErr.message);
+                showToast('좋아요 업데이트 실패: ' + updErr.message);
                 return;
             }
 
@@ -17766,7 +17774,7 @@
                 .eq('id', id)
                 .select();
             if (error) {
-                alert('삭제 실패: ' + error.message);
+                showToast('삭제 실패: ' + error.message);
                 return;
             }
             if (!data || data.length === 0) {
@@ -17814,11 +17822,11 @@
             const bodyEl = document.getElementById('edit-body-' + id);
             const titleVal = (titleEl?.value || '').trim();
             const bodyVal = (bodyEl?.value || '').trim();
-            if (!titleVal) { alert('제목을 입력해주세요.'); return; }
-            if (!bodyVal) { alert('내용을 입력해주세요.'); return; }
+            if (!titleVal) { showToast('제목을 입력해주세요.'); return; }
+            if (!bodyVal) { showToast('내용을 입력해주세요.'); return; }
             const content = `\x1F${titleVal.replace(/\x1F/g, '')}\x1F\n${bodyVal.replace(/\x1F/g, '')}`;
             const { error } = await supabaseClient.from('comments').update({ content }).eq('id', id);
-            if (error) { alert('수정 실패: ' + error.message); return; }
+            if (error) { showToast('수정 실패: ' + error.message); return; }
             fetchComments();
         }
 
@@ -18456,7 +18464,7 @@
             const t = _showsState.ticket; if (!t) return;
             if (!confirm('양도 링크를 취소할까요? 받는 분은 더 이상 이 링크로 받을 수 없어요.')) return;
             const out = await eventApi({ action: 'cancel_transfer', code: t.code, phone: t.buyer_phone, seat_code: seatCode });
-            if (!out.ok) { alert(out.message || '취소하지 못했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '취소하지 못했습니다.'); return; }
             delete _showsState.transferLinks[seatCode];
             t.transfers = Array.isArray(out.transfers) ? out.transfers : (t.transfers || []).filter(x => !(x.seat_code === seatCode && x.status === 'pending'));
             renderTicketView(); showToast('양도 링크를 취소했습니다.');
@@ -18521,7 +18529,7 @@
             if (!confirm(`티켓 ${seatNo}번 1장만 취소할까요?`
                 + (t.status === 'confirmed' ? '\n(이미 입금하셨다면 차액 환불은 호스트에게 문의해주세요.)' : ''))) return;
             const out = await eventApi({ action: 'cancel_seat', code, phone: t.buyer_phone });
-            if (!out.ok) { alert(out.message || '취소에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '취소에 실패했습니다.'); return; }
             _showsState.ticket = { ..._showsState.ticket, ...out.ticket, seats: out.seats || [] };
             renderTicketView();
             showToast(out.whole ? '예매가 취소되었습니다.' : `티켓 ${seatNo}번이 취소되었습니다.`);
@@ -18550,7 +18558,7 @@
                 a.download = 'ticket-' + code + '.png';
                 document.body.appendChild(a); a.click(); a.remove();
                 showToast('QR 이미지가 저장되었습니다.');
-            } catch (_) { alert('이미지 저장에 실패했습니다. 이 화면을 캡처해주세요.'); }
+            } catch (_) { showToast('이미지 저장에 실패했습니다. 이 화면을 캡처해주세요.'); }
         }
 
         function copyBankInfo() {
@@ -18566,7 +18574,7 @@
             if (!t) return;
             if (!confirm(`예매를 ${(t.qty || 1) > 1 ? `전체(${t.qty}장) ` : ''}취소하시겠습니까?` + (t.status === 'pending_payment' ? '' : '\n(이미 입금하셨다면 호스트에게 환불을 문의해주세요.)'))) return;
             const out = await eventApi({ action: 'cancel', code: t.code, phone: t.buyer_phone });
-            if (!out.ok) { alert(out.message || '취소에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '취소에 실패했습니다.'); return; }
             _showsState.ticket = { ..._showsState.ticket, ...out.ticket };
             renderTicketView();
             showToast('예매가 취소되었습니다.');
@@ -18775,13 +18783,13 @@
 
         function hostKakaoLogin() {
             try { if (typeof initKakao === 'function') initKakao(); } catch (_) {}
-            if (typeof Kakao === 'undefined' || !Kakao.Auth) { alert('카카오 SDK를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+            if (typeof Kakao === 'undefined' || !Kakao.Auth) { showToast('카카오 SDK를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
             // 일부 인앱 브라우저는 팝업 대신 리다이렉트로 로그인해 페이지가 새로 뜬다(해시 유실).
             // 복귀 마커를 남겨 부트가 게더링 자동 로그인 대신 호스트 센터로 돌아오게 한다.
             try { sessionStorage.setItem('gaa_return_host', '1'); } catch (_) {}
             Kakao.Auth.login({
                 success: () => hostResume(),
-                fail: () => alert('카카오 로그인에 실패했습니다. 다시 시도해주세요.'),
+                fail: () => showToast('카카오 로그인에 실패했습니다. 다시 시도해주세요.'),
             });
         }
 
@@ -18956,7 +18964,7 @@
         async function hostRemoveMember(teamId, memberKakaoId, memberName) {
             if (!confirm(`'${memberName}' 님을 팀에서 내보내시겠습니까?`)) return;
             const out = await eventApi({ action: 'remove_member', kakao_token: _hostState.token, host_id: teamId, member_kakao_id: memberKakaoId });
-            if (!out.ok) { alert(out.message || '처리에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '처리에 실패했습니다.'); return; }
             showToast('멤버를 내보냈습니다.');
             renderTeamManage(teamId);
         }
@@ -18992,7 +19000,7 @@
         async function hostInvite(teamId) {
             const team = (_hostState.teams || []).find(t => t.id === teamId);
             const out = await eventApi({ action: 'create_invite', kakao_token: _hostState.token, host_id: teamId });
-            if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '초대 생성에 실패했습니다.'); return; }
             const url = location.origin + location.pathname + '?hostjoin=' + out.token;
             _renderInviteBox('inviteLinkBox', out.token,url,
                 `'${(team && team.name) || '우리 팀'}' 팀의 공동호스트로 초대합니다!\n호스트 센터 → [초대 코드 입력]에 ${out.token} 를 넣거나, 아래 링크를 열어주세요. (7일간 유효)`);
@@ -19129,7 +19137,7 @@
         async function hostSetEventStatus(id, status) {
             if (status === 'hidden' && !confirm('공연을 목록에서 숨기시겠습니까?')) return;
             const out = await eventApi({ action: 'set_event_status', kakao_token: _hostState.token, event_id: id, status });
-            if (!out.ok) { alert(out.message || '변경에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '변경에 실패했습니다.'); return; }
             showToast(status === 'published' ? '예매가 오픈되었습니다.' : status === 'closed' ? '예매를 마감했습니다.' : '공연을 숨겼습니다.');
             renderHostDashboard();
         }
@@ -19144,7 +19152,7 @@
             const ev = (_hostState.dashEvents || []).find(e => e.id === id);
             if (!confirm(`'${(ev && ev.title) || '이 공연'}'을(를) 삭제할까요?\n공연 정보가 영구 삭제되며 되돌릴 수 없습니다.\n(예매가 있으면 모두 취소한 뒤에만 삭제할 수 있습니다)`)) return;
             const out = await eventApi({ action: 'delete_event', kakao_token: _hostState.token, event_id: id });
-            if (!out.ok) { alert(out.message || '삭제에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '삭제에 실패했습니다.'); return; }
             showToast('공연이 삭제되었습니다.');
             renderHostDashboard();
         }
@@ -19564,7 +19572,7 @@
         // 공연 공동 관리팀 초대 — 6자리 초대 코드 생성 (받는 팀 소유자가 코드 입력 또는 링크로 수락)
         async function hostEventInvite(eventId) {
             const out = await eventApi({ action: 'create_event_invite', kakao_token: _hostState.token, event_id: eventId });
-            if (!out.ok) { alert(out.message || '초대 생성에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '초대 생성에 실패했습니다.'); return; }
             const url = location.origin + location.pathname + '?eventjoin=' + out.token;
             _renderInviteBox('coInviteBox', out.token, url,
                 `'${out.event.title}' 공연의 공동 관리팀으로 초대합니다!\n초대받은 팀의 소유자가 호스트 센터 → [초대 코드 입력]에 ${out.token} 를 넣고 팀을 선택하면 함께 관리할 수 있어요. (7일간 유효)`);
@@ -19601,7 +19609,7 @@
         async function hostRemoveCoTeam(eventId, hostId, name) {
             if (!confirm(`'${name}' 팀을 이 공연의 관리팀에서 제외할까요?`)) return;
             const out = await eventApi({ action: 'remove_co_team', kakao_token: _hostState.token, event_id: eventId, host_id: hostId });
-            if (!out.ok) { alert(out.message || '처리에 실패했습니다.'); return; }
+            if (!out.ok) { showToast(out.message || '처리에 실패했습니다.'); return; }
             showToast('관리팀에서 제외했습니다.');
             renderHostAttendees(eventId);
         }
@@ -19767,7 +19775,7 @@ ${body}
             _hostState.busy = true;
             try {
                 const out = await eventApi({ action, kakao_token: _hostState.token, ticket_id: ticketId });
-                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+                if (!out.ok) showToast(out.message || '처리에 실패했습니다.');
             } finally { _hostState.busy = false; }
             renderHostAttendees(_hostState.curEventId);
         }
@@ -19784,7 +19792,7 @@ ${body}
             _hostState.busy = true;
             try {
                 const out = await eventApi({ action: 'host_cancel_seat', kakao_token: _hostState.token, code });
-                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+                if (!out.ok) showToast(out.message || '처리에 실패했습니다.');
                 else showToast(out.whole ? '예매가 취소되었습니다.' : `${seatNo}번 티켓이 취소되었습니다.`);
             } finally { _hostState.busy = false; }
             if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
@@ -19797,7 +19805,7 @@ ${body}
             _hostState.busy = true;
             try {
                 const out = await eventApi({ action: 'uncheckin', kakao_token: _hostState.token, code });
-                if (!out.ok) alert(out.message || '처리에 실패했습니다.');
+                if (!out.ok) showToast(out.message || '처리에 실패했습니다.');
             } finally { _hostState.busy = false; }
             if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
         }
@@ -19811,7 +19819,7 @@ ${body}
                     const tk = out.ticket || {};
                     const multi = (tk.seats_total || tk.qty || 1) > 1;
                     showToast(`✅ ${tk.buyer_name || ''} 입장 처리${multi && tk.seats_checked != null ? ` (${tk.seats_checked}/${tk.seats_total})` : ''}`);
-                } else alert(out.message || '체크인에 실패했습니다.');
+                } else showToast(out.message || '체크인에 실패했습니다.');
             } finally { _hostState.busy = false; }
             if (_hostState.curEventId) renderHostAttendees(_hostState.curEventId);
         }
@@ -19871,7 +19879,7 @@ ${body}
         async function hostConfirmAndCheckin(ticketId, code) {
             if (!ticketId) return;
             const o1 = await eventApi({ action: 'confirm_payment', kakao_token: _hostState.token, ticket_id: ticketId });
-            if (!o1.ok) { alert(o1.message || '입금 확인에 실패했습니다.'); return; }
+            if (!o1.ok) { showToast(o1.message || '입금 확인에 실패했습니다.'); return; }
             hostDoCheckin(code);
         }
     </script>

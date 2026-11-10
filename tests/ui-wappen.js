@@ -114,7 +114,10 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.waitForFunction(() => location.hash.includes('size=a4'));
     await p.waitForFunction(() => document.querySelectorAll('.card-grid .card').length === 1);
     chk('홈: 사이즈 필터(A4) → 1개', (await p.locator('.card-grid .card .card-title').innerText()) === 'A4 포스터');
-    chk('홈: 필터가 supabase eq(size_key) 로 전달', await p.evaluate(() => window.__sbCalls.some(c => c.table === 'wappen_projects' && c.filters.some(f => f[0] === 'size_key' && f[1] === 'a4'))));
+    // 조회 기록이 남을 때까지 잠깐 기다린다(느린 CI 러너에서 화면 갱신과 기록 시점이 엇갈림)
+    const sizeEq = () => window.__sbCalls.some(c => c.table === 'wappen_projects' && c.filters.some(f => f[0] === 'size_key' && f[1] === 'a4'));
+    await p.waitForFunction(sizeEq, null, { timeout: 5000 }).catch(() => {});
+    chk('홈: 필터가 supabase eq(size_key) 로 전달', await p.evaluate(sizeEq));
 
     // 1b. 새 프로젝트 화면 (사이즈 선택·업로드 영역) + 모바일 하단 탭바
     await p.goto(`${BASE}/wappen/#/new`); await p.waitForSelector('.size-opt');
@@ -250,7 +253,7 @@ ${process.env.DARK ? "localStorage.setItem('gaa_theme', 'dark');" : ''}
     await p.evaluate(() => window.TABLES.wappen_works.push({ ...window.TABLES.wappen_works[0], id: '44444444-4444-4444-8444-444444444499', title: '테스트 프로젝트' }));
     await p.click('.ed-topbar [data-act="save"]');
     await p.waitForSelector('.modal input');
-    chk('저장: 제목 모달 기본값=프로젝트명, 겹치면 "(2)" 제안', (await p.inputValue('.modal input')) === '테스트 프로젝트 (2)' && (await p.locator('.modal .muted').innerText()).includes('겹칠 수 없어요'));
+    chk('저장: 제목 모달 기본값=프로젝트명, 겹치면 "(2)" 제안', (await p.inputValue('.modal input')) === '테스트 프로젝트 (2)' && (await p.locator('.modal .muted').allInnerTexts()).join(' ').includes('겹칠 수 없어요'));
     await p.evaluate(() => window.TABLES.wappen_works.pop());
     await p.fill('.modal input', '첫 작품');
     await p.click('.modal [data-ok]');
