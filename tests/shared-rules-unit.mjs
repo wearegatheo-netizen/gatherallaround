@@ -11,14 +11,14 @@ ok('연장 1주', R.bandCycleStart('2026-01-05', 1, ['2026-01-12']) === '2026-02
 ok('수정 불가(freeze)', Object.isFrozen(R));
 
 // 1. 계좌·슬롯 사본 금지 — 문자열이 shared/rules.js 밖에 다시 생기면 실패
-const files = ['index.html', ...readdirSync('functions').filter(f => f.endsWith('.js')).map(f => 'functions/' + f)];
+const files = ['index.html', ...readdirSync('js').filter(f => f.endsWith('.js')).map(f => 'js/' + f), ...readdirSync('functions').filter(f => f.endsWith('.js')).map(f => 'functions/' + f)];
 for (const f of files) {
     const s = readFileSync(f, 'utf8');
     ok(`${f}: 계좌번호 사본 없음`, !s.includes(R.BANK_ACCOUNT));
     ok(`${f}: TIMES 배열 사본 없음`, !/TIMES\s*=\s*\[\s*'(08|10):00'/.test(s));
     ok(`${f}: 회차 일수 사본 없음`, !/BAND_CYCLE_DAYS\s*=\s*28/.test(s));
 }
-ok('index.html 이 rules.js 를 본 스크립트보다 먼저 읽음', (() => { const s = readFileSync('index.html', 'utf8'); const a = s.indexOf('/shared/rules.js'), b = s.indexOf('GAA_RULES'); return a > 0 && a < b; })());
+ok('index.html 이 rules.js 를 본 스크립트보다 먼저 읽음', (() => { const s = readFileSync('index.html', 'utf8'); const a = s.indexOf('/shared/rules.js'), b = s.indexOf('/js/app-1-'); return a > 0 && a < b; })());
 for (const f of ['functions/send-reminders.js', 'functions/send-sms.js', 'functions/gatheo-api.js', 'functions/community-admin.js'])
     ok(`${f}: rules.js import`, readFileSync(f, 'utf8').includes("import '../shared/rules.js'"));
 

@@ -104,7 +104,7 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 
   });
   chk('게시글 링크 복사 = /gatheo/board/<id>(# 없음)', links[0] === `${ORIGIN}/gatheo/board/${UUID}`, links[0]);
   await o.ctx.close();
-  const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const src = fs.readdirSync(path.join(ROOT, 'js')).map(f => fs.readFileSync(path.join(ROOT, 'js', f), 'utf8')).join('\n'); // 본 스크립트는 js/app-*.js 로 분리됨(2026-11-10)
   chk('양도 링크·체크인 QR 도 경로형(/#shows/claim·/#host/checkin 없음)', src.includes('`${location.origin}/shows/claim/${out.token}`') && !src.includes("'/#host/checkin/'") && !src.includes('/#shows/claim/'));
 
   await br.close();

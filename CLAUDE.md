@@ -3,7 +3,10 @@
 이 저장소에서 작업할 때 지켜야 할 규칙과 과거 실수에서 얻은 교훈을 기록합니다.
 
 ## 프로젝트 개요
-- `index.html` 단일 파일 SPA — UI + 로직 전부 이 안에 있음 (약 16,500줄)
+- **파일 구조(2026-11-10 분리)**: `index.html`(마크업 + 머리 인라인 스크립트, 약 1,250줄) + **`css/app.css`**(본 스타일) + **`js/app-1-core.js … app-8-shows.js`**(본 스크립트 8개: core 로그인·gw·홈 / gatheo 예약·멤버·일정 / admin 관리자·시간차단 / perf 공간 대관 / community 커뮤니티·테스트 / band 고정 합주팀 / members 가입·투표·푸시·문서·게시판 / shows 부팅·공연 예매·호스트) + **`shared/rules.js`**(서버 함수와 공용 규칙).
+  js 파일은 index.html 이 **번호 순서대로 읽는 클래식 스크립트**라 전역(함수·let/const)을 그대로 공유한다 — 이 문서의 함수 이름은 `grep -rn "function 이름" js/` 로 찾는다(예전 설명의 「index.html 의 …」 는 대부분 js/ 안).
+  규칙: ① **고친 뒤 `node tools/stamp-assets.mjs`** — index.html 의 `?v=<내용 해시>` 갱신(카톡 인앱 등이 같은 주소의 파일을 붙잡는 문제; `tests/assets-unit.mjs` 가 안 맞으면 실패) ② 최상위에서 바로 실행되는 코드가 **뒤 번호 파일의 함수**를 부르면 안 된다(함수 끌어올림은 파일 안에서만 — 지금 즉시 호출은 마지막 파일의 `initTheme()` 하나, 테스트가 검사) ③ 자산 주소는 절대 경로(`/js/…`) ④ 새 파일은 `app-9-이름.js` 처럼 번호를 잇고 index.html 에 태그 추가.
+  문법 확인은 `node --check js/app-N-*.js`. 분리에 쓴 1회용 도구는 scratchpad `split/split.js`(acorn 으로 최상위 문장 경계·전이 호출 위험 분석).
 - 백엔드: Supabase (`profiles`, `reservations`, `schedules`, `schedule_attendees`, `performance_bookings`,
   공연 예매: `event_hosts`/`events`/`event_tickets`/`event_ticket_seats`(매수별 QR·좌석 체크인) + `event_seats` 뷰)
 - 공연 예매(두둥식, `#shows`/`#host` 라우트): 읽기만 anon, **쓰기는 전부 `functions/event-api.js`**
@@ -301,6 +304,15 @@
 - **외부 라이브러리 자체 호스팅(2026-11-10)**: supabase-js 2.119.0·marked 18.2.0(UMD)·DOMPurify 3.4.17 을 `vendor/<이름>/<파일>.v<버전>…js` 로(파일명에 버전 = `/vendor/*` 불변 캐시, npm pack 으로 받음 — 컨테이너에서 jsdelivr 는 막혀 있음). index.html·wappen/index.html 의 `<script src>` 는 `/vendor/…` 절대 경로.
   종전엔 버전 없는 jsdelivr 주소(`npm/marked/marked.min.js` 는 최신 marked 에 그 파일이 없어 깨졌을 수 있음). 올릴 땐 새 파일을 넣고 태그 경로를 바꾼다. 남은 외부 스크립트: 카카오 SDK 1.43.0(버전 고정)·GTM, 스타일: Pretendard(버전 고정).
 - **포털로 버튼(2026-11-10)**: 게더링 앱 바 맨 왼쪽 `.cm-ib.gt-back`·합주팀 `.band-header .band-back` = `showPortal()`. **로그아웃하지 않는다**(포털 [게더링]/[고정 합주팀] 이 복구된 세션으로 바로 재진입; 자동 로그아웃은 카카오 토큰을 같이 쓰는 호스트 센터 로그인까지 끊어 채택 안 함).
+- **운영 개선 묶음(2026-11-10 「B-8,9,10 / C-13~17」)**:
+  **공용 규칙 `shared/rules.js`**(클래식 스크립트 겸 부수효과 import — `globalThis.GAA_RULES`, freeze): `TIMES`·`PERF_EXPIRE_MS`·계좌(`BANK_NAME/ACCOUNT/HOLDER/LINE`)·회차 수식(`bandCycle*`·`bandExtOffset`·`bandNextCycle`·`bandInferCycle`·`bandSkipResolution`·`bandExtDates`). 브라우저는 `<script src="/shared/rules.js">`, 서버 함수(send-reminders·send-sms·gatheo-api·community-admin)는 `import '../shared/rules.js'`.
+  **계좌·슬롯·회차 일수를 다른 파일에 다시 적지 말 것**(`tests/shared-rules-unit.mjs` 가 사본을 찾으면 실패, Deno Edge Function `check-band-payments` 사본은 같은 결과인지 비교). community-admin 의 TIMES 가 10:00~ 로 낡아 오전 8·9시 모임 수락이 실패하던 것도 이때 고침.
+  **대관 자동취소**: `/send-reminders` POST 가 올 때마다(크론 하루 6회쯤, scope 무관) 4시간 지난 pending 을 `expired` 로(응답 `expired` 수). 화면의 lazy 판정·관리자 탭 sweep 은 그대로.
+  **브라우저 오류 수집**: `js/app-1-core.js` 머리의 수집기(`_gaaReportError`, error·unhandledrejection, 세션당 8건·같은 메시지 1회, 로컬은 안 보냄) → `functions/client-log.js`(출처 검사·20KB·5건·전화/이메일/토큰 가림) → 표 `client_errors`(마이그레이션 `20261110_client_errors.sql`, 정책 없음; 표 없으면 Cloudflare 로그만).
+  **관리자 「🛠️ 운영 도구」 탭(운영 총괄)** `renderAdminOpsSection`: 오류 기록(같은 메시지 묶음·횟수·화면·역할·기기, `/gatheo-api client_errors|client_errors_clear`) + **백업 내려받기** `opsBackupDownload`(`backup_tables` → 표마다 `backup_table {table, offset}` 1,000행씩 → `gatherallaround-backup-YYYYMMDD.json`; 대상 `BACKUP_TABLES`, 없는 표는 `missing`). 절차·복구는 `docs/BACKUP-RUNBOOK.md`.
+  **숨김 멤버**: `profiles.hidden`(마이그레이션 `20261110_profile_hidden.sql`) — `isHiddenMember(m)` 는 boolean 이면 그 값, 컬럼 없으면 종전 이름 목록(`_LEGACY_HIDDEN_NAMES`). 관리자 › 멤버 수정에 「멤버 목록에서 숨김」 체크(바뀔 때만 전송, 컬럼 없으면 빼고 저장), 관리자 목록에 「숨김」 칩. 서버 `MGR_PROFILE_COLS` 에 hidden.
+  **자동 테스트**: `bash tests/run-all.sh [unit]`(단위 전부 + 8765/8766 서버 띄워 화면 전부, 요약·종료 코드) = `.github/workflows/tests.yml`(push master·claude/**, playwright **1.47.0 고정** — 최신 버전은 포스터 꾸미기 테스트가 흔들렸다). 화면 테스트의 브라우저 경로는 `PW_CHROMIUM`(run-all 이 이 컨테이너의 `/opt/pw-browsers/chromium` 을 자동 지정). 배포를 막지는 않는다(빨간 표시·메일).
+  **화면 QA(합주팀·공연·호스트·커뮤니티·대관, scratchpad `qa2/run.js` — 390/820px)**: pageerror·넘침 0. 한 줄 `alert` 131곳을 `showToast` 로(여러 줄·SQL 안내 15곳은 alert 유지), `#auto-toast` 는 줄바꿈 허용·`max-width: 100vw−32px`·z 100000(시트 위). 탭 영역: `.portal-back-btn` 36px(음수 마진으로 위치 유지), 호스트 센터 링크·문의하기 `.lnk`·합주팀 바닥 연락처·`<summary>` 2종·시간 띠 체크박스 32px.
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

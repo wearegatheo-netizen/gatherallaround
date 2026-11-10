@@ -21,7 +21,8 @@ jobs:
       - name: Supabase Edge Function / RPC 존재 확인 (커뮤니티 인증·메일)
         # 더미 값으로 호출해 배포 여부만 본다 — 404/NOT_FOUND면 미배포. 키는 공개 페이지 소스에서 추출.
         run: |
-          PAGE=$(curl -sS --max-time 60 https://gatherallaround.com/)
+          # 2026-11-10 본 스크립트를 /js/app-*.js 로 분리 — Supabase 주소·공개 키는 첫 파일에 있다
+          PAGE="$(curl -sS --max-time 60 https://gatherallaround.com/) $(curl -sS --max-time 60 https://gatherallaround.com/js/app-1-core.js)"
           URL=$(echo "$PAGE" | grep -o "https://[a-z]*\.supabase\.co" | head -1)
           KEY=$(echo "$PAGE" | grep -o "const SUPABASE_KEY = '[^']*'" | sed "s/.*'\(.*\)'/\1/")
           for fn in verify-community-admin verify-meeting-password; do
@@ -56,7 +57,8 @@ jobs:
       - name: 공연 공유 링크 /show/<id> — 크롤러 OG(포스터)·사람용 셸 확인
         # 공개 공연 1건의 id 를 anon REST 로 얻어(공개 정보만) 공유 경로를 크롤러 UA·브라우저 UA 로 호출해 본다.
         run: |
-          PAGE=$(curl -sS --max-time 60 https://gatherallaround.com/)
+          # 2026-11-10 본 스크립트를 /js/app-*.js 로 분리 — Supabase 주소·공개 키는 첫 파일에 있다
+          PAGE="$(curl -sS --max-time 60 https://gatherallaround.com/) $(curl -sS --max-time 60 https://gatherallaround.com/js/app-1-core.js)"
           URL=$(echo "$PAGE" | grep -o "https://[a-z]*\.supabase\.co" | head -1)
           KEY=$(echo "$PAGE" | grep -o "const SUPABASE_KEY = '[^']*'" | sed "s/.*'\(.*\)'/\1/")
           ID=$(curl -sS --max-time 30 "$URL/rest/v1/events?select=id,title,poster_url&status=eq.published&order=starts_at.desc&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" | jq -r '.[0].id // empty')
