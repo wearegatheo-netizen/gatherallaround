@@ -1624,17 +1624,26 @@
                 application_deadline: deadline || null,
                 description: desc || null,
             };
-            if (toOpen) { payload.open_ended = true; delete payload.meeting_date; delete payload.meeting_time; } // 서버 함수(community_update_meeting)가 날짜·시간을 비우고 시간표 차단을 지운다
-
+            // RPC 가 없거나 실패해도 예전처럼 직접 수정으로 넘어간다 — 날짜·시간은 여기서 건드리지 않는다
             const { error } = await communityUpdate(id, payload);
-            if (error) return showToast((toOpen && /open_ended/.test(String(error.message || '')) ? '상시 모집 전환은 관리자가 supabase/migrations/20261111_community_open_switch.sql 을 실행해야 합니다. ' : '') + '수정 실패: ' + error.message, 6000);
-            await fetchCommunityMeetings();
+            if (error) return showToast('수정 실패: ' + error.message, 5000);
             if (toOpen) {
-                const after = state.communityMeetings.find(m => m.id === id);
-                if (after && after.meeting_date) { showToast('다른 내용은 저장됐지만 상시 모집 전환은 안 됐어요. 관리자가 supabase/migrations/20261111_community_open_switch.sql 을 실행해야 합니다.', 7000); renderCommunityDetail(id); return; }
-                // 서버 함수가 못 지웠을 때를 대비해 한 번 더(실패해도 무시)
-                try { await supabaseClient.from('time_blocks').delete().eq('reason', `[커뮤니티] ${meeting0.title}`).eq('start_date', date); } catch (e) { /* ignore */ }
+                // 상시 모집 전환은 서버 함수(/community-admin app_open_switch, 모임장 토큰)가 한다 — 날짜·시간을 비우고 시간표 차단을 지움
+                let res = await _cmOrgApi('app_open_switch', id, { prev_title: meeting0.title });
+                if (!res.down && res.status === 401 && state.communityEditPw[id]) { // 토큰 만료 → 비밀번호로 다시 받아 한 번 더
+                    const t = await _cmApi('app_auth', { meeting_id: id, pw: state.communityEditPw[id] });
+                    if (!t.down && t.ok && t.token) { state.communityOrgTok[id] = t.token; state.communityEditAuth[id] = true; res = await _cmOrgApi('app_open_switch', id, { prev_title: meeting0.title }); }
+                }
+                if (res.down) { // 서버 함수가 없는 환경(로컬) — 직접 수정
+                    const r2 = await supabaseClient.from('community_meetings').update({ meeting_date: null, meeting_time: null }).eq('id', id);
+                    if (r2.error) return showToast('다른 내용은 저장됐지만 상시 모집 전환은 실패했어요: ' + r2.error.message, 6000);
+                    try { await supabaseClient.from('time_blocks').delete().eq('reason', `[커뮤니티] ${meeting0.title}`).eq('start_date', date); } catch (e) { /* ignore */ }
+                } else if (!res.ok) {
+                    await fetchCommunityMeetings(); renderCommunityDetail(id);
+                    return showToast('다른 내용은 저장됐지만 상시 모집 전환은 실패했어요. ' + (res.message || ''), 7000);
+                }
             }
+            await fetchCommunityMeetings();
             delete state.communityEditAuth[id];
             showToast('수정되었습니다.');
             renderCommunityDetail(id);

@@ -156,6 +156,7 @@ async function notifyOrganizer(env, m, decision) {
 //   app_auth    {meeting_id, pw}                → { token, exp } 모임장·마스터 비밀번호 확인 → 2시간 토큰
 //   app_list    {meeting_id, token}             → { rows } 전체 명단                               모임장
 //   app_status  {meeting_id, app_id, token, status}  /  app_delete {meeting_id, app_id, token}     모임장
+//   app_open_switch {meeting_id, token[, prev_title]} → { switched, blocks_removed } 날짜·시간 해지(상시 모집) + 시간표 차단 삭제  모임장
 const digits = (v) => String(v || '').replace(/\D/g, '');
 const enc = encodeURIComponent;
 const ORG_TOKEN_MS = 2 * 60 * 60 * 1000;
@@ -258,11 +259,32 @@ export async function handleApplications(env, body) {
         return [200, { ok: true, id: row && row.id }];
     }
     // 이하 모임장 전용
-    if (!['app_list', 'app_status', 'app_delete'].includes(action)) return [400, { ok: false, error: 'bad_action', message: '지원하지 않는 요청입니다.' }];
+    if (!['app_list', 'app_status', 'app_delete', 'app_open_switch'].includes(action)) return [400, { ok: false, error: 'bad_action', message: '지원하지 않는 요청입니다.' }];
     if (!(await verifyOrganizer(env, mid, body.token))) return [401, { ok: false, error: 'auth', message: '모임장 인증이 만료되었습니다. 비밀번호를 다시 입력해주세요.' }];
     if (action === 'app_list') {
         const rows = await rowsOf(await sbFetch(env, `community_applications?select=*&meeting_id=eq.${mid}&order=created_at.asc`));
         return rows === null ? [500, { ok: false, error: 'db', message: '명단을 불러오지 못했습니다.' }] : [200, { ok: true, rows }];
+    }
+    if (action === 'app_open_switch') {
+        // 날짜 지정 모임 → 상시 모집: 날짜·시간을 비우고, 그 모임이 잡아 둔 1회 시간표 차단을 지운다(DB 함수에 의존하지 않음)
+        const cur = await rowsOf(await sbFetch(env, `community_meetings?id=eq.${mid}&select=id,title,meeting_date`));
+        if (cur === null) return [500, { ok: false, error: 'db', message: '모임을 불러오지 못했습니다.' }];
+        if (!cur.length) return [404, { ok: false, error: 'not_found', message: '모임을 찾을 수 없습니다.' }];
+        const m = cur[0];
+        if (!m.meeting_date) return [200, { ok: true, already: true }];
+        const r = await sbFetch(env, `community_meetings?id=eq.${mid}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ meeting_date: null, meeting_time: null }) });
+        if (!r.ok) {
+            const t = await r.text().catch(() => '');
+            const nn = /23502|null value|not-null/i.test(t);
+            return [nn ? 409 : 500, { ok: false, error: nn ? 'not_null' : 'db', message: nn ? '날짜 칸이 필수로 묶여 있습니다. 관리자가 supabase/migrations/20261111_community_open_meetings.sql 을 실행해야 합니다.' : '전환하지 못했습니다.' }];
+        }
+        let block = 0;
+        const titles = [...new Set([m.title, body.prev_title].filter(x => typeof x === 'string' && x && x.length <= 200))];
+        for (const t of titles) {
+            const d = await sbFetch(env, `time_blocks?reason=eq.${enc('[커뮤니티] ' + t)}&start_date=eq.${enc(m.meeting_date)}&end_date=eq.${enc(m.meeting_date)}`, { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+            if (d.ok) block += ((await d.json().catch(() => [])) || []).length;
+        }
+        return [200, { ok: true, switched: true, blocks_removed: block }];
     }
     if (!isUuid(body.app_id)) return bad();
     const target = `community_applications?id=eq.${body.app_id}&meeting_id=eq.${mid}&select=id`; // 이 모임의 신청만

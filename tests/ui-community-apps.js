@@ -10,7 +10,7 @@ const MEETING = { id: CM, title: '주말 합주 클래스', meeting_date: '2026-
 const MEETING2 = { id: 'c2222222-2222-4222-8222-222222222222', title: '제목이 아주 길어서 두 줄로 넘어가는 초겨울 어쿠스틱 잼 세션 모임', meeting_date: '2026-11-28', meeting_time: '19:00 ~ 22:00', location: '', organizer_name: '이모임', fee: '10,000원', capacity: 0, description: '<p>잼 세션 <strong>안내</strong></p>' };
 const MEETING3 = { id: 'c3333333-3333-4333-8333-333333333333', title: '기타 소모임 상시 모집', meeting_date: null, meeting_time: null, location: '합주실', organizer_name: '박모임', fee: '무료', capacity: 20 };
 const FULL = [{ id: 'a1111111-1111-4111-8111-111111111111', meeting_id: CM, applicant_name: '박비밀', applicant_phone: '010-7777-8888', status: 'pending', form_data: { 세션: '드럼' }, created_at: '2026-11-05T00:00:00Z' }];
-const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[${JSON.stringify(MEETING)},${JSON.stringify(MEETING2)},${JSON.stringify(MEETING3)}]};
+const FAKE_SB = `(function(){ window.__sbCalls=[]; const T=window.__T={community_meetings:[${JSON.stringify(MEETING)},${JSON.stringify(MEETING2)},${JSON.stringify(MEETING3)}]};
  function builder(table){ const st={op:'select'}; const b={}; ['select','eq','neq','in','is','not','lt','gte','lte','gt','order','limit','range','maybeSingle','single'].forEach(k=>{b[k]=()=>b;}); ['insert','update','delete','upsert'].forEach(k=>{b[k]=()=>{st.op=k;return b;};});
   b.then=(res,rej)=>{ window.__sbCalls.push(table+':'+st.op); return Promise.resolve({data: st.op==='select'?(T[table]||[]):null,error:null}).then(res,rej); }; return b; }
  window.__fakeSb={from:builder,rpc:async(fn,args)=>{ (window.__rpc=window.__rpc||[]).push({fn,args}); if(fn==='community_update_meeting'&&args.p_patch.open_ended){ const m=T.community_meetings.find(x=>x.id===args.p_id); if(m){m.meeting_date=null;m.meeting_time=null;} } return {data:null,error:null}; },functions:{invoke:async(fn,o)=>({data:{ok: fn==='verify-meeting-password' && o.body.password==='right'},error:null})},
@@ -36,6 +36,7 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[
     if (b.action === 'app_cancel') return send(200, { ok: true, cancelled: true });
     if (b.action === 'app_auth') return b.pw === 'right' ? send(200, { ok: true, token: 'tok-1', exp: Date.now() + 7200e3 }) : send(403, { ok: false, message: '비밀번호가 틀렸습니다.' });
     if (b.action === 'app_list') return b.token === 'tok-1' ? send(200, { ok: true, rows: FULL }) : send(401, { ok: false, message: '모임장 인증이 만료되었습니다.' });
+    if (b.action === 'app_open_switch') return b.token === 'tok-1' ? send(200, { ok: true, switched: true, blocks_removed: 1 }) : send(401, { ok: false, message: '모임장 인증이 만료되었습니다.' });
     if (b.action === 'app_status' || b.action === 'app_delete') return send(200, { ok: true, changed: 1 });
     return send(400, { ok: false });
   });
@@ -117,14 +118,18 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[
   mode = '501';
   await p.evaluate((id) => { _cmApiDown = false; return renderCommunityDetail(id); }, CM); await p.waitForTimeout(800);
   chk('501 → 직접 조회 폴백', (await sb()).includes('community_applications:select') && await p.evaluate(() => _cmApiDown === true));
-  // 6. 날짜 지정 모임 → 상시 모집으로 전환(수정 화면)
-  mode = 'ok';
-  const sw = await p.evaluate(async (id) => { _cmApiDown = false; window.confirm = () => true; state.communityEditPw[id] = 'right'; state.communityEditAuth[id] = true; state.communityOrgTok[id] = 'tok-1'; state.communityEditView = id; state.communityEditTab = 'info'; await renderCommunityDetail(id);
-    const has = !!document.getElementById('ce_open'); document.getElementById('ce_open').checked = true; window.__rpc = []; window.__sbCalls.length = 0; await saveCommunityMeetingEdit(id);
+  // 6. 날짜 지정 모임 → 상시 모집으로 전환(수정 화면): 서버 함수(app_open_switch)가 처리, RPC·직접 수정엔 open_ended 를 보내지 않는다
+  mode = 'ok'; api.length = 0;
+  const sw = await p.evaluate(async (id) => { _cmApiDown = false; window.confirm = () => true; state.communityEditPw[id] = 'right'; state.communityEditAuth[id] = true; state.communityOrgTok[id] = 'expired'; state.communityEditView = id; state.communityEditTab = 'info'; await renderCommunityDetail(id);
+    state.communityEditAuth[id] = true; state.communityEditView = id; await renderCommunityDetail(id);
+    const has = !!document.getElementById('ce_open'); document.getElementById('ce_open').checked = true; window.__rpc = [];
+    const origFetch = window.fetch; window.fetch = async (u, o) => { const r = await origFetch(u, o); try { const b = JSON.parse(o && o.body || '{}'); if (b.action === 'app_open_switch' && r.status === 200) { const m = window.__T.community_meetings.find(x => x.id === id); m.meeting_date = null; m.meeting_time = null; } } catch (e) {} return r; };
+    await saveCommunityMeetingEdit(id); window.fetch = origFetch;
     const call = (window.__rpc || []).find(c => c.fn === 'community_update_meeting'); const m = state.communityMeetings.find(x => x.id === id);
     state.communityEditAuth[id] = true; state.communityEditView = id; await renderCommunityDetail(id);
-    return { has, open: call && call.args.p_patch.open_ended === true, noDateKey: call && !('meeting_date' in call.args.p_patch), date: m.meeting_date, time: m.meeting_time, blockDel: window.__sbCalls.includes('time_blocks:delete'), again: !!document.getElementById('ce_open'), dateBox: document.getElementById('ce_date')?.value }; }, CM);
-  chk('수정: 「상시 모집으로 전환」 체크 → 서버 함수에 open_ended 전달, 날짜·시간이 비고 시간표 차단 정리, 전환 뒤엔 체크 칸 없음', sw.has && sw.open && sw.noDateKey && sw.date === null && sw.time === null && sw.blockDel && !sw.again && sw.dateBox === '상시 모집', JSON.stringify(sw));
+    return { has, noOpenKey: call && !('open_ended' in call.args.p_patch), date: m.meeting_date, time: m.meeting_time, again: !!document.getElementById('ce_open'), dateBox: document.getElementById('ce_date')?.value }; }, CM);
+  const swCalls = api.filter(a => a.action === 'app_open_switch');
+  chk('수정: 「상시 모집으로 전환」 체크 → /community-admin app_open_switch(토큰 만료면 비밀번호로 다시 받아 재시도), 날짜·시간이 비고 전환 뒤엔 체크 칸 없음', sw.has && sw.noOpenKey && swCalls.length === 2 && swCalls[1].token === 'tok-1' && swCalls[1].prev_title === '주말 합주 클래스' && api.some(a => a.action === 'app_auth') && sw.date === null && sw.time === null && !sw.again && sw.dateBox === '상시 모집', JSON.stringify(sw) + ' ' + JSON.stringify(swCalls));
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
   await br.close();

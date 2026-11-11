@@ -161,6 +161,17 @@ const blockCall = () => calls.find(c => c.url.endsWith('/time_blocks') && c.meth
   r = await j(await run({ action: 'app_status', meeting_id: MID, app_id: APP().id, token, status: 'hacked' })); chk('app_status: 모르는 상태 400', r.status === 400);
   r = await j(await run({ action: 'app_delete', meeting_id: MID, app_id: APP().id, token })); chk('app_delete', r.changed === 1 && calls[calls.length - 1].method === 'DELETE');
   r = await j(await run({ action: 'app_delete', meeting_id: MID, app_id: APP().id })); chk('app_delete: 토큰 없으면 401', r.status === 401);
+  // 상시 모집 전환(app_open_switch)
+  const SW = (m, patch = { method: 'PATCH', body: {} }) => [[`community_meetings?id=eq.${MID}&select=id,title,meeting_date`, { method: 'GET', body: m ? [m] : [] }], [`community_meetings?id=eq.${MID}`, patch], ['time_blocks?reason=eq.', { method: 'DELETE', body: [{ id: 'b1' }] }]];
+  mockFetch(SW(MEETING()));
+  r = await j(await run({ action: 'app_open_switch', meeting_id: MID })); chk('app_open_switch: 토큰 없으면 401(아무것도 안 건드림)', r.status === 401 && calls.length === 0);
+  r = await j(await run({ action: 'app_open_switch', meeting_id: MID, token, prev_title: '옛 제목' }));
+  const swPatch = calls.find(c => c.method === 'PATCH'), swDel = calls.filter(c => c.method === 'DELETE').map(c => decodeURIComponent(c.url));
+  chk('app_open_switch: 날짜·시간을 null 로, 그 모임의 1회 차단(현재 제목·옛 제목, 그 날짜)만 삭제', r.ok && r.switched && r.blocks_removed === 2 && JSON.stringify(JSON.parse(swPatch.body)) === '{"meeting_date":null,"meeting_time":null}' && swDel.length === 2 && swDel[0].includes('reason=eq.[커뮤니티] 어쿠스틱 잼&start_date=eq.2026-10-20&end_date=eq.2026-10-20') && swDel[1].includes('[커뮤니티] 옛 제목'), swDel.join(' | '));
+  mockFetch(SW(MEETING({ meeting_date: null, meeting_time: null })));
+  r = await j(await run({ action: 'app_open_switch', meeting_id: MID, token })); chk('app_open_switch: 이미 상시 모집이면 그대로', r.ok && r.already && calls.length === 1);
+  mockFetch(SW(MEETING(), { method: 'PATCH', status: 400, body: { code: '23502', message: 'null value in column "meeting_date" violates not-null constraint' } }));
+  r = await j(await run({ action: 'app_open_switch', meeting_id: MID, token })); chk('app_open_switch: 날짜 칸이 필수면 409 + 마이그레이션 안내(차단은 안 지움)', r.status === 409 && r.error === 'not_null' && /20261111_community_open_meetings/.test(r.message) && !calls.some(c => c.method === 'DELETE'));
   r = await run({ action: 'app_public', meeting_id: MID }, ENV, 'https://evil.example'); chk('app_*: 다른 출처 403', r.status === 403);
 }
 
