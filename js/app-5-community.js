@@ -519,20 +519,7 @@
             if (!m.cover_image_url) return _cmPlaceholder(m.title);
             return `<img src="${escapeHtml(m.cover_image_url)}" alt="${escapeHtml(m.title)}" onerror="this.parentNode.innerHTML='<div class=\\'ph\\'>${jsStr(escapeHtml((m.title || '모')[0]))}</div>'">`;
         }
-        // 카드 썸네일을 왼쪽 글 상자와 위아래가 맞는 정방형으로(2026-10-13 요청) — 글 높이가 제목 줄 수·장소 유무·화면 폭에 따라 달라지므로 그린 뒤 재서 맞춘다.
-        // 썸네일을 키우면 글 상자가 좁아져 줄바꿈이 늘 수 있으니 안정될 때까지 최대 3번 반복. 화면 폭이 바뀌면 다시 맞춘다.
-        function _cmFitThumbs() {
-            document.querySelectorAll('#communityContent .cm-ev').forEach(ev => {
-                const th = ev.querySelector('.th'), bd = ev.querySelector('.bd'); if (!th || !bd) return;
-                for (let pass = 0; pass < 3; pass++) {
-                    const h = Math.round(bd.getBoundingClientRect().height); if (!h) break;
-                    if (Math.abs((parseFloat(th.style.width) || 0) - h) < 1) break;
-                    th.style.width = th.style.height = h + 'px';
-                }
-            });
-        }
-        let _cmFitTimer = null;
-        window.addEventListener('resize', () => { clearTimeout(_cmFitTimer); _cmFitTimer = setTimeout(_cmFitThumbs, 120); });
+        // 목록 카드 썸네일은 모든 카드가 같은 크기의 정방형(CSS `.cm-ev .th` 고정 px, 2026-11-11) — 글 높이에 맞추던 _cmFitThumbs 는 카드마다 크기가 달라져 없앰.
         function _cmEventCardHTML(m) {
             const closed = communityIsClosed(m);
             const isFree = communityIsFreeMeeting(m.fee);
@@ -712,8 +699,6 @@
 
             el.innerHTML = html;
             if (state.communityCreateOpen) { renderCommunityCreateFieldEditor(); initCommunityCal(); }
-            _cmFitThumbs();
-            if (document.fonts && document.fonts.ready) document.fonts.ready.then(_cmFitThumbs);
         }
 
         // 모임 등록 폼의 공간 시간표 달력 — 대관 달력 렌더러를 커뮤니티 컨텍스트로 구동

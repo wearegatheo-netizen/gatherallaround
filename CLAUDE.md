@@ -183,7 +183,7 @@
 - **커뮤니티(2026-10-13 개편, 시안 A·절제형 발전안)**: 머리는 앱 바 `#communityBar`(`.cm-bar`: 뒤로·제목·[신청 조회] 알약·SVG 모드 버튼 `themeToggleBtnCommunity` — `applyTheme` 가
   textContent 를 건드리면 안 됨) + 알약 탭 `communitySegHTML(tab)`(테스트 탭도 공용) + 한 줄 요약(`#communityVisitorCount` "오늘 N명 방문"). 앱 바는 목록·테스트 탭에서만,
   상세·신청 조회에선 `communityBarVisible(false)`. 목록은 **날짜별 타임라인**(`.cm-tl > .cm-grp > .cm-day + .cm-ev`, 루마 lu.ma 식) — 모집 중은 가까운 날짜순·D-day 칩,
-  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 글 상자 높이의 정방형.
+  지난 모임은 최근순·회색 점. 카드 `_cmEventCardHTML(m)`: 시간·모집중/마감/무료 칩·제목·모임장 이니셜·장소·정원·참여비, 썸네일은 고정 크기 정방형.
   **모임 공유는 경로형 `/meet/<id>`**(2026-10-27, `functions/meet/[id].js` = `/show/<id>` 와 같은 구조: 크롤러엔 대표 이미지·제목·일시·장소·참여비 OG, 사람에겐 루트 셸 + `<base href="/">` + `replaceState('/#community/meeting/<id>')`, pending/rejected 는 기본 OG) —
   인스타 프로필 링크·카톡 인앱이 `#community/meeting/<id>` 의 해시를 버려 포털에서 멈추던 문제. `shareCommunityMeeting` 이 이 경로를 공유하고 index.html 머리 스크립트가 `/meet/<id>` 정적 폴백도 해시로 치환. 테스트 `tests/meet-share-unit.mjs`.
   **신청 인원(N/정원)은 비공개**(`COMMUNITY_SHOW_APPLICANT_COUNT=false`, 모임장은 [신청자 관리]에서). [모임 만들기]는 떠 있는 `.cm-fab`(BGM 바 56px 위).
@@ -199,7 +199,7 @@
   테스트 탭(`communitySetTab('test')`)은 성향 테스트 2종만 — 리듬·멜로디 게임은 2026-10-13 삭제(`game_scores` 테이블만 남음).
   **신청폼 질문**(`form_fields` JSON, 2026-10-13 확장): `{label, type:text|textarea|select|multi|consent|note, required, placeholder, options[], limits{선택지:정원}, showIf{field:질문 label, value}, text}`.
   `note` = 입력칸 없는 안내문(답·필수·조건 없음, CSV·집계 제외). 신청 폼은 질문 번호 칩(안내문 제외)·머리글에 질문 수, 검증 오류는 알림창 대신 `cmFieldError()`(칸 빨간 테두리+문구+스크롤),
-  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 `_cmFitThumbs()` 가 **왼쪽 글 상자 높이의 정방형**으로 맞춘다(그린 뒤 측정, 최대 3회 반복, resize 때 재조정; CSS 기본 96px).
+  연락처는 `cmPhoneFmt` 자동 하이픈, 장문은 `cmGrow` 자동 늘어남, 선택한 체크 칸은 `:has(:checked)` 강조. 목록 카드 썸네일은 **모든 카드 같은 크기의 정방형**(CSS `.cm-ev .th` 96px, ≥768px 112px, 세로 가운데 — 2026-11-11; 글 상자 높이에 맞추던 `_cmFitThumbs` 는 카드마다 크기가 달라져 삭제).
   답변 `form_data[label]` = 문자열 / multi 배열 / consent `'동의'|''`; 조건으로 숨겨진 질문은 저장 안 함. 편집기는 만들기('cc')·수정('ce') 공용 `cmQEditorHTML(k)`
   (선택지는 행 단위 + 정원 칸, Enter 로 다음 선택지, ↑↓·복제·삭제, 표시 조건 = 다른 선택/동의 질문의 답). 저장 전 `cmCleanFields` + `cmFieldsProblem`(중복 질문명·선택지 없음 차단).
   신청 폼 `cmApplyFieldsHTML`: 정원 찬 선택지는 "(마감)" 비활성(`cmOptionCounts` 거절 제외), `cmApplyCond()` 로 조건 표시, 제출 직전 정원 재확인.
@@ -319,7 +319,7 @@
   `app_auth {meeting_id, pw}` → 모임장 토큰(HMAC, 모임 id 에 묶임·2시간; 비밀번호 확인은 RPC `community_can_edit` → Edge `verify-meeting-password` → `verify-community-admin` 순 = 화면 `checkCommunityOrganizer` 와 같은 순서) · `app_list` / `app_status {app_id, status}` / `app_delete {app_id}`(토큰 필수, `meeting_id=eq.` 로 이 모임 신청만).
   브라우저(`js/app-5-community.js`): `_cmApi(action, payload)`(404/405/501 이면 `_cmApiDown` → 종전 직접 조회 폴백)·`_cmOrgApi`(토큰 첨부, 401 이면 `communityEditAuth`·`communityOrgTok` 해제). `renderCommunityDetail` 은 인증된 모임장이면 `app_list`, 아니면 `app_public` — `state.communityCurrentAppList` 에 공개 방문자는 이름이 없다.
   `checkCommunityOrganizer` 성공 때 `app_auth` 로 `state.communityOrgTok[id]` 를 받는다. 마이그레이션 `20261110_community_applications_lockdown.sql`(정책 전부 삭제 + RLS, 정책 없음 = service role 만; 끝에 되돌리기) — **배포 확인 뒤 실행**. `/send-email` 은 service role 이라 무관.
-  테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(15).
+  테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(16).
 - **주인 없는 타임 신청 정리(2026-11-11, 「신청이 없는데 다른 팀 신청 중」)**: `bandDefStatus` 의 `wait` 는 pending `band_slot_claims` 가 있으면 뜨는데, `rejectBandProfile` 이 프로필만 rejected 로 바꾸고 신청은 pending 으로 남겼다(가입 화면은 anon 이라 팀 상태를 못 봄 → 자료를 고쳐야 함).
   이제 거절 때 그 팀의 pending 신청을 rejected 로 닫고, `renderBandAdminTab`(가입 신청·팀 관리 탭)이 **거절·탈퇴한 팀의 남은 pending 신청을 한 번에 rejected 로 정리**(토스트)한다. 테스트 `tests/ui-band-slots.js` 끝 절(100).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는

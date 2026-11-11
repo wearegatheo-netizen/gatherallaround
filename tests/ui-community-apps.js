@@ -7,8 +7,9 @@ const PORT = process.env.PORT || 8765;
 const CM = 'c1111111-1111-4111-8111-111111111111';
 const MEETING = { id: CM, title: '주말 합주 클래스', meeting_date: '2026-11-21', meeting_time: '14:00 ~ 17:00', location: '합주실', organizer_name: '김모임', organizer_phone: '010-1234-5678', organizer_email: 'a@b.kr', fee: '무료', capacity: 12, description: '설명', is_closed: false, status: 'active', created_at: '2026-11-01T00:00:00Z',
   form_fields: [{ label: '세션', type: 'select', required: true, options: ['기타', '드럼'], limits: { 드럼: 1 } }] };
+const MEETING2 = { id: 'c2222222-2222-4222-8222-222222222222', title: '제목이 아주 길어서 두 줄로 넘어가는 초겨울 어쿠스틱 잼 세션 모임', meeting_date: '2026-11-28', meeting_time: '19:00 ~ 22:00', location: '', organizer_name: '이모임', fee: '10,000원', capacity: 0 };
 const FULL = [{ id: 'a1111111-1111-4111-8111-111111111111', meeting_id: CM, applicant_name: '박비밀', applicant_phone: '010-7777-8888', status: 'pending', form_data: { 세션: '드럼' }, created_at: '2026-11-05T00:00:00Z' }];
-const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[${JSON.stringify(MEETING)}]};
+const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[${JSON.stringify(MEETING)},${JSON.stringify(MEETING2)}]};
  function builder(table){ const st={op:'select'}; const b={}; ['select','eq','neq','in','is','not','lt','gte','lte','gt','order','limit','range','maybeSingle','single'].forEach(k=>{b[k]=()=>b;}); ['insert','update','delete','upsert'].forEach(k=>{b[k]=()=>{st.op=k;return b;};});
   b.then=(res,rej)=>{ window.__sbCalls.push(table+':'+st.op); return Promise.resolve({data: st.op==='select'?(T[table]||[]):null,error:null}).then(res,rej); }; return b; }
  window.__fakeSb={from:builder,rpc:async()=>({data:null,error:null}),functions:{invoke:async(fn,o)=>({data:{ok: fn==='verify-meeting-password' && o.body.password==='right'},error:null})},
@@ -47,6 +48,9 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[
 
   // 1. 목록·상세: 인원 수와 요약만
   chk('목록: 신청 수는 app_counts', api.some(a => a.action === 'app_counts' && a.meeting_ids.includes(CM)) && (await sb()).length === 0);
+  await p.waitForSelector('#communityContent .cm-ev', { timeout: 5000 }).catch(() => {});
+  const th = await p.evaluate(() => [...document.querySelectorAll('#communityContent .cm-ev')].map(ev => { const r = ev.querySelector('.th').getBoundingClientRect(), b = ev.querySelector('.bd').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), bd: Math.round(b.height) }; }));
+  chk('목록: 썸네일은 카드마다 같은 크기의 정방형(글 높이와 무관)', th.length === 2 && th.every(t => t.w === th[0].w && t.h === t.w && t.w >= 88) && th[0].bd !== th[1].bd, JSON.stringify(th));
   await p.evaluate((id) => renderCommunityDetail(id), CM); await p.waitForTimeout(900);
   chk('상세: app_public 만 호출(직접 조회 없음)', api.some(a => a.action === 'app_public') && !api.some(a => a.action === 'app_list') && (await sb()).length === 0);
   chk('상세: 브라우저 상태에 이름·연락처 없음', await p.evaluate(() => !JSON.stringify(state.communityCurrentAppList).includes('010') && !JSON.stringify(state.communityCurrentAppList).includes('박비밀')));
