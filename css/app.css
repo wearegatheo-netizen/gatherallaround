@@ -1987,6 +1987,9 @@
         .cm-ev .mt svg { width:14px; height:14px; color:var(--wds-gray-500); flex:none; }
         .cm-ev .ft { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:8px; font-size:0.8rem; color:var(--wds-gray-600); }
         .cm-ev .ft b { color:var(--wds-black); font-size:0.86rem; }
+        .cm-copy-note { margin:0 0 10px; font-size:0.8rem; color:var(--wds-gray-500); line-height:1.5; }
+        .cm-copy-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .cm-copy-btns .gaa-btn { flex:1 1 auto; }
         .cm-open-toggle { display:flex; align-items:center; gap:10px; min-height:32px; cursor:pointer; font-size:0.92rem; color:var(--wds-black); }
         .cm-open-toggle input { width:20px; height:20px; margin:0; flex:none; accent-color:var(--wds-primary); }
         .cm-open-toggle span { line-height:1.45; } .cm-open-toggle b { font-weight:800; }

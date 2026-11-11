@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 8765;
 const CM = 'c1111111-1111-4111-8111-111111111111';
 const MEETING = { id: CM, title: '주말 합주 클래스', meeting_date: '2026-11-21', meeting_time: '14:00 ~ 17:00', location: '합주실', organizer_name: '김모임', organizer_phone: '010-1234-5678', organizer_email: 'a@b.kr', fee: '무료', capacity: 12, description: '설명', is_closed: false, status: 'active', created_at: '2026-11-01T00:00:00Z',
   form_fields: [{ label: '세션', type: 'select', required: true, options: ['기타', '드럼'], limits: { 드럼: 1 } }] };
-const MEETING2 = { id: 'c2222222-2222-4222-8222-222222222222', title: '제목이 아주 길어서 두 줄로 넘어가는 초겨울 어쿠스틱 잼 세션 모임', meeting_date: '2026-11-28', meeting_time: '19:00 ~ 22:00', location: '', organizer_name: '이모임', fee: '10,000원', capacity: 0 };
+const MEETING2 = { id: 'c2222222-2222-4222-8222-222222222222', title: '제목이 아주 길어서 두 줄로 넘어가는 초겨울 어쿠스틱 잼 세션 모임', meeting_date: '2026-11-28', meeting_time: '19:00 ~ 22:00', location: '', organizer_name: '이모임', fee: '10,000원', capacity: 0, description: '<p>잼 세션 <strong>안내</strong></p>' };
 const MEETING3 = { id: 'c3333333-3333-4333-8333-333333333333', title: '기타 소모임 상시 모집', meeting_date: null, meeting_time: null, location: '합주실', organizer_name: '박모임', fee: '무료', capacity: 20 };
 const FULL = [{ id: 'a1111111-1111-4111-8111-111111111111', meeting_id: CM, applicant_name: '박비밀', applicant_phone: '010-7777-8888', status: 'pending', form_data: { 세션: '드럼' }, created_at: '2026-11-05T00:00:00Z' }];
 const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[${JSON.stringify(MEETING)},${JSON.stringify(MEETING2)},${JSON.stringify(MEETING3)}]};
@@ -59,7 +59,22 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[
   await p.evaluate(() => { state.communityView = 'list'; _openCommunityCreate(); }); await p.waitForTimeout(900);
   const tg = await p.evaluate(async () => { const c = document.getElementById('cc_open'), w = document.getElementById('ccWhenWrap'); const before = !w.hidden; c.checked = true; ccOpenToggle(); const hid = w.hidden && !document.getElementById('ccOpenNote').hidden; document.getElementById('cc_title').value = '상시 테스트'; await submitCommunityCreate(); const toast = document.getElementById('auto-toast')?.textContent || ''; c.checked = false; ccOpenToggle(); await submitCommunityCreate(); const toast2 = document.getElementById('auto-toast')?.textContent || ''; return { before, hid, toast, toast2 }; });
   chk('만들기: 「상시 모집」 체크 → 달력·날짜·시간 칸 숨김, 날짜 검사를 건너뛰고 다음 필수(모임장 이름)로 / 체크 해제면 날짜 요구', tg.before && tg.hid && /모임장 이름/.test(tg.toast) && /모임 날짜/.test(tg.toast2), JSON.stringify(tg));
+  // 이전 모임에서 질문·설명글 복사 + 정원 없이 등록
+  const cp = await p.evaluate(async () => { window.confirm = () => true; const sel = document.getElementById('cc_copy_src'); const opts = [...sel.options].map(o => o.textContent);
+    ccCopyFrom('fields'); const t0 = document.getElementById('auto-toast')?.textContent || '';
+    sel.value = 'c1111111-1111-4111-8111-111111111111'; ccCopyFrom('fields'); const q = state.communityCreateFields.map(f => f.label + ':' + (f.options || []).join('/')); const shown = /세션/.test(document.getElementById('communityCreateFieldEditor').innerHTML + [...document.querySelectorAll('#communityCreateFieldEditor input')].map(i => i.value).join(' '));
+    const same = state.communityCreateFields === state.communityMeetings.find(m => m.id === sel.value).form_fields;
+    ccCopyFrom('desc'); const t1 = document.getElementById('cc_desc').textContent.trim();
+    sel.value = 'c2222222-2222-4222-8222-222222222222'; ccCopyFrom('desc'); const d = document.getElementById('cc_desc').innerHTML;
+    return { opts, t0, q, shown, same, t1, d }; });
+  chk('만들기: 「이전 모임에서 가져오기」 — 모임을 골라 질문 복사(사본)·설명글 복사(다른 모임을 고르면 바뀜), 안 고르면 안내', cp.opts.length >= 3 && /먼저 골라/.test(cp.t0) && cp.q.join() === '세션:기타/드럼' && cp.shown && !cp.same && cp.t1 === '설명' && /잼 세션/.test(cp.d) && /<strong>안내<\/strong>/.test(cp.d), JSON.stringify(cp).slice(0, 400));
+  const nc = await p.evaluate(async () => { const v = (id, x) => { document.getElementById(id).value = x; }; document.getElementById('cc_open').checked = true; ccOpenToggle();
+    v('cc_title', '정원 없는 상시 모임'); v('cc_org_name', '김모임'); v('cc_org_phone', '010-1234-5678'); v('cc_org_email', 'a@b.kr'); v('cc_pw', 'pw1'); v('cc_pw2', 'pw1'); v('cc_capacity', '');
+    window.__sbCalls.length = 0; await submitCommunityCreate(); const ok = window.__sbCalls.includes('community_meetings:insert'), blk = window.__sbCalls.includes('time_blocks:insert');
+    const card = [...document.querySelectorAll('#communityContent .cm-ev')].find(e => /기타 소모임 상시 모집/.test(e.textContent)); return { ok, blk, toast: document.getElementById('auto-toast')?.textContent || '', ph: null }; });
+  chk('만들기: 정원을 비워도 등록(상시 모집 — 시간표 차단 없음)', nc.ok && !nc.blk && !/정원/.test(nc.toast), JSON.stringify(nc));
   await p.evaluate(() => { state.communityCreateOpen = false; renderCommunityList(); }); await p.waitForTimeout(500);
+  chk('목록: 정원 없는 모임은 「정원 제한 없음」', await p.evaluate(() => /정원 제한 없음/.test([...document.querySelectorAll('#communityContent .cm-ev')].find(e => /어쿠스틱 잼/.test(e.textContent)).textContent)));
   await p.evaluate((id) => renderCommunityDetail(id), CM); await p.waitForTimeout(900);
   chk('상세: app_public 만 호출(직접 조회 없음)', api.some(a => a.action === 'app_public') && !api.some(a => a.action === 'app_list') && (await sb()).length === 0);
   chk('상세: 브라우저 상태에 이름·연락처 없음', await p.evaluate(() => !JSON.stringify(state.communityCurrentAppList).includes('010') && !JSON.stringify(state.communityCurrentAppList).includes('박비밀')));

@@ -525,7 +525,7 @@
             const isFree = communityIsFreeMeeting(m.fee);
             const cnt = state.communityApplicationCounts[m.id] || 0;
             const chips = (closed ? '<span class="cm-chip closed">마감</span>' : '<span class="cm-chip ok">모집중</span>') + (!closed && isFree ? ' <span class="cm-chip free">무료</span>' : '');
-            const people = m.capacity ? (COMMUNITY_SHOW_APPLICANT_COUNT ? `<b>${cnt}</b>/${m.capacity}명` : `정원 ${m.capacity}명`) : '';
+            const people = m.capacity ? (COMMUNITY_SHOW_APPLICANT_COUNT ? `<b>${cnt}</b>/${m.capacity}명` : `정원 ${m.capacity}명`) : '정원 제한 없음';
             return `<div class="cm-ev${closed ? ' closed' : ''}" role="button" tabindex="0" onclick="renderCommunityDetail('${m.id}')" onkeydown="if(event.key==='Enter'){renderCommunityDetail('${m.id}')}">
                 <div class="bd">
                     <div class="time">${m.meeting_time ? escapeHtml(m.meeting_time) : (m.meeting_date ? '' : '일정 협의')}${chips}</div>
@@ -564,6 +564,7 @@
                         <h2>새 모임 만들기</h2>
                         <p>모임을 만들고 참여자를 모집해보세요. <span class="gforms-required-note">* 표시는 필수 항목입니다.</span></p>
                     </div>
+                    ${ccCopyCardHTML()}
                     <div class="gforms-card">
                         <label class="gforms-label">모임명<span class="req">*</span></label>
                         <input type="text" id="cc_title" class="gforms-input" placeholder="모임 제목을 입력해주세요">
@@ -633,8 +634,8 @@
                     </div>
                     <div class="community-grid-2">
                         <div class="gforms-card">
-                            <label class="gforms-label">정원<span class="req">*</span></label>
-                            <input type="number" id="cc_capacity" class="gforms-input" placeholder="1 이상 필수" min="1" required>
+                            <label class="gforms-label">정원</label>
+                            <input type="number" id="cc_capacity" class="gforms-input" placeholder="비워두면 제한 없음" min="1">
                         </div>
                         <div class="gforms-card">
                             <label class="gforms-label">신청 마감일</label>
@@ -707,6 +708,47 @@
             if (state.communityCreateOpen) { renderCommunityCreateFieldEditor(); initCommunityCal(); }
         }
 
+        // 이전 모임에서 가져오기(2026-11-11): 만들기 폼에서 예전 모임을 골라 신청 질문·설명글을 그대로 복사한다(공개 목록에 있는 모임 — 지난 모임 포함, 최근 것부터)
+        function _ccCopySources() {
+            return (state.communityMeetings || []).filter(m => (Array.isArray(m.form_fields) && m.form_fields.length) || String(m.description || '').trim())
+                .sort((a, b) => String(b.created_at || b.meeting_date || '').localeCompare(String(a.created_at || a.meeting_date || '')));
+        }
+        function ccCopyCardHTML() {
+            const list = _ccCopySources(); if (!list.length) return '';
+            const opt = (m) => { const q = Array.isArray(m.form_fields) ? m.form_fields.filter(f => f && f.type !== 'note').length : 0;
+                return `<option value="${m.id}">${escapeHtml(m.title)} · ${m.meeting_date ? m.meeting_date.slice(2).replace(/-/g, '.') : '상시'}${q ? ` · 질문 ${q}개` : ''}</option>`; };
+            return `<div class="gforms-card cm-copy" id="ccCopyCard">
+                        <label class="gforms-label">이전 모임에서 가져오기</label>
+                        <p class="cm-copy-note">예전에 만든 모임의 신청 질문이나 설명글을 그대로 복사해요. 가져온 뒤 고쳐 쓸 수 있어요.</p>
+                        <select id="cc_copy_src" class="gforms-select"><option value="">모임 선택</option>${list.map(opt).join('')}</select>
+                        <div class="cm-copy-btns">
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="ccCopyFrom('fields')">질문 복사</button>
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="ccCopyFrom('desc')">설명글 복사</button>
+                            <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-secondary" onclick="ccCopyFrom('both')">둘 다</button>
+                        </div>
+                    </div>`;
+        }
+        function ccCopyFrom(kind) {
+            const id = document.getElementById('cc_copy_src')?.value;
+            const src = (state.communityMeetings || []).find(m => m.id === id);
+            if (!src) return showToast('가져올 모임을 먼저 골라주세요.');
+            const fields = Array.isArray(src.form_fields) ? src.form_fields : [];
+            const descHtml = String(src.description || '').trim() ? renderMarkdown(src.description) : '';
+            const wantF = kind !== 'desc', wantD = kind !== 'fields';
+            if (kind === 'fields' && !fields.length) return showToast('그 모임에는 추가 질문이 없어요.');
+            if (kind === 'desc' && !descHtml) return showToast('그 모임에는 설명글이 없어요.');
+            const ed = document.getElementById('cc_desc');
+            const hasF = wantF && fields.length && (state.communityCreateFields || []).some(f => String(f.label || '').trim());
+            const hasD = wantD && descHtml && ed && ed.textContent.trim();
+            if ((hasF || hasD) && !confirm(`지금 적어 둔 ${[hasF ? '질문' : '', hasD ? '설명글' : ''].filter(Boolean).join('·')}이 「${src.title}」의 내용으로 바뀝니다. 계속할까요?`)) return;
+            const done = [];
+            if (wantF && fields.length) { state.communityCreateFields = JSON.parse(JSON.stringify(fields)); renderCommunityCreateFieldEditor(); done.push(`질문 ${fields.length}개`); }
+            if (wantD && descHtml && ed) { ed.innerHTML = descHtml; done.push('설명글'); }
+            if (!done.length) return showToast('그 모임에는 가져올 질문·설명글이 없어요.');
+            showToast(`「${src.title}」에서 ${done.join('·')}을 가져왔어요.`);
+            const target = (wantD && descHtml && kind !== 'both') ? ed : document.getElementById('communityCreateFieldEditor');
+            if (target && target.scrollIntoView) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+        }
         // 상시 모집(2026-11-11): 날짜·시간 없이 등록 — 달력·날짜·시간 칸을 접는다(meeting_date/meeting_time null, time_blocks 없음)
         function ccOpenToggle() {
             const on = !!document.getElementById('cc_open')?.checked;
@@ -1031,7 +1073,7 @@
             if (!orgPhone) return showToast('모임장 연락처를 입력해주세요.');
             if (!orgEmail) return showToast('모임장 이메일을 입력해주세요.');
             if (!desc) return showToast('모임 설명을 입력해주세요.');
-            if (!capacity || parseInt(capacity) < 1) return showToast('정원은 1명 이상 필수입니다.');
+            if (capacity && !(parseInt(capacity) >= 1)) return showToast('정원은 1명 이상으로 적거나, 제한이 없으면 비워주세요.');
             if (deadline && date && deadline > date) return showToast('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
             if (!pw) return showToast('비밀번호는 필수입니다.');
             if (pw !== pw2) return showToast('비밀번호가 일치하지 않습니다.');
@@ -1307,7 +1349,7 @@
             <div class="community-grid-2">
                 <div class="gforms-card">
                     <label class="gforms-label">정원</label>
-                    <input type="number" id="ce_capacity" class="gforms-input" value="${meeting.capacity || ''}" min="1">
+                    <input type="number" id="ce_capacity" class="gforms-input" value="${meeting.capacity || ''}" min="1" placeholder="비워두면 제한 없음">
                 </div>
                 <div class="gforms-card">
                     <label class="gforms-label">신청 마감일</label>
