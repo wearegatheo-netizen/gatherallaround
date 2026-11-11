@@ -51,15 +51,15 @@
                     .slice(0, 3);
                 const cnt = (k) => rows.filter(r => r.st.kind === k).length;
                 const sub = document.getElementById('bandLandingPreviewSub');
-                if (sub) sub.textContent = `${_bandMDW(ctx.startDate)}부터 ${bandWishMonths()}개월 기준 · 바로 가능 ${cnt('ok')}개 · 건너뛰기 조건 ${cnt('skip')}개 · 실시간`;
+                if (sub) sub.textContent = `${_bandMDW(ctx.startDate)} 시작 · ${bandWishMonths()}개월 기준 · 바로 가능 ${cnt('ok')}개`;
                 const list = document.getElementById('bandLandingPreviewList');
                 const chip = { ok: ['status-approved', '가능'], skip: ['status-pending', '조건부'], later: ['status-info', '개방 예정'] };
-                const line = (r) => r.st.kind === 'ok' ? '바로 가능'
-                    : r.st.kind === 'skip' ? `${r.st.skips.length}주 건너뛰기 조건 (${r.st.skips.slice(0, 2).map(x => bandMD(x.date)).join(' · ')}${r.st.skips.length > 2 ? ' …' : ''})`
+                const line = (r) => r.st.kind === 'ok' ? ''
+                    : r.st.kind === 'skip' ? `${r.st.skips.length}주 건너뛰기 조건 · ${bandMD(r.st.skips[0].date)}${r.st.skips.length > 1 ? ' 외' : ''}`
                     : `${bandMD(r.st.from)}부터 개방`;
                 if (list) list.innerHTML = top.length ? top.map(r => `<button type="button" class="band-hero-row" onclick="showBandScheduleView()">
                         <span class="dow${r.def.day_of_week === 6 ? ' sat' : r.def.day_of_week === 0 ? ' sun' : ''}">${BAND_DOW[r.def.day_of_week]}</span>
-                        <span class="tx"><b>${_bandRangeText(r.def.start_time, r.def.end_time)} <em>${escHtml(r.def.label || _bandLabelOf(r.def.start_time))}</em></b><small>${escHtml(line(r))}</small></span>
+                        <span class="tx"><b>${_bandRangeText(r.def.start_time, r.def.end_time)} <em>${escHtml(r.def.label || _bandLabelOf(r.def.start_time))}</em></b>${line(r) ? `<small>${escHtml(line(r))}</small>` : ''}</span>
                         <span class="status-badge sm ${chip[r.st.kind][0]}">${chip[r.st.kind][1]}</span></button>`).join('')
                     : _bandEmptyHTML('지금은 바로 신청할 수 있는 타임이 없어요. 전체 표에서 대기 중인 타임을 확인해보세요.');
                 box.hidden = false;

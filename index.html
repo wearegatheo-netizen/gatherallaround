@@ -69,7 +69,7 @@
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="/vendor/marked/marked.v18.2.0.umd.js"></script>
     <script src="/vendor/dompurify/purify.v3.4.17.min.js"></script>
-    <link rel="stylesheet" href="/css/app.css?v=52df6c40">
+    <link rel="stylesheet" href="/css/app.css?v=724c6fe9">
 </head>
 <body class="portal-view">
     <!-- 부팅 로딩 스크린 — JS 가 돌기 전 첫 페인트부터 화면을 덮는다(포털이 먼저 보였다가 가려지는 깜빡임 방지).
@@ -345,7 +345,7 @@
         <div id="band-email-section">
             <!-- 첫 화면: 시간표 보기 / 가입 신청 / 로그인 3가지 (2026-11-05, 가입 전에 일정부터) -->
             <div id="band-menu" class="band-menu">
-                <!-- 랜딩 히어로(2026-11-08 시안): 헤드라인 → CTA 2개 → 사실 타일 3 → 지금 신청할 수 있는 타임(실시간, bandLandingPreview) → 문의 -->
+                <!-- 랜딩 히어로(2026-11-08 시안, 11-11 정돈): 헤드라인 → CTA 2개(세로) → 사실 띠 3칸 → 지금 신청할 수 있는 타임(실시간, bandLandingPreview) → 문의 -->
                 <div class="band-hero">
                     <div class="band-sv-eyebrow">고정 합주팀</div>
                     <h2 class="band-hero-title">매주 같은 시간,<br>우리 팀 합주실</h2>
@@ -356,9 +356,9 @@
                     </div>
                 </div>
                 <div class="band-hero-facts" id="bandHeroFacts">
-                    <div><span class="ic">🕗</span><small>운영 시간</small><b id="bandHeroHours">08:00~23:00</b></div>
-                    <div><span class="ic">🔁</span><small>회차</small><b>4주 단위 · 입금은 3주차</b></div>
-                    <div><span class="ic">🗄️</span><small>캐비넷</small><b id="bandHeroCabinet">6개월 이상 무료</b></div>
+                    <div><b id="bandHeroHours">08:00~23:00</b><small>운영 시간</small></div>
+                    <div><b>4주 단위</b><small>회차 · 입금 3주차</small></div>
+                    <div><b id="bandHeroCabinet">6개월 이상 무료</b><small>캐비넷</small></div>
                 </div>
                 <div class="band-hero-sec" id="bandLandingPreview" hidden>
                     <div class="band-hero-sec-head"><b>지금 신청할 수 있는 타임</b><button type="button" class="gaa-btn gaa-btn-xs gaa-btn-ghost" onclick="showBandScheduleView()">전체 표 보기 ›</button></div>
@@ -877,7 +877,7 @@
     <script src="/js/app-3-admin.js?v=683ad225"></script>
     <script src="/js/app-4-perf.js?v=46f5ec15"></script>
     <script src="/js/app-5-community.js?v=cc6bf8f9"></script>
-    <script src="/js/app-6-band.js?v=d5d5fc34"></script>
+    <script src="/js/app-6-band.js?v=51c3f14f"></script>
     <script src="/js/app-7-members.js?v=6a8cd3a4"></script>
     <script src="/js/app-8-shows.js?v=1a954365"></script>
 
