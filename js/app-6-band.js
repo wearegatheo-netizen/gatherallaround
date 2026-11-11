@@ -394,7 +394,17 @@
             // 타임 신청(가입 신청·승인 팀)·시간 띠 — 가입 승인 폼과 팀 카드가 쓴다
             const allIds = teams.map(t => t.id);
             const [claimsAll, defs] = await Promise.all([fetchBandSlotClaims(allIds), fetchBandSlotDefs()]);
-            const claimsMap = {}; claimsAll.forEach(c => { (claimsMap[c.profile_id] = claimsMap[c.profile_id] || []).push(c); });
+            // 주인 없는 대기 신청 정리(2026-11-11): 거절·탈퇴한 팀의 pending 타임 신청이 남아 있으면 rejected 로 닫는다
+            // — 예전에 거절한 팀의 신청이 남아 가입 화면에 「다른 팀 신청 중」으로 보이던 것. 운영 계정이 이 탭을 열 때 한 번에 정리된다.
+            const statusOf = {}; teams.forEach(t => { statusOf[t.id] = t.status; });
+            const stale = claimsAll.filter(c => c.status === 'pending' && statusOf[c.profile_id] === 'rejected');
+            if (stale.length && isBandAdmin()) {
+                try {
+                    const { error: stErr } = await supabaseClient.from('band_slot_claims').update({ status: 'rejected' }).in('id', stale.map(c => c.id));
+                    if (!stErr) { stale.forEach(c => { c.status = 'rejected'; }); showToast(`거절·탈퇴한 팀의 남은 타임 신청 ${stale.length}건을 정리했습니다.`, 4500); }
+                } catch (e) { console.error('band stale claims:', e); }
+            }
+            const claimsMap = {}; claimsAll.filter(c => c.status !== 'rejected').forEach(c => { (claimsMap[c.profile_id] = claimsMap[c.profile_id] || []).push(c); });
             state.bandAdminCache = { ...(state.bandAdminCache || {}), teams, claimsMap, defs, pinsMap: await fetchBandPins(allIds) };
             if (tab === 'pending') {
                 const pending = teams.filter(t => t.status === 'pending');
@@ -1956,6 +1966,8 @@
             const { error } = await supabaseClient.from('profiles').update({ status: 'rejected' }).eq('id', id);
             _bandBusy(btn, false);
             if (error) { console.error('band reject error:', error); showToast('처리하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+            // 거절한 팀의 타임 신청도 닫는다 — 대기(pending)로 남으면 가입 화면 시간표에 계속 「다른 팀 신청 중」으로 보인다(2026-11-11)
+            try { await supabaseClient.from('band_slot_claims').update({ status: 'rejected' }).eq('profile_id', id).eq('status', 'pending'); } catch (e) { console.error('band reject claims:', e); }
             showToast('가입 신청을 거절했습니다.');
             _bandSendSms(id, 'reject', { delay: 1500 }).catch(() => {});
             renderBandAdminTab();

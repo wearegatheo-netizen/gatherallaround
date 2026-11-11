@@ -320,6 +320,8 @@
   브라우저(`js/app-5-community.js`): `_cmApi(action, payload)`(404/405/501 이면 `_cmApiDown` → 종전 직접 조회 폴백)·`_cmOrgApi`(토큰 첨부, 401 이면 `communityEditAuth`·`communityOrgTok` 해제). `renderCommunityDetail` 은 인증된 모임장이면 `app_list`, 아니면 `app_public` — `state.communityCurrentAppList` 에 공개 방문자는 이름이 없다.
   `checkCommunityOrganizer` 성공 때 `app_auth` 로 `state.communityOrgTok[id]` 를 받는다. 마이그레이션 `20261110_community_applications_lockdown.sql`(정책 전부 삭제 + RLS, 정책 없음 = service role 만; 끝에 되돌리기) — **배포 확인 뒤 실행**. `/send-email` 은 service role 이라 무관.
   테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(15).
+- **주인 없는 타임 신청 정리(2026-11-11, 「신청이 없는데 다른 팀 신청 중」)**: `bandDefStatus` 의 `wait` 는 pending `band_slot_claims` 가 있으면 뜨는데, `rejectBandProfile` 이 프로필만 rejected 로 바꾸고 신청은 pending 으로 남겼다(가입 화면은 anon 이라 팀 상태를 못 봄 → 자료를 고쳐야 함).
+  이제 거절 때 그 팀의 pending 신청을 rejected 로 닫고, `renderBandAdminTab`(가입 신청·팀 관리 탭)이 **거절·탈퇴한 팀의 남은 pending 신청을 한 번에 rejected 로 정리**(토스트)한다. 테스트 `tests/ui-band-slots.js` 끝 절(100).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

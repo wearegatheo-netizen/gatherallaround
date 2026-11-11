@@ -390,6 +390,19 @@ const FAKE_SB = `
   const teamPush = await p.evaluate(() => (window.__fetchCalls || []).filter(c => c.url === '/notify-admins').map(c => JSON.parse(c.body)).find(b => b.title.includes('대체 합주 요청')));
   chk('요청 저장: band_skips(team · 팀 요청 · substitute 12/5 14~19시) + 1회 차단 [고정팀 대체] 벤더 12/5 14:00~18:00 + 반복 차단 skip_dates 에 12/4 + 운영자 푸시 + 확인창', dialogs.length === nTeam + 1 && !!teamSkip && teamSkip.reason === '팀 요청' && teamSkip.resolution === 'substitute' && teamSkip.substitute_date === '2026-12-05' && teamSkip.substitute_end === '19:00' && teamSkip.skip_date === '2026-12-04' && !!teamBlk && teamBlk.reason === '[고정팀 대체] 벤더' && teamBlk.end_time === '18:00' && teamSkipDates.includes('2026-12-04') && !!teamPush && teamPush.body.includes('12/4(금)') && teamPush.body.includes('12/5(토)'), JSON.stringify([teamSkip, teamBlk, teamSkipDates, teamPush]));
   chk('사용 뒤: 「사용함」 칩 + 12/4 대신 12/5 안내, 버튼 없음 · 다시 요청하면 토스트만(저장 없음)', await p.evaluate(async () => { const r = document.getElementById('bandTeamSubRow'); const n = window.__sbCalls.filter(c => c.op !== 'select').length; await bandTeamSubSheet(); return !!r && r.textContent.includes('사용함') && r.textContent.includes('12/4(금) 대신 12/5(토)') && !r.querySelector('button') && window.__sbCalls.filter(c => c.op !== 'select').length === n && !document.getElementById('gtSheet'); }));
+  // ── 거절한 팀의 타임 신청이 「다른 팀 신청 중」으로 남던 버그(2026-11-11)
+  await p.evaluate((admin) => {
+    window.__T.profiles.push({ id: 'gone-team', member_type: 'band', status: 'rejected', band_name_kr: '거절팀', leader_name: '박거절', created_at: '2026-11-01T00:00:00Z' });
+    window.__T.band_slot_claims.push({ id: 'cl-gone', profile_id: 'gone-team', day_of_week: 1, start_time: '10:00', end_time: '18:00', start_date: '2026-11-16', end_date: null, status: 'pending', block_id: null, created_at: '2026-11-01T00:00:00Z' });
+    window.__T.profiles.push({ id: 'ask-team', member_type: 'band', status: 'pending', band_name_kr: '신청팀', leader_name: '이신청', created_at: '2026-11-08T00:00:00Z' });
+    window.__T.band_slot_claims.push({ id: 'cl-ask', profile_id: 'ask-team', day_of_week: 4, start_time: '10:00', end_time: '18:00', start_date: '2026-11-19', end_date: null, status: 'pending', block_id: null, created_at: '2026-11-08T00:00:00Z' });
+    state.bandProfile = admin; loginBandUI(admin);
+  }, TABLES.profiles[0]);
+  await p.waitForTimeout(900);
+  await p.evaluate(() => { state.bandAdminTab = 'pending'; return renderBandAdminTab(); }); await p.waitForTimeout(900);
+  chk('관리 탭을 열면 거절한 팀의 남은 대기 신청이 정리됨(신청 중인 팀 것은 그대로)', await p.evaluate(() => window.__T.band_slot_claims.find(c => c.id === 'cl-gone').status === 'rejected' && window.__T.band_slot_claims.find(c => c.id === 'cl-ask').status === 'pending'));
+  await p.evaluate(() => rejectBandProfile('ask-team', null)); await p.waitForTimeout(900);
+  chk('가입 거절 → 그 팀의 타임 신청도 rejected', await p.evaluate(() => window.__T.profiles.find(x => x.id === 'ask-team').status === 'rejected' && window.__T.band_slot_claims.find(c => c.id === 'cl-ask').status === 'rejected'));
   chk('페이지 오류 없음', errs.length === 0, errs.join(' | ').slice(0, 300));
 
   await br.close();
