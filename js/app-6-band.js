@@ -27,7 +27,7 @@
         }
         // 랜딩 사실 타일·바닥 연락처 — 숫자는 상수에서(TIMES·BAND_CABINET_FREE_MONTHS·PORTAL_PHONE·PORTAL_INSTAGRAM_URL)
         function bandLandingFacts() {
-            const h = document.getElementById('bandHeroHours'); if (h) h.textContent = `${TIMES[0]}~${String(parseInt(TIMES[TIMES.length - 1], 10) + 1).padStart(2, '0')}:00`;
+            const h = document.getElementById('bandHeroHours'); if (h) h.textContent = `${BAND_OPEN_TIME}~${String(parseInt(TIMES[TIMES.length - 1], 10) + 1).padStart(2, '0')}:00`;
             const c = document.getElementById('bandHeroCabinet'); if (c && typeof BAND_CABINET_FREE_MONTHS !== 'undefined') c.textContent = `${BAND_CABINET_FREE_MONTHS}개월 이상 무료`;
             const f = document.getElementById('bandHeroFoot');
             if (f) f.innerHTML = `<span>문의 <a href="tel:${escAttr(PORTAL_PHONE.replace(/-/g, ''))}">${escHtml(PORTAL_PHONE)}</a></span>${PORTAL_INSTAGRAM_URL ? `<a href="${escAttr(PORTAL_INSTAGRAM_URL)}" target="_blank" rel="noopener">@${escHtml(PORTAL_INSTAGRAM_URL.replace(/\/+$/, '').split('/').pop())}</a>` : ''}`;
@@ -71,7 +71,7 @@
             const ul = (...items) => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
             const ol = (...items) => `<ol>${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
             const note = (t) => `<div class="band-guide-note">${t}</div>`;
-            const first = TIMES[0], last = TIMES[TIMES.length - 1];
+            const first = BAND_OPEN_TIME, last = TIMES[TIMES.length - 1];
             const closeH = parseInt(last, 10) + 1;
             return `
                 <div class="band-guide-head"><div class="band-guide-eyebrow">고정 합주팀</div><h2>운영 안내</h2><p>가입부터 회차·이용료, 캐비넷, 건너뛰기권까지 고정팀이 알아야 할 규칙을 모았어요. 문자와 화면 안내도 모두 이 규칙을 따릅니다.</p></div>
@@ -711,6 +711,7 @@
         const BAND_AVAIL_DAYS = 182;          // 가용성·건너뛰기 계산 범위(시작일부터 26주)
         const BAND_HARD_BLOCK_DAYS = 56;      // 이보다 오래 남은 반복 차단은 "사용 중"(건너뛰기 아님)
         const BAND_SKIP_DEADLINE_DAYS = GAA_RULES.BAND_SKIP_DEADLINE_DAYS; // 보상 선택 마감 = 건너뛰는 날 − 7일
+        const BAND_OPEN_TIME = '09:00';       // 고정 합주팀 안내용 운영 시작 시각(2026-11-11) — 예약 그리드 TIMES(08:00~)와 별개, 랜딩 사실 띠·운영 안내 문구만
         const BAND_SUB_RANGE_DAYS = 7;        // 대체 합주 범위 = 건너뛰는 날 앞뒤 1주일 [−7, +7] (2026-11-05, 종전 −7~전날)
         const BAND_TEAM_SUB_MIN_DAYS = 3;     // 팀이 직접 요청하는 대체 합주(이용 기간 중 1회, 2026-11-07): 건너뛸 날 3일 전까지 요청
         const _bandH = (t) => parseInt(String(t || '0'), 10);
