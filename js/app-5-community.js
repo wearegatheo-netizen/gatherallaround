@@ -1254,7 +1254,7 @@
             </div>`;
             let html = `<div class="gforms-header">
                 <h2>모임 수정</h2>
-                <p>모임 정보를 수정하세요. <span style="color:var(--wds-gray-500);">날짜·시간은 변경할 수 없습니다.</span></p>
+                <p>모임 정보를 수정하세요. <span style="color:var(--wds-gray-500);">날짜·시간은 바꿀 수 없고, 상시 모집으로 전환만 할 수 있어요.</span></p>
             </div>${tabBar}`;
 
             if (tab === 'info') {
@@ -1272,6 +1272,10 @@
                     <input type="text" id="ce_time" class="gforms-input" value="${escapeHtml(meeting.meeting_time || (meeting.meeting_date ? '' : '일정 협의'))}" disabled>
                 </div>
             </div>
+            ${meeting.meeting_date ? `<div class="gforms-card">
+                <label class="cm-open-toggle"><input type="checkbox" id="ce_open"> <span><b>상시 모집으로 전환</b> — 날짜·시간 지정을 해지해요</span></label>
+                <p style="margin:8px 0 0;font-size:0.8rem;color:var(--wds-gray-500);line-height:1.5">저장하면 이 모임이 잡아 둔 공간 시간표(${escapeHtml(meeting.meeting_date.replace(/-/g, '.'))} ${escapeHtml(meeting.meeting_time || '')})도 함께 풀리고, 다시 날짜를 지정할 수는 없어요. 기존 신청자는 그대로 유지됩니다.</p>
+            </div>` : ''}
             <div class="community-grid-2">
                 <div class="gforms-card">
                     <label class="gforms-label">모임장 이름<span class="req">*</span></label>
@@ -1556,7 +1560,9 @@
 
             if (!title) return showToast('모임명을 입력해주세요.');
             if (document.getElementById('ce_capacity')?.value && parseInt(document.getElementById('ce_capacity').value) < 1) return showToast('정원은 1명 이상이어야 합니다.');
-            if (deadline && date && deadline > date) return showToast('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
+            const toOpen = !!date && !!document.getElementById('ce_open')?.checked; // 상시 모집으로 전환(날짜·시간 해지)
+            if (!toOpen && deadline && date && deadline > date) return showToast('신청 마감일은 모임 날짜보다 늦을 수 없습니다.');
+            if (toOpen && !confirm(`이 모임을 상시 모집으로 바꿀까요?\n\n${date.replace(/-/g, '.')} ${time || ''} 지정이 해지되고 공간 시간표에서도 빠집니다. 다시 날짜를 지정할 수는 없어요.`)) return;
 
             const meeting = state.communityMeetings.find(m => m.id === id);
             let coverImageUrl = meeting.cover_image_url;
@@ -1576,10 +1582,17 @@
                 application_deadline: deadline || null,
                 description: desc || null,
             };
+            if (toOpen) { payload.open_ended = true; delete payload.meeting_date; delete payload.meeting_time; } // 서버 함수(community_update_meeting)가 날짜·시간을 비우고 시간표 차단을 지운다
 
             const { error } = await communityUpdate(id, payload);
-            if (error) return showToast('수정 실패: ' + error.message);
+            if (error) return showToast((toOpen && /open_ended/.test(String(error.message || '')) ? '상시 모집 전환은 관리자가 supabase/migrations/20261111_community_open_switch.sql 을 실행해야 합니다. ' : '') + '수정 실패: ' + error.message, 6000);
             await fetchCommunityMeetings();
+            if (toOpen) {
+                const after = state.communityMeetings.find(m => m.id === id);
+                if (after && after.meeting_date) { showToast('다른 내용은 저장됐지만 상시 모집 전환은 안 됐어요. 관리자가 supabase/migrations/20261111_community_open_switch.sql 을 실행해야 합니다.', 7000); renderCommunityDetail(id); return; }
+                // 서버 함수가 못 지웠을 때를 대비해 한 번 더(실패해도 무시)
+                try { await supabaseClient.from('time_blocks').delete().eq('reason', `[커뮤니티] ${meeting0.title}`).eq('start_date', date); } catch (e) { /* ignore */ }
+            }
             delete state.communityEditAuth[id];
             showToast('수정되었습니다.');
             renderCommunityDetail(id);

@@ -13,7 +13,7 @@ const FULL = [{ id: 'a1111111-1111-4111-8111-111111111111', meeting_id: CM, appl
 const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[${JSON.stringify(MEETING)},${JSON.stringify(MEETING2)},${JSON.stringify(MEETING3)}]};
  function builder(table){ const st={op:'select'}; const b={}; ['select','eq','neq','in','is','not','lt','gte','lte','gt','order','limit','range','maybeSingle','single'].forEach(k=>{b[k]=()=>b;}); ['insert','update','delete','upsert'].forEach(k=>{b[k]=()=>{st.op=k;return b;};});
   b.then=(res,rej)=>{ window.__sbCalls.push(table+':'+st.op); return Promise.resolve({data: st.op==='select'?(T[table]||[]):null,error:null}).then(res,rej); }; return b; }
- window.__fakeSb={from:builder,rpc:async()=>({data:null,error:null}),functions:{invoke:async(fn,o)=>({data:{ok: fn==='verify-meeting-password' && o.body.password==='right'},error:null})},
+ window.__fakeSb={from:builder,rpc:async(fn,args)=>{ (window.__rpc=window.__rpc||[]).push({fn,args}); if(fn==='community_update_meeting'&&args.p_patch.open_ended){ const m=T.community_meetings.find(x=>x.id===args.p_id); if(m){m.meeting_date=null;m.meeting_time=null;} } return {data:null,error:null}; },functions:{invoke:async(fn,o)=>({data:{ok: fn==='verify-meeting-password' && o.body.password==='right'},error:null})},
   auth:{signOut:async()=>({}),getSession:async()=>({data:{session:null}}),getUser:async()=>({data:{user:null}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},channel:()=>({on(){return this;},subscribe(){return this;}}),removeChannel:()=>{}}; })();`;
 
 (async () => {
@@ -102,6 +102,14 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T={community_meetings:[
   mode = '501';
   await p.evaluate((id) => { _cmApiDown = false; return renderCommunityDetail(id); }, CM); await p.waitForTimeout(800);
   chk('501 → 직접 조회 폴백', (await sb()).includes('community_applications:select') && await p.evaluate(() => _cmApiDown === true));
+  // 6. 날짜 지정 모임 → 상시 모집으로 전환(수정 화면)
+  mode = 'ok';
+  const sw = await p.evaluate(async (id) => { _cmApiDown = false; window.confirm = () => true; state.communityEditPw[id] = 'right'; state.communityEditAuth[id] = true; state.communityOrgTok[id] = 'tok-1'; state.communityEditView = id; state.communityEditTab = 'info'; await renderCommunityDetail(id);
+    const has = !!document.getElementById('ce_open'); document.getElementById('ce_open').checked = true; window.__rpc = []; window.__sbCalls.length = 0; await saveCommunityMeetingEdit(id);
+    const call = (window.__rpc || []).find(c => c.fn === 'community_update_meeting'); const m = state.communityMeetings.find(x => x.id === id);
+    state.communityEditAuth[id] = true; state.communityEditView = id; await renderCommunityDetail(id);
+    return { has, open: call && call.args.p_patch.open_ended === true, noDateKey: call && !('meeting_date' in call.args.p_patch), date: m.meeting_date, time: m.meeting_time, blockDel: window.__sbCalls.includes('time_blocks:delete'), again: !!document.getElementById('ce_open'), dateBox: document.getElementById('ce_date')?.value }; }, CM);
+  chk('수정: 「상시 모집으로 전환」 체크 → 서버 함수에 open_ended 전달, 날짜·시간이 비고 시간표 차단 정리, 전환 뒤엔 체크 칸 없음', sw.has && sw.open && sw.noDateKey && sw.date === null && sw.time === null && sw.blockDel && !sw.again && sw.dateBox === '상시 모집', JSON.stringify(sw));
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
   await br.close();
