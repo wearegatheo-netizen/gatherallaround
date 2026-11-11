@@ -1987,6 +1987,9 @@
         .cm-ev .mt svg { width:14px; height:14px; color:var(--wds-gray-500); flex:none; }
         .cm-ev .ft { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:8px; font-size:0.8rem; color:var(--wds-gray-600); }
         .cm-ev .ft b { color:var(--wds-black); font-size:0.86rem; }
+        .cm-open-toggle { display:flex; align-items:center; gap:10px; min-height:32px; cursor:pointer; font-size:0.92rem; color:var(--wds-black); }
+        .cm-open-toggle input { width:20px; height:20px; margin:0; flex:none; accent-color:var(--wds-primary); }
+        .cm-open-toggle span { line-height:1.45; } .cm-open-toggle b { font-weight:800; }
         .cm-ev .th { width:96px; height:96px; border-radius:12px; overflow:hidden; background:var(--wds-gray-100); flex:none; align-self:center; } /* 모든 카드 같은 크기(정방형 고정) — 글 높이와 무관 */
         .cm-ev .th img { width:100%; height:100%; object-fit:cover; display:block; }
         .cm-ev .th .ph, .cm-cover .ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:'KkuBulLim',sans-serif; font-size:1.6rem; color:#fff; background:linear-gradient(135deg,#6B8CFF,#3366FF); }

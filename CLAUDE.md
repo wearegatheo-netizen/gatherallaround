@@ -321,7 +321,9 @@
   `app_auth {meeting_id, pw}` → 모임장 토큰(HMAC, 모임 id 에 묶임·2시간; 비밀번호 확인은 RPC `community_can_edit` → Edge `verify-meeting-password` → `verify-community-admin` 순 = 화면 `checkCommunityOrganizer` 와 같은 순서) · `app_list` / `app_status {app_id, status}` / `app_delete {app_id}`(토큰 필수, `meeting_id=eq.` 로 이 모임 신청만).
   브라우저(`js/app-5-community.js`): `_cmApi(action, payload)`(404/405/501 이면 `_cmApiDown` → 종전 직접 조회 폴백)·`_cmOrgApi`(토큰 첨부, 401 이면 `communityEditAuth`·`communityOrgTok` 해제). `renderCommunityDetail` 은 인증된 모임장이면 `app_list`, 아니면 `app_public` — `state.communityCurrentAppList` 에 공개 방문자는 이름이 없다.
   `checkCommunityOrganizer` 성공 때 `app_auth` 로 `state.communityOrgTok[id]` 를 받는다. 마이그레이션 `20261110_community_applications_lockdown.sql`(정책 전부 삭제 + RLS, 정책 없음 = service role 만; 끝에 되돌리기) — **배포 확인 뒤 실행**. `/send-email` 은 service role 이라 무관.
-  테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(16).
+  테스트 `tests/community-admin-unit.mjs`(41, 7절)·`tests/ui-community-apps.js`(19).
+- **커뮤니티 상시 모집(2026-11-11, 마이그레이션 `20261111_community_open_meetings.sql` — meeting_date/meeting_time NOT NULL 해제)**: 만들기 폼 맨 위 체크 `#cc_open`(`ccOpenToggle()` 이 달력·날짜·시간 묶음 `#ccWhenWrap` 을 숨김) → `submitCommunityCreate` 가 날짜·시간 검사·충돌 검사·`time_blocks` insert 를 건너뛰고 `meeting_date:null, meeting_time:null, status:'active'` 로 저장(NOT NULL 오류 23502 면 마이그레이션 안내 토스트).
+  표시: 목록은 날짜 있는 모임 뒤 「상시 모집」 묶음(카드 시간 자리에 「일정 협의」), 상세 눈썹 「상시 모집 · 일정 협의」·신청 마감 「상시」, 수정 폼 날짜 칸 「상시 모집」. 지난 모임으로 넘어가지 않으므로 끝낼 땐 모임장이 [모집 마감](is_closed)·정원·신청 마감일로 닫는다. 삭제 때 time_blocks 정리는 날짜 있는 모임만. 수정에서 날짜를 새로 넣는 기능은 없다. 테스트 `tests/ui-community-apps.js`(19).
 - **주인 없는 타임 신청 정리(2026-11-11, 「신청이 없는데 다른 팀 신청 중」)**: `bandDefStatus` 의 `wait` 는 pending `band_slot_claims` 가 있으면 뜨는데, `rejectBandProfile` 이 프로필만 rejected 로 바꾸고 신청은 pending 으로 남겼다(가입 화면은 anon 이라 팀 상태를 못 봄 → 자료를 고쳐야 함).
   이제 거절 때 그 팀의 pending 신청을 rejected 로 닫고, `renderBandAdminTab`(가입 신청·팀 관리 탭)이 **거절·탈퇴한 팀의 남은 pending 신청을 한 번에 rejected 로 정리**(토스트)한다. 테스트 `tests/ui-band-slots.js` 끝 절(100).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는

@@ -528,7 +528,7 @@
             const people = m.capacity ? (COMMUNITY_SHOW_APPLICANT_COUNT ? `<b>${cnt}</b>/${m.capacity}명` : `정원 ${m.capacity}명`) : '';
             return `<div class="cm-ev${closed ? ' closed' : ''}" role="button" tabindex="0" onclick="renderCommunityDetail('${m.id}')" onkeydown="if(event.key==='Enter'){renderCommunityDetail('${m.id}')}">
                 <div class="bd">
-                    <div class="time">${m.meeting_time ? escapeHtml(m.meeting_time) : ''}${chips}</div>
+                    <div class="time">${m.meeting_time ? escapeHtml(m.meeting_time) : (m.meeting_date ? '' : '일정 협의')}${chips}</div>
                     <div class="tt">${escapeHtml(m.title)}</div>
                     <div class="by"><i class="cm-av">${escapeHtml((m.organizer_name || '?')[0])}</i>${escapeHtml(m.organizer_name || '')} 모임장</div>
                     ${m.location ? `<div class="mt">${_CM_ICON.pin} ${escapeHtml(m.location)}</div>` : ''}
@@ -568,6 +568,11 @@
                         <label class="gforms-label">모임명<span class="req">*</span></label>
                         <input type="text" id="cc_title" class="gforms-input" placeholder="모임 제목을 입력해주세요">
                     </div>
+                    <div class="gforms-card">
+                        <label class="cm-open-toggle"><input type="checkbox" id="cc_open" onchange="ccOpenToggle()"> <span><b>상시 모집</b> — 날짜·시간을 정하지 않고 모집해요</span></label>
+                        <p id="ccOpenNote" style="margin:8px 0 0;font-size:0.8rem;color:var(--wds-gray-500);line-height:1.5" hidden>날짜가 없는 모임은 공간 시간표를 잡지 않아요. 일정은 신청자와 따로 정하고, 모집을 끝낼 때는 [수정]에서 마감해 주세요.</p>
+                    </div>
+                    <div id="ccWhenWrap">
                     <div class="gforms-card" id="ccCalCard">
                         <label class="gforms-label">공간 시간표에서 날짜·시간 선택</label>
                         <p style="margin:0 0 10px;font-size:0.8rem;color:var(--wds-gray-500);line-height:1.5">게더 올 어라운드 공간의 예약·대관 현황입니다. 비어 있는 시간을 고르면 아래 날짜·시간이 자동 입력됩니다. (다른 장소라면 아래에 직접 입력하세요)</p>
@@ -596,6 +601,7 @@
                             <label class="gforms-label">종료 시간<span class="req">*</span></label>
                             <select id="cc_end_time" class="gforms-select">${TIMES.map((t, i) => `<option value="${t}">${TIMES[i+1] || '23:00'}</option>`).join('')}</select>
                         </div>
+                    </div>
                     </div>
                     <div class="community-grid-2">
                         <div class="gforms-card">
@@ -690,7 +696,7 @@
                 html += `<div class="cm-tl">` + groups.map(g => {
                     const head = g.k
                         ? `<b>${_cmDateLong(g.k)}</b><span>${past ? '' : _cmRelLabel(g.k)}</span>${past ? '' : `<span class="dd cm-chip d">${_cmDday(g.k)}</span>`}`
-                        : `<b>날짜 미정</b>`;
+                        : `<b>상시 모집</b><span>날짜를 정하지 않은 모임</span>`;
                     return `<div class="cm-grp${past ? ' past' : ''}"><div class="cm-day">${head}</div>${g.items.map(_cmEventCardHTML).join('')}</div>`;
                 }).join('') + `</div>`;
                 html += pagerHTML('commList', paged.page, paged.totalPages, paged.total);
@@ -701,6 +707,12 @@
             if (state.communityCreateOpen) { renderCommunityCreateFieldEditor(); initCommunityCal(); }
         }
 
+        // 상시 모집(2026-11-11): 날짜·시간 없이 등록 — 달력·날짜·시간 칸을 접는다(meeting_date/meeting_time null, time_blocks 없음)
+        function ccOpenToggle() {
+            const on = !!document.getElementById('cc_open')?.checked;
+            const w = document.getElementById('ccWhenWrap'); if (w) w.hidden = on;
+            const n = document.getElementById('ccOpenNote'); if (n) n.hidden = !on;
+        }
         // 모임 등록 폼의 공간 시간표 달력 — 대관 달력 렌더러를 커뮤니티 컨텍스트로 구동
         let _ccCalState = null;
         function initCommunityCal() {
@@ -992,7 +1004,8 @@
 
         async function submitCommunityCreate() {
             const title = document.getElementById('cc_title').value.trim();
-            const date = document.getElementById('cc_date').value;
+            const openEnded = !!document.getElementById('cc_open')?.checked; // 상시 모집 — 날짜·시간 없음
+            const date = openEnded ? '' : document.getElementById('cc_date').value;
             const startTime = document.getElementById('cc_start_time').value;
             const endTime = document.getElementById('cc_end_time').value;
             const orgName = document.getElementById('cc_org_name').value.trim();
@@ -1009,9 +1022,11 @@
             const imgFile = document.getElementById('cc_image').files[0];
 
             if (!title) return showToast('모임명을 입력해주세요.');
-            if (!date) return showToast('모임 날짜를 입력해주세요.');
-            if (!startTime || !endTime) return showToast('모임 시간을 선택해주세요.');
-            if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return showToast('시작 시간이 종료 시간보다 늦을 수 없습니다.');
+            if (!openEnded) {
+                if (!date) return showToast('모임 날짜를 입력해주세요. 날짜 없이 모집하려면 「상시 모집」을 체크하세요.');
+                if (!startTime || !endTime) return showToast('모임 시간을 선택해주세요.');
+                if (TIMES.indexOf(startTime) > TIMES.indexOf(endTime)) return showToast('시작 시간이 종료 시간보다 늦을 수 없습니다.');
+            }
             if (!orgName) return showToast('모임장 이름을 입력해주세요.');
             if (!orgPhone) return showToast('모임장 연락처를 입력해주세요.');
             if (!orgEmail) return showToast('모임장 이메일을 입력해주세요.');
@@ -1023,8 +1038,8 @@
             const qProblem = cmFieldsProblem(cmCleanFields(state.communityCreateFields)); if (qProblem) return showToast(qProblem);
 
             // 예약·대관과 겹치면 불가, 게더링 차단(time_blocks)만 겹치면 운영진 수락 요청(pending)으로 진행
-            await fetchCommunityReservationsAndBlocks();
-            const conflict = checkCommunityTimeConflict(date, startTime, endTime);
+            if (!openEnded) await fetchCommunityReservationsAndBlocks();
+            const conflict = openEnded ? null : checkCommunityTimeConflict(date, startTime, endTime);
             if (conflict && conflict.kind !== 'block') return showToast(conflict.message);
             const needsApproval = !!conflict;
             if (needsApproval && !confirm(`선택한 시간은 게더링이 막아 둔 시간과 겹칩니다.\n${conflict.range}${conflict.reason ? ' · ' + conflict.reason : ''}\n\n운영진에게 사용 요청을 보내고, 수락되면 모임이 커뮤니티에 공개됩니다.\n요청을 보낼까요?`)) return;
@@ -1038,7 +1053,7 @@
                 catch (e) { alert('이미지 업로드 실패: ' + e.message + '\n이미지 없이 모임을 생성합니다.'); }
             }
 
-            const timeText = `${startTime} ~ ${TIMES[TIMES.indexOf(endTime)+1] || '23:00'}`;
+            const timeText = openEnded ? null : `${startTime} ~ ${TIMES[TIMES.indexOf(endTime)+1] || '23:00'}`;
             const payload = {
                 title, cover_image_url: coverImageUrl,
                 meeting_date: date || null,
@@ -1058,10 +1073,11 @@
                 console.error('community_meetings insert:', error);
                 const em = String(error.message || '');
                 if (/status/.test(em) && /column|schema/i.test(em)) return showToast('모임 상태 컬럼이 아직 없습니다. 관리자가 supabase/migrations/20261013_community_meeting_status.sql 을 실행해야 합니다.');
+                if (openEnded && (error.code === '23502' || /null value|not-null/i.test(em))) return showToast('상시 모집을 저장하려면 관리자가 supabase/migrations/20261111_community_open_meetings.sql 을 실행해야 합니다.', 6000);
                 return showToast('모임 생성 실패: ' + em);
             }
 
-            if (!needsApproval) {
+            if (!needsApproval && !openEnded) {
                 // 시간표(time_blocks)에 반영 — 요청 건은 운영진이 수락할 때 서버가 넣는다
                 try {
                     const [y, m, d] = date.split('-').map(Number);
@@ -1078,7 +1094,7 @@
             }
             // 운영 총괄 배너(푸시) 알림 — 실패해도 모임 생성은 완료
             sendAdminPush(needsApproval ? '🙋 커뮤니티 모임 시간 사용 요청' : '🎪 새 커뮤니티 모임 등록',
-                `${title} · ${date.replace(/-/g, '.')} ${timeText} · ${orgName}${needsApproval ? ' — 공간대관 탭에서 수락/거절' : ''}`,
+                `${title} · ${openEnded ? '상시 모집' : date.replace(/-/g, '.') + ' ' + timeText} · ${orgName}${needsApproval ? ' — 공간대관 탭에서 수락/거절' : ''}`,
                 { roles: ['운영 총괄'] }).catch(() => {});
 
             state.communityCreateOpen = false;
@@ -1156,13 +1172,13 @@
             html += `<div class="cm-hero">
                 <div class="cm-cover">${_cmCoverImg(meeting)}</div>
                 <div>
-                    <div class="cm-eyebrow">${closed ? '<span class="cm-chip closed">모집 마감</span>' : '<span class="cm-chip ok">모집중</span>'}${!closed && isFree ? '<span class="cm-chip free">무료</span>' : ''}${meeting.meeting_date ? `<span>${_cmDateLong(meeting.meeting_date)}${meeting.meeting_time ? ' ' + escapeHtml(meeting.meeting_time) : ''}</span>` : (meeting.meeting_time ? `<span>${escapeHtml(meeting.meeting_time)}</span>` : '')}</div>
+                    <div class="cm-eyebrow">${closed ? '<span class="cm-chip closed">모집 마감</span>' : '<span class="cm-chip ok">모집중</span>'}${!closed && isFree ? '<span class="cm-chip free">무료</span>' : ''}${meeting.meeting_date ? `<span>${_cmDateLong(meeting.meeting_date)}${meeting.meeting_time ? ' ' + escapeHtml(meeting.meeting_time) : ''}</span>` : `<span>${meeting.meeting_time ? escapeHtml(meeting.meeting_time) : '상시 모집 · 일정 협의'}</span>`}</div>
                     <h1 class="cm-title">${escapeHtml(meeting.title)}</h1>
                     ${meeting.location ? `<div class="cm-place">${_CM_ICON.pin} ${escapeHtml(meeting.location)}</div>` : ''}
                     <div class="cm-stats">
                         <div><small>참여비</small><b>${feeLabel}</b></div>
                         <div><small>정원</small><b>${meeting.capacity ? meeting.capacity + '명' : '제한 없음'}</b></div>
-                        <div><small>신청 마감</small><b>${meeting.application_deadline ? _cmDateShort(meeting.application_deadline) : (meeting.meeting_date ? '모임 당일' : '-')}</b></div>
+                        <div><small>신청 마감</small><b>${meeting.application_deadline ? _cmDateShort(meeting.application_deadline) : (meeting.meeting_date ? '모임 당일' : '상시')}</b></div>
                     </div>
                     <div class="cm-rows">
                         <div class="r"><span class="k">모임장</span><span class="v"><span class="cm-av">${escapeHtml((meeting.organizer_name || '?')[0])}</span><span class="txt">${escapeHtml(meeting.organizer_name || '')}</span>${phoneDigits ? `<a class="lnk" href="tel:${phoneDigits}">문의하기</a>` : ''}</span></div>
@@ -1249,11 +1265,11 @@
             <div class="community-grid-2">
                 <div class="gforms-card" style="opacity:0.6;">
                     <label class="gforms-label">날짜 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500);">(수정 불가)</span></label>
-                    <input type="date" id="ce_date" class="gforms-input" value="${escapeHtml(meeting.meeting_date || '')}" disabled>
+                    ${meeting.meeting_date ? `<input type="date" id="ce_date" class="gforms-input" value="${escapeHtml(meeting.meeting_date)}" disabled>` : `<input type="text" id="ce_date" class="gforms-input" value="상시 모집" disabled>`}
                 </div>
                 <div class="gforms-card" style="opacity:0.6;">
                     <label class="gforms-label">시간 <span style="font-size:0.78rem;font-weight:400;color:var(--wds-gray-500);">(수정 불가)</span></label>
-                    <input type="text" id="ce_time" class="gforms-input" value="${escapeHtml(meeting.meeting_time || '')}" disabled>
+                    <input type="text" id="ce_time" class="gforms-input" value="${escapeHtml(meeting.meeting_time || (meeting.meeting_date ? '' : '일정 협의'))}" disabled>
                 </div>
             </div>
             <div class="community-grid-2">
@@ -1582,7 +1598,7 @@
             const { error } = await communityDelete(id);
             if (error) return showToast('삭제 실패: ' + error.message);
             // Remove associated time_block in GatheO
-            if (meeting) {
+            if (meeting && meeting.meeting_date) {
                 try {
                     await supabaseClient.from('time_blocks')
                         .delete()
