@@ -58,7 +58,7 @@
             if (done && wasHidden && phs && phs.scrollIntoView) setTimeout(() => phs.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); // 범위를 막 완성했을 때 인원 칸이 고정 바 뒤에 숨지 않게
             const ps1 = document.getElementById('perfStep1Next'); if (ps1) ps1.style.display = done ? 'flex' : 'none'; // 고정 바(.cm-sticky)는 flex
             const pad = document.getElementById('perfStep1Pad'); if (pad) pad.style.display = done ? 'block' : 'none';
-            if (done) renderPerfFee();
+            if (done) { renderPerfFee(); gaaTrack('perf_time_selected'); }
         }
         const _calMin = () => (_calCtx && _calCtx.minSlots) || 3;
         const _calIds = () => (_calCtx ? _calCtx.ids : _perfCalCtx().ids);
@@ -131,6 +131,7 @@
 
         function showPerformanceBookingSection() {
             _pushNav('perf');
+            gaaTrack('perf_view');
             showSectionLoadingFromPortal(); // 포털(사진·타일)에서 들어올 때만
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
@@ -571,6 +572,7 @@
 
         function goPerfStep2() {
             if (_perfState.startSlot === null || _perfState.endSlot === null) return;
+            gaaTrack('perf_form_view');
             renderPerfStep2();
         }
 
@@ -738,6 +740,7 @@
                 if (insErr && /SLOT_TAKEN/.test((insErr.code || '') + ' ' + (insErr.message || ''))) { showToast('방금 다른 예약이 먼저 들어왔습니다. 다른 시간을 선택해주세요.'); renderPerfStep1(); return; }
                 if (insErr || !inserted) { showErr('신청 중 오류가 발생했습니다: ' + (insErr ? insErr.message : '')); return; }
                 _perfState.lastBookingCode = inserted.booking_code || null;
+                gaaTrack('perf_submit', {}, String(inserted.id || Date.now()));
                 sendAdminPush('🎭 공간 대관 신청', `${name} · ${selectedDate} ${TIMES[startSlot]}~${TIMES[endSlot+1]||'23:00'}${_perfState.audienceTbd ? ' · 관람객 미정' : ''}`).catch(() => {});
                 // 접수 확인 문자 fire-and-forget — 실제 접수 건 대조·1회 발송 보장은 /send-sms가 서비스 롤로 수행
                 if (inserted && inserted.id) {

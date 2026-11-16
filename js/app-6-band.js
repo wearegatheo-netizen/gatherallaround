@@ -22,6 +22,7 @@
         }
         function showBandMenu() {
             _bandLandingShow('band-menu');
+            gaaTrack('band_landing_view');
             bandLandingFacts();
             bandLandingPreview().catch(e => console.error('band landing preview:', e));
         }
@@ -138,10 +139,12 @@
         function showBandLoginForm() { _bandLandingShow('band-login-form'); }
         function showBandScheduleView() {
             _bandLandingShow('band-schedule-view');
+            gaaTrack('band_times_view');
             bandSignupAvailInit().catch(e => console.error('band schedule view:', e));
         }
         function showBandSignupForm() {
             _bandLandingShow('band-signup-form');
+            gaaTrack('band_signup_view');
             bandSignupAvailInit().then(() => { bandSignupCabinetNote(); bandSignupDepositNote(); }).catch(e => console.error('band signup avail:', e)); // 표가 없으면(마이그레이션 전·띠 0개) 종전 체크박스 폴백
         }
 
@@ -269,6 +272,7 @@
                         if (cErr) console.error('band_slot_claims insert error:', cErr);
                     }
                     // 접수 확인 문자(팀 리더 번호) — /send-sms 가 서비스 롤로 대조·15분 안·band_sms_log 1회 선점. 실패해도 가입은 완료.
+                    gaaTrack('band_signup_submit', {}, String(Date.now()));
                     fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ band_signup_id: data.user.id }) }).catch(() => {});
                     // 관리자 푸시 — 일반 회원 가입·대관 신청과 같은 릴레이(/notify-admins) 경로. 실패해도 가입은 완료.
                     setTimeout(() => sendAdminPush('🎸 고정팀 가입 신청', `${bandNameKr} · ${leaderName} · ${bandSlotSheetText(timeslots)}${picked ? ' · ' + bandMD(picked.start) + ' 시작 희망 · ' + picked.months + '개월' : ''} · 캐비넷 ${cabinet ? '사용' : '미사용'}`).catch(() => {}), 400);

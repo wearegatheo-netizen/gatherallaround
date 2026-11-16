@@ -114,6 +114,21 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T=window.__T={community
   await p.evaluate((id) => { state.communityOrgTok[id] = 'expired'; return renderCommunityDetail(id); }, CM); await p.waitForTimeout(900);
   chk('토큰 만료 → 인증 해제·요약만', await p.evaluate((id) => !state.communityEditAuth[id] && !JSON.stringify(state.communityCurrentAppList).includes('박비밀'), CM));
 
+  // 이용 흐름 기록(구글 애널리틱스): 단계 이벤트·화면 제목
+  const ga = await p.evaluate(async (id) => {
+    const names = () => (window.dataLayer || []).filter(a => a && a[0] === 'event').map(a => a[1]);
+    const before = names().filter(n => n === 'meet_view').length;
+    state.communityEditView = null; delete state.communityEditAuth[id]; await renderCommunityDetail(id); await renderCommunityDetail(id);
+    const title = document.title; cmApplySheetOpen(); cmApplySheetOpen(); cmApplySheetClose();
+    const ev = (window.dataLayer || []).filter(a => a && a[0] === 'event');
+    const params = JSON.stringify(ev.map(a => a[2]));
+    return { title, meetViewsForThis: ev.filter(a => a[1] === 'meet_view' && a[2].meeting_title === '주말 합주 클래스').length, opens: ev.filter(a => a[1] === 'meet_apply_open' && a[2].meeting_title === '주말 합주 클래스').length,
+      submit: names().includes('meet_apply_submit'), pii: /010-|@b\.kr|박비밀|김모임/.test(params), before,
+      titles: ['portal', 'perf', 'community', 'community/test', 'community/meeting/x', 'shows', 'shows/abc', 'shows/ticket/ABC123', 'band', 'band/times', 'gatheo/reservation', 'host/checkin/X', 'nope'].map(gaaTitleFor) };
+  }, CM);
+  chk('애널리틱스: 모임 상세 제목 = 「모임명 | 커뮤니티」, meet_view·meet_apply_open 은 같은 모임에 한 번씩, 신청 완료 이벤트, 개인정보 없음', ga.title === '주말 합주 클래스 | 커뮤니티' && ga.meetViewsForThis === 1 && ga.opens === 1 && ga.submit && !ga.pii, JSON.stringify({ t: ga.title, v: ga.meetViewsForThis, o: ga.opens, s: ga.submit, pii: ga.pii }));
+  chk('애널리틱스: 화면별 제목(경로 → 제목), 예매번호는 제목에 안 들어감', ga.titles.join('|') === ['Gather all around | Premium Studio', '공간 대관 | Gather all around', '커뮤니티 | Gather all around', '성향 테스트 | Gather all around', '모임 상세 | Gather all around', '공연 예매 | Gather all around', '공연 상세 | Gather all around', '내 티켓 | Gather all around', '고정 합주팀 | Gather all around', '고정 가능 시간 | Gather all around', '게더링 예약 | Gather all around', '호스트 센터 | Gather all around', 'Gather all around | Premium Studio'].join('|'), ga.titles.join('|'));
+
   // 5. 서버 함수 없음 → 종전 직접 조회
   mode = '501';
   await p.evaluate((id) => { _cmApiDown = false; return renderCommunityDetail(id); }, CM); await p.waitForTimeout(800);

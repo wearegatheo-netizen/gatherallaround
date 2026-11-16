@@ -80,7 +80,8 @@
 
         function showShowsSection(sub) {
             const subArr = Array.isArray(sub) ? sub : [];
-            _pushNav('shows' + (subArr.length ? '/' + subArr.join('/') : ''));
+            const _cachedEv = subArr.length === 1 ? ((_showsState && _showsState.events) || []).find(e => e.id === subArr[0]) : null; // 목록에서 들어온 상세는 제목을 미리 안다
+            _pushNav('shows' + (subArr.length ? '/' + subArr.join('/') : ''), _cachedEv ? `${_cachedEv.title} | 공연 예매` : undefined);
             showSectionLoadingFromPortal(); // 포털에서 들어올 때만(뒤로가기·목록↔상세 이동엔 없음)
             document.body.classList.add('portal-view');
             document.body.classList.add('fullwidth-view');
@@ -282,6 +283,8 @@
                 }
             }
             _showsState.event = ev;
+            gaaSetTitle(`${ev.title} | 공연 예매`);
+            gaaTrack('show_view', { show_title: String(ev.title || '').slice(0, 80) }, ev.id);
             // 팀 프로필·공동 관리팀(공개 뷰) — 부가 정보라 실패해도 상세는 뜬다
             let hostProf = null, coTeams = [];
             try {
@@ -391,6 +394,7 @@
             const el = document.getElementById('bookSheetWrap');
             if (!el) return;
             el.classList.remove('hidden'); document.body.classList.add('cm-sheet-open');
+            gaaTrack('show_book_open', { show_title: String(((_showsState || {}).event || {}).title || '').slice(0, 80) }, ((_showsState || {}).event || {}).id);
             requestAnimationFrame(() => el.classList.add('on'));
             const res = document.getElementById('showsBookResult');
             if (res) res.textContent = '';
@@ -446,6 +450,7 @@
                 if (!out.ok) { showErr(out.message || '예매에 실패했습니다.'); return; }
                 _showsState.ticket = { ...out.ticket, seats: out.seats || [], transfers: out.transfers || [] };
                 _showsState.tEvent = out.event;
+                gaaTrack('show_book_submit', { show_title: String((out.event || {}).title || '').slice(0, 80), qty: Number(qty) || 1 }, eventId + ':' + Date.now());
                 renderTicketView();
                 _pushNav('shows/ticket/' + out.ticket.code);
             } finally {

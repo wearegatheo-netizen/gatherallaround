@@ -399,6 +399,8 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   }));
   chk('매진 공연: 예매 폼 없음', s.noForm && s.label);
 
+  { const g = await p.evaluate(() => { const ev = (window.dataLayer || []).filter(a => a && a[0] === 'event'); return { names: [...new Set(ev.map(a => a[1]))], params: JSON.stringify(ev.map(a => a[2])) }; });
+    chk('애널리틱스: 공연 흐름 단계(show_view → show_book_open → show_book_submit) 기록, 예매번호·연락처 없음', ['show_view', 'show_book_open', 'show_book_submit'].every(n => g.names.includes(n)) && !/010-?\d{4}/.test(g.params), g.names.join(',')); }
   chk('pageerror 없음', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
   await br.close();

@@ -60,6 +60,32 @@
             window._gaaReportError = report;
         })();
 
+        // ── 이용 흐름 기록(구글 애널리틱스, 2026-11-16) ─────────────────────────────────────────
+        // 「어디서 멈추는가」를 보려고 흐름마다 단계 이벤트를 보낸다. **이름 자체가 단계**라 애널리틱스에서 따로 설정 없이
+        // 유입경로(퍼널)로 묶을 수 있다: perf_view → perf_time_selected → perf_form_view → perf_submit 등(목록은 CLAUDE.md).
+        // 이름·연락처·예매번호는 절대 넣지 않는다 — 넘기는 값은 공연·모임 제목 정도. 같은 단계는 페이지를 연 동안 한 번만(key 로 구분).
+        const _gaaSent = new Set();
+        function gaaTrack(name, params, key) {
+            try {
+                const k = name + '|' + (key || '');
+                if (_gaaSent.has(k)) return;
+                _gaaSent.add(k);
+                if (typeof gtag === 'function') gtag('event', name, params || {});
+            } catch (_) {}
+        }
+        // 화면 제목 — 한 페이지 안에서 화면만 바뀌는 구조라 제목을 안 바꾸면 애널리틱스 「페이지」 보고서에 전부 한 줄로 뭉친다.
+        // 주소를 바꾸기 **전에** 제목을 바꿔야 애널리틱스의 자동 화면 기록이 새 제목을 읽는다(_pushNav 가 부른다).
+        const _GAA_SECTION_TITLES = { perf: '공간 대관', community: '커뮤니티', shows: '공연 예매', host: '호스트 센터', band: '고정 합주팀', 'band-news': '밴드 뉴스', gatheo: '게더링' };
+        const _GAA_SUB_TITLES = { 'gatheo/home': '게더링 홈', 'gatheo/reservation': '게더링 예약', 'gatheo/member': '게더링 멤버', 'gatheo/board': '게더링 게시판', 'gatheo/mypage': '게더링 마이', 'gatheo/admin': '게더링 관리자',
+            'band/times': '고정 가능 시간', 'band/guide': '합주팀 운영 안내', 'community/test': '성향 테스트', 'community/meeting': '모임 상세', 'shows/ticket': '내 티켓', 'shows/claim': '티켓 양도' };
+        function gaaTitleFor(path) {
+            const segs = String(path || '').split('/');
+            if (!segs[0] || segs[0] === 'portal') return 'Gather all around | Premium Studio';
+            const label = _GAA_SUB_TITLES[segs.slice(0, 2).join('/')] || (segs[0] === 'shows' && segs[1] ? '공연 상세' : _GAA_SECTION_TITLES[segs[0]]);
+            return label ? label + ' | Gather all around' : 'Gather all around | Premium Studio';
+        }
+        function gaaSetTitle(title) { try { if (title && document.title !== title) document.title = String(title).slice(0, 120); } catch (_) {} }
+
         // ── 서버 경유 쓰기(gw, 2026-11-10 보안 개선) ──────────────────────────────────────────
         // 카카오 멤버는 DB 입장에서 익명이라 권한을 가릴 수 없었다 → 아래 표의 **쓰기 전부**와 개인정보가 든 읽기
         // (profiles 전체, performance_bookings 의 달력용 외 컬럼)는 supabaseClient.from(...) 호출을 그대로 기록해

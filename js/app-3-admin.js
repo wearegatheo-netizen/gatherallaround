@@ -1523,7 +1523,8 @@
             return segs[0];
         }
 
-        function _pushNav(path) {
+        function _pushNav(path, title) { // title: 상세 화면이 넘기는 제목(없으면 경로로 정함) — 애널리틱스 화면 구분용
+            gaaSetTitle(title || gaaTitleFor(path));
             if (_navFromPop) return;
             const cur = (history.state && history.state.page) || '';
             if (cur === path) return; // 같은 경로 재클릭 → 항목 중복 방지
@@ -1537,6 +1538,7 @@
 
         function _routeToPage(path) {
             _navFromPop = true; // 복원이므로 pushState 하지 않음 (항목은 이미 존재)
+            gaaSetTitle(gaaTitleFor(path)); // 뒤로가기·딥링크로 온 화면도 제목을 맞춘다(포털 포함)
             try {
                 const segs = String(path || 'portal').split('/');
                 const page = segs[0];

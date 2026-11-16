@@ -1153,7 +1153,8 @@
             const meeting = state.communityMeetings.find(x => x.id === id);
             if (!meeting) return showToast('모임 정보를 찾을 수 없습니다.');
             state.communityCurrentMeeting = meeting;
-            _pushNav('community/meeting/' + id); // 모임별 공유 링크 — 뒤로가기로 목록 복귀
+            _pushNav('community/meeting/' + id, `${meeting.title} | 커뮤니티`); // 모임별 공유 링크 — 뒤로가기로 목록 복귀
+            gaaTrack('meet_view', { meeting_title: String(meeting.title || '').slice(0, 80) }, id);
 
             // 공개 화면은 이름·연락처 없는 요약(상태 + 선택형 답)만 받고, 모임장 인증 뒤에만 전체 명단을 받는다
             let apps = null, srv = null;
@@ -1261,6 +1262,7 @@
         function cmApplySheetOpen() {
             if (!state.communityApplyFormHTML) return;
             cmApplySheetClose();
+            gaaTrack('meet_apply_open', { meeting_title: String((state.communityCurrentMeeting || {}).title || '').slice(0, 80) }, state.communityCurrentId);
             const wrap = document.createElement('div');
             wrap.id = 'cmApplySheet'; wrap.className = 'cm-sheet-wrap'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-label', '참여 신청');
             wrap.innerHTML = `<div class="cm-sheet-bg" onclick="cmApplySheetClose()"></div>
@@ -1746,6 +1748,7 @@
                 if (error.code === '23505') return showToast('이미 신청하셨습니다.');
                 return showToast('신청 실패: ' + error.message);
             }
+            gaaTrack('meet_apply_submit', { meeting_title: String((state.communityCurrentMeeting || {}).title || '').slice(0, 80) }, id + ':' + Date.now());
 
             // 모임장 알림 메일 — /send-email(Resend), 실패·미설정 시 mailto 폴백
             let emailSent = false;
