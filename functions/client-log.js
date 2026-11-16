@@ -20,10 +20,15 @@ export const scrub = (s) => String(s)
     .replace(/01[016789][-\s]?\d{3,4}[-\s]?\d{4}/g, '[phone]')
     .replace(/[A-Za-z0-9_-]{40,}/g, '[token]');
 
+// 우리 코드가 아닌 곳에서 나는 오류 — 인스타그램·페이스북·카카오톡 등 앱 안 브라우저가 페이지에 끼워 넣은 다리(bridge) 코드.
+// 화면에는 영향이 없고 기록만 쌓여 진짜 오류를 가린다(2026-11-16 「Java object is gone」 7회). 브라우저 수집기(js/app-1-core.js)에도 같은 목록.
+export const NOISE_RE = /Java object is gone|Error invoking postMessage|Java bridge method invocation error|webkit\.messageHandlers|__gCrWeb|instantSearchSDKJSBridge/i;
+export const isNoise = (message) => NOISE_RE.test(String(message || ''));
+
 export function cleanEntry(e, ua) {
     if (!e || typeof e !== 'object') return null;
     const message = scrub(clip(e.message, 500)).trim();
-    if (!message) return null;
+    if (!message || isNoise(message)) return null;
     return {
         message,
         stack: scrub(clip(e.stack, 3000)) || null,

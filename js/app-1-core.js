@@ -46,6 +46,7 @@
                     if (!enabled()) return;
                     const msg = String(message || '').slice(0, 500);
                     if (!msg || (/^Script error\.?$/.test(msg) && !stack)) return; // 다른 출처 스크립트의 내용 없는 오류
+                    if (/Java object is gone|Error invoking postMessage|Java bridge method invocation error|webkit\.messageHandlers|__gCrWeb|instantSearchSDKJSBridge/i.test(msg)) return; // 앱 안 브라우저(인스타·카톡 등)가 끼워 넣은 코드의 오류 — 우리 것이 아님(functions/client-log.js NOISE_RE 와 같은 목록)
                     const key = msg.slice(0, 120);
                     if (seen.has(key) || count >= 8) return;
                     seen.add(key); count++;

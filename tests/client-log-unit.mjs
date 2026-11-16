@@ -1,5 +1,5 @@
 // /client-log 단위 테스트 — 출처 검사·정리·개인정보 가림·표 없음 처리.  node tests/client-log-unit.mjs
-import { onRequestPost, cleanEntry, scrub } from '../functions/client-log.js';
+import { onRequestPost, cleanEntry, scrub, isNoise } from '../functions/client-log.js';
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { if (cond) pass++; else { fail++; console.log('✗', name, extra === undefined ? '' : JSON.stringify(extra)); } };
 const env = { SUPABASE_URL: 'https://sb.test', SUPABASE_SERVICE_ROLE_KEY: 'k' };
@@ -14,6 +14,8 @@ ok('정리: 허용 필드만·기본값', e.message === 'TypeError: x is not a f
 ok('빈 메시지 버림', cleanEntry({ message: '  ' }, 'UA') === null && cleanEntry(null, 'UA') === null);
 ok('길이 제한', cleanEntry({ message: 'm'.repeat(2000) + ' ', stack: 's '.repeat(5000) }, 'UA').stack.length <= 3000);
 
+ok('앱 안 브라우저 오류는 버림', cleanEntry({ message: 'Uncaught Error: Error invoking postMessage: Java object is gone' }, 'UA') === null && isNoise('Java bridge method invocation error') && !isNoise('TypeError: x is not a function'));
+{ const src = (await import('node:fs')).readFileSync(new URL('../js/app-1-core.js', import.meta.url), 'utf8'); ok('브라우저 수집기도 같은 목록', src.includes('Java object is gone|Error invoking postMessage|Java bridge method invocation error|webkit\\.messageHandlers|__gCrWeb|instantSearchSDKJSBridge')); }
 let r = await onRequestPost({ request: req({ errors: [{ message: 'boom', page: 'band' }, { message: '' }] }), env });
 ok('저장 204 · 1행', r.status === 204 && calls.length === 1 && calls[0].url.endsWith('/rest/v1/client_errors') && calls[0].body.length === 1 && calls[0].body[0].message === 'boom');
 calls = []; r = await onRequestPost({ request: req({ errors: Array.from({ length: 9 }, (_, i) => ({ message: 'e' + i })) }), env });
