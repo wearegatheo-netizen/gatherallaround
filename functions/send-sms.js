@@ -208,7 +208,9 @@ export function bandApproveText(p, claims) {
 
 - 고정 시간: ${slot ? '매주 ' + slot : '운영팀과 협의'}
 - 시작일: ${start ? mdw(start) + '부터 4주 단위' : '추후 안내'}
-- 로그인: ${BAND_SITE} · 아이디 ${p.instruments || '(밴드 영문명)'} · 비밀번호 pw+숫자 4자리
+- 로그인: 아이디 ${p.instruments || '(밴드 영문명)'} · 비밀번호 pw+숫자 4자리
+- 로그인 주소 (아래 링크)
+${BAND_SITE}
 
 ${depLine}
 ${fee}는 ${eve} 아래 계좌로 입금해주세요.
