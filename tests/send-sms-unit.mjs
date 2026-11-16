@@ -146,6 +146,7 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
     ['- 고정 시간: 매주 금요일 18~23시', '- 시작일: 11/14(토)부터 4주 단위', '아이디 vandor · 비밀번호 pw+숫자 4자리', '보증금(1개월분, 250,000원) 입금 확인 후 등록이 확정됩니다', '고정 사용 이용료(250,000원)는 시작일 전날(11/13)까지', '토스뱅크 1000-2274-7678 최경수',
      '[캐비넷 이용 안내]', '회차당 2만원', '숫자 4자리가 캐비넷 비밀번호', '사용 3주차에 입금 안내 문자', '이용 기간 중 1회, 건너뛸 날 3일 전까지 로그인 후 대체 합주를 직접 요청', '보증금은 사용 종료 시 반환'].every(x => t2.includes(x)), t2);
   chk('승인 문구 길이: LMS 한도 2,000byte 안(EUC-KR 근사)', kb(t2) < 2000, kb(t2) + 'byte');
+  chk('승인 문구: 로그인 주소에 https:// (문자 앱이 링크로 만들게)', t2.includes('로그인: https://gatherallaround.com/band '));
   const t3 = bandApproveText(TEAM({ status: 'approved', band_start_date: null }), []);
   chk('승인 문구(계약 정보·시작일·신청 행 없음): 금액 없이 「보증금(1개월분) 입금 확인 후」·「고정 사용 이용료는 시작일 전날까지」·시작일 추후 안내·timeslots 폴백 「금요일 야간」', t3.includes('보증금(1개월분) 입금 확인 후 등록이 확정') && t3.includes('고정 사용 이용료는 시작일 전날까지') && t3.includes('- 시작일: 추후 안내') && t3.includes('매주 금요일 야간'), t3.split('\n').slice(2, 8).join(' | '));
   chk('승인 문구(보증금 입금일 기록됨): 「보증금(1개월분, 250,000원) 입금이 확인되어 등록이 확정되었습니다」', bandApproveText(TEAM({ status: 'approved', band_deposit: 250000, band_deposit_paid_at: '2026-11-10' }), CLAIMS).includes('보증금(1개월분, 250,000원) 입금이 확인되어 등록이 확정되었습니다.'));

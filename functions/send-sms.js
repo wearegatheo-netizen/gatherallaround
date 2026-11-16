@@ -133,7 +133,7 @@ async function handlePerfApproved(bookingId, env, json) {
 const GATHEO_ADMIN_BAND_ID = 'wearegatheo';
 const BAND_BANK_LINE = RULES.BANK_LINE; // send-reminders.js · index.html 과 동일 문자열 유지
 const BAND_CONTACT = '010-5109-1042';                     // index.html PORTAL_PHONE
-const BAND_SITE = 'gatherallaround.com/band';
+const BAND_SITE = 'https://gatherallaround.com/band';
 const BAND_DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const BAND_GREETING = '안녕하세요! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.';
 const ymdAdd = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * 86400e3).toISOString().slice(0, 10);
