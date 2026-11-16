@@ -250,6 +250,7 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
   chk('승인 안내: 발송 성공(오래된 예약도)', j.ok === true && !!sent);
   chk('승인 안내: 일시·인원·예약번호', t.includes('[ 9/5(토) 18-23시(5시간) 7명 ]') && t.includes('예약이 확정') && t.includes('예약번호: AB12CD'), t.slice(0, 120));
   chk('승인 안내: 금액·계좌·도어락 없음', !/[0-9],[0-9]{3}원|계좌|토스|도어락|비밀번호/.test(t));
+  chk('승인 안내: 끝은 홈페이지 주소(전화번호 없음)', t.trim().endsWith('gatherallaround.com/perf') && !t.includes('010-'));
   chk('승인 안내: 수신 번호·제목', JSON.parse(sent.body).message.to === '01012345678' && JSON.parse(sent.body).message.subject === '게더 올 어라운드 예약 확정');
   chk('승인 안내: 선점 PATCH 는 status=approved 조건', calls.some(c => c.method === 'PATCH' && c.url.includes('status=eq.approved') && c.url.includes('approved_sms_sent_at=is.null')));
   chk('승인 안내: 접수 문자 선점(sms_sent_at)은 건드리지 않음', !calls.some(c => c.method === 'PATCH' && /[?&]sms_sent_at=/.test(c.url)));
