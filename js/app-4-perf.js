@@ -1096,6 +1096,18 @@
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }
 
+        // 승인 안내 문자(2026-11-16) — /send-sms 가 예약 상태(approved)·미발송을 대조해 예약자에게 한 번만 보낸다. 결과는 토스트로만.
+        function _perfSendApprovedSms(id) {
+            fetch('/send-sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_id: id, kind: 'approved' }) })
+                .then(r => r.json().catch(() => ({})))
+                .then(j => {
+                    if (j.ok) return showToast('승인 안내 문자를 보냈습니다.');
+                    const why = { 'already-sent': '승인 안내 문자는 이미 보낸 예약입니다.', 'sms-disabled': '', 'past': '', 'bad-phone': '연락처가 휴대폰 번호가 아니라 승인 안내 문자를 보내지 못했습니다.',
+                        'no-column': j.message || '승인 안내 문자를 보내려면 관리자가 SQL 을 실행해야 합니다.' }[j.skipped];
+                    if (why) showToast(why, 6000);
+                    else if (!j.skipped) showToast('승인은 됐지만 안내 문자 발송에 실패했습니다.', 5000);
+                }).catch(() => {});
+        }
         async function approvePerfBooking(id) {
             const b = (state.perfAdminItems || []).find(x => x.id === id);
             const msg = !b ? '승인하시겠습니까?'
@@ -1121,6 +1133,7 @@
             } catch (_) { /* 검사 실패 시에도 총괄 판단으로 승인은 진행 */ }
             const { error } = await supabaseClient.from('performance_bookings').update({ status: 'approved' }).eq('id', id);
             if (error) { showToast('오류: ' + error.message); return; }
+            _perfSendApprovedSms(id);
             await fetchReservations();
             state.adminTab = 'perfbooking'; renderGatheOAdmin();
         }

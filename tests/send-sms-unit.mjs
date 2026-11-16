@@ -1,6 +1,6 @@
 // /send-sms Cloudflare 함수 단위 테스트 — fetch 목으로 시나리오 검증
 // 실행: node tests/send-sms-unit.mjs
-import { onRequest, bandSignupText, bandApproveText, bandRejectText, bandSlotText, bandCabinetLine } from '../functions/send-sms.js';
+import { onRequest, buildApprovedText, bandSignupText, bandApproveText, bandRejectText, bandSlotText, bandCabinetLine } from '../functions/send-sms.js';
 
 let pass = 0, fail = 0;
 const chk = (l, c, x = '') => { console.log(`${c ? '✅' : '❌'} ${l}${x ? '  [' + x + ']' : ''}`); c ? pass++ : fail++; };
@@ -231,6 +231,55 @@ const bandRoutes = (team, { logStatus = 201, solapiStatus = 200, claims = CLAIMS
   chk('band_test approve: 관리자 본인 번호(01051091042)로 [테스트] 승인 문구 · 제목 (테스트) · band_sms_log 기록 없음', j.ok && j.test && m.to === '01051091042' && m.text.startsWith('[테스트] ') && m.text.includes('[게더링] 팀의 고정 합주팀 가입이 승인') && m.text.includes('매주 금요일 18~23시') && m.subject.endsWith('(테스트)') && !calls.some(c => c.url.includes('band_sms_log')), JSON.stringify(j));
   mockFetch(bandRoutes(TEAM()));
   chk('band_test 모르는 종류 → 400', (await run({ band_test: 'nope', sb_token: 'tok' })).status === 400);
+}
+
+// ── 10. 대관 승인 안내(2026-11-16): approved·미발송일 때만 한 번
+{
+  const FUT = '2099-09-05'; // 토요일
+  const AB = (over = {}) => BK({ date: FUT, status: 'approved', approved_sms_sent_at: null, created_at: '2020-01-01T00:00:00Z', ...over });
+  const routes = (bk, patchBody, solapiStatus = 200) => [
+    ['performance_bookings?id=eq.' + BK_ID + '&select=', { body: [bk] }],
+    ['approved_sms_sent_at=is.null', { method: 'PATCH', body: patchBody }],
+    ['approved_sms_sent_at=eq.', { method: 'PATCH', body: [] }],
+    ['api.solapi.com/messages', { method: 'POST', status: solapiStatus, body: {} }],
+  ];
+  mockFetch(routes(AB(), [AB()]));
+  let r = await run({ booking_id: BK_ID, kind: 'approved' }); let j = await r.json();
+  const t = (solapiText() || {}).text || '';
+  const sent = calls.find(c => c.url.includes('api.solapi.com'));
+  chk('승인 안내: 발송 성공(오래된 예약도)', j.ok === true && !!sent);
+  chk('승인 안내: 일시·인원·예약번호', t.includes('[ 9/5(토) 18-23시(5시간) 7명 ]') && t.includes('예약이 확정') && t.includes('예약번호: AB12CD'), t.slice(0, 120));
+  chk('승인 안내: 금액·계좌·도어락 없음', !/[0-9],[0-9]{3}원|계좌|토스|도어락|비밀번호/.test(t));
+  chk('승인 안내: 수신 번호·제목', JSON.parse(sent.body).message.to === '01012345678' && JSON.parse(sent.body).message.subject === '게더 올 어라운드 예약 확정');
+  chk('승인 안내: 선점 PATCH 는 status=approved 조건', calls.some(c => c.method === 'PATCH' && c.url.includes('status=eq.approved') && c.url.includes('approved_sms_sent_at=is.null')));
+  chk('승인 안내: 접수 문자 선점(sms_sent_at)은 건드리지 않음', !calls.some(c => c.method === 'PATCH' && /[?&]sms_sent_at=/.test(c.url)));
+
+  for (const [label, bk, why] of [
+    ['대기 상태면 안 보냄', AB({ status: 'pending' }), 'not-approved'],
+    ['이미 보냈으면 안 보냄', AB({ approved_sms_sent_at: NOW }), 'already-sent'],
+    ['지난 날짜면 안 보냄', AB({ date: '2020-01-04' }), 'past'],
+    ['휴대폰 번호 아니면 안 보냄', AB({ phone: '02-123-4567' }), 'bad-phone'],
+  ]) {
+    mockFetch(routes(bk, [bk]));
+    j = await (await run({ booking_id: BK_ID, kind: 'approved' })).json();
+    chk('승인 안내: ' + label, j.skipped === why && !solapiText(), JSON.stringify(j));
+  }
+  { const bk = AB(); delete bk.approved_sms_sent_at;
+    mockFetch(routes(bk, [bk]));
+    j = await (await run({ booking_id: BK_ID, kind: 'approved' })).json();
+    chk('승인 안내: 컬럼 없으면 안 보내고 마이그레이션 안내', j.skipped === 'no-column' && /20261116_perf_approved_sms/.test(j.message) && !solapiText()); }
+  mockFetch(routes(AB(), []));
+  j = await (await run({ booking_id: BK_ID, kind: 'approved' })).json();
+  chk('승인 안내: 선점 경합에서 지면 안 보냄', j.skipped === 'already-sent' && !solapiText());
+  mockFetch(routes(AB(), [AB()], 500));
+  r = await run({ booking_id: BK_ID, kind: 'approved' });
+  chk('승인 안내: 발송 실패면 선점 되돌림', r.status === 502 && calls.some(c => c.method === 'PATCH' && c.url.includes('approved_sms_sent_at=eq.') && JSON.parse(c.body).approved_sms_sent_at === null));
+  mockFetch(routes(AB(), [AB()]));
+  j = await (await run({ booking_id: BK_ID, kind: 'approved' }, 'POST', { SUPABASE_URL: ENV.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: ENV.SUPABASE_SERVICE_ROLE_KEY })).json();
+  chk('승인 안내: 솔라피 키 없으면 건너뜀', j.skipped === 'sms-disabled' && calls.length === 0);
+  const t2 = buildApprovedText(AB({ headcount: null, booking_code: null }));
+  chk('승인 안내: 인원·예약번호 없어도 깨지지 않음', t2.includes('18-23시(5시간) ]') && !t2.includes('undefined') && !t2.includes('null') && !t2.includes('예약번호:'));
+  if (process.env.SHOW_TEXT) console.log('\n--- 대관 승인 안내 ---\n' + t);
 }
 
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);

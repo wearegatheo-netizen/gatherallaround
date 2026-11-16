@@ -73,6 +73,59 @@ ${RULES.BANK_LINE}
 ※ 기준 인원 수(5명)를 초과하는 인원에 대해 변동이 있을시 추가 1명당 5천원이 지불됩니다. 변동시 이용 전날까지 말씀주시면 감사하겠습니다.`;
 }
 
+// 승인(입금 확인) 안내 — 관리자가 공간 대관을 [승인]하면 예약자에게 한 번 나간다(2026-11-16).
+// 접수 문자와 같은 일시·인원 표기, 금액은 다시 적지 않는다(이미 입금한 뒤라 혼동만 줌). 이모지 없음.
+export function buildApprovedText(bk) {
+    const [, m, d] = bk.date.split('-').map(Number);
+    const dow = new Date(bk.date + 'T00:00:00Z').getUTCDay();
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][dow];
+    const sh = parseInt(bk.start_time, 10);
+    const eh = parseInt(bk.end_time, 10) + 1;
+    const head = bk.headcount ? ` ${bk.headcount}명` : '';
+    const codeLine = bk.booking_code ? `예약번호: ${bk.booking_code}\n\n` : '';
+    return `안녕하세요 ! 신촌 프리미엄 밴드 스튜디오 게더 올 어라운드(Gather all around)입니다.
+
+입금이 확인되어 [ ${m}/${d}(${wd}) ${sh}-${eh}시(${eh - sh}시간)${head} ] 예약이 확정되었습니다.
+
+${codeLine}※ 예약 내용은 홈페이지 [공간 대관 > 예약 조회]에서 예약번호와 연락처로 확인하실 수 있습니다.
+※ 인원이 바뀌면 이용 전날까지 알려주세요. 기준 인원(5명)을 넘는 인원은 1명당 5천원이 추가됩니다.
+※ 유의사항과 환불 규정은 홈페이지 공간 대관 화면에서 확인하실 수 있습니다.
+
+문의 010-5109-1042`;
+}
+// 승인 안내 발송: 공개 호출이지만 서버가 사실을 대조한다 — 그 예약이 approved 이고, 이용일이 지나지 않았고, 아직 안 보냈을 때만.
+// 1회 보장은 approved_sms_sent_at 조건부 PATCH 선점(마이그레이션 20261116_perf_approved_sms.sql). 컬럼이 없으면 보내지 않는다(중복 발송 방지).
+async function handlePerfApproved(bookingId, env, json) {
+    const SUPABASE_URL = env.SUPABASE_URL, SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_URL || !SERVICE_KEY) return json({ error: 'missing SUPABASE env vars' }, 500);
+    if (!env.SOLAPI_API_KEY || !env.SOLAPI_API_SECRET || !env.SMS_SENDER) return json({ ok: false, skipped: 'sms-disabled' });
+    const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
+    const base = `${SUPABASE_URL}/rest/v1/performance_bookings?id=eq.${bookingId}`;
+    const getRes = await fetch(`${base}&select=*&limit=1`, { headers: sbHeaders });
+    if (!getRes.ok) return json({ error: 'booking lookup failed', status: getRes.status, detail: (await getRes.text().catch(() => '')).slice(0, 300) }, 502);
+    const [bk] = await getRes.json();
+    if (!bk) return json({ error: 'booking not found' }, 404);
+    if (!('approved_sms_sent_at' in bk)) return json({ ok: false, skipped: 'no-column', message: '승인 안내 문자를 보내려면 supabase/migrations/20261116_perf_approved_sms.sql 을 실행해야 합니다.' });
+    if (bk.status !== 'approved') return json({ ok: false, skipped: 'not-approved' });
+    if (bk.approved_sms_sent_at) return json({ ok: false, skipped: 'already-sent' });
+    const todayKst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    if (String(bk.date) < todayKst) return json({ ok: false, skipped: 'past' });
+    const to = String(bk.phone || '').replace(/\D/g, '');
+    if (!/^01[016789][0-9]{7,8}$/.test(to)) return json({ ok: false, skipped: 'bad-phone' });
+    const claimTs = new Date().toISOString();
+    const claimRes = await fetch(`${base}&status=eq.approved&approved_sms_sent_at=is.null`, {
+        method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify({ approved_sms_sent_at: claimTs }) });
+    if (!claimRes.ok) return json({ error: 'claim failed', status: claimRes.status, detail: (await claimRes.text().catch(() => '')).slice(0, 300) }, 502);
+    const claimed = await claimRes.json().catch(() => []);
+    if (!Array.isArray(claimed) || claimed.length === 0) return json({ ok: false, skipped: 'already-sent' });
+    const smsRes = await solapiSend(env, to, buildApprovedText(bk), '게더 올 어라운드 예약 확정');
+    if (!smsRes.ok) {
+        await fetch(`${base}&approved_sms_sent_at=eq.${encodeURIComponent(claimTs)}`, { method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_sms_sent_at: null }) }).catch(() => {});
+        return json({ ok: false, error: 'solapi send failed', status: smsRes.status, detail: (await smsRes.text().catch(() => '')).slice(0, 300) }, 502);
+    }
+    return json({ ok: true });
+}
+
 // ── 고정 합주팀 문자 본문 ──────────────────────────────────────────────
 // index.html bandCycleSummaryHTML(등록 회차)·send-reminders.js bandRentText 와 같은 규칙:
 //   보증금(1개월분) 입금으로 등록 확정 · 등록 회차 이용료는 시작일 전날까지 · 다음 회차부터 입금일 = 사용 3주차(문자 자동 안내)
@@ -336,6 +389,10 @@ export async function onRequest(context) {
                 } else {
                     out.컬럼_오류 = (await colRes.text().catch(() => '')).slice(0, 200);
                 }
+                try { // 대관 승인 안내 문자(2026-11-16)
+                    const ar = await fetch(`${env.SUPABASE_URL}/rest/v1/performance_bookings?select=approved_sms_sent_at&limit=1`, { headers: sbHeaders });
+                    out.대관_승인문자_컬럼 = ar.ok ? true : `없음 — supabase/migrations/20261116_perf_approved_sms.sql 실행 필요 (${ar.status})`;
+                } catch (e) { out.대관_승인문자_컬럼 = '확인 실패: ' + String(e && e.message || e); }
                 // 고정팀 문자(2026-11-07): 발송 기록 표·캐비넷 컬럼 유무 — 없으면 어떤 마이그레이션을 돌려야 하는지 바로 보인다
                 try {
                     const logRes = await fetch(`${env.SUPABASE_URL}/rest/v1/band_sms_log?select=kind,sent_at,to_phone&order=sent_at.desc&limit=5`, { headers: sbHeaders });
@@ -378,6 +435,7 @@ export async function onRequest(context) {
         if (!UUID_RE.test(String(booking_id || ''))) {
             return json({ error: 'invalid booking_id' }, 400);
         }
+        if (body.kind === 'approved') return await handlePerfApproved(booking_id, env, json);
 
         const SUPABASE_URL = env.SUPABASE_URL;
         const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
