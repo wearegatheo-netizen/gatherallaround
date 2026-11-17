@@ -2311,3 +2311,11 @@
         .sec-promo .s { font-size: 0.76rem; line-height: 1.4; color: rgba(255,255,255,.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .sec-promo .go { margin-left: auto; flex: none; font-size: 1.1rem; }
         .sec-promo:focus-visible { outline: 2px solid var(--wds-blue-500, #3182F6); outline-offset: 2px; }
+
+        /* ===== 일정표 슬롯 정원(2026-11-17) — 편집기 「정원 N명」 칸, 팀 신청 시트 안내 ===== */
+        .sched-cap { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 0.78rem; font-weight: 600; color: var(--wds-gray-600); }
+        .sched-cap input { width: 54px; height: 32px !important; padding: 0 4px; border: 1px solid var(--wds-gray-300); border-radius: 5px; font-size: 0.85rem; font-family: inherit;
+            text-align: center; box-sizing: border-box; background: var(--wds-white); color: var(--wds-black); -moz-appearance: textfield; appearance: textfield; }
+        .sched-cap input::-webkit-outer-spin-button, .sched-cap input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .gt-cap-note { font-size: 0.8rem; color: #e74c3c; margin: 0 0 10px; line-height: 1.45; }
+        .gt-cap-note.info { color: var(--wds-gray-600); }

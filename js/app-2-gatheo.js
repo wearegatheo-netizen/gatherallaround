@@ -825,9 +825,16 @@
             if (!me) { showToast('승인된 멤버만 참여 신청할 수 있어요.'); return; }
             if (date < new Date().toLocaleDateString('en-CA')) { showToast('지난 일정은 참여 신청·취소할 수 없어요.'); return; }
             const key = slotAttKey(gn, startTime);
-            const cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
+            let cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
             const isMeIn = cur.includes(me.id);
             if (!isMeIn) { const p = checkSignupPeriod(date); if (!p.ok) { showToast(p.msg, 4000); return; } }
+            if (!isMeIn && _slotCapacity(date, key) != null) {
+                // 정원(2026-11-17): 누르는 사이 다른 사람이 신청했을 수 있어 최신 명단으로 다시 확인
+                await _slotFresh(date, key);
+                cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
+                if (cur.includes(me.id)) { renderMemberPanel(); return; } // 그 사이 팀원이 나를 신청해 둠
+                if (_slotLeft(date, key) < 1) { showToast('정원이 찼어요. 다른 시간을 골라주세요.', 4000); renderMemberPanel(); return; }
+            }
             if (isMeIn) {
                 const { error } = await supabaseClient.from('schedule_attendees').delete().eq('schedule_date', date).eq('profile_id', me.id).eq('group_name', key);
                 if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
@@ -838,6 +845,7 @@
                 const { error } = await supabaseClient.from('schedule_attendees').insert({ schedule_date: date, profile_id: me.id, group_name: key });
                 if (error && error.code === '42703') { alert('group_name 컬럼이 없습니다.\nALTER TABLE schedule_attendees ADD COLUMN group_name text;\n을 Supabase에서 실행해주세요.'); return; }
                 if (error && error.code === '23505') { alert('같은 날짜에 여러 슬롯을 신청하려면 Supabase SQL Editor에서 아래를 실행해주세요:\n\nALTER TABLE schedule_attendees DROP CONSTRAINT IF EXISTS schedule_attendees_schedule_date_profile_id_key;\nALTER TABLE schedule_attendees ADD CONSTRAINT schedule_attendees_unique UNIQUE(schedule_date, profile_id, group_name);'); return; }
+                if (_slotFullErr(error)) { await _slotFresh(date, key); showToast('방금 정원이 찼어요. 다른 시간을 골라주세요.', 4000); renderMemberPanel(); return; }
                 if (error) { console.error('attend apply:', error); showToast('신청하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
                 if (!state.scheduleSlotAttendees[date]) state.scheduleSlotAttendees[date] = {};
                 if (!state.scheduleSlotAttendees[date][key]) state.scheduleSlotAttendees[date][key] = [];
@@ -860,7 +868,8 @@
                     endTime: s.end_time || '',
                     teamId: isCustom ? '__custom__' : (s.team_id || ''),
                     customName: isCustom ? s.team_name : '',
-                    note: s.note || ''
+                    note: s.note || '',
+                    capacity: Number(s.capacity) > 0 ? String(s.capacity) : '' // 정원(2026-11-17) — 비우면 제한 없음
                 });
             });
             state.scheduleEditorGroups = groupOrder.length === 0
@@ -915,6 +924,9 @@
                                 <option value="__custom__" ${isCustom?'selected':''}>✏️ 직접 입력</option>
                             </select>
                             ${teamPreview}
+                            <label class="sched-cap" title="이 시간에 신청할 수 있는 인원(멤버 + 외부인). 비우면 제한 없음">정원
+                                <input type="number" inputmode="numeric" min="1" max="999" value="${escapeHtml(String(e.capacity || ''))}" placeholder="없음"
+                                    oninput="schedEditorUpdateEntry(${gi},${ei},'capacity',this.value)">명</label>
                             <button class="gaa-btn gaa-btn-sm gaa-btn-ghost" style="width:24px;height:24px;flex-shrink:0" type="button" onclick="schedEditorRemoveEntry(${gi},${ei})"
                                >×</button>
                         </div>
@@ -977,7 +989,8 @@
                         </div>
                         <div style="font-size:0.72rem;color:var(--wds-primary);opacity:0.8">비워두면 항상 신청 가능</div>
                     </div>
-                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">그룹 & 시간표</div>
+                    <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">그룹 & 시간표</div>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-bottom:8px">시간마다 「정원」을 적으면 그 인원까지만 신청을 받아요(멤버·팀 신청 + 외부인 합산). 비우면 제한 없음.</div>
                     ${groupsHtml}
                     <button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-secondary" style="margin-bottom:8px" type="button" onclick="schedEditorAddGroup()"
                        >+ 그룹 추가</button>
@@ -1060,6 +1073,7 @@
                         team_name: teamName || null,
                         members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, leader: !!s.leader, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
+                        capacity: (() => { const n = parseInt(entry.capacity, 10); return n > 0 ? Math.min(n, 999) : null; })(),
                         show_banner: showBanner, allow_guests: allowGuests,
                         signup_open: signupOpen, signup_close: signupClose,
                         created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
@@ -1072,24 +1086,34 @@
             const oldRows = (state.schedules || []).filter(r => r.date === date && r.id);
             const { data: oldFetched } = await supabaseClient.from('schedules').select('id').eq('date', date);
             const oldIds = [...new Set([...(oldFetched || []).map(r => r.id), ...oldRows.map(r => r.id)])];
-            const stripGuests = (rs) => rs.map(r => { const { allow_guests, ...rest } = r; return rest; });
-            // allow_guests 컬럼이 아직 없으면(마이그레이션 전) 처음부터 빼고 보낸다 — PostgREST 는 모르는 컬럼을 PGRST204 로 거절한다
-            const colMissing = (state.schedules || []).length > 0 && (state.schedules || []).every(r => r.allow_guests === undefined);
+            // 나중에 추가된 컬럼(allow_guests·capacity)이 아직 없으면(마이그레이션 전) 처음부터 빼고 보낸다 — PostgREST 는 모르는 컬럼을 PGRST204 로 거절한다.
+            // 그래도 거절되면 오류 문구에 나온 컬럼을 빼고 다시(컬럼마다 한 번).
+            const OPTIONAL = ['allow_guests', 'capacity'];
+            const loaded = state.schedules || [];
+            const dropped = new Set(OPTIONAL.filter(c => loaded.length > 0 && loaded.every(r => r[c] === undefined)));
+            const strip = (rs) => rs.map(r => { const o = { ...r }; dropped.forEach(c => delete o[c]); return o; });
+            const wantsCap = records.some(r => r.capacity != null);
+            let savedMsg = '일정이 저장되었습니다.';
             if (records.length > 0) {
-                let payload = colMissing ? stripGuests(records) : records;
-                let { error: insErr } = await supabaseClient.from('schedules').insert(payload);
-                if (insErr && payload === records && /allow_guests/.test(insErr.message || '')) {
-                    payload = stripGuests(records);
-                    ({ error: insErr } = await supabaseClient.from('schedules').insert(payload));
+                let { error: insErr } = await supabaseClient.from('schedules').insert(strip(records));
+                for (let i = 0; insErr && i < OPTIONAL.length; i++) {
+                    const col = OPTIONAL.find(c => !dropped.has(c) && new RegExp(c).test(insErr.message || ''));
+                    if (!col) break;
+                    dropped.add(col);
+                    ({ error: insErr } = await supabaseClient.from('schedules').insert(strip(records)));
                 }
                 if (insErr) { showToast('저장 실패: ' + insErr.message + ' (기존 일정은 그대로 남아 있습니다)', 5000); return; }
-                if (payload !== records && allowGuests) showToast('외부인 참여 설정은 Supabase 에서 20261102_schedules_allow_guests.sql 을 실행한 뒤 저장돼요.', 5000);
+                // 빠진 설정 안내는 저장 완료 토스트 자리에(따로 띄우면 바로 덮인다)
+                const skipped = [];
+                if (dropped.has('allow_guests') && allowGuests) skipped.push('외부인 참여 설정(20261102_schedules_allow_guests.sql)');
+                if (dropped.has('capacity') && wantsCap) skipped.push('정원(20261117_schedule_capacity.sql)');
+                if (skipped.length) savedMsg = `일정은 저장했지만 ${skipped.join('·')}은 빠졌어요. Supabase 에서 괄호 안 SQL 을 실행한 뒤 다시 저장해주세요.`;
             }
             if (oldIds.length) {
                 const { error: delErr } = await supabaseClient.from('schedules').delete().in('id', oldIds);
                 if (delErr) { console.error('schedules old rows delete error:', delErr); showToast('새 일정은 저장됐지만 이전 일정을 지우지 못했습니다. 화면에 두 벌이 보이면 [편집]으로 다시 저장해주세요.'); }
             }
-            showToast('일정이 저장되었습니다.');
+            showToast(savedMsg, savedMsg.length > 20 ? 7000 : undefined);
             await fetchSchedules();
             const container = document.getElementById('memberPanelView');
             if (container && state.memberPanelTab === 'schedule') await renderScheduleView(container);
@@ -1223,26 +1247,31 @@
                         const slotGuests = _slotGuests(date, slotKey), slotGuestN = _guestTotal(slotGuests);
                         const myGuest = myId ? slotGuests.find(g => g.host_profile_id === myId) : null;
                         const attCount = slotChipData.length + slotGuestN; // 멤버 + 외부인 합산(2026-11-02)
+                        // 정원(2026-11-17): 멤버 + 외부인이 정원에 닿으면 「마감」 — 새 신청·팀 신청·외부인 추가가 막히고 취소는 된다
+                        const slotCap = _slotCapacity(date, slotKey), slotUsed = slotAttendees.length + slotGuestN;
+                        const slotFull = slotCap != null && slotUsed >= slotCap;
+                        const capChip = slotCap == null ? '' : slotFull ? `<span class="status-badge sm status-rejected gt-cap-chip full" style="flex-shrink:0">마감</span>`
+                            : !attCount ? `<span class="status-badge sm status-neutral gt-cap-chip" style="flex-shrink:0">정원 ${slotCap}명</span>` : '';
                         const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
                         const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'};letter-spacing:0.02em">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
                         // 참여자수 버튼 — 시간과 같은 라인에 배치
-                        const slotCountBtn = attCount ? `<button type="button" class="status-badge sm ${isMeInSlot?'status-info':'status-neutral'}" style="border:none;cursor:pointer;flex-shrink:0;font-family:inherit;min-height:28px;padding:4px 10px" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()">🙋 ${attCount}명${slotGuestN ? `<small style="font-weight:600;opacity:0.75"> · 외부 ${slotGuestN}</small>` : ''}</button>` : '';
+                        const slotCountBtn = attCount ? `<button type="button" class="status-badge sm ${isMeInSlot?'status-info':'status-neutral'}" style="border:none;cursor:pointer;flex-shrink:0;font-family:inherit;min-height:28px;padding:4px 10px" onclick="document.getElementById('${slotListId}').classList.toggle('hidden');event.stopPropagation()">🙋 ${slotCap != null ? `${slotUsed}/${slotCap}` : attCount}명${slotGuestN ? `<small style="font-weight:600;opacity:0.75"> · 외부 ${slotGuestN}</small>` : ''}</button>` : '';
                         // 참여자 명단 — 기본 항상 닫힘(외부인 칩은 맨 아래 묶음)
                         const slotChipDiv = attCount ? `<div id="${slotListId}" class="hidden" style="margin-top:6px">${_attPanelHTML(slotAttendees.filter(pid => memberMap[pid]), { myId, teamId: s.team_id || null, guests: slotGuests })}</div>` : '';
                         const slotBlocked = !isMeInSlot && sigStatus !== null && sigStatus !== 'open';
                         const gnArg = (gn||'').replace(/'/g,"\\'");
                         const slotBtn = (state.user && !isPastDate) ? `<button type="button" class="gaa-btn gaa-btn-xs ${isMeInSlot?'gaa-btn-danger':'gaa-btn-primary'}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 9px" onclick="toggleSlotAttendance('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
-                            ${slotBlocked ? 'disabled' : ''}>${isMeInSlot?'✓ 취소':'+ 신청'}</button>` : '';
+                            ${(slotBlocked || (slotFull && !isMeInSlot)) ? 'disabled' : ''}>${isMeInSlot?'✓ 취소':(slotFull ? '마감' : '+ 신청')}</button>` : '';
                         // 외부인 참여 신청(2026-11-02) — 내 줄이 있으면 「👥 외부 N」(수정), 없으면 「+ 외부」; 신청 기간 밖이면 새 신청만 막힘
                         const guestBlocked = !myGuest && sigStatus !== null && sigStatus !== 'open';
                         // 팀으로 신청(2026-11-03) — 내가 속한 진행 중 팀이 있을 때만 [팀] 버튼
                         const teamBtn = (state.user && myId && !isPastDate && myTeams.length) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary gt-team-btn" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 8px" title="팀으로 신청" onclick="gtTeamApplySheet('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()">👥 팀</button>` : '';
                         const guestBtn = (state.user && myId && !isPastDate && !state._guestsUnavailable && (guestsOn || myGuest)) ? `<button type="button" class="gaa-btn gaa-btn-xs gaa-btn-secondary gt-guest-btn${myGuest ? ' mine' : ''}" style="white-space:nowrap;flex-shrink:0;min-height:26px;padding:3px 8px" title="외부인 참여 신청" onclick="gtGuestSheet('${date}','${gnArg}','${s.start_time||''}');event.stopPropagation()"
-                            ${guestBlocked ? 'disabled' : ''}>${myGuest ? `👥 외부 ${myGuest.guest_count}` : '+ 외부'}</button>` : '';
+                            ${(guestBlocked || (slotFull && !myGuest)) ? 'disabled' : ''}>${myGuest ? `👥 외부 ${myGuest.guest_count}` : '+ 외부'}</button>` : '';
                         return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                                 <span style="font-size:0.81rem;font-weight:800;color:var(--wds-primary);white-space:nowrap;background:rgba(51,102,255,0.1);padding:2px 8px;border-radius:6px;letter-spacing:0.03em">${escapeHtml(timeStr)}</span>
-                                ${slotCountBtn}
+                                ${slotCountBtn}${capChip}
                                 <span style="flex:1"></span>
                                 ${(teamBtn || guestBtn || slotBtn) ? `<div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">${teamBtn}${guestBtn}${slotBtn}</div>` : ''}
                             </div>

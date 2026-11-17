@@ -1188,6 +1188,18 @@
             if (rows.every(x => x.allow_guests === undefined)) return true;
             return rows.some(x => x.allow_guests === true);
         }
+        // ── 슬롯 정원(2026-11-17, schedules.capacity — 비우면 제한 없음) ──────────────────────────
+        // 정원은 그 슬롯의 **멤버 신청 + 외부인** 합(화면의 「🙋 N명」과 같은 수). 개인 신청·팀으로 신청·외부인 신청 모두 같은 자리를 쓴다.
+        // 화면 검사(신청 직전 최신 명단을 다시 받아 확인) + DB 트리거(20261117_schedule_capacity.sql, 동시에 눌러도 정원을 넘지 않게 — 'SLOT_FULL').
+        function _slotCapacity(date, key) {
+            const row = (state.schedules || []).find(s => s.date === date && Number(s.capacity) > 0 && slotAttKey(s.group_name || '', s.start_time) === key);
+            return row ? Number(row.capacity) : null;
+        }
+        function _slotUsed(date, key) { return ((((state.scheduleSlotAttendees || {})[date] || {})[key]) || []).length + _guestTotal(_slotGuests(date, key)); }
+        function _slotLeft(date, key) { const cap = _slotCapacity(date, key); return cap == null ? Infinity : Math.max(0, cap - _slotUsed(date, key)); }
+        function _slotFullErr(error) { return !!error && /SLOT_FULL/.test((error.code || '') + ' ' + (error.message || '')); }
+        // 정원이 있는 슬롯만 신청 직전에 명단을 새로 받는다(그 사이 다른 사람이 신청했을 수 있음)
+        async function _slotFresh(date, key) { if (_slotCapacity(date, key) != null) { try { await fetchScheduleAttendees([date]); } catch (_) {} } }
         function _slotGuests(date, key) { return _dateGuests(date).filter(g => (g.slot_key || '') === key); }
         function _guestTotal(list) { return (list || []).reduce((n, g) => n + (Number(g.guest_count) || 0), 0); }
         function _guestChipsHTML(list, myId) {
@@ -1208,12 +1220,17 @@
             const mine = _slotGuests(date, key).find(g => g.host_profile_id === me.id) || null;
             if (!mine && !_guestsAllowed(date)) { showToast('이 일정은 외부인 참여 신청을 받지 않아요.'); return; }
             if (!mine) { const p = checkSignupPeriod(date); if (!p.ok) { showToast(p.msg, 4000); return; } }
-            const opts = Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${mine && Number(mine.guest_count) === n ? 'selected' : ''}>${n}명</option>`).join('');
+            // 정원(2026-11-17): 남은 자리(+내가 이미 적은 인원)까지만 고를 수 있다
+            const room = Math.min(10, _slotLeft(date, key) + (mine ? Number(mine.guest_count) || 0 : 0));
+            if (room < 1) { showToast('정원이 차서 외부인 참여를 더 신청할 수 없어요.'); return; }
+            const capNote = _slotCapacity(date, key) != null ? `<div class="hint">이 시간은 정원 ${_slotCapacity(date, key)}명 · 남은 자리 ${_slotLeft(date, key)}명이에요.</div>` : '';
+            const opts = Array.from({ length: room }, (_, i) => i + 1).map(n => `<option value="${n}" ${mine && Number(mine.guest_count) === n ? 'selected' : ''}>${n}명</option>`).join('');
             gtSheetOpen(`외부인 참여 신청 · ${_gtFmtDate(date)} ${escapeHtml(startTime || '')}`, `
                 <form class="gt-guest-form" id="gtGuestForm" onsubmit="event.preventDefault();gtGuestSave('${date}','${(gn || '').replace(/'/g, "\\'")}','${startTime || ''}')">
                     <div class="row"><label for="gtGuestCount">인원 수</label><select id="gtGuestCount">${opts}</select></div>
                     <div class="row"><label for="gtGuestNames">누구</label><input type="text" id="gtGuestNames" maxlength="80" placeholder="예: 김민수, 박지영(친구)" value="${escapeHtml(mine ? mine.guest_names || '' : '')}"></div>
                     <div class="hint">내 신청과 별도로 데려오는 사람입니다. 전체 참여자 수에 합산되고, 참여 횟수에는 들어가지 않아요.</div>
+                    ${capNote}
                     <div id="gtGuestResult" style="font-size:0.84rem;min-height:20px;color:#e74c3c;margin-bottom:6px"></div>
                     <div style="display:flex;gap:8px">
                         ${mine ? `<button type="button" class="gaa-btn gaa-btn-danger" style="flex:1" onclick="gtGuestDelete('${mine.id}','${date}')">삭제</button>` : ''}
@@ -1228,7 +1245,10 @@
             const count = Math.max(1, Math.min(30, parseInt(document.getElementById('gtGuestCount').value, 10) || 1));
             const names = (document.getElementById('gtGuestNames').value || '').trim().slice(0, 80);
             const res = document.getElementById('gtGuestResult');
+            await _slotFresh(date, key);
             const mine = _slotGuests(date, key).find(g => g.host_profile_id === me.id) || null;
+            const room = _slotLeft(date, key) + (mine ? Number(mine.guest_count) || 0 : 0);
+            if (count > room) { if (res) res.textContent = room > 0 ? `남은 자리가 ${room}명이에요. 인원 수를 줄여주세요.` : '정원이 차서 신청할 수 없어요.'; renderMemberPanel(); return; }
             const payload = { guest_count: count, guest_names: names, updated_at: new Date().toISOString() };
             let error, row;
             if (mine) { ({ error } = await supabaseClient.from('schedule_guests').update(payload).eq('id', mine.id)); row = Object.assign({}, mine, payload); }
@@ -1239,6 +1259,7 @@
             if (error) {
                 console.error('schedule_guests save error:', error);
                 if (error.code === '42P01') { state._guestsUnavailable = true; if (res) res.textContent = 'Supabase 에서 20261102_schedule_guests.sql 을 먼저 실행해주세요.'; }
+                else if (_slotFullErr(error)) { if (res) res.textContent = '방금 정원이 찼어요. 인원 수를 줄이거나 다른 시간을 골라주세요.'; _slotFresh(date, key).then(() => renderMemberPanel()); }
                 else if (res) res.textContent = '저장하지 못했습니다. 잠시 후 다시 시도해주세요.';
                 return;
             }
@@ -1261,14 +1282,17 @@
             if (!teams.length) { showToast('소속된 진행 중 팀이 없어요. 팀 탭에서 팀을 먼저 만들어주세요.'); return; }
             const cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
             const period = checkSignupPeriod(date);
+            const cap = _slotCapacity(date, key), left = _slotLeft(date, key);
             const cards = teams.map(t => {
                 const ids = _teamMemberIds(t), applied = ids.filter(id => cur.includes(id)), rest = ids.length - applied.length;
                 const lid = teamLeaderId(t);
                 const chips = [...ids].sort((a, b) => (b === lid ? 1 : 0) - (a === lid ? 1 : 0)).map(id => { const m = _gtMemberById(id); const n = m ? m.name.replace(/\s*\(.*?\)\s*$/, '') : '?'; const on = cur.includes(id); return `<span class="gt-att-chip${on ? ' me' : ''}" title="${on ? '신청됨' : '미신청'}">${id === lid ? '👑 ' : ''}${escapeHtml(n)}${on ? ' ✓' : ''}</span>`; }).join('');
-                const canApply = rest > 0 && period.ok;
+                const noRoom = rest > left; // 정원(2026-11-17): 남은 자리가 미신청 팀원 수보다 적으면 팀 전체 신청 불가
+                const canApply = rest > 0 && period.ok && !noRoom;
                 return `<div class="gt-team-apply" data-team="${t.id}">
                     <div class="h"><b>${escapeHtml(t.name)}</b><span>${applied.length}/${ids.length}명 신청됨</span></div>
                     <div class="gt-att-chips" style="margin:6px 0 10px">${chips}</div>
+                    ${rest > 0 && noRoom ? `<div class="gt-cap-note">남은 자리 ${left}명 — 미신청 팀원 ${rest}명을 모두 신청할 수 없어요.</div>` : ''}
                     <div style="display:flex;gap:8px">
                         <button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" style="flex:2" ${canApply ? '' : 'disabled'} onclick="gtTeamApply('${date}','${key.replace(/'/g, "\\'")}','${t.id}')">${rest > 0 ? `팀 전체 신청 (+${rest}명)` : '모두 신청됨'}</button>
                         ${applied.length ? `<button type="button" class="gaa-btn gaa-btn-sm gaa-btn-danger" style="flex:1" onclick="gtTeamCancel('${date}','${key.replace(/'/g, "\\'")}','${t.id}')">팀 전체 취소</button>` : ''}
@@ -1277,6 +1301,7 @@
             }).join('');
             gtSheetOpen(`팀으로 신청 · ${_gtFmtDate(date)} ${escapeHtml(startTime || '')}`, `
                 ${period.ok ? '' : `<div style="font-size:0.82rem;color:#e74c3c;margin-bottom:10px">${escapeHtml(period.msg.replace(/\n/g, ' '))} — 취소만 할 수 있어요.</div>`}
+                ${cap != null ? `<div class="gt-cap-note info">이 시간은 정원 ${cap}명 · 남은 자리 ${left}명이에요.</div>` : ''}
                 ${cards}
                 <div style="font-size:0.78rem;color:var(--wds-gray-500);margin-top:4px">팀원 각자의 신청과 같은 기록이에요. 이미 신청한 팀원은 건너뛰고, 취소는 팀원 전원의 이 슬롯 신청을 지웁니다.</div>`);
         }
@@ -1284,10 +1309,14 @@
             const me = _gtMe(); if (!me || !supabaseClient) return;
             const t = (state.teams || []).find(x => x.id === teamId); if (!t) return;
             const p = checkSignupPeriod(date); if (!p.ok) { showToast(p.msg, 4000); return; }
+            await _slotFresh(date, key);
             const cur = ((state.scheduleSlotAttendees || {})[date] || {})[key] || [];
             const ids = _teamMemberIds(t).filter(id => !cur.includes(id));
             if (!ids.length) { showToast('이미 모두 신청돼 있어요.'); return; }
+            const left = _slotLeft(date, key);
+            if (ids.length > left) { gtSheetClose(); showToast(left > 0 ? `남은 자리가 ${left}명이라 팀원 ${ids.length}명을 모두 신청할 수 없어요.` : '정원이 찼어요. 다른 시간을 골라주세요.', 4000); renderMemberPanel(); return; }
             const { error } = await supabaseClient.from('schedule_attendees').insert(ids.map(id => ({ schedule_date: date, profile_id: id, group_name: key })));
+            if (_slotFullErr(error)) { await _slotFresh(date, key); gtSheetClose(); showToast('방금 정원이 찼어요. 팀 전체를 신청하지 못했습니다.', 4000); renderMemberPanel(); return; }
             if (error) { console.error('team apply error:', error); showToast('신청하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
             if (!state.scheduleSlotAttendees) state.scheduleSlotAttendees = {};
             if (!state.scheduleSlotAttendees[date]) state.scheduleSlotAttendees[date] = {};
