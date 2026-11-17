@@ -145,6 +145,38 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T=window.__T={community
     return { has, noOpenKey: call && !('open_ended' in call.args.p_patch), date: m.meeting_date, time: m.meeting_time, again: !!document.getElementById('ce_open'), dateBox: document.getElementById('ce_date')?.value }; }, CM);
   const swCalls = api.filter(a => a.action === 'app_open_switch');
   chk('수정: 「상시 모집으로 전환」 체크 → /community-admin app_open_switch(토큰 만료면 비밀번호로 다시 받아 재시도), 날짜·시간이 비고 전환 뒤엔 체크 칸 없음', sw.has && sw.noOpenKey && swCalls.length === 2 && swCalls[1].token === 'tok-1' && swCalls[1].prev_title === '주말 합주 클래스' && api.some(a => a.action === 'app_auth') && sw.date === null && sw.time === null && !sw.again && sw.dateBox === '상시 모집', JSON.stringify(sw) + ' ' + JSON.stringify(swCalls));
+  // 섹션 홍보 배너(2026-11-17): 목록 화면에만, 누르면 해당 섹션으로, 대관 1단계는 상시 모집 모임으로
+  const pr = await p.evaluate(async (id) => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    await showCommunitySection(); await wait(300);
+    const c = document.getElementById('secPromo-community');
+    const o = { list: !!c && c.textContent.includes('공간 대관') && c.getBoundingClientRect().height >= 60 };
+    await renderCommunityDetail(id); await wait(300);
+    o.detailNone = !document.getElementById('secPromo-community');
+    await showCommunitySection(); await wait(300);
+    document.getElementById('secPromo-community').click(); await wait(700);
+    o.toPerf = location.hash === '#perf';
+    const b = document.getElementById('secPromo-perf');
+    o.perfText = b ? b.querySelector('.t').textContent + '|' + b.querySelector('.s').textContent : '';
+    o.aboveSteps = !!b && !!b.nextElementSibling && b.nextElementSibling.classList.contains('sx-steps');
+    _perfState.selectedDate = '2099-01-05'; _perfState.startSlot = 2; _perfState.endSlot = 4; renderPerfStep2(); await wait(100);
+    o.step2None = !document.getElementById('secPromo-perf');
+    renderPerfStep1(); await wait(300);
+    document.getElementById('secPromo-perf').click(); for (let i = 0; i < 40 && !/meeting/.test(location.hash); i++) await wait(150);
+    o.toMeeting = location.hash;
+    const ev = (window.dataLayer || []).filter(a => a && a[0] === 'event' && /^promo_/.test(a[1]));
+    o.ev = ev.map(a => a[1] + ':' + a[2].promo_from + '>' + a[2].promo_to + ':' + Object.keys(a[2]).length).join(',');
+    return o; }, CM);
+  chk('홍보 배너: 커뮤니티 목록에 공간 대관 띠, 상세엔 없음', pr.list && pr.detailNone, JSON.stringify(pr));
+  chk('홍보 배너: 누르면 공간 대관으로, 대관 1단계 띠는 단계 표시 위·고정 문구 + 상시 모집 모임', pr.toPerf && pr.aboveSteps && pr.perfText === '신촌에서 같이 합주할 팀 찾습니다!|상시 모집 중인 커뮤니티 모임', pr.perfText);
+  chk('홍보 배너: 대관 2단계(신청서)엔 없고, 1단계 띠를 누르면 상시 모집 모임 상세로', pr.step2None && /^#community\/meeting\/[0-9a-f-]{36}$/.test(pr.toMeeting), pr.toMeeting);
+  chk('홍보 배너: 애널리틱스 promo_view·promo_click(값은 출발·도착 화면 둘뿐)', ['promo_view:community>perf:2', 'promo_click:community>perf:2', 'promo_view:perf>community:2', 'promo_click:perf>community:2'].every(x => pr.ev.includes(x)), pr.ev);
+  if (process.env.SHOT_DIR) { // 홍보 배너 캡처(SHOT_DIR=폴더)
+    for (const [fn, name] of [['showCommunitySection', 'promo-community'], ['showPerformanceBookingSection', 'promo-perf']]) {
+      await p.evaluate(async (f) => { await window[f](); await new Promise(r => setTimeout(r, 1800)); window.scrollTo(0, 0); }, fn);
+      await p.screenshot({ path: `${process.env.SHOT_DIR}/${name}.png`, clip: { x: 0, y: 0, width: 420, height: 330 } });
+    }
+  }
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
   await br.close();

@@ -73,6 +73,76 @@
                 if (typeof gtag === 'function') gtag('event', name, params || {});
             } catch (_) {}
         }
+        // ── 섹션 홍보 배너(2026-11-17) ─────────────────────────────────────────────────────────
+        // 커뮤니티·공연 예매·공간 대관의 **목록 화면** 앱 바 바로 아래 한 줄 띠(사진 위 글자, 시안 A). 상세·신청서·예매 시트·티켓·조회 화면엔 없다.
+        //   커뮤니티 → 공간 대관(고정 문구) / 공연 예매 → 가장 가까운 모집 중 모임(없으면 고정 문구) / 공간 대관 1단계 → 상시 모집 모임(문구 고정, 요청).
+        // sectionPromoHTML(section) 은 바로 그릴 수 있는 내용으로 띠를 만들고, 모임 자료가 필요한 띠는 _promoHydrate 가 받아 온 뒤 제자리에서 고친다.
+        // 문구·사진은 코드 고정(관리자 편집은 나중). 노출·클릭은 애널리틱스 promo_view / promo_click {promo_from, promo_to}.
+        const PROMO_PERF_OPEN_TITLE = '신촌에서 같이 합주할 팀 찾습니다!';
+        const _PROMO = {
+            community: { img: 'studio1', to: 'perf', t: '합주·공연·모임 공간 대관', s: '평일 시간당 2.5만 원부터 · 최소 3시간' },
+            shows: { img: 'studio5', to: 'community', t: '같이 음악 할 사람을 찾는다면', s: '커뮤니티 모임 보기', auto: 'next' },
+            perf: { img: 'studio9', to: 'community', t: PROMO_PERF_OPEN_TITLE, s: '커뮤니티 모임 보기', auto: 'open' },
+        };
+        const _promoTarget = {};   // section → { to, id? } (누를 때 갈 곳)
+        let _promoMeetCache = null, _promoMeetAt = 0;
+        const _promoEsc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        // 모집 중인 모임(공개·마감 아님·지나지 않음) — 커뮤니티에 들어온 적 있으면 그 목록, 아니면 가벼운 조회(5분 캐시)
+        async function _promoMeetings() {
+            const today = new Date().toLocaleDateString('en-CA');
+            const live = (list) => (list || []).filter(m => (m.status || 'active') === 'active' && !m.is_closed
+                && !(m.application_deadline && m.application_deadline < today) && (!m.meeting_date || m.meeting_date >= today));
+            if (Array.isArray(state.communityMeetings) && state.communityMeetings.length) return live(state.communityMeetings);
+            if (_promoMeetCache && Date.now() - _promoMeetAt < 300000) return _promoMeetCache;
+            if (!supabaseClient) return [];
+            try {
+                const { data, error } = await supabaseClient.from('community_meetings').select('*');
+                if (error || !Array.isArray(data)) return [];
+                _promoMeetCache = live(data); _promoMeetAt = Date.now();
+                return _promoMeetCache;
+            } catch (_) { return []; }
+        }
+        // 모임 자료로 띠 내용을 정한다 — null 이면 고정 문구 그대로
+        function _promoPick(kind, meetings) {
+            if (kind === 'open') { // 상시 모집(날짜 없는 모임): 문구와 같은 제목 → 「합주」 든 제목 → 아무 상시 모집
+                const open = meetings.filter(m => !m.meeting_date);
+                const m = open.find(x => String(x.title || '').trim() === PROMO_PERF_OPEN_TITLE) || open.find(x => /합주/.test(x.title || '')) || open[0];
+                return m ? { id: m.id, t: PROMO_PERF_OPEN_TITLE, s: '상시 모집 중인 커뮤니티 모임' } : null;
+            }
+            const next = meetings.filter(m => m.meeting_date).sort((a, b) => a.meeting_date.localeCompare(b.meeting_date))[0] || meetings[0];
+            if (!next) return null;
+            if (!next.meeting_date) return { id: next.id, t: String(next.title || '커뮤니티 모임'), s: '커뮤니티 모임 · 상시 모집 중' };
+            const [, mm, dd] = next.meeting_date.split('-').map(Number);
+            const wd = ['일', '월', '화', '수', '목', '금', '토'][new Date(next.meeting_date + 'T00:00:00').getDay()];
+            return { id: next.id, t: `${mm}/${dd}(${wd}) ${next.title || '커뮤니티 모임'}`, s: '커뮤니티 모임 · 모집 중' };
+        }
+        function sectionPromoHTML(section) {
+            const p = _PROMO[section];
+            if (!p) return '';
+            _promoTarget[section] = { to: p.to };
+            gaaTrack('promo_view', { promo_from: section, promo_to: p.to }, section);
+            if (p.auto) setTimeout(() => _promoHydrate(section), 0);
+            return `<button type="button" class="sec-promo" id="secPromo-${section}" onclick="sectionPromoGo('${section}')">
+                <img src="/img/portal/${p.img}.webp" alt="" loading="lazy" onerror="this.remove()">
+                <span class="tx"><span class="t">${_promoEsc(p.t)}</span><span class="s">${_promoEsc(p.s)}</span></span>
+                <span class="go" aria-hidden="true">›</span></button>`;
+        }
+        async function _promoHydrate(section) {
+            const p = _PROMO[section];
+            const pick = _promoPick(p.auto, await _promoMeetings());
+            const el = document.getElementById('secPromo-' + section);
+            if (!pick || !el) return;
+            _promoTarget[section] = { to: p.to, id: pick.id };
+            const t = el.querySelector('.t'), s = el.querySelector('.s');
+            if (t) t.textContent = pick.t;
+            if (s) s.textContent = pick.s;
+        }
+        function sectionPromoGo(section) {
+            const tg = _promoTarget[section] || { to: (_PROMO[section] || {}).to };
+            gaaTrack('promo_click', { promo_from: section, promo_to: tg.to }, section);
+            if (tg.to === 'perf') return showPerformanceBookingSection();
+            if (tg.to === 'community') { if (tg.id) window.__routeCommunityMeeting = tg.id; return showCommunitySection(); }
+        }
         // 화면 제목 — 한 페이지 안에서 화면만 바뀌는 구조라 제목을 안 바꾸면 애널리틱스 「페이지」 보고서에 전부 한 줄로 뭉친다.
         // 주소를 바꾸기 **전에** 제목을 바꿔야 애널리틱스의 자동 화면 기록이 새 제목을 읽는다(_pushNav 가 부른다).
         const _GAA_SECTION_TITLES = { perf: '공간 대관', community: '커뮤니티', shows: '공연 예매', host: '호스트 센터', band: '고정 합주팀', 'band-news': '밴드 뉴스', gatheo: '게더링' };

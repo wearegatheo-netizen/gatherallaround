@@ -93,6 +93,7 @@ const PAST = new Date(Date.now() - 5 * 86400e3).toISOString();
   }));
   chk('포털 → 공연 예매: 화면 전환 + 해시', s.pageShown && s.others.length === 0 && s.hash === '#shows');
   chk('목록: 다가오는 탭 3카드 (2열 그리드)', s.cards === 3 && s.grid, `${s.cards}개`);
+  chk('홍보 배너: 공연 목록 맨 위(알약 탭 앞)에 커뮤니티 띠', await p.evaluate(() => { const b = document.getElementById('secPromo-shows'); return !!b && b.nextElementSibling.id === 'showsListTabs' && b.querySelector('.t').textContent.length > 3; }));
   chk('목록: 잔여 3석/매진/무료 배지', s.text.includes('잔여 3석') && s.text.includes('매진') && s.text.includes('무료') && s.text.includes('₩15,000'));
   chk('목록: 다가오는/지난 알약 탭(수) + 앱 바 [내 티켓 조회] + 호스트 센터 링크', s.tabs === '다가오는 공연3|지난 공연1' && s.hostBtn && s.ticketBtn, s.tabs);
 

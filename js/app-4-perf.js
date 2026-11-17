@@ -209,6 +209,7 @@
             //    공간 소개 카드 → 요금 띠(.cm-stats) → 유의사항·환불 규정 접이식, 범위를 고르면 아래 고정 바(선택 요약 + [예약 신청하기]) 가 뜬다(_perfCalOnChange)
             const picked = _cs().startSlot !== null && _cs().endSlot !== null;
             container.innerHTML = `
+                ${sectionPromoHTML('perf')}
                 ${_perfStepsHTML(1)}
                 <div class="perf-layout">
                     <div class="perf-col-cal">

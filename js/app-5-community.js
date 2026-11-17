@@ -554,7 +554,7 @@
             // 알약 탭 + 한 줄 요약 (모임 생성 중에는 숨김). [신청 조회]는 앱 바, [모임 만들기]는 떠 있는 버튼(.cm-fab)
             if (!state.communityCreateOpen) {
                 const weekCnt = currentMeetings.filter(m => m.meeting_date && _cmDaysFromToday(m.meeting_date) < 7).length;
-                html += communitySegHTML(tab) + `<div class="cm-subline"><span>${tab === 'current' ? `이번 주 모임 ${weekCnt}개 · ` : ''}<span id="communityVisitorCount">오늘 ${state.communityTodayVisits}명 방문</span></span><span>${tab === 'current' ? '날짜순' : '최근순'}</span></div>`;
+                html += sectionPromoHTML('community') + communitySegHTML(tab) + `<div class="cm-subline"><span>${tab === 'current' ? `이번 주 모임 ${weekCnt}개 · ` : ''}<span id="communityVisitorCount">오늘 ${state.communityTodayVisits}명 방문</span></span><span>${tab === 'current' ? '날짜순' : '최근순'}</span></div>`;
             }
 
             // Create form — Google Forms 스타일

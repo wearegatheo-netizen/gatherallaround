@@ -187,7 +187,7 @@
             }
             // 2026-10-16: 머리는 앱 바(내 티켓 조회 알약) — 본문은 알약 탭 → 한 줄 요약(+호스트 센터 링크) → 검색 → 포스터 격자
             _sxSheetReset();
-            c.innerHTML = `<div id="showsListTabs"></div>
+            c.innerHTML = `${sectionPromoHTML('shows')}<div id="showsListTabs"></div>
             <div class="sx-sub"><span id="showsSubCount"></span><span class="r"><span class="q">호스트이신가요?</span><button type="button" onclick="showHostSection()">호스트 센터</button></span></div>
             <div class="sx-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" class="perf-form-input" id="showSearch" placeholder="공연명 · 팀 · 장소 검색" value="${escapeHtml(_showsState.q || '')}"
                 oninput="_showsState.q=this.value;_renderShowsListBody()"></div>

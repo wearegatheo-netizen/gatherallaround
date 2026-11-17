@@ -2299,3 +2299,15 @@
         body.dark .community-closed-msg { background:#7f1d1d; color:#fca5a5; }
         .community-edit-input { padding:6px 10px; border:1px solid var(--wds-gray-300); border-radius:var(--wds-radius-s); font-size:0.92rem; background:white; color:var(--wds-black); width:100%; box-sizing:border-box; font-family:inherit; }
         body.dark .community-edit-input { background:#2a2a2a; border-color:var(--wds-gray-400); color:var(--wds-black); }
+
+        /* ===== 섹션 홍보 배너(2026-11-17, 시안 A 「사진 한 줄」) — 앱 바 바로 아래, 목록 화면에만. 사진 위 글자라 두 모드 모두 흰 글자 ===== */
+        .sec-promo { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; height: 66px; margin: 10px 0 6px; padding: 0 14px; border: 0; border-radius: 14px;
+            overflow: hidden; background: #1c1e22; color: #fff; text-align: left; font: inherit; cursor: pointer; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .sec-promo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .sec-promo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,12,16,.82) 0%, rgba(10,12,16,.82) 38%, rgba(10,12,16,.28) 100%); }
+        .sec-promo .tx, .sec-promo .go { position: relative; z-index: 1; }
+        .sec-promo .tx { min-width: 0; display: flex; flex-direction: column; }
+        .sec-promo .t { font-weight: 800; font-size: 0.95rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sec-promo .s { font-size: 0.76rem; line-height: 1.4; color: rgba(255,255,255,.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sec-promo .go { margin-left: auto; flex: none; font-size: 1.1rem; }
+        .sec-promo:focus-visible { outline: 2px solid var(--wds-blue-500, #3182F6); outline-offset: 2px; }
