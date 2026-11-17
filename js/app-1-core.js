@@ -107,14 +107,19 @@
             if (kind === 'open') { // 상시 모집(날짜 없는 모임): 문구와 같은 제목 → 「합주」 든 제목 → 아무 상시 모집
                 const open = meetings.filter(m => !m.meeting_date);
                 const m = open.find(x => String(x.title || '').trim() === PROMO_PERF_OPEN_TITLE) || open.find(x => /합주/.test(x.title || '')) || open[0];
-                return m ? { id: m.id, t: PROMO_PERF_OPEN_TITLE, s: '상시 모집 중인 커뮤니티 모임' } : null;
+                return m ? { id: m.id, img: m.cover_image_url, t: PROMO_PERF_OPEN_TITLE, s: '상시 모집 중인 커뮤니티 모임' } : null;
             }
             const next = meetings.filter(m => m.meeting_date).sort((a, b) => a.meeting_date.localeCompare(b.meeting_date))[0] || meetings[0];
             if (!next) return null;
-            if (!next.meeting_date) return { id: next.id, t: String(next.title || '커뮤니티 모임'), s: '커뮤니티 모임 · 상시 모집 중' };
+            if (!next.meeting_date) return { id: next.id, img: next.cover_image_url, t: String(next.title || '커뮤니티 모임'), s: '커뮤니티 모임 · 상시 모집 중' };
             const [, mm, dd] = next.meeting_date.split('-').map(Number);
             const wd = ['일', '월', '화', '수', '목', '금', '토'][new Date(next.meeting_date + 'T00:00:00').getDay()];
-            return { id: next.id, t: `${mm}/${dd}(${wd}) ${next.title || '커뮤니티 모임'}`, s: '커뮤니티 모임 · 모집 중' };
+            return { id: next.id, img: next.cover_image_url, t: `${mm}/${dd}(${wd}) ${next.title || '커뮤니티 모임'}`, s: '커뮤니티 모임 · 모집 중' };
+        }
+        // 공간 대관을 홍보하는 띠는 대관 화면의 첫 번째 공간 사진(= 포털 히어로 첫 장), 그 밖의 띠가 사진을 못 구했을 때는 설정의 공간 사진
+        function _promoFallbackImg(p) {
+            const perf0 = p.to === 'perf' && typeof portalHeroUrls === 'function' ? portalHeroUrls()[0] : null;
+            return perf0 || `/img/portal/${p.img}.webp`;
         }
         function sectionPromoHTML(section) {
             const p = _PROMO[section];
@@ -123,7 +128,7 @@
             gaaTrack('promo_view', { promo_from: section, promo_to: p.to }, section);
             if (p.auto) setTimeout(() => _promoHydrate(section), 0);
             return `<button type="button" class="sec-promo" id="secPromo-${section}" onclick="sectionPromoGo('${section}')">
-                <img src="/img/portal/${p.img}.webp" alt="" loading="lazy" onerror="this.remove()">
+                ${p.auto ? '' : `<img src="${_promoEsc(_promoFallbackImg(p))}" alt="" onerror="this.remove()">`}
                 <span class="tx"><span class="t">${_promoEsc(p.t)}</span><span class="s">${_promoEsc(p.s)}</span></span>
                 <span class="go" aria-hidden="true">›</span></button>`;
         }
@@ -131,7 +136,17 @@
             const p = _PROMO[section];
             const pick = _promoPick(p.auto, await _promoMeetings());
             const el = document.getElementById('secPromo-' + section);
-            if (!pick || !el) return;
+            if (!el) return;
+            // 사진 = 홍보하는 내용의 대표 사진(모임 대표 이미지). 모임이 없거나 사진이 없으면·못 불러오면 공간 사진.
+            if (!el.querySelector('img')) {
+                const im = document.createElement('img');
+                const fb = _promoFallbackImg(p);
+                im.alt = '';
+                im.onerror = () => { if (im.getAttribute('src') !== fb) im.src = fb; else im.remove(); };
+                im.src = (pick && /^https:\/\//.test(pick.img || '')) ? pick.img : fb;
+                el.insertBefore(im, el.firstChild);
+            }
+            if (!pick) return;
             _promoTarget[section] = { to: p.to, id: pick.id };
             const t = el.querySelector('.t'), s = el.querySelector('.s');
             if (t) t.textContent = pick.t;
