@@ -8,8 +8,27 @@
 --   · 슬롯 키는 화면 slotAttKey 와 같다: 'slot|<그룹 이름>|<시작 시각>'.
 --   · 팀으로 신청(여러 행 한 번에)은 중간에 정원을 넘으면 전체가 취소된다(일부만 들어가지 않음).
 --   · 취소(DELETE)·정원 없는 슬롯은 건드리지 않는다. 검사 자체가 실패하면 신청을 막지 않는다(fail-open).
+--
+-- 팀 정원(같은 날 추가): 「팀」 칸에 적은 수까지만 [팀으로 신청]을 받는다. 팀으로 신청한 행에는 team_id 가 남고,
+-- 그 슬롯 행의 서로 다른 team_id 수가 「신청한 팀 수」다(개인 신청 행은 team_id 없음 — 팀 수에 안 들어간다) → 넘으면 'TEAM_FULL'.
+-- 이미 신청한 팀이 팀원을 더 넣는 것은 팀 수를 늘리지 않으므로 통과(인원 정원은 따로 본다).
+-- ※ 이 파일은 인원 정원만 있던 첫 판을 이미 실행했어도 다시 실행하면 된다(전부 덮어쓴다).
 
 alter table public.schedules add column if not exists capacity integer;
+alter table public.schedules add column if not exists team_capacity integer;
+alter table public.schedule_attendees add column if not exists team_id text;   -- 팀으로 신청한 행의 팀 id(teams.id 를 글자로)
+
+create or replace function public.gaa_slot_team_capacity(p_date text, p_key text)
+returns integer
+language sql stable security definer
+set search_path = public
+as $$
+  select max(s.team_capacity) from public.schedules s
+   where s.date::text = p_date
+     and s.team_capacity is not null and s.team_capacity > 0
+     and 'slot|' || coalesce(s.group_name, '') || '|' || coalesce(s.start_time::text, '') = p_key;
+$$;
+revoke all on function public.gaa_slot_team_capacity(text, text) from public, anon, authenticated;
 
 create or replace function public.gaa_slot_capacity(p_date text, p_key text)
 returns integer
@@ -49,11 +68,23 @@ returns trigger
 language plpgsql security definer
 set search_path = public
 as $$
-declare cap integer;
+declare cap integer; tcap integer;
 begin
   if NEW.group_name is null or NEW.group_name not like 'slot|%' then return NEW; end if;
   begin
     perform pg_advisory_xact_lock(hashtext('gaa-cap:' || NEW.schedule_date::text || ':' || NEW.group_name));
+    -- 팀 정원: 새 팀이 들어올 때만 센다(이미 신청한 팀의 추가 팀원은 통과)
+    if NEW.team_id is not null and NEW.team_id <> '' then
+      tcap := public.gaa_slot_team_capacity(NEW.schedule_date::text, NEW.group_name);
+      if tcap is not null
+         and not exists (select 1 from public.schedule_attendees a
+                          where a.schedule_date = NEW.schedule_date and a.group_name = NEW.group_name and a.team_id = NEW.team_id)
+         and (select count(distinct a.team_id) from public.schedule_attendees a
+               where a.schedule_date = NEW.schedule_date and a.group_name = NEW.group_name
+                 and a.team_id is not null and a.team_id <> '') >= tcap then
+        raise exception 'TEAM_FULL' using errcode = 'GA003';
+      end if;
+    end if;
     cap := public.gaa_slot_capacity(NEW.schedule_date::text, NEW.group_name);
     if cap is not null then
       -- 이미 신청돼 있는 사람의 같은 슬롯 행은 자리를 더 쓰지 않는다
@@ -65,6 +96,7 @@ begin
     end if;
   exception
     when sqlstate 'GA002' then raise;
+    when sqlstate 'GA003' then raise;
     when others then null;   -- 검사 실패는 통과
   end;
   return NEW;

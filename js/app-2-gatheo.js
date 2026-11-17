@@ -721,18 +721,27 @@
             let all = [...new Set([...(dates || []), ...prev])];
             if (all.length > 120) all = [...new Set(dates || [])];
             if (!supabaseClient || all.length === 0) {
-                state.scheduleAttendees = {}; state.scheduleGroupAttendees = {}; state.scheduleSlotAttendees = {}; state.scheduleGuests = {}; state._attLoaded = new Set(all);
+                state.scheduleAttendees = {}; state.scheduleGroupAttendees = {}; state.scheduleSlotAttendees = {}; state.scheduleSlotTeams = {}; state.scheduleGuests = {}; state._attLoaded = new Set(all);
                 return;
             }
             // 외부인 참여(schedule_guests)도 같은 날짜 범위로 함께 — 표가 없으면(마이그레이션 전) 조용히 빈 값
+            // team_id(2026-11-17, 팀 신청 표식) 컬럼이 아직 없으면 그 컬럼만 빼고 다시 받는다 — 명단이 통째로 비면 안 된다
+            const attQuery = async () => {
+                if (!state._attNoTeamCol) {
+                    const r = await supabaseClient.from('schedule_attendees').select('schedule_date, profile_id, group_name, team_id').in('schedule_date', all);
+                    if (!r.error) return r;
+                    state._attNoTeamCol = true;
+                }
+                return supabaseClient.from('schedule_attendees').select('schedule_date, profile_id, group_name').in('schedule_date', all);
+            };
             const [{ data }, gRes] = await Promise.all([
-                supabaseClient.from('schedule_attendees').select('schedule_date, profile_id, group_name').in('schedule_date', all),
+                attQuery(),
                 state._guestsUnavailable ? Promise.resolve({ data: [] }) : supabaseClient.from('schedule_guests').select('id, schedule_date, slot_key, host_profile_id, guest_count, guest_names').in('schedule_date', all),
             ]);
             if (gRes && gRes.error) { if (gRes.error.code === '42P01') state._guestsUnavailable = true; else console.error('schedule_guests fetch error:', gRes.error); }
             const Gs = {};
             ((gRes && gRes.data) || []).forEach(g => { (Gs[g.schedule_date] = Gs[g.schedule_date] || []).push(g); });
-            const A = {}, G = {}, S = {};
+            const A = {}, G = {}, S = {}, ST = {};
             (data || []).forEach(r => {
                 const d = r.schedule_date;
                 const gn = r.group_name;
@@ -741,6 +750,11 @@
                     if (!S[d]) S[d] = {};
                     if (!S[d][gn]) S[d][gn] = [];
                     if (!S[d][gn].includes(r.profile_id)) S[d][gn].push(r.profile_id);
+                    if (r.team_id) { // 팀으로 신청한 행 — 슬롯별 신청한 팀 목록
+                        if (!ST[d]) ST[d] = {};
+                        if (!ST[d][gn]) ST[d][gn] = [];
+                        if (!ST[d][gn].includes(String(r.team_id))) ST[d][gn].push(String(r.team_id));
+                    }
                     return;
                 }
                 if (!gn) {
@@ -752,7 +766,7 @@
                     if (!G[d][gn].includes(r.profile_id)) G[d][gn].push(r.profile_id);
                 }
             });
-            state.scheduleAttendees = A; state.scheduleGroupAttendees = G; state.scheduleSlotAttendees = S; state.scheduleGuests = Gs;
+            state.scheduleAttendees = A; state.scheduleGroupAttendees = G; state.scheduleSlotAttendees = S; state.scheduleSlotTeams = ST; state.scheduleGuests = Gs;
             state._attLoaded = new Set(all);
         }
 
@@ -869,7 +883,8 @@
                     teamId: isCustom ? '__custom__' : (s.team_id || ''),
                     customName: isCustom ? s.team_name : '',
                     note: s.note || '',
-                    capacity: Number(s.capacity) > 0 ? String(s.capacity) : '' // 정원(2026-11-17) — 비우면 제한 없음
+                    capacity: Number(s.capacity) > 0 ? String(s.capacity) : '', // 정원(2026-11-17) — 비우면 제한 없음
+                    teamCapacity: Number(s.team_capacity) > 0 ? String(s.team_capacity) : '' // 팀 정원(팀으로 신청한 팀 수)
                 });
             });
             state.scheduleEditorGroups = groupOrder.length === 0
@@ -927,6 +942,9 @@
                             <label class="sched-cap" title="이 시간에 신청할 수 있는 인원(멤버 + 외부인). 비우면 제한 없음">정원
                                 <input type="number" inputmode="numeric" min="1" max="999" value="${escapeHtml(String(e.capacity || ''))}" placeholder="없음"
                                     oninput="schedEditorUpdateEntry(${gi},${ei},'capacity',this.value)">명</label>
+                            <label class="sched-cap team" title="이 시간에 [팀으로 신청]할 수 있는 팀 수. 비우면 제한 없음">팀 정원
+                                <input type="number" inputmode="numeric" min="1" max="99" value="${escapeHtml(String(e.teamCapacity || ''))}" placeholder="없음"
+                                    oninput="schedEditorUpdateEntry(${gi},${ei},'teamCapacity',this.value)">팀</label>
                             <button class="gaa-btn gaa-btn-sm gaa-btn-ghost" style="width:24px;height:24px;flex-shrink:0" type="button" onclick="schedEditorRemoveEntry(${gi},${ei})"
                                >×</button>
                         </div>
@@ -990,7 +1008,7 @@
                         <div style="font-size:0.72rem;color:var(--wds-primary);opacity:0.8">비워두면 항상 신청 가능</div>
                     </div>
                     <div style="font-size:0.78rem;font-weight:700;color:var(--wds-gray-500);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">그룹 & 시간표</div>
-                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-bottom:8px">시간마다 「정원」을 적으면 그 인원까지만 신청을 받아요(멤버·팀 신청 + 외부인 합산). 비우면 제한 없음.</div>
+                    <div style="font-size:0.74rem;color:var(--wds-gray-500);margin-bottom:8px">시간마다 「정원」을 적으면 그 인원까지만(멤버·팀 신청 + 외부인 합산), 「팀 정원」을 적으면 [팀으로 신청]하는 팀을 그 수까지만 받아요. 비우면 제한 없음.</div>
                     ${groupsHtml}
                     <button class="gaa-btn gaa-btn-sm gaa-btn-block gaa-btn-secondary" style="margin-bottom:8px" type="button" onclick="schedEditorAddGroup()"
                        >+ 그룹 추가</button>
@@ -1074,6 +1092,7 @@
                         members: team ? (team.members||[]).map(s => ({ session: s.session, memberId: s.memberId, leader: !!s.leader, memberName: memberMap[s.memberId]?.name || (s.memberName||'') })) : [],
                         songs: team ? (team.songs||[]) : [], note: entry.note || null,
                         capacity: (() => { const n = parseInt(entry.capacity, 10); return n > 0 ? Math.min(n, 999) : null; })(),
+                        team_capacity: (() => { const n = parseInt(entry.teamCapacity, 10); return n > 0 ? Math.min(n, 99) : null; })(),
                         show_banner: showBanner, allow_guests: allowGuests,
                         signup_open: signupOpen, signup_close: signupClose,
                         created_by: state.user ? (state.user.nickname || state.user.kakaoId) : null
@@ -1088,16 +1107,16 @@
             const oldIds = [...new Set([...(oldFetched || []).map(r => r.id), ...oldRows.map(r => r.id)])];
             // 나중에 추가된 컬럼(allow_guests·capacity)이 아직 없으면(마이그레이션 전) 처음부터 빼고 보낸다 — PostgREST 는 모르는 컬럼을 PGRST204 로 거절한다.
             // 그래도 거절되면 오류 문구에 나온 컬럼을 빼고 다시(컬럼마다 한 번).
-            const OPTIONAL = ['allow_guests', 'capacity'];
+            const OPTIONAL = ['allow_guests', 'team_capacity', 'capacity']; // team_capacity 를 capacity 보다 먼저(오류 문구 대조가 부분 일치라서)
             const loaded = state.schedules || [];
             const dropped = new Set(OPTIONAL.filter(c => loaded.length > 0 && loaded.every(r => r[c] === undefined)));
             const strip = (rs) => rs.map(r => { const o = { ...r }; dropped.forEach(c => delete o[c]); return o; });
-            const wantsCap = records.some(r => r.capacity != null);
+            const wantsCap = records.some(r => r.capacity != null), wantsTeamCap = records.some(r => r.team_capacity != null);
             let savedMsg = '일정이 저장되었습니다.';
             if (records.length > 0) {
                 let { error: insErr } = await supabaseClient.from('schedules').insert(strip(records));
                 for (let i = 0; insErr && i < OPTIONAL.length; i++) {
-                    const col = OPTIONAL.find(c => !dropped.has(c) && new RegExp(c).test(insErr.message || ''));
+                    const col = OPTIONAL.find(c => !dropped.has(c) && new RegExp("'" + c + "'|\\b" + c + "\\b").test(insErr.message || ''));
                     if (!col) break;
                     dropped.add(col);
                     ({ error: insErr } = await supabaseClient.from('schedules').insert(strip(records)));
@@ -1106,7 +1125,7 @@
                 // 빠진 설정 안내는 저장 완료 토스트 자리에(따로 띄우면 바로 덮인다)
                 const skipped = [];
                 if (dropped.has('allow_guests') && allowGuests) skipped.push('외부인 참여 설정(20261102_schedules_allow_guests.sql)');
-                if (dropped.has('capacity') && wantsCap) skipped.push('정원(20261117_schedule_capacity.sql)');
+                if ((dropped.has('capacity') && wantsCap) || (dropped.has('team_capacity') && wantsTeamCap)) skipped.push('정원(20261117_schedule_capacity.sql)');
                 if (skipped.length) savedMsg = `일정은 저장했지만 ${skipped.join('·')}은 빠졌어요. Supabase 에서 괄호 안 SQL 을 실행한 뒤 다시 저장해주세요.`;
             }
             if (oldIds.length) {
@@ -1252,6 +1271,9 @@
                         const slotFull = slotCap != null && slotUsed >= slotCap;
                         const capChip = slotCap == null ? '' : slotFull ? `<span class="status-badge sm status-rejected gt-cap-chip full" style="flex-shrink:0">마감</span>`
                             : !attCount ? `<span class="status-badge sm status-neutral gt-cap-chip" style="flex-shrink:0">정원 ${slotCap}명</span>` : '';
+                        // 팀 정원: [팀으로 신청]한 팀 수 / 팀 정원 — 차면 빨간 칩(새 팀은 신청 불가, 이미 신청한 팀·개인 신청은 그대로)
+                        const teamCap = _slotTeamCap(date, slotKey), teamN = _slotTeams(date, slotKey).length;
+                        const teamChip = teamCap == null ? '' : `<span class="status-badge sm ${teamN >= teamCap ? 'status-rejected' : 'status-neutral'} gt-teamcap-chip${teamN >= teamCap ? ' full' : ''}" style="flex-shrink:0" title="${escapeHtml(_slotTeamNames(date, slotKey).join(', ') || '아직 신청한 팀 없음')}">팀 ${teamN}/${teamCap}</span>`;
                         const slotListId = 'slatt-' + date + '-' + (gn||'').replace(/[^a-zA-Z0-9가-힣]/g,'_') + '-' + (s.start_time||'').replace(/[^0-9]/g,'');
                         const slotChips = slotChipData.map(c => `<span style="background:${c.me?'var(--wds-primary)':'white'};color:${c.me?'#fff':'var(--wds-primary)'};border:1px solid var(--wds-primary);border-radius:4px;padding:1px 7px;font-size:0.7rem;font-weight:${c.me?'700':'600'};letter-spacing:0.02em">${escapeHtml(c.name)}${c.me?' (나)':''}</span>`).join('');
                         // 참여자수 버튼 — 시간과 같은 라인에 배치
@@ -1271,7 +1293,7 @@
                         return `<div style="background:var(--wds-gray-50);border-radius:8px;padding:9px 11px;margin-bottom:6px">
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                                 <span style="font-size:0.81rem;font-weight:800;color:var(--wds-primary);white-space:nowrap;background:rgba(51,102,255,0.1);padding:2px 8px;border-radius:6px;letter-spacing:0.03em">${escapeHtml(timeStr)}</span>
-                                ${slotCountBtn}${capChip}
+                                ${slotCountBtn}${capChip}${teamChip}
                                 <span style="flex:1"></span>
                                 ${(teamBtn || guestBtn || slotBtn) ? `<div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">${teamBtn}${guestBtn}${slotBtn}</div>` : ''}
                             </div>
