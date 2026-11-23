@@ -363,8 +363,10 @@
   지금: 서버 `/gatheo-api` **`kakao_link_self`** — 「이메일 계정 주인」(`sb_token`)과 「카카오 계정 주인」(`kakao_token` 또는 서버 세션) **둘 다** 확인돼야 `profiles.kakao_id` 를 채운다(게더링 계정만 · 이미 다른 카카오와 연결 409 `linked_other` · 그 카카오가 다른 프로필에 있음 409 `kakao_taken` · 같은 카카오면 멱등) + `syncIdentity`(reservations.kakao_id · comments.kakao_id · polls.created_by 의 계정 id → 카카오 ID).
   **기록 키 통일**: 연결된 계정은 이메일로 로그인해도 서버 `makeActor().uid` = 카카오 ID(합주팀 제외), 화면 `state.user.kakaoId` = `profiles.kakao_id || 계정 id` + **`state.user.profileId`(= 계정 id, 프로필 행 조회·푸시 구독은 이것으로)** · `linkedKakao`. 예전에 연결한 사람의 옛 기록은 이메일 로그인 때 `_gwIdentitySyncOnce`(`identity_sync`, 브라우저당 한 번 `gaa_idsync_<id>`)가 옮긴다.
   화면: ① 마이 목록 줄 `#gtKakaoLinkRow` 「카카오 계정 연결」=`gtLinkKakao()`(카카오 팝업 → 닉네임 확인창 → 연결; 인앱 리다이렉트 로그인은 `sessionStorage.gaa_link_kakao`(5분)로 돌아와 이어 함; 연결되면 「연결됨」) ② 가입 모달 연동 화면 = **이메일 + 비밀번호**(`#klEmail/#klPassword/#klResult`, `submitKakaoLink` → `_sbPasswordToken`: 저장 안 하는 임시 supabase 클라이언트로 토큰만 — 이 브라우저의 로그인 상태 불변, Supabase 자체 로그인 횟수 제한 적용) → `_enterAsLinkedKakao`. [비밀번호를 잊으셨나요?]=`kakaoLinkForgotPw`.
+  **팝업은 클릭 직후에**(같은 날 실사용 「카카오 로그인을 완료하지 못했습니다」): `gtLinkKakao` 는 **다른 await 보다 먼저** `_kakaoPopupDetailed()`(`{token}`|`{error:'no-sdk'|'failed', detail}`)를 부른다(세션 조회 뒤에 띄우면 브라우저가 팝업을 막을 수 있음). 이 브라우저에 살아 있는 카카오 토큰(`_gwKakaoToken()`)이 있으면 팝업 없이 그 계정으로(`_kakaoNick()` 으로 이름 확인, 만료면 팝업).
+  실패는 토스트가 아니라 시트 `_gtLinkFailSheet`(`#gtLinkFail`: 이유(카카오 오류 문구)·팝업 차단 허용·**다른 방법 = 로그아웃 → 카카오 로그인 → 「계정 연동하기」에서 이메일·비밀번호** · [다시 시도]). 마이 수정 폼의 재설정 메일 링크는 `.find-link-btn` 한 줄(오른쪽 정렬), `#changePwResult` 는 min-height 없음.
   옛 액션 `kakao_link {name, phone}` 은 남아 있지만 **이메일 로그인 계정이 있는 프로필**(`hasAuthUser`: `/auth/v1/admin/users/<id>`)·합주팀은 거부(`need_login`). 연결 해제 화면은 없다(운영진이 DB 에서 `kakao_id` 를 비움).
-  테스트 `tests/ui-gatheo-account.js`(46, 실제 supabase-js + 가짜 supabase.co)·`tests/send-email-unit.mjs`(30)·`tests/gatheo-api-unit.mjs`(153, 4b절).
+  테스트 `tests/ui-gatheo-account.js`(52, 실제 supabase-js + 가짜 supabase.co)·`tests/send-email-unit.mjs`(30)·`tests/gatheo-api-unit.mjs`(153, 4b절).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

@@ -609,31 +609,71 @@
         // 일부 인앱 브라우저는 카카오 로그인이 리다이렉트라 페이지가 새로 뜬다 → 표시를 남겨 두고 돌아와서 이어 한다(checkEmailUserApproval).
         const _LINK_KAKAO_KEY = 'gaa_link_kakao';
         let _gtLinkBusy = false;
+        // 카카오 팝업 로그인 — 실패 이유를 같이 돌려준다 {token} | {error:'no-sdk'|'failed', detail}
+        function _kakaoPopupDetailed() {
+            if (typeof Kakao === 'undefined' || !Kakao.Auth || !Kakao.Auth.login) return Promise.resolve({ token: null, error: 'no-sdk' });
+            return new Promise(resolve => {
+                try {
+                    if (!Kakao.isInitialized()) initKakao();
+                    Kakao.Auth.login({
+                        success: a => resolve(a && a.access_token ? { token: a.access_token } : { token: null, error: 'failed', detail: '토큰 없음' }),
+                        fail: err => { console.error('카카오 로그인 실패:', err); resolve({ token: null, error: 'failed', detail: String((err && (err.error_description || err.error)) || '') }); },
+                    });
+                } catch (e) { console.error('카카오 로그인 오류:', e); resolve({ token: null, error: 'failed', detail: String((e && e.message) || e) }); }
+            });
+        }
+        // 지금 SDK 가 가진 토큰의 카카오 계정 이름 — {ok:false} 면 토큰이 만료됐거나 SDK 문제
+        function _kakaoNick() {
+            return new Promise(resolve => {
+                try {
+                    Kakao.API.request({ url: '/v2/user/me',
+                        success: r => resolve({ ok: true, nick: (r && ((r.kakao_account && r.kakao_account.profile && r.kakao_account.profile.nickname) || (r.properties && r.properties.nickname))) || '' }),
+                        fail: () => resolve({ ok: false, nick: '' }) });
+                } catch (_) { resolve({ ok: false, nick: '' }); }
+            });
+        }
+        // 연결이 안 됐을 때 — 이유와 다른 방법을 시트로(토스트 한 줄로는 다음에 뭘 해야 할지 알 수 없었다)
+        function _gtLinkFailSheet(k) {
+            const why = k && k.error === 'no-sdk'
+                ? '카카오 로그인 도구를 불러오지 못했습니다. 광고 차단 확장 프로그램을 끄거나 새로고침한 뒤 다시 시도해주세요.'
+                : `카카오 로그인 창이 닫혔거나 로그인이 끝나지 않았습니다.${k && k.detail ? ` (${escapeHtml(k.detail).slice(0, 120)})` : ''}`;
+            gtSheetOpen('카카오 연결이 완료되지 않았어요', `<div id="gtLinkFail" style="font-size:0.9rem;line-height:1.7;color:var(--wds-gray-800)">
+                <p style="margin:4px 0 10px">${why}</p>
+                <ul style="margin:0 0 12px;padding-left:18px">
+                    <li>카카오 로그인 창(팝업)이 안 떴다면 주소창 오른쪽의 <strong>팝업 차단</strong>을 허용해주세요.</li>
+                    <li>창에서 카카오 로그인·동의를 끝까지 마쳐야 연결됩니다.</li>
+                    <li>계속 안 되면: <strong>로그아웃 → 「카카오 계정으로 로그인」 → 「이미 이메일로 가입하셨나요? 계정 연동하기」</strong>에서 이메일·비밀번호를 넣어도 똑같이 연결됩니다.</li>
+                </ul>
+                <button type="button" class="gaa-btn gaa-btn-primary gaa-btn-block" onclick="gtSheetClose();gtLinkKakao()">다시 시도</button>
+            </div>`);
+        }
         async function gtLinkKakao(opts = {}) {
             if (_gtLinkBusy) return;
             if (!state.user || state.user.authType !== 'email') return;
             if (state.user.linkedKakao) { showToast('이미 카카오 계정과 연결되어 있습니다.'); return; }
+            // ① 카카오 신원부터 — 팝업은 **클릭 직후(다른 await 보다 먼저)** 띄워야 브라우저가 막지 않는다(2026-11-23: 세션 조회 뒤에 띄워 실패하던 것).
+            //    이 브라우저에 살아 있는 카카오 토큰이 있으면 팝업 없이 그 계정으로(아래에서 이름을 보여주고 확인받는다).
+            //    카카오 팝업은 그냥 닫으면 응답이 없을 수 있어 잠금(_gtLinkBusy)은 팝업이 끝난 뒤부터 건다.
+            const live = _gwKakaoToken();
+            let kP;
+            if (live) kP = Promise.resolve({ token: live, live: true });
+            else if (opts.resume) kP = Promise.resolve({ token: null, error: 'failed' });
+            else { try { sessionStorage.setItem(_LINK_KAKAO_KEY, String(Date.now())); } catch (_) {} kP = _kakaoPopupDetailed(); }
             const { data: sess } = await supabaseClient.auth.getSession();
             const sbToken = sess && sess.session && sess.session.access_token;
-            if (!sbToken) { showToast('로그인 정보를 확인하지 못했습니다. 다시 로그인한 뒤 시도해주세요.', 5000); return; }
-            // 카카오 팝업은 그냥 닫으면 아무 응답이 없다 → 잠금(_gtLinkBusy)은 팝업이 끝난 뒤부터 건다(닫고 다시 눌러도 되게)
-            let kt = opts.resume ? _gwKakaoToken() : null;
-            if (!kt) {
-                try { sessionStorage.setItem(_LINK_KAKAO_KEY, String(Date.now())); } catch (_) {}
-                kt = await _gwKakaoPopup();
-            }
+            let k = await kP;
             try { sessionStorage.removeItem(_LINK_KAKAO_KEY); } catch (_) {}
-            if (!kt) { showToast('카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.', 5000); return; }
+            if (!sbToken) { showToast('로그인 정보를 확인하지 못했습니다. 다시 로그인한 뒤 시도해주세요.', 5000); return; }
+            // ② 어느 카카오 계정인지 — 저장돼 있던 토큰이 만료됐으면 팝업으로 다시 받는다
+            let who = k.token ? await _kakaoNick() : { ok: false, nick: '' };
+            if (k.live && !who.ok && !opts.resume) { k = await _kakaoPopupDetailed(); who = k.token ? await _kakaoNick() : who; }
+            if (!k.token) { if (opts.resume) return; _gtLinkFailSheet(k); return; }
             if (_gtLinkBusy) return;
             _gtLinkBusy = true;
             try {
-                // 어느 카카오 계정인지 보여주고 확인받는다(연결은 운영진만 풀 수 있다)
-                const who = await new Promise(resolve => {
-                    try { Kakao.API.request({ url: '/v2/user/me', success: r => resolve((r && ((r.kakao_account && r.kakao_account.profile && r.kakao_account.profile.nickname) || (r.properties && r.properties.nickname))) || ''), fail: () => resolve('') }); }
-                    catch (_) { resolve(''); }
-                });
-                if (!confirm(`카카오 계정${who ? ` 「${who}」` : ''}을(를) 이 계정에 연결할까요?\n\n연결하면 카카오로도 로그인할 수 있고, 예약·게시글은 그대로 이어집니다.\n(연결을 바꾸려면 운영진에게 문의해야 합니다)`)) return;
-                const out = await _gwPost({ action: 'kakao_link_self', sb_token: sbToken, kakao_token: kt });
+                // 연결은 운영진만 풀 수 있으므로 확인받는다
+                if (!confirm(`카카오 계정${who.nick ? ` 「${who.nick}」` : ''}을(를) 이 계정에 연결할까요?\n\n연결하면 카카오로도 로그인할 수 있고, 예약·게시글은 그대로 이어집니다.\n(연결을 바꾸려면 운영진에게 문의해야 합니다)`)) return;
+                const out = await _gwPost({ action: 'kakao_link_self', sb_token: sbToken, kakao_token: k.token });
                 if (out.down || out.status === 0) { showToast('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.', 5000); return; }
                 const body = out.body || {};
                 if (!body.ok) { showToast(body.message || '연결하지 못했습니다.', 6000); return; }
@@ -1794,8 +1834,8 @@
                             style="height:40px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.88rem;font-family:inherit;outline:none">
                         <button class="gaa-btn gaa-btn-sm gaa-btn-primary" style="height:40px" type="button" onclick="handleChangePassword()"
                            >비밀번호 변경</button>
-                        <div id="changePwResult" style="font-size:0.82rem;min-height:18px"></div>
-                        <button class="gaa-btn gaa-btn-xs gaa-btn-ghost" type="button" onclick="gtSendMyPwReset(this)">현재 비밀번호를 잊었어요 · 재설정 메일 받기</button>
+                        <div style="display:flex;justify-content:flex-end;margin-top:-2px"><button class="find-link-btn" type="button" onclick="gtSendMyPwReset(this)">현재 비밀번호를 잊었어요 · 재설정 메일 받기</button></div>
+                        <div id="changePwResult" style="font-size:0.82rem"></div>
                         ` : ''}
                     </div>
                 </div>

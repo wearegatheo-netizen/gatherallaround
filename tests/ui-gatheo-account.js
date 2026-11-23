@@ -216,6 +216,49 @@ const GOOD = 'a'.repeat(56), BAD = 'b'.repeat(56);
     chk('8 이미 쓰인 카카오 → 안내, 상태 그대로', u.k === UID && !u.linked && /이미 다른 게더링 계정/.test(u.toast) && log.api.some(a => a.action === 'kakao_link_self'), JSON.stringify(u));
     await ctx.close();
   }
+  // ── 8b. 카카오 팝업이 실패했을 때 / 이미 카카오 토큰이 있을 때 ──
+  {
+    const { p, ctx, log } = await open('');
+    await emailLogin(p);
+    await p.evaluate(() => setGatheOTab('mypage')); await p.waitForSelector('#gtKakaoLinkRow', { timeout: 6000 });
+    // 팝업을 클릭 직후(세션 조회보다 먼저) 띄우는지 — 로그인 호출 시점에 getSession 이 아직 안 불렸어야 한다
+    await p.evaluate(() => {
+      window.__order = [];
+      const orig = supabaseClient.auth.getSession.bind(supabaseClient.auth);
+      supabaseClient.auth.getSession = (...a) => { window.__order.push('session'); return orig(...a); };
+      window.Kakao = { isInitialized: () => true, init() {}, Auth: { getAccessToken: () => null, login(o) { window.__order.push('popup'); setTimeout(() => o.fail({ error: 'access_denied', error_description: 'user denied' }), 20); } }, API: { request(o) { o.fail({}); } } };
+    });
+    await p.click('#gtKakaoLinkRow'); await p.waitForSelector('#gtLinkFail', { timeout: 5000 }).catch(() => {});
+    const f = await p.evaluate(() => ({ order: window.__order.slice(0, 2), sheet: (document.getElementById('gtLinkFail') || {}).innerText || '', linked: state.user.linkedKakao }));
+    chk('8b 카카오 팝업은 클릭 직후(세션 조회보다 먼저)', f.order[0] === 'popup', JSON.stringify(f.order));
+    chk('8b 팝업 실패 → 이유·팝업 차단·다른 방법 안내 시트, 연결 요청 없음', /user denied/.test(f.sheet) && /팝업 차단/.test(f.sheet) && /계정 연동하기/.test(f.sheet) && !f.linked && !log.api.some(a => a.action === 'kakao_link_self'), f.sheet.slice(0, 80));
+    // [다시 시도] — 이번엔 이 브라우저에 살아 있는 카카오 토큰이 있다 → 팝업 없이 그 계정으로(이름 확인창)
+    await p.evaluate(() => { window.__pops = 0;
+      window.Kakao = { isInitialized: () => true, init() {}, Auth: { getAccessToken: () => 'kt-live', login() { window.__pops++; } },
+        API: { request(o) { setTimeout(() => o.success({ id: 1, kakao_account: { profile: { nickname: '살아있는카카오' } } }), 10); } } }; });
+    await p.click('#gtLinkFail button');
+    await p.waitForFunction(() => state.user && state.user.linkedKakao, null, { timeout: 6000 }).catch(() => {});
+    const call = log.api.find(a => a.action === 'kakao_link_self');
+    chk('8b 살아 있는 카카오 토큰이 있으면 팝업 없이 연결(이름 확인)', !!call && call.kakao_token === 'kt-live' && await p.evaluate(() => window.__pops === 0) && log.dialogs.some(d => /살아있는카카오/.test(d)), JSON.stringify(call));
+    await ctx.close();
+  }
+  {
+    const { p, ctx } = await open('');
+    await emailLogin(p);
+    await p.evaluate(() => setGatheOTab('mypage')); await p.waitForSelector('#gtKakaoLinkRow', { timeout: 6000 });
+    await p.evaluate(() => { delete window.Kakao; try { Kakao = undefined; } catch (_) {} });
+    await p.click('#gtKakaoLinkRow'); await p.waitForSelector('#gtLinkFail', { timeout: 5000 }).catch(() => {});
+    chk('8b 카카오 SDK 가 없으면 그 이유를 안내', /불러오지 못했습니다/.test(await p.evaluate(() => (document.getElementById('gtLinkFail') || {}).innerText || '')));
+    // 마이 › 수정 폼의 「재설정 메일 받기」는 작은 글자 링크(세로로 길지 않게)
+    await p.evaluate(() => { gtSheetClose(); showMypageEditForm(); });
+    const h = await p.evaluate(() => { const b = document.querySelector('#mypageEditForm button[onclick^="gtSendMyPwReset"]'); const r = document.getElementById('changePwResult'); const pw = document.querySelector('#mypageEditForm button[onclick="handleChangePassword()"]');
+      return b && r && pw ? { link: Math.round(b.getBoundingClientRect().height), gap: Math.round(b.getBoundingClientRect().bottom - pw.getBoundingClientRect().bottom), res: Math.round(r.getBoundingClientRect().height) } : null; });
+    chk('8b 재설정 메일 링크는 한 줄 높이(버튼 아래 40px 안), 빈 결과칸은 자리 안 차지', !!h && h.link <= 24 && h.gap <= 40 && h.res === 0, JSON.stringify(h));
+    await p.click('#mypageEditForm button[onclick^="gtSendMyPwReset"]'); await p.waitForTimeout(600);
+    chk('8b 재설정 메일 받기 → 내 이메일로 발송 안내', /me@example\.com/.test(await p.textContent('#changePwResult')), await p.textContent('#changePwResult'));
+    if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + '/account-mypage-pw.png' });
+    await ctx.close();
+  }
   // ── 9. 이미 연결된 계정으로 이메일 로그인 ──
   {
     const { p, ctx, log } = await open('', { kakaoId: 'k-old' });
