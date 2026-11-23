@@ -26,7 +26,8 @@ const FAKE_SB = `
   const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const ctx = await br.newContext({ viewport: { width: 420, height: 900 }, timezoneId: 'Asia/Seoul', locale: 'ko-KR' });
   const p = await ctx.newPage();
-  const api = []; let mode = 'ok'; // ok | 401once | 501
+  const api = []; let mode = 'ok'; // ok | 401once | 501 | nofn
+  let merged = false, window_members = null; // 계정 통합 절(11)에서만 쓴다
   await p.route('**://**', async r => {
     const u = new URL(r.request().url());
     if (u.hostname !== '127.0.0.1') return r.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
@@ -37,6 +38,15 @@ const FAKE_SB = `
     if (body.action === 'ping') return send(200, { ok: true });
     if (body.action === 'login') return send(200, { ok: true, session: 'new-session', exp: Date.now() + 86400e3, kakao_id: 'k-me', profile: null });
     if (body.action === 'perf_lookup') return send(200, { ok: true, booking: body.phone === '01012345678' ? { id: 'pb1', name: '고객', booking_code: body.code, phone: '010-1234-5678', status: 'pending', date: '2026-12-01', start_time: '10:00', end_time: '12:00', headcount: 5, purpose: '공연', created_at: new Date().toISOString() } : null });
+    if (body.action === 'profile_merge') {
+      const E = { id: 'e1', name: '노희지', email: 'h@example.com', phone: '010-5825-4611', role: '세션장', status: 'approved', created_at: '2026-05-10T00:00:00Z', kakao: false, login: true };
+      const K = { id: 'k1', name: '노희지', email: '', phone: '010-5825-4611', role: '일반', status: 'approved', created_at: '2026-11-23T00:00:00Z', kakao: true, login: false };
+      if (body.dry) return send(200, { ok: true, dry: true, keep: E, drop: K, swappable: false, kakao_lost: false });
+      if (mode === 'nofn') return send(200, { ok: false, error: 'no_function', message: '통합 기능을 쓰려면 Supabase SQL Editor 에서 20261123_profile_merge.sql 을 한 번 실행해야 합니다.' });
+      merged = true;
+      return send(200, { ok: true, merged: true, keep_id: body.keep_id, kakao_linked: true, moved: {} });
+    }
+    if (body.table === 'profiles' && window_members) return send(200, { data: merged ? window_members.filter(m => m.id !== 'k1') : window_members, error: null });
     if (body.action === 'client_errors') return send(200, { ok: true, rows: [
       { id: 2, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", stack: 'at renderX (/index.html:100:5)', page: 'gatheo/reservation', role: 'member', ua: 'iPhone KAKAOTALK' },
       { id: 1, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", page: 'gatheo/home', role: 'admin', ua: 'Android' }] });
@@ -172,6 +182,40 @@ const FAKE_SB = `
   await p.evaluate(() => { window.__gaaLogTest = false; _gaaReportError('error', 'local only', '', ''); });
   await p.waitForTimeout(1700);
   chk('로컬에서는 보내지 않음', logs.flatMap(l => l.errors || []).length === 2);
+
+  // 11. 관리자 › 멤버 목록의 [중복 · 통합] — 같은 사람의 두 계정을 하나로(서버 profile_merge)
+  await setup(); api.length = 0;
+  window_members = [
+    { id: 'k1', name: '노희지', phone: '010-5825-4611', email: '', kakao_id: '4000000001', role: '일반', status: 'approved', instruments: '베이스', created_at: '2026-11-23T00:00:00Z' },
+    { id: 'e1', name: '노희지', phone: '01058254611', email: 'h@example.com', kakao_id: null, role: '세션장', status: 'approved', instruments: '베이스', created_at: '2026-05-10T00:00:00Z' },
+    { id: 'o1', name: '다른사람', phone: '010-1111-2222', email: 'o@example.com', kakao_id: null, role: '일반', status: 'approved', instruments: '드럼', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'b1', name: '노희지', phone: '010-5825-4611', member_type: 'band', status: 'approved', created_at: '2026-01-01T00:00:00Z' },
+  ];
+  const drawMembers = (role) => p.evaluate((a) => {
+    state.user.role = a.role; state.allMembers = a.members.filter(m => m.member_type !== 'band'); gtSheetClose();
+    let el = document.getElementById('memberList'); if (!el) { el = document.createElement('div'); el.id = 'memberList'; document.body.appendChild(el); }
+    el.style.cssText = 'position:fixed;left:0;top:0;width:420px;z-index:9000;background:#fff';
+    renderAdminMemberListEl(el);
+    return [...el.querySelectorAll('.admin-member-row')].map(r => r.id.replace('admin-member-row-', '') + ':' + (r.querySelector('button[onclick^="gtMergeSheet"]') ? 'Y' : 'N')).join(' ');
+  }, { role, members: window_members });
+  chk('통합 버튼: 전화번호·이름이 같은 두 계정에만(운영 총괄)', (await drawMembers('운영 총괄')).split(' ').sort().join(' ') === 'e1:Y k1:Y o1:N');
+  chk('통합 버튼: 운영 총괄이 아니면 없음', !/Y/.test(await drawMembers('총괄')));
+  await drawMembers('운영 총괄');
+  await p.click('#admin-member-row-k1 button[onclick^="gtMergeSheet"]'); await p.waitForSelector('#gtMergeRunBtn', { timeout: 5000 });
+  const plan = api.find(a => a.action === 'profile_merge' && a.dry);
+  const sheet = await p.evaluate(() => ({ cards: [...document.querySelectorAll('#gtMergeBody .merge-card')].map(c => c.className.replace('merge-card ', '') + ':' + c.dataset.id).join(' '), text: document.getElementById('gtMergeBody').innerText, swap: !!document.querySelector('#gtMergeBody button[onclick*="\'k1\')"]:not(#gtMergeRunBtn)') }));
+  chk('통합 시트: 계획 조회(dry) → 남는 계정 = 이메일 계정, 없어지는 계정 = 카카오 계정', !!plan && plan.a_id === 'k1' && plan.b_id === 'e1' && sheet.cards === 'keep:e1 drop:k1', sheet.cards);
+  chk('통합 시트: 로그인 방식·옮겨지는 것·되돌릴 수 없음 안내, 바꾸기 버튼 없음', /이메일 로그인/.test(sheet.text) && /카카오 로그인/.test(sheet.text) && /남는 계정으로 옮겨집니다/.test(sheet.text) && /되돌릴 수 없습니다/.test(sheet.text) && !/남길 계정 바꾸기/.test(sheet.text), sheet.text.slice(0, 60));
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + '/merge-sheet.png' });
+  mode = 'nofn'; await p.click('#gtMergeRunBtn'); await p.waitForTimeout(600);
+  chk('통합 실행: DB 함수가 없으면 시트 안에 SQL 안내(목록 그대로)', /20261123_profile_merge\.sql/.test(await p.textContent('#gtMergeResult')) && await p.evaluate(() => state.allMembers.length === 3));
+  mode = 'ok'; await p.click('#gtMergeRunBtn'); await p.waitForFunction(() => !document.getElementById('gtSheet'), null, { timeout: 5000 }).catch(() => {});
+  await p.waitForTimeout(500);
+  const run = api.filter(a => a.action === 'profile_merge' && !a.dry).pop();
+  const after = await p.evaluate(() => ({ ids: state.allMembers.map(m => m.id).sort().join(), rows: document.querySelectorAll('#memberList .admin-member-row').length, btns: document.querySelectorAll('#memberList button[onclick^="gtMergeSheet"]').length, toast: (document.getElementById('auto-toast') || {}).textContent || '' }));
+  chk('통합 실행: 남길 id·없앨 id 전송 → 목록에서 사라지고 통합 버튼도 없어짐', !!run && run.keep_id === 'e1' && run.drop_id === 'k1' && after.ids === 'e1,o1' && after.rows === 2 && after.btns === 0 && /통합했습니다/.test(after.toast), JSON.stringify(after));
+  await p.evaluate(() => { document.getElementById('memberList')?.remove(); state.user.role = '일반'; });
+  window_members = null;
 
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

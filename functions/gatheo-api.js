@@ -612,6 +612,48 @@ export async function handle(env, body) {
         return [200, { ok: true, linked: true }];
     }
 
+    // ── 계정 통합(운영 총괄만, 2026-11-23) — 같은 사람의 두 게더링 프로필을 하나로 ──
+    // {a_id, b_id, dry:true[, keep_id]} → 계획(어느 쪽이 남는지·왜)만.  {keep_id, drop_id} → DB 함수 gaa_merge_profiles 로 한 번에 실행.
+    // 남길 쪽 규칙: 이메일 로그인 계정이 있는 쪽(없앨 쪽에 로그인이 있으면 그 로그인이 갈 곳을 잃는다) → 둘 다 없으면 역할 높은 쪽 → 먼저 가입한 쪽.
+    if (action === 'profile_merge') {
+        const sup = actors.find(x => x.sup);
+        if (!sup) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: NEED_ROLE }];
+        const dry = !!body.dry;
+        const idA = String((dry ? body.a_id : body.keep_id) || ''), idB = String((dry ? body.b_id : body.drop_id) || '');
+        if (!isUuid(idA) || !isUuid(idB) || idA.toLowerCase() === idB.toLowerCase()) return [400, { ok: false, error: 'bad_request', message: '통합할 두 계정을 확인해주세요.' }];
+        const [pa, pb] = await Promise.all([profileBy(env, `id=eq.${idA}`), profileBy(env, `id=eq.${idB}`)]);
+        if (!pa || !pb) return [404, { ok: false, error: 'not_found', message: '계정을 찾지 못했습니다. 목록을 새로고침한 뒤 다시 시도해주세요.' }];
+        if (pa.member_type === 'band' || pb.member_type === 'band') return [400, { ok: false, error: 'band', message: '합주팀 계정은 통합할 수 없습니다.' }];
+        const [la, lb] = await Promise.all([hasAuthUser(env, pa.id), hasAuthUser(env, pb.id)]);
+        const view = (p, login) => ({ id: p.id, name: p.name || '', email: p.email || '', phone: p.phone || '', role: p.role || '일반', status: p.status || '', created_at: p.created_at || null, kakao: !!p.kakao_id, login });
+        if (dry) {
+            if (la && lb) return [409, { ok: false, error: 'both_login', message: '두 계정 모두 이메일 로그인 계정이라 통합할 수 없습니다. (한쪽이 카카오로만 가입한 계정이어야 합니다)' }];
+            const rank = (p) => ['일반', '세션장', '총괄', '운영 총괄'].indexOf(p.role || '일반');
+            let keepA;
+            if (la !== lb) keepA = la;                                                 // 로그인 있는 쪽을 남긴다(고를 수 없음)
+            else if (body.keep_id === pa.id || body.keep_id === pb.id) keepA = body.keep_id === pa.id; // 운영자가 고른 쪽
+            else if (rank(pa) !== rank(pb)) keepA = rank(pa) > rank(pb);
+            else keepA = String(pa.created_at || '') <= String(pb.created_at || '');
+            const keep = keepA ? pa : pb, drop = keepA ? pb : pa;
+            if (sup.p && sup.p.id === drop.id) return [400, { ok: false, error: 'self', message: '지금 로그인한 본인 계정은 없앨 수 없습니다. 본인 계정을 남기는 쪽으로 통합해주세요.' }];
+            return [200, { ok: true, dry: true, keep: view(keep, keepA ? la : lb), drop: view(drop, keepA ? lb : la), swappable: la === lb,
+                kakao_lost: !!(keep.kakao_id && drop.kakao_id && String(keep.kakao_id) !== String(drop.kakao_id)) }];
+        }
+        if (lb) return [409, { ok: false, error: 'drop_has_login', message: '없앨 계정에 이메일 로그인이 있습니다. 그 계정을 남기는 쪽으로 통합해주세요.' }];
+        if (sup.p && sup.p.id === pb.id) return [400, { ok: false, error: 'self', message: '지금 로그인한 본인 계정은 없앨 수 없습니다.' }];
+        const r = await sbFetch(env, 'rpc/gaa_merge_profiles', { method: 'POST', body: JSON.stringify({ p_keep: pa.id, p_drop: pb.id }) });
+        if (!r.ok) {
+            const why = (await r.text().catch(() => '')).slice(0, 400);
+            if (r.status === 404 || /PGRST202|could not find the function/i.test(why)) return [200, { ok: false, error: 'no_function', message: '통합 기능을 쓰려면 Supabase SQL Editor 에서 20261123_profile_merge.sql 을 한 번 실행해야 합니다.' }];
+            if (/MERGE_DROP_HAS_LOGIN/.test(why)) return [409, { ok: false, error: 'drop_has_login', message: '없앨 계정에 이메일 로그인이 있습니다. 그 계정을 남기는 쪽으로 통합해주세요.' }];
+            if (/MERGE_NOT_FOUND/.test(why)) return [404, { ok: false, error: 'not_found', message: '계정을 찾지 못했습니다. 목록을 새로고침한 뒤 다시 시도해주세요.' }];
+            console.error('profile_merge 실패:', r.status, why);
+            return [500, { ok: false, error: 'db', message: '통합하지 못했습니다. 아무것도 바뀌지 않았습니다. 잠시 후 다시 시도해주세요.' }];
+        }
+        const out = await r.json().catch(() => null) || {};
+        return [200, { ok: true, merged: true, keep_id: pa.id, kakao_linked: !!out.kakao_linked, moved: out.moved || {} }];
+    }
+
     // ── 운영 도구(운영 총괄만): 브라우저 오류 기록 · 백업 내려받기 ──
     if (action === 'client_errors' || action === 'client_errors_clear' || action === 'backup_tables' || action === 'backup_table') {
         if (!actors.some(x => x.sup)) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: NEED_ROLE }];

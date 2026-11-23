@@ -367,6 +367,13 @@
   실패는 토스트가 아니라 시트 `_gtLinkFailSheet`(`#gtLinkFail`: 이유(카카오 오류 문구)·팝업 차단 허용·**다른 방법 = 로그아웃 → 카카오 로그인 → 「계정 연동하기」에서 이메일·비밀번호** · [다시 시도]). 마이 수정 폼의 재설정 메일 링크는 `.find-link-btn` 한 줄(오른쪽 정렬), `#changePwResult` 는 min-height 없음.
   옛 액션 `kakao_link {name, phone}` 은 남아 있지만 **이메일 로그인 계정이 있는 프로필**(`hasAuthUser`: `/auth/v1/admin/users/<id>`)·합주팀은 거부(`need_login`). 연결 해제 화면은 없다(운영진이 DB 에서 `kakao_id` 를 비움).
   테스트 `tests/ui-gatheo-account.js`(52, 실제 supabase-js + 가짜 supabase.co)·`tests/send-email-unit.mjs`(30)·`tests/gatheo-api-unit.mjs`(153, 4b절).
+- **계정 통합(2026-11-23, 마이그레이션 `20261123_profile_merge.sql` — DB 함수 `gaa_merge_profiles(p_keep text, p_drop text)`)**: 같은 사람이 이메일 가입 + 카카오 가입으로 두 프로필을 가진 경우(연결 때 409 `kakao_taken` 이 나는 상황) 운영 총괄이 하나로 합친다.
+  화면: 관리자 › 멤버 목록 줄의 **[중복 · 통합]**(`renderAdminMemberListEl` — `_memberDupes(m, members)`: 전화번호 숫자(10자리 이상)가 같거나 이름이 같은 다른 게더링 계정이 있을 때만, 운영 총괄만) → `gtMergeSheet(id[, otherId, keepId])`(후보가 둘 이상이면 고르는 시트 `#gtMergePick`) →
+  서버에 계획 조회(dry) → 시트 `#gtMergeBody`(「남는 계정」/「없어지는 계정」 카드 `.merge-card.keep/.drop`: 로그인 방식·역할·가입일, 전화번호가 다르면 동명이인 경고, 옮겨지는 것·되돌릴 수 없음) → [통합하기]=`gtMergeRun(keepId, dropId)`(confirm → 실행 → 목록 새로고침, 오류는 시트 안 `#gtMergeResult`).
+  서버 `/gatheo-api {action:'profile_merge'}`(sup 만): `{a_id, b_id, dry:true[, keep_id]}` → `{keep, drop, swappable, kakao_lost}` — **남길 쪽 = 이메일 로그인 계정(`hasAuthUser`)이 있는 쪽**(고를 수 없음; 없앨 쪽에 로그인이 있으면 그 로그인이 갈 곳을 잃는다), 둘 다 없으면 역할 높은 쪽 → 먼저 가입한 쪽(이때만 `swappable`, [남길 계정 바꾸기]), 둘 다 있으면 409 `both_login`, 합주팀 400, 로그인한 본인 계정을 없애는 건 400 `self`.
+  `{keep_id, drop_id}` → `rpc/gaa_merge_profiles`(함수 없으면 `no_function` + SQL 파일 안내). DB 함수(security definer, **service_role 만 execute**, 한 트랜잭션): 프로필 id 로 남긴 기록(schedule_attendees·schedule_guests·poll_votes — 같은 슬롯/투표에 둘 다 있으면 남는 쪽 것, reservations.participant_ids·teams.members·schedules.members 는 값 안의 id 치환·컬럼 타입 무관) 이동 →
+  작성자 키 통일(reservations/comments.kakao_id·polls.created_by: 두 계정이 써 온 키 → 남는 계정의 기록 키 = 카카오 ID, 없으면 계정 id) → 없앨 프로필 삭제 → 남는 프로필에 카카오 ID(없을 때만)·빈 칸(phone/instruments/music_taste/avatar_url/email) 채움. 역할·상태는 남는 쪽 그대로. 오류 `MERGE_SAME/NOT_FOUND/BAND/DROP_HAS_LOGIN`.
+  로컬 PG16 검증(uuid[]/jsonb 참여 멤버, 카카오 둘, anon·authenticated 실행 거부). 테스트 `tests/gatheo-api-unit.mjs`(167, 4c절)·`tests/ui-gatheo-gw.js`(37, 11절).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

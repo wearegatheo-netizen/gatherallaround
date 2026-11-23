@@ -820,10 +820,91 @@
             renderAdminMemberListEl(memberList);
         }
 
+        // ── 계정 통합(2026-11-23) — 같은 사람이 이메일 가입 + 카카오 가입으로 두 계정을 가진 경우 ──
+        // 후보: 전화번호(숫자 10자리 이상)가 같거나 이름이 같은 다른 게더링 계정. 실제 통합은 서버(/gatheo-api profile_merge → DB 함수)가 한 번에.
+        const _mDigits = (v) => String(v || '').replace(/\D/g, '');
+        function _memberDupes(m, members) {
+            const ph = _mDigits(m.phone), nm = String(m.name || '').trim();
+            return (members || []).filter(o => o.id !== m.id && o.member_type !== 'band' && (
+                (ph.length >= 10 && _mDigits(o.phone) === ph) || (nm && String(o.name || '').trim() === nm)));
+        }
+        function _mergeCardHTML(p, keep) {
+            const date = p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : '';
+            const st = { pending: '승인 대기', approved: '승인', rejected: '거절' }[p.status] || p.status || '';
+            return `<div class="merge-card ${keep ? 'keep' : 'drop'}" data-id="${p.id}">
+                <div class="merge-card-h"><span class="status-badge sm ${keep ? 'status-approved' : 'status-rejected'}">${keep ? '남는 계정' : '없어지는 계정'}</span>
+                    <b>${escapeHtml(p.name)}</b><span class="status-badge sm status-neutral">${escapeHtml(p.role)}</span></div>
+                <div class="merge-card-b">${[p.login ? '이메일 로그인' : '', p.kakao ? '카카오 로그인' : '', (!p.login && !p.kakao) ? '로그인 수단 없음' : ''].filter(Boolean).join(' + ')}
+                    · ${escapeHtml(st)}${date ? ` · ${date} 가입` : ''}<br>${escapeHtml(p.email || '이메일 없음')}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}</div>
+            </div>`;
+        }
+        async function gtMergeSheet(id, otherId, keepId) {
+            if (!isSuper()) return;
+            const members = state.allMembers || [];
+            const m = members.find(x => x.id === id); if (!m) return;
+            if (!otherId) {
+                const dupes = _memberDupes(m, members);
+                if (!dupes.length) { showToast('이름이나 전화번호가 같은 다른 계정이 없습니다.'); return; }
+                if (dupes.length > 1) {
+                    gtSheetOpen('어느 계정과 통합할까요?', `<div id="gtMergePick" style="display:flex;flex-direction:column;gap:8px;margin:4px 0 8px">${dupes.map(o =>
+                        `<button type="button" class="gaa-btn gaa-btn-secondary gaa-btn-block" onclick="gtMergeSheet('${id}','${o.id}')">${escapeHtml(o.name)} · ${escapeHtml(o.email || '카카오')} · ${escapeHtml(o.phone || '번호 없음')}</button>`).join('')}</div>`);
+                    return;
+                }
+                otherId = dupes[0].id;
+            }
+            gtSheetOpen('계정 통합', `<div id="gtMergeBody" class="merge-body"><p class="merge-note">확인 중…</p></div>`);
+            const body = () => document.getElementById('gtMergeBody');
+            const out = await _gwAction('profile_merge', { dry: true, a_id: id, b_id: otherId, ...(keepId ? { keep_id: keepId } : {}) }, { interactive: true });
+            if (!body()) return; // 그사이 시트를 닫음
+            if (out.down) { body().innerHTML = '<p class="merge-note err">서버에 연결할 수 없어 통합할 수 없습니다.</p>'; return; }
+            if (!out.ok) { body().innerHTML = `<p class="merge-note err">${escapeHtml(out.message || '통합할 수 없습니다.')}</p>`; return; }
+            const o = members.find(x => x.id === otherId) || {};
+            const phoneDiffers = _mDigits(m.phone) && _mDigits(o.phone) && _mDigits(m.phone) !== _mDigits(o.phone);
+            body().innerHTML = `
+                ${_mergeCardHTML(out.keep, true)}${_mergeCardHTML(out.drop, false)}
+                ${phoneDiffers ? '<p class="merge-note err">두 계정의 전화번호가 다릅니다. 이름만 같은 다른 사람이 아닌지 꼭 확인하세요.</p>' : ''}
+                ${out.kakao_lost ? '<p class="merge-note err">두 계정의 카카오 계정이 서로 다릅니다. 없어지는 쪽 카카오로는 더 이상 이 계정에 들어올 수 없습니다.</p>' : ''}
+                <ul class="merge-note">
+                    <li>없어지는 계정의 일정 신청·투표·팀 구성·예약·게시글은 <b>남는 계정으로 옮겨집니다.</b></li>
+                    <li>역할·승인 상태는 남는 계정 것을 따릅니다${out.keep.kakao || !out.drop.kakao ? '' : ' · 카카오 로그인은 남는 계정에 연결됩니다'}.</li>
+                    <li>${out.swappable ? '두 계정 모두 이메일 로그인이 없어 어느 쪽을 남길지 바꿀 수 있습니다.' : '이메일 로그인이 있는 계정이 남습니다(반대로는 통합할 수 없습니다).'}</li>
+                    <li><b>되돌릴 수 없습니다.</b></li>
+                </ul>
+                <div id="gtMergeResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                <div style="display:flex;gap:8px">
+                    ${out.swappable ? `<button type="button" class="gaa-btn gaa-btn-secondary" style="flex:1" onclick="gtMergeSheet('${id}','${otherId}','${out.drop.id}')">남길 계정 바꾸기</button>` : ''}
+                    <button type="button" id="gtMergeRunBtn" class="gaa-btn gaa-btn-primary" style="flex:2" onclick="gtMergeRun('${out.keep.id}','${out.drop.id}')">통합하기</button>
+                </div>`;
+        }
+        let _gtMergeBusy = false;
+        async function gtMergeRun(keepId, dropId) {
+            if (_gtMergeBusy) return;
+            const res = document.getElementById('gtMergeResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } else showToast(msg, 6000); };
+            if (!confirm('두 계정을 하나로 통합할까요?\n\n없어지는 계정은 삭제되고 되돌릴 수 없습니다.')) return;
+            _gtMergeBusy = true;
+            const btn = document.getElementById('gtMergeRunBtn'); if (btn) { btn.disabled = true; btn.textContent = '통합 중…'; }
+            try {
+                const out = await _gwAction('profile_merge', { keep_id: keepId, drop_id: dropId }, { interactive: true });
+                if (out.down) { showErr('서버에 연결할 수 없어 통합할 수 없습니다.'); return; }
+                if (!out.ok) { showErr(out.message || '통합하지 못했습니다.'); return; }
+                gtSheetClose();
+                showToast(`계정을 통합했습니다.${out.kakao_linked ? ' 이제 이메일·카카오 어느 쪽으로 로그인해도 같은 계정입니다.' : ''}`, 5000);
+                const fresh = await fetchMembers(); state.allMembers = fresh;
+                state.cachedMembers = (fresh || []).filter(x => x.status === 'approved');
+                const el = document.getElementById('memberList');
+                if (el) renderAdminMemberListEl(el); else render();
+            } finally {
+                _gtMergeBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = '통합하기'; }
+            }
+        }
+
         function renderAdminMemberListEl(memberList) {
             const members = state.allMembers;
             if (!members || members.length === 0) return;
             const isS = isSuper();
+            const dupIds = new Set(isS ? members.filter(m => m.member_type !== 'band' && _memberDupes(m, members).length).map(m => m.id) : []);
             const roleColors = { '운영 총괄': '#e04000', '총괄': '#3366FF', '세션장': '#00b894', '일반': '#999' };
             const statusMap = { pending: ['status-pending', '대기'], approved: ['status-approved', '승인'], rejected: ['status-rejected', '거절'] };
 
@@ -853,6 +934,7 @@
                     ? `<span style="font-size:0.7rem;color:var(--wds-gray-500);white-space:nowrap">${escapeHtml(m.email || '카카오')}</span>${m.phone ? `<span style="font-size:0.7rem;color:var(--wds-primary);white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="클릭하여 복사" onclick="(function(el,t){const p='${jsStr(m.phone)}';if(navigator.clipboard){navigator.clipboard.writeText(p).then(function(){el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)})}else{const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ 복사됨';setTimeout(function(){el.textContent=p},1200)}})(this)">${escapeHtml(m.phone)}</span>` : `<span style="font-size:0.7rem;color:var(--wds-gray-400);white-space:nowrap">-</span>`}`
                     : '';
                 const editBtn = (isHiddenMember(m) ? '<span class="status-badge sm status-neutral" title="멤버 목록에서 숨긴 계정">숨김</span>' : '')
+                    + (dupIds.has(m.id) ? `<button class="gaa-btn gaa-btn-xs gaa-btn-secondary merge-btn" type="button" onclick="gtMergeSheet('${m.id}')" title="이름이나 전화번호가 같은 다른 계정이 있습니다 — 같은 사람이면 하나로 합칩니다">중복 · 통합</button>` : '')
                     + (isS && (m.status === 'pending' || m.status === 'approved')
                     ? `<button class="gaa-btn gaa-btn-xs gaa-btn-secondary" type="button" onclick="editMemberInfo('${m.id}')">수정</button>`
                     : '');

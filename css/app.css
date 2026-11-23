@@ -970,6 +970,16 @@
         #notice_container { margin-bottom: 20px; }
         .find-link-btn { background: none; border: none; color: var(--wds-gray-500); font-size: 0.82rem; cursor: pointer; padding: 0; font-family: inherit; }
         .find-link-btn:hover { color: var(--wds-primary); text-decoration: underline; }
+        /* 관리자 › 계정 통합 시트(2026-11-23) */
+        .merge-body { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 8px; }
+        .merge-card { border: 1px solid var(--wds-gray-200); border-radius: 12px; padding: 10px 12px; }
+        .merge-card.keep { border-color: var(--wds-primary); }
+        .merge-card.drop { border-style: dashed; }
+        .merge-card-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.95rem; color: var(--wds-black); }
+        .merge-card-b { margin-top: 4px; font-size: 0.82rem; line-height: 1.6; color: var(--wds-gray-600); word-break: break-all; }
+        .merge-note { margin: 0; padding-left: 18px; font-size: 0.85rem; line-height: 1.7; color: var(--wds-gray-700); }
+        p.merge-note { padding-left: 0; }
+        .merge-note.err { color: #e74c3c; }
         .notice-card { padding: 16px 20px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--wds-radius-m); margin-bottom: 10px; }
         .notice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
         .notice-title { font-weight: 700; font-size: 1rem; }

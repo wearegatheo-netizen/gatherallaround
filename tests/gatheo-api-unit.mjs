@@ -277,6 +277,47 @@ const future = (d) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStrin
     r = await db({ sb_token: 'jwt-linked' }, 'profiles', [['update', { phone: '010-0000-0000' }], ['eq', 'id', P.linked.id]]);
     ok('연결된 이메일 세션의 본인 프로필 수정은 계정 id 로', !r.error && last().path.includes(`id=eq.${P.linked.id}`), last());
 }
+// ── 4c. 계정 통합(운영 총괄만) ──
+{
+    let st, b;
+    const sup = { session: await sess('k-sup') }, mem = { session: await sess('k-member') };
+    const kOnly = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', kakao_id: 'k-dup', name: '이메일멤버', status: 'approved', role: '일반', created_at: '2026-11-23T00:00:00Z' };
+    const kOnly2 = { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', kakao_id: 'k-dup2', name: '이메일멤버', status: 'approved', role: '세션장', created_at: '2026-11-24T00:00:00Z' };
+    P.kOnly = kOnly; P.kOnly2 = kOnly2;
+    const rpc = () => log.filter(l => l.path.startsWith('rpc/gaa_merge_profiles'));
+    log = []; [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: kOnly.id, b_id: P.email.id, ...sup });
+    ok('통합 계획: 이메일 로그인 있는 쪽이 남는다(고른 순서와 무관)', st === 200 && b.dry && b.keep.id === P.email.id && b.drop.id === kOnly.id && b.keep.login === true && b.drop.login === false && b.swappable === false && !rpc().length, b);
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: P.email.id, b_id: kOnly.id, keep_id: kOnly.id, ...sup });
+    ok('통합 계획: 로그인 있는 쪽은 운영자가 골라도 못 없앤다', b.keep.id === P.email.id && b.drop.id === kOnly.id);
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: kOnly.id, b_id: kOnly2.id, ...sup });
+    ok('통합 계획: 둘 다 카카오면 역할 높은 쪽 + 바꿀 수 있음 + 카카오 로그인 하나가 끊긴다고 알림', b.keep.id === kOnly2.id && b.swappable === true && b.kakao_lost === true, b);
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: kOnly.id, b_id: kOnly2.id, keep_id: kOnly.id, ...sup });
+    ok('통합 계획: 둘 다 카카오면 운영자가 고른 쪽', b.keep.id === kOnly.id && b.drop.id === kOnly2.id);
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: P.email.id, b_id: P.linked.id, ...sup });
+    ok('통합 계획: 둘 다 이메일 로그인 → 409', st === 409 && b.error === 'both_login');
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: P.sup.id, b_id: kOnly.id, keep_id: kOnly.id, ...sup });
+    ok('통합 계획: 로그인한 본인 계정은 없앨 수 없다', st === 400 && b.error === 'self', b);
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: P.band.id, b_id: kOnly.id, ...sup });
+    ok('통합 계획: 합주팀 계정 불가', st === 400 && b.error === 'band');
+    [st, b] = await handle(env, { action: 'profile_merge', dry: true, a_id: kOnly.id, b_id: kOnly.id, ...sup });
+    ok('통합 계획: 같은 계정 400', st === 400);
+    canned = { 'rpc/gaa_merge_profiles': { ok: true, keep: P.email.id, kakao_linked: true, moved: { attendees: 2 } } };
+    log = []; [st, b] = await handle(env, { action: 'profile_merge', keep_id: P.email.id, drop_id: kOnly.id, ...sup });
+    ok('통합 실행: DB 함수 호출(남길 id·없앨 id)', st === 200 && b.merged === true && b.kakao_linked === true && rpc().length === 1 && rpc()[0].method === 'POST' && rpc()[0].body.p_keep === P.email.id && rpc()[0].body.p_drop === kOnly.id, b);
+    log = []; [st, b] = await handle(env, { action: 'profile_merge', keep_id: kOnly.id, drop_id: P.email.id, ...sup });
+    ok('통합 실행: 없앨 쪽에 이메일 로그인 → 거부, DB 함수 안 부름', st === 409 && b.error === 'drop_has_login' && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_merge', keep_id: P.email.id, drop_id: kOnly.id, ...mem });
+    ok('통합 실행: 일반 멤버 403', st === 403 && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_merge', keep_id: P.email.id, drop_id: kOnly.id });
+    ok('통합 실행: 익명 401', st === 401 && !rpc().length);
+    canned = { 'rpc/gaa_merge_profiles': () => json({ code: 'PGRST202', message: 'Could not find the function public.gaa_merge_profiles' }, 404) };
+    [st, b] = await handle(env, { action: 'profile_merge', keep_id: P.email.id, drop_id: kOnly.id, ...sup });
+    ok('통합 실행: DB 함수가 없으면 SQL 안내', b.ok === false && b.error === 'no_function' && /20261123_profile_merge\.sql/.test(b.message), b);
+    canned = { 'rpc/gaa_merge_profiles': () => json({ code: 'P0001', message: 'MERGE_DROP_HAS_LOGIN' }, 400) };
+    [st, b] = await handle(env, { action: 'profile_merge', keep_id: P.email.id, drop_id: kOnly.id, ...sup });
+    ok('통합 실행: DB 가 거부한 이유를 안내', st === 409 && b.error === 'drop_has_login');
+    canned = {}; delete P.kOnly; delete P.kOnly2;
+}
 // ── 5. 운영 도구(운영 총괄만) ──
 {
     const sup = await sess('k-sup'), mem = await sess('k-member');
