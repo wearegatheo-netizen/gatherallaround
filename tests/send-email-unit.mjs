@@ -137,5 +137,75 @@ const resendCall = () => {
   chk('GET 진단: 컬럼 미적용이면 false + 오류 표시', j2['컬럼_20260901_SQL'] === false && !!j2['컬럼_오류']);
 }
 
+// ───────── 비밀번호 재설정 메일(pw_reset) ─────────
+{
+  const TOKEN = 'a'.repeat(56);
+  const routes = (over = {}) => [
+    ['/rest/v1/auth_attempts', { method: 'GET', body: over.attempts || (() => []), status: over.attemptsStatus }],
+    ['/rest/v1/auth_attempts', { method: 'POST', body: {}, status: over.markStatus ?? 201 }],
+    ['/auth/v1/admin/generate_link', { method: 'POST', status: over.linkStatus ?? 200,
+      body: over.linkBody ?? { id: 'u1', email: 'member@example.com', hashed_token: TOKEN, action_link: 'https://sb.test/auth/v1/verify?token=' + TOKEN + '&type=recovery' } }],
+    ['api.resend.com/emails', { method: 'POST', status: over.resendStatus ?? 200, body: { id: 'm1' } }],
+  ];
+  const sent = () => calls.find(c => c.url.includes('api.resend.com'));
+
+  mockFetch(routes());
+  let r = await run({ action: 'pw_reset', email: ' Member@Example.com ' });
+  let j = await r.json();
+  chk('재설정: 정상 → ok', r.status === 200 && j.ok === true, JSON.stringify(j));
+  const g = calls.find(c => c.url.includes('generate_link'));
+  chk('재설정: 복구 토큰 요청(type recovery, 소문자 이메일)', !!g && JSON.parse(g.body).type === 'recovery' && JSON.parse(g.body).email === 'member@example.com');
+  const m = sent(); const mb = m ? JSON.parse(m.body) : {};
+  chk('재설정: 메일 수신자·링크(?pwreset=토큰, https)', mb.to === 'member@example.com' && mb.html.includes('https://gatherallaround.com/?pwreset=' + TOKEN) && mb.text.includes('?pwreset=' + TOKEN));
+  chk('재설정: 메일에 #해시 링크 없음', !/gatherallaround\.com\/#/.test(mb.html));
+  const mark = calls.find(c => c.url.includes('auth_attempts') && c.method === 'POST'); const rows = mark ? JSON.parse(mark.body) : [];
+  chk('재설정: 속도 제한 기록 2행(IP·이메일 해시) — 이메일 원문 없음', rows.length === 2 && rows.every(x => x.scope === 'pw-reset') && !JSON.stringify(rows).includes('member@'));
+
+  mockFetch(routes({ linkStatus: 404, linkBody: { code: 404, error_code: 'user_not_found', msg: 'User not found' } }));
+  r = await run({ action: 'pw_reset', email: 'nobody@example.com' }); j = await r.json();
+  chk('재설정: 가입 안 한 이메일 → 같은 ok, 메일 없음', j.ok === true && !sent());
+
+  mockFetch(routes({ attempts: (rec) => (rec.url.includes('ip=eq.e%3A') ? [{ id: 1 }] : []) }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }); j = await r.json();
+  chk('재설정: 같은 이메일 5분 안 재요청 → ok 지만 메일·토큰 발급 없음', j.ok === true && !sent() && !calls.some(c => c.url.includes('generate_link')));
+
+  mockFetch(routes({ attempts: (rec) => (rec.url.includes('ip=eq.e%3A') ? [] : [1, 2, 3, 4, 5, 6].map(id => ({ id }))) }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' });
+  chk('재설정: 같은 IP 1시간 6회 → 429', r.status === 429 && !sent());
+
+  mockFetch(routes({ attemptsStatus: 404 }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }); j = await r.json();
+  chk('재설정: 속도 제한 표 없음 → ok:false(화면이 기본 메일로), 발송 없음', j.ok === false && j.skipped === 'no-ratelimit-table' && !sent());
+
+  mockFetch(routes());
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }, 'POST', { ...ENV, RESEND_API_KEY: '' }); j = await r.json();
+  chk('재설정: Resend 키 없음 → email-disabled', j.ok === false && j.skipped === 'email-disabled' && calls.length === 0);
+
+  mockFetch(routes({ resendStatus: 500 }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }); j = await r.json();
+  chk('재설정: Resend 실패 → ok:false', j.ok === false && j.error === 'resend');
+
+  mockFetch(routes({ linkStatus: 500, linkBody: { msg: 'boom' } }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }); j = await r.json();
+  chk('재설정: 토큰 발급 실패 → ok:false', j.ok === false && j.error === 'link' && !sent());
+
+  mockFetch(routes());
+  r = await run({ action: 'pw_reset', email: 'vandor@band.gatheo.kr' }); j = await r.json();
+  chk('재설정: 합주팀 가짜 주소 → 메일 없음', j.ok === true && calls.length === 0);
+
+  mockFetch(routes());
+  r = await run({ action: 'pw_reset', email: 'not-an-email' });
+  chk('재설정: 형식 오류 → 400', r.status === 400 && calls.length === 0);
+
+  mockFetch(routes());
+  r = await onRequest({ env: ENV, request: new Request('https://gatherallaround.com/send-email', { method: 'POST',
+    headers: { Origin: 'https://evil.example', 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'pw_reset', email: 'member@example.com' }) }) });
+  chk('재설정: 다른 출처 → 403', r.status === 403 && calls.length === 0);
+
+  mockFetch(routes({ linkBody: { id: 'u1', action_link: 'https://sb.test/auth/v1/verify?token=' + TOKEN + '&type=recovery&redirect_to=x' } }));
+  r = await run({ action: 'pw_reset', email: 'member@example.com' }); j = await r.json();
+  chk('재설정: hashed_token 이 없으면 action_link 의 token 사용', j.ok === true && JSON.parse(sent().body).html.includes('?pwreset=' + TOKEN));
+}
+
 console.log(`\n${pass + fail}개 중 ${pass} 통과, ${fail} 실패`);
 process.exit(fail ? 1 : 0);

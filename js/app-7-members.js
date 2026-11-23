@@ -1,34 +1,133 @@
 // 게더 올 어라운드 본 스크립트 7/8 (members) — index.html 이 번호 순서대로 읽는 클래식 스크립트. 전역(함수·let/const)을 서로 공유한다.
 // 고친 뒤에는 node tools/stamp-assets.mjs 로 index.html 의 ?v= 를 갱신할 것(tests/assets-unit.mjs 가 검사).
 
+        // ── 비밀번호 재설정(2026-11-23 점검) ──
+        // 진입: 메일 링크 → index.html 머리 스크립트가 토큰을 window.__pwReset 에 떼어 둠({hash} 우리 메일 / {at, rt} Supabase 기본 메일 / {expired})
+        //       → initSession 이 이 화면을 연다. 토큰은 [비밀번호 변경]을 누를 때 쓴다 — 메일 보안 검사·미리보기가 링크를 먼저 열어도
+        //       1회용 토큰이 소모되지 않고, 새 비밀번호를 정하지 않은 채 로그인만 되는 일도 없다.
+        function _pwLandingOnly(showId) {
+            document.body.classList.add('portal-view');
+            document.body.classList.remove('fullwidth-view');
+            _hideAllScreens();
+            document.getElementById('landing-page').classList.remove('hidden');
+            ['email-login-form', 'email-signup-form', 'find-id-form', 'find-pw-form', 'reset-pw-form'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.classList.toggle('hidden', id !== showId);
+            });
+        }
+        function showResetPwScreen() {
+            recoveryMode = true;
+            _pwLandingOnly('reset-pw-form');
+            ['resetPwNew', 'resetPwConfirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const r = document.getElementById('resetPwResult'); if (r) r.textContent = '';
+        }
+        // 만료·사용된 링크 — 비밀번호 찾기 화면에서 다시 요청하게
+        function showResetPwExpired(msg) {
+            recoveryMode = false;
+            _pwLandingOnly('find-pw-form');
+            const r = document.getElementById('findPwResult');
+            if (r) { r.textContent = msg || '재설정 링크가 만료되었거나 이미 사용되었습니다. 메일을 다시 받아주세요.'; r.style.color = '#e74c3c'; }
+        }
+        async function cancelResetPw() {
+            const authed = !!(window.__pwReset && window.__pwReset.authed);
+            recoveryMode = false; window.__pwReset = null;
+            if (authed && supabaseClient) { try { await supabaseClient.auth.signOut({ scope: 'local' }); } catch (_) {} }
+            _pwLandingOnly('email-login-form');
+            const r = document.getElementById('loginResult'); if (r) r.textContent = '';
+        }
+        function _pwErrText(error) {
+            const m = String((error && (error.code || '')) + ' ' + (error && error.message || '')).toLowerCase();
+            if (/same_password|different from the old/.test(m)) return '이전과 다른 비밀번호를 입력해주세요.';
+            if (/weak_password|at least|too short/.test(m)) return '비밀번호가 너무 짧거나 단순합니다. 6자 이상으로 다시 입력해주세요.';
+            if (/rate|too many|seconds/.test(m)) return '요청이 많습니다. 잠시 후 다시 시도해주세요.';
+            return '변경하지 못했습니다. 잠시 후 다시 시도해주세요.';
+        }
+        let _resetPwBusy = false;
         async function handleResetPw() {
+            if (_resetPwBusy) return;
             const np = document.getElementById('resetPwNew').value;
             const cp = document.getElementById('resetPwConfirm').value;
             const result = document.getElementById('resetPwResult');
-            if (!np || np.length < 6) { result.textContent = '비밀번호는 6자 이상이어야 합니다.'; result.style.color = '#e74c3c'; return; }
-            if (np !== cp) { result.textContent = '비밀번호가 일치하지 않습니다.'; result.style.color = '#e74c3c'; return; }
+            const showErr = (msg) => { result.textContent = msg; result.style.color = '#e74c3c'; };
+            if (!np || np.length < 6) { showErr('비밀번호는 6자 이상이어야 합니다.'); return; }
+            if (np !== cp) { showErr('비밀번호가 일치하지 않습니다.'); return; }
+            _resetPwBusy = true;
+            const btn = document.querySelector('#reset-pw-form .email-primary-btn');
+            if (btn) btn.disabled = true;
             result.textContent = '변경 중...'; result.style.color = 'var(--wds-gray-500)';
-            const { error } = await supabaseClient.auth.updateUser({ password: np });
-            if (error) { result.textContent = '변경 실패: ' + error.message; result.style.color = '#e74c3c'; return; }
-            recoveryMode = false;
-            await supabaseClient.auth.signOut();
-            history.replaceState(null, '', window.location.pathname);
-            showToast('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
-            document.getElementById('reset-pw-form').classList.add('hidden');
-            document.getElementById('email-login-form').classList.remove('hidden');
+            try {
+                // ① 링크 토큰으로 본인 확인(한 번만) — 만료·사용된 링크면 비밀번호 찾기로 돌려보낸다
+                const pr = window.__pwReset || {};
+                let email = '';
+                if (!pr.authed && (pr.hash || pr.at)) {
+                    const v = pr.hash
+                        ? await supabaseClient.auth.verifyOtp({ token_hash: pr.hash, type: 'recovery' })
+                        : await supabaseClient.auth.setSession({ access_token: pr.at, refresh_token: pr.rt || '' });
+                    if (v.error || !(v.data && (v.data.session || v.data.user))) {
+                        console.error('재설정 링크 확인 실패:', v.error);
+                        window.__pwReset = null;
+                        showResetPwExpired();
+                        return;
+                    }
+                    pr.authed = true;
+                    email = (v.data.user && v.data.user.email) || (v.data.session && v.data.session.user && v.data.session.user.email) || '';
+                    pr.email = email;
+                } else {
+                    email = pr.email || '';
+                    const { data: sess } = await supabaseClient.auth.getSession();
+                    if (!sess || !sess.session) { window.__pwReset = null; showResetPwExpired('재설정 링크를 확인하지 못했습니다. 메일을 다시 받아주세요.'); return; }
+                    email = email || (sess.session.user && sess.session.user.email) || '';
+                }
+                // ② 새 비밀번호 저장
+                const { error } = await supabaseClient.auth.updateUser({ password: np });
+                if (error) { console.error('비밀번호 변경 실패:', error); showErr(_pwErrText(error)); return; }
+                // ③ 모든 기기에서 로그아웃 → 새 비밀번호로 로그인
+                recoveryMode = false; window.__pwReset = null;
+                try { await supabaseClient.auth.signOut(); } catch (_) {}
+                showToast('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
+                _pwLandingOnly('email-login-form');
+                const le = document.getElementById('loginEmail'); if (le && email) le.value = email;
+                const lp = document.getElementById('loginPassword'); if (lp) lp.value = '';
+                const lr = document.getElementById('loginResult'); if (lr) lr.textContent = '';
+            } finally {
+                _resetPwBusy = false;
+                if (btn) btn.disabled = false;
+            }
         }
 
+        // 재설정 메일 보내기 — 우리 서버(/send-email pw_reset, Resend)가 먼저, 꺼져 있거나 실패하면 Supabase 기본 메일.
+        // 가입 여부는 알려주지 않는다(없는 이메일도 같은 안내). 반환 {ok, message}
+        async function _sendPwResetMail(email) {
+            let limited = false;
+            try {
+                const r = await fetch('/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'pw_reset', email }) });
+                if (r.status === 429) limited = true;
+                else if (r.ok) { const j = await r.json().catch(() => null); if (j && j.ok) return { ok: true }; }
+            } catch (_) {}
+            if (limited) return { ok: false, message: '요청이 많습니다. 잠시 후 다시 시도해주세요.' };
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
+            if (error) {
+                console.error('재설정 메일 발송 실패:', error);
+                const m = String((error.code || '') + ' ' + (error.message || '')).toLowerCase();
+                return { ok: false, message: /rate|too many|seconds/.test(m) ? '요청이 많습니다. 잠시 후 다시 시도해주세요.' : '메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 운영진에게 문의해주세요.' };
+            }
+            return { ok: true };
+        }
+        let _findPwBusy = false;
         async function handleFindPw() {
+            if (_findPwBusy) return;
             const email = document.getElementById('findPwEmail').value.trim();
             const result = document.getElementById('findPwResult');
-            if (!email) { result.textContent = '이메일을 입력해주세요.'; result.style.color = '#e74c3c'; return; }
+            const showErr = (msg) => { result.textContent = msg; result.style.color = '#e74c3c'; };
+            if (!email) { showErr('이메일을 입력해주세요.'); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('이메일 형식을 확인해주세요.'); return; }
+            _findPwBusy = true;
             result.textContent = '이메일 발송 중...'; result.style.color = 'var(--wds-gray-500)';
-            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + window.location.pathname
-            });
-            if (error) { result.textContent = '발송 실패: ' + error.message; result.style.color = '#e74c3c'; return; }
-            result.textContent = '재설정 이메일을 발송했습니다. 메일함을 확인해주세요.';
-            result.style.color = '#00b894';
+            try {
+                const out = await _sendPwResetMail(email);
+                if (!out.ok) { showErr(out.message); return; }
+                result.textContent = '재설정 메일을 보냈습니다. 메일함(스팸함 포함)을 확인해주세요. 가입한 이메일이 아니면 메일이 가지 않습니다.';
+                result.style.color = '#00b894';
+            } finally { _findPwBusy = false; }
         }
 
         function showPendingScreen(name) {
@@ -144,7 +243,17 @@
             }
 
             if (data.status === 'approved') {
-                state.user = { nickname: data.name, kakaoId: user.id, authType: 'email', role: data.role || '일반', email: data.email, avatarUrl: data.avatar_url || null };
+                // 카카오와 연결된 계정이면 기록 키(kakaoId)는 카카오 ID — 어느 방법으로 로그인해도 「내 예약·내 글」이 같다(2026-11-23).
+                // 프로필 행은 항상 profileId(= 계정 id)로 찾는다.
+                const linkedKakao = data.kakao_id ? String(data.kakao_id) : null;
+                state.user = { nickname: data.name, kakaoId: linkedKakao || user.id, profileId: user.id, linkedKakao, authType: 'email', role: data.role || '일반', email: data.email || user.email || '', avatarUrl: data.avatar_url || null };
+                if (linkedKakao) _gwIdentitySyncOnce(user.id).catch(() => {});
+                else {
+                    // 카카오 연결 중 리다이렉트로 돌아온 경우(인앱 브라우저) — 토큰이 살아 있으면 이어서 연결
+                    let resume = false;
+                    try { const t = Number(sessionStorage.getItem(_LINK_KAKAO_KEY)) || 0; resume = t > 0 && Date.now() - t < 5 * 60 * 1000; sessionStorage.removeItem(_LINK_KAKAO_KEY); } catch (_) {}
+                    if (resume && _gwKakaoToken()) setTimeout(() => gtLinkKakao({ resume: true }), 900);
+                }
                 if (!target || target === 'gatheo') loginUI(data.name); else _finishBoot();
             } else if (data.status === 'rejected') {
                 showToast('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
@@ -634,7 +743,7 @@
                     applicationServerKey: urlBase64ToUint8Array(key)
                 });
                 const q = state.user.authType === 'email'
-                    ? supabaseClient.from('profiles').update({ push_subscription: sub.toJSON() }).eq('id', state.user.kakaoId)
+                    ? supabaseClient.from('profiles').update({ push_subscription: sub.toJSON() }).eq('id', state.user.profileId || state.user.kakaoId)
                     : supabaseClient.from('profiles').update({ push_subscription: sub.toJSON() }).eq('kakao_id', state.user.kakaoId);
                 await q;
                 showToast('✅ 푸시 알림이 활성화되었습니다.');
@@ -649,7 +758,7 @@
                     if (sub) await sub.unsubscribe();
                 }
                 const q2 = state.user.authType === 'email'
-                    ? supabaseClient.from('profiles').update({ push_subscription: null }).eq('id', state.user.kakaoId)
+                    ? supabaseClient.from('profiles').update({ push_subscription: null }).eq('id', state.user.profileId || state.user.kakaoId)
                     : supabaseClient.from('profiles').update({ push_subscription: null }).eq('kakao_id', state.user.kakaoId);
                 await q2;
                 showToast('푸시 알림이 비활성화되었습니다.');

@@ -27,6 +27,18 @@
                 for (var i = 0; i < rest.length; i++) if (!/^[A-Za-z0-9_-]{1,64}$/.test(rest[i])) ok = false;
                 history.replaceState(null, '', '/' + location.search + '#' + [ap[0].toLowerCase()].concat(ok ? rest : []).join('/'));
             }
+            // 비밀번호 재설정 링크(2026-11-23) — 토큰을 주소에서 바로 떼어 window.__pwReset 에만 둔다(애널리틱스·방문 기록에 남지 않게,
+            // supabase-js 가 해시를 지우며 포털로 튕기던 문제도 없앤다). 새 비밀번호 화면은 부팅(js/app-2 initSession)이 연다.
+            //   ?pwreset=<해시 토큰>  = 우리 서버(/send-email pw_reset)가 보낸 메일   /   #access_token…&type=recovery = Supabase 기본 메일
+            var pr = sp.get('pwreset'), lh = location.hash || '';
+            if (pr && /^[A-Za-z0-9_-]{16,200}$/.test(pr)) { window.__pwReset = { hash: pr }; history.replaceState(null, '', '/'); }
+            else if (/(^#|&)type=recovery(&|$)/.test(lh) && /(^#|&)access_token=/.test(lh)) {
+                var hp = new URLSearchParams(lh.slice(1));
+                window.__pwReset = { at: hp.get('access_token'), rt: hp.get('refresh_token') }; history.replaceState(null, '', '/');
+            }
+            else if (/(^#|&)error_code=otp_expired(&|$)/.test(lh) || (/(^#|&)error=access_denied(&|$)/.test(lh) && /expired|invalid/i.test(lh))) {
+                window.__pwReset = { expired: true }; history.replaceState(null, '', '/');
+            }
         } catch (e) {}
     })();
     </script>
@@ -254,6 +266,7 @@
                 <input type="password" id="resetPwConfirm" placeholder="새 비밀번호 확인" autocomplete="new-password">
                 <button type="button" class="email-primary-btn" onclick="handleResetPw()">비밀번호 변경</button>
                 <div id="resetPwResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                <button type="button" class="email-secondary-btn" onclick="cancelResetPw()">취소하고 로그인으로</button>
             </div>
 
             <!-- 비밀번호 찾기 폼 -->
@@ -673,17 +686,19 @@
             <!-- 계정 연동 뷰 -->
             <div id="kakaoLinkView" style="display:none">
                 <h2 style="margin:0 0 6px 0;font-size:1.25rem">🔗 기존 계정 연동</h2>
-                <p style="color:var(--wds-gray-600);font-size:0.88rem;line-height:1.5;margin:0 0 18px 0">이메일 가입 시 입력한 이름과 전화번호를 입력하면<br>카카오 계정과 자동으로 연동됩니다.</p>
+                <p style="color:var(--wds-gray-600);font-size:0.88rem;line-height:1.5;margin:0 0 18px 0">이메일로 가입한 계정의 이메일과 비밀번호를 입력하면<br>이 카카오 계정과 연결돼요. 다음부터는 카카오로 바로 로그인할 수 있어요.</p>
                 <div style="display:flex;flex-direction:column;gap:12px">
                     <div>
-                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이름 (실명) <span style="color:#e74c3c">*</span></label>
-                        <input type="text" id="klName" placeholder="가입 시 입력한 실명" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">이메일 <span style="color:#e74c3c">*</span></label>
+                        <input type="email" id="klEmail" placeholder="가입한 이메일" autocomplete="email" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
                     </div>
                     <div>
-                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">전화번호 <span style="color:#e74c3c">*</span></label>
-                        <input type="tel" id="klPhone" placeholder="010-0000-0000" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
+                        <label style="font-size:0.82rem;font-weight:600;color:var(--wds-gray-700)">비밀번호 <span style="color:#e74c3c">*</span></label>
+                        <input type="password" id="klPassword" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();submitKakaoLink();}" style="width:100%;height:42px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-top:4px">
                     </div>
                 </div>
+                <div id="klResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:6px 0 0"></div>
+                <div style="text-align:center"><button type="button" class="find-link-btn" onclick="kakaoLinkForgotPw()">비밀번호를 잊으셨나요?</button></div>
                 <div style="display:flex;gap:8px;margin-top:14px">
                     <button class="gaa-btn gaa-btn-sm gaa-btn-secondary" style="flex:1" type="button" onclick="showKakaoSignupView()">돌아가기</button>
                     <button class="gaa-btn gaa-btn-sm gaa-btn-primary" style="flex:2" type="button" onclick="submitKakaoLink()">연동하기</button>
@@ -872,13 +887,13 @@
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
     <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
     <script src="/vendor/qrcode-generator/qrcode.v1.4.4.js"></script>
-    <script src="/js/app-1-core.js?v=bbec8bfe"></script>
-    <script src="/js/app-2-gatheo.js?v=8530b7c5"></script>
+    <script src="/js/app-1-core.js?v=590edc56"></script>
+    <script src="/js/app-2-gatheo.js?v=b6a5cf17"></script>
     <script src="/js/app-3-admin.js?v=ac4ff341"></script>
     <script src="/js/app-4-perf.js?v=2d8784ce"></script>
     <script src="/js/app-5-community.js?v=2af251e3"></script>
     <script src="/js/app-6-band.js?v=e54e568e"></script>
-    <script src="/js/app-7-members.js?v=6a8cd3a4"></script>
+    <script src="/js/app-7-members.js?v=c11e7827"></script>
     <script src="/js/app-8-shows.js?v=b604d578"></script>
 
     <!-- ── Background Music Player ── -->

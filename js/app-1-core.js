@@ -528,59 +528,134 @@
         function showKakaoLinkView() {
             document.getElementById('kakaoSignupView').style.display = 'none';
             document.getElementById('kakaoLinkView').style.display = 'block';
-            document.getElementById('klName').value = '';
-            document.getElementById('klPhone').value = '';
+            ['klEmail', 'klPassword'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const r = document.getElementById('klResult'); if (r) r.textContent = '';
         }
 
+        // ── 이메일 계정 ↔ 카카오 계정 연결(2026-11-23) ──
+        // 서버(/gatheo-api kakao_link_self)는 「이메일 계정 주인」(Supabase 세션)과 「카카오 계정 주인」(카카오 토큰·서버 세션)을 둘 다 확인해야 연결한다.
+        // 예전 방식(이름+전화번호만 대조)은 남의 계정에 자기 카카오를 붙일 수 있어 없앴다.
+        // 이메일·비밀번호 확인 — 지금 브라우저의 로그인 상태를 건드리지 않게, 저장하지 않는 임시 클라이언트로 토큰만 받는다.
+        async function _sbPasswordToken(email, password) {
+            try {
+                const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'gaa-link-tmp' } });
+                const { data, error } = await tmp.auth.signInWithPassword({ email, password });
+                if (error || !data || !data.session) return { error: error || new Error('no session') };
+                return { token: data.session.access_token };
+            } catch (e) { return { error: e }; }
+        }
+        // 지금 브라우저의 카카오 신원(서버 세션 → 살아 있는 토큰 → 팝업 순). kakaoId 를 주면 그 계정의 서버 세션만 쓴다.
+        async function _kakaoCredFor(kakaoId) {
+            const s = _gwSessionGet();
+            if (s && kakaoId && String(s.k) === String(kakaoId)) return { session: s.t };
+            const kt = _gwKakaoToken() || await _gwKakaoPopup();
+            return kt ? { kakao_token: kt } : null;
+        }
         let _kakaoLinkBusy = false;
         async function submitKakaoLink() {
             if (_kakaoLinkBusy) return;
-            const name = document.getElementById('klName').value.trim();
-            const phone = document.getElementById('klPhone').value.trim();
-            if (!name) { showToast('이름을 입력해주세요.'); return; }
-            if (!phone) { showToast('전화번호를 입력해주세요.'); return; }
-            const phoneNorm = phone.replace(/-/g, '');
+            const res = document.getElementById('klResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } };
+            if (res) res.textContent = '';
+            const email = document.getElementById('klEmail').value.trim();
+            const password = document.getElementById('klPassword').value;
+            if (!email || !password) { showErr('이메일과 비밀번호를 입력해주세요.'); return; }
+            if (!state.user || !state.user.kakaoId) { showErr('카카오 로그인을 확인하지 못했습니다. 다시 로그인해주세요.'); return; }
 
             _kakaoLinkBusy = true;
             const btn = document.querySelector('button[onclick="submitKakaoLink()"]');
             if (btn) { btn.disabled = true; btn.textContent = '확인 중...'; }
             try {
-                // 서버가 이름+연락처를 대조해 연결한다(2026-11-10 — 다른 멤버 연락처를 브라우저로 내려받지 않게)
-                const srv = await _gwAction('kakao_link', { name, phone: phoneNorm }, { interactive: true });
-                if (!srv.down) {
-                    if (!srv.ok) { showToast(srv.message || '연동하지 못했습니다.', 5000); return; }
-                    if (!srv.linked) { showToast('일치하는 계정을 찾을 수 없습니다. 이름과 전화번호를 다시 확인해주세요.', 6000); return; }
-                    hideKakaoSignupModal();
-                    showToast('계정이 연동되었습니다! 기존 계정으로 로그인됩니다.');
-                    fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
-                    return;
-                }
-                const { data, error } = await supabaseClient
-                    .from('profiles')
-                    .select('id, name, phone')
-                    .eq('name', name)
-                    .is('kakao_id', null);
-                if (error) { showToast('오류: ' + error.message, 5000); return; }
-
-                const match = (data || []).find(p => (p.phone || '').replace(/-/g, '') === phoneNorm);
-                if (!match) {
-                    showToast('일치하는 계정을 찾을 수 없습니다. 이름과 전화번호를 다시 확인해주세요.', 6000);
-                    return;
-                }
-
-                const { error: upErr } = await supabaseClient
-                    .from('profiles')
-                    .update({ kakao_id: state.user.kakaoId })
-                    .eq('id', match.id);
-                if (upErr) { showToast('연동 실패: ' + upErr.message, 5000); return; }
-
+                const pw = await _sbPasswordToken(email, password);
+                if (!pw.token) { showErr('이메일 또는 비밀번호를 확인해주세요.'); return; }
+                const cred = await _kakaoCredFor(state.user.kakaoId);
+                if (!cred) { showErr('카카오 로그인을 확인하지 못했습니다. 다시 로그인해주세요.'); return; }
+                const out = await _gwPost({ action: 'kakao_link_self', sb_token: pw.token, ...cred });
+                if (out.down || out.status === 0) { showErr('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                const body = out.body || {};
+                if (!body.ok) { showErr(body.message || '연동하지 못했습니다.'); return; }
+                if (String(body.kakao_id) !== String(state.user.kakaoId)) { showErr('다른 카카오 계정으로 확인되었습니다. 다시 로그인한 뒤 시도해주세요.'); return; }
                 hideKakaoSignupModal();
-                showToast('계정이 연동되었습니다! 기존 계정으로 로그인됩니다.');
-                fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+                showToast('계정이 연동되었습니다! 이제 카카오로 바로 로그인할 수 있어요.', 4000);
+                await _enterAsLinkedKakao(state.user.kakaoId);
             } finally {
                 _kakaoLinkBusy = false;
                 if (btn) { btn.disabled = false; btn.textContent = '연동하기'; }
             }
+        }
+        // 연결 직후 — 그 프로필로 다시 들어간다(승인 대기 계정이면 대기 화면)
+        async function _enterAsLinkedKakao(kakaoId) {
+            const { data } = await supabaseClient.from('profiles').select('*').eq('kakao_id', kakaoId).maybeSingle();
+            if (data && data.status === 'approved') {
+                state.user = { nickname: data.name || (state.user && state.user.nickname) || '', kakaoId: String(kakaoId), role: data.role || '일반', avatarUrl: data.avatar_url || null };
+                try { localStorage.setItem('gaa_kakao_uid', String(kakaoId)); } catch (_) {}
+                loginUI(state.user.nickname);
+            } else if (data && data.status === 'pending') {
+                logoutUI(); showPendingScreen(data.name || '');
+            } else {
+                fetchMembers().then(ms => { state.cachedMembers = (ms || []).filter(m => m.status === 'approved'); render(); });
+            }
+        }
+        // 모달 「비밀번호를 잊으셨나요?」 → 비밀번호 찾기 화면(적어 둔 이메일을 옮겨 준다)
+        function kakaoLinkForgotPw() {
+            const email = (document.getElementById('klEmail') || {}).value || '';
+            hideKakaoSignupModal();
+            logoutUI();
+            _pwLandingOnly('find-pw-form');
+            const fe = document.getElementById('findPwEmail'); if (fe) fe.value = email.trim();
+            const fr = document.getElementById('findPwResult'); if (fr) fr.textContent = '';
+        }
+        // 마이 › 카카오 계정 연결 — 이메일로 로그인한 멤버가 자기 카카오 계정을 붙인다(다음부터 카카오로도 로그인).
+        // 일부 인앱 브라우저는 카카오 로그인이 리다이렉트라 페이지가 새로 뜬다 → 표시를 남겨 두고 돌아와서 이어 한다(checkEmailUserApproval).
+        const _LINK_KAKAO_KEY = 'gaa_link_kakao';
+        let _gtLinkBusy = false;
+        async function gtLinkKakao(opts = {}) {
+            if (_gtLinkBusy) return;
+            if (!state.user || state.user.authType !== 'email') return;
+            if (state.user.linkedKakao) { showToast('이미 카카오 계정과 연결되어 있습니다.'); return; }
+            const { data: sess } = await supabaseClient.auth.getSession();
+            const sbToken = sess && sess.session && sess.session.access_token;
+            if (!sbToken) { showToast('로그인 정보를 확인하지 못했습니다. 다시 로그인한 뒤 시도해주세요.', 5000); return; }
+            // 카카오 팝업은 그냥 닫으면 아무 응답이 없다 → 잠금(_gtLinkBusy)은 팝업이 끝난 뒤부터 건다(닫고 다시 눌러도 되게)
+            let kt = opts.resume ? _gwKakaoToken() : null;
+            if (!kt) {
+                try { sessionStorage.setItem(_LINK_KAKAO_KEY, String(Date.now())); } catch (_) {}
+                kt = await _gwKakaoPopup();
+            }
+            try { sessionStorage.removeItem(_LINK_KAKAO_KEY); } catch (_) {}
+            if (!kt) { showToast('카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.', 5000); return; }
+            if (_gtLinkBusy) return;
+            _gtLinkBusy = true;
+            try {
+                // 어느 카카오 계정인지 보여주고 확인받는다(연결은 운영진만 풀 수 있다)
+                const who = await new Promise(resolve => {
+                    try { Kakao.API.request({ url: '/v2/user/me', success: r => resolve((r && ((r.kakao_account && r.kakao_account.profile && r.kakao_account.profile.nickname) || (r.properties && r.properties.nickname))) || ''), fail: () => resolve('') }); }
+                    catch (_) { resolve(''); }
+                });
+                if (!confirm(`카카오 계정${who ? ` 「${who}」` : ''}을(를) 이 계정에 연결할까요?\n\n연결하면 카카오로도 로그인할 수 있고, 예약·게시글은 그대로 이어집니다.\n(연결을 바꾸려면 운영진에게 문의해야 합니다)`)) return;
+                const out = await _gwPost({ action: 'kakao_link_self', sb_token: sbToken, kakao_token: kt });
+                if (out.down || out.status === 0) { showToast('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.', 5000); return; }
+                const body = out.body || {};
+                if (!body.ok) { showToast(body.message || '연결하지 못했습니다.', 6000); return; }
+                state.user.linkedKakao = String(body.kakao_id);
+                state.user.kakaoId = String(body.kakao_id); // 이제 내 기록 키는 카카오 ID(서버가 옛 기록을 옮겨 둠)
+                try { localStorage.setItem('gaa_idsync_' + state.user.profileId, '1'); } catch (_) {}
+                showToast('카카오 계정이 연결되었습니다. 이제 카카오로도 로그인할 수 있어요.', 4500);
+                try { delete _gtViewCache.mypage; } catch (_) {}
+                try { state.cachedMembers = (await fetchMembers() || []).filter(m => m.status === 'approved'); } catch (_) {}
+                try { await fetchReservations(); } catch (_) {}
+                render();
+                if (typeof renderMypagePanel === 'function' && state.gatheoTab === 'mypage') renderMypagePanel();
+            } finally { _gtLinkBusy = false; }
+        }
+        // 이미 연결된 계정의 옛 기록(이메일 로그인 때 계정 id 로 남긴 예약·글) 맞추기 — 브라우저마다 한 번
+        async function _gwIdentitySyncOnce(profileId) {
+            const key = 'gaa_idsync_' + profileId;
+            try { if (localStorage.getItem(key)) return; } catch (_) {}
+            const out = await _gwAction('identity_sync', {});
+            if (!out || out.down || !out.ok) return;
+            try { localStorage.setItem(key, '1'); } catch (_) {}
+            if (out.moved > 0) { try { await fetchReservations(); render(); } catch (_) {} }
         }
 
         let _kakaoSignupBusy = false;
@@ -1412,7 +1487,7 @@
         }
         function _gtMe() {
             const u = state.user; if (!u) return null;
-            return (state.cachedMembers || []).find(m => m.kakao_id === u.kakaoId || m.id === u.kakaoId || (u.email && m.email && m.email === u.email)) || null;
+            return (state.cachedMembers || []).find(m => m.kakao_id === u.kakaoId || m.id === u.kakaoId || (u.profileId && m.id === u.profileId) || (u.email && m.email && m.email === u.email)) || null;
         }
         function _gtMemberById(id) { return (state.cachedMembers || []).find(m => m.id === id) || null; }
         function _gtMemberByKakao(kid) { return (state.cachedMembers || []).find(m => m.kakao_id === kid || m.id === kid) || null; }
@@ -1638,7 +1713,7 @@
             } else {
                 if (!_gtViewCache.mypage && _gtMe()) await renderMypagePanel({ quick: true }); // 첫 진입: 먼저 그려 두고 아래서 서버 값으로 갱신(2026-10-16)
                 const lookupCol = isEmailUser ? 'id' : 'kakao_id';
-                const { data, error } = await supabaseClient.from('profiles').select('*').eq(lookupCol, state.user.kakaoId).single();
+                const { data, error } = await supabaseClient.from('profiles').select('*').eq(lookupCol, isEmailUser ? (state.user.profileId || state.user.kakaoId) : state.user.kakaoId).single();
                 if (!error && data) profile = data;
             }
 
@@ -1720,6 +1795,7 @@
                         <button class="gaa-btn gaa-btn-sm gaa-btn-primary" style="height:40px" type="button" onclick="handleChangePassword()"
                            >비밀번호 변경</button>
                         <div id="changePwResult" style="font-size:0.82rem;min-height:18px"></div>
+                        <button class="gaa-btn gaa-btn-xs gaa-btn-ghost" type="button" onclick="gtSendMyPwReset(this)">현재 비밀번호를 잊었어요 · 재설정 메일 받기</button>
                         ` : ''}
                     </div>
                 </div>
@@ -1803,6 +1879,9 @@
                     ${isAdminUser() ? `<button type="button" onclick="setGatheOTab('admin')"><span class="ic">🛠️</span>관리자<span class="r">${pendingAdmin ? `예약 승인 대기 ${pendingAdmin}` : ''}</span></button>` : ''}
                 </div>
                 <div class="gt-list">
+                    ${isEmailUser ? (state.user.linkedKakao
+                        ? `<button type="button" id="gtKakaoLinkRow" onclick="showToast('카카오 계정과 연결되어 있어요. 카카오로도 로그인할 수 있습니다.')"><span class="ic">💬</span>카카오 계정<span class="r">연결됨</span></button>`
+                        : `<button type="button" id="gtKakaoLinkRow" onclick="gtLinkKakao()"><span class="ic">💬</span>카카오 계정 연결<span class="r">카카오로도 로그인</span></button>`) : ''}
                     ${profile ? `<button type="button" onclick="${pushOn ? 'unsubscribePush()' : 'subscribePush()'}"><span class="ic">🔔</span>푸시 알림<span class="r">${pushOn ? '켜짐' : '꺼짐'}</span></button>` : ''}
                     <button type="button" onclick="toggleTheme();renderMypagePanel()"><span class="ic">${document.body.classList.contains('dark') ? '☀️' : '🌙'}</span>다크 모드<span class="r">${document.body.classList.contains('dark') ? '켜짐' : '꺼짐'}</span></button>
                     <button type="button" class="muted" onclick="handleLogout()"><span class="ic">↩︎</span>로그아웃<span class="r"></span></button>
@@ -1847,6 +1926,22 @@
             c.getContext('2d').drawImage(bmp, sx, sy, s, s, 0, 0, size, size);
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
             return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+        }
+
+        // 로그인은 돼 있는데 현재 비밀번호를 모를 때 — 내 이메일로 재설정 메일(비밀번호 찾기와 같은 경로)
+        async function gtSendMyPwReset(btn) {
+            const result = document.getElementById('changePwResult');
+            const email = state.user && state.user.email;
+            if (!email) { if (result) { result.textContent = '이메일 정보를 확인하지 못했습니다. 로그아웃한 뒤 「비밀번호 찾기」를 이용해주세요.'; result.style.color = '#e74c3c'; } return; }
+            if (btn) btn.disabled = true;
+            if (result) { result.textContent = '메일 발송 중...'; result.style.color = 'var(--wds-gray-500)'; }
+            try {
+                const out = await _sendPwResetMail(email);
+                if (result) {
+                    result.textContent = out.ok ? `${email} 로 재설정 메일을 보냈습니다. 메일의 링크에서 새 비밀번호를 정해주세요.` : out.message;
+                    result.style.color = out.ok ? '#00b894' : '#e74c3c';
+                }
+            } finally { if (btn) btn.disabled = false; }
         }
 
         async function handleChangePassword() {

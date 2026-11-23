@@ -146,12 +146,37 @@ export function makeActor({ kid = null, sb = null, profile = null } = {}) {
     const sup = kid === ADMIN_KAKAO_ID || (member && role === '운영 총괄');
     const lead = sup || (member && role === '총괄');
     const mgr = lead || (member && role === '세션장');
+    // 카카오와 연결된 이메일 계정(게더링 멤버)은 이메일로 로그인해도 「카카오 ID」가 그 사람의 기록 키(예약·게시글 kakao_id) —
+    // 어느 방법으로 로그인하든 같은 사람으로 보이게(2026-11-23). 합주팀 계정은 해당 없음.
+    const linkedKid = !kid && sb && p && !band && p.kakao_id ? String(p.kakao_id) : null;
     return {
-        kid, sbUid: sb ? sb.id : null, sbEmail: sb ? sb.email : '', uid: kid || (sb ? sb.id : null), p,
+        kid, sbUid: sb ? sb.id : null, sbEmail: sb ? sb.email : '', uid: kid || linkedKid || (sb ? sb.id : null), p,
         approved, band, member, role, sup, lead, mgr,
         bandOk: approved && band, bandAdmin: approved && band && isAdminLogin(p),
         ownFilter: kid ? `kakao_id=eq.${enc(kid)}` : (sb ? `id=eq.${sb.id}` : null),
     };
+}
+// 이 프로필 id 로 이메일 로그인 계정(Supabase Auth)이 있는가 — 확인하지 못하면 「있다」로 본다(안전한 쪽)
+async function hasAuthUser(env, id) {
+    if (!isUuid(id)) return false;
+    try {
+        const r = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${id}`, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY } });
+        if (r.status === 404) return false;
+        return true;
+    } catch (_) { return true; }
+}
+// 이메일 로그인 때 계정 id(uuid)로 남긴 내 기록을 카카오 ID 로 옮긴다 → 어느 방법으로 로그인해도 「내 예약·내 글」이 같다. 옮긴 행 수.
+const IDENTITY_TABLES = [['reservations', 'kakao_id'], ['comments', 'kakao_id'], ['polls', 'created_by']];
+async function syncIdentity(env, profileId, kid) {
+    if (!isUuid(profileId) || !kid || String(kid) === String(profileId)) return 0;
+    let moved = 0;
+    for (const [table, col] of IDENTITY_TABLES) {
+        try {
+            const r = await sbFetch(env, `${table}?${col}=eq.${profileId}&select=id`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ [col]: String(kid) }) });
+            if (r.ok) moved += ((await r.json().catch(() => [])) || []).length;
+        } catch (_) {}
+    }
+    return moved;
 }
 async function profileBy(env, filter) {
     const r = await sbFetch(env, `profiles?select=*&${filter}&limit=1`);
@@ -541,15 +566,47 @@ export async function handle(env, body) {
     if (bad) return [401, { ok: false, error: 'unauthorized', message: NEED_LOGIN }];
     const actor = actors.find(x => x.kid) || actors[0];
 
+    // ── 이메일 계정 ↔ 카카오 계정 연결(2026-11-23) ──
+    // kakao_link_self: 「이메일 계정의 주인」임을 Supabase 세션으로, 「카카오 계정의 주인」임을 카카오 토큰(또는 서버 세션)으로 둘 다 증명해야 연결한다.
+    //   마이 › 카카오 계정 연결(이메일 로그인 상태에서 카카오 팝업) · 카카오 첫 로그인 모달 「기존 계정 연동」(이메일+비밀번호) 두 화면이 쓴다.
+    if (action === 'kakao_link_self') {
+        const kidActor = actors.find(x => x.kid), sbActor = actors.find(x => x.sbUid);
+        if (!kidActor || !sbActor) return [401, { ok: false, error: 'unauthorized', message: '이메일 계정과 카카오 계정 둘 다 확인이 필요합니다. 다시 시도해주세요.' }];
+        const p = sbActor.p;
+        if (!p || p.member_type === 'band') return [400, { ok: false, error: 'not_member', message: '게더링 이메일 계정만 카카오와 연결할 수 있습니다.' }];
+        if (p.status === 'rejected') return [403, { ok: false, error: 'forbidden', message: NEED_ROLE }];
+        const kid = kidActor.kid;
+        if (p.kakao_id && String(p.kakao_id) !== kid) return [409, { ok: false, error: 'linked_other', message: '이 계정은 이미 다른 카카오 계정과 연결되어 있습니다. 바꾸려면 운영진에게 문의해주세요.' }];
+        if (kidActor.p && kidActor.p.id !== p.id) return [409, { ok: false, error: 'kakao_taken', message: '이 카카오 계정은 이미 다른 게더링 계정(카카오로 가입·신청한 계정)에 연결되어 있습니다. 운영진에게 문의해주세요.' }];
+        if (!p.kakao_id) {
+            const u = await sbFetch(env, `profiles?id=eq.${p.id}&kakao_id=is.null&select=id`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ kakao_id: kid }) });
+            const done = u.ok ? ((await u.json().catch(() => [])) || []) : [];
+            if (!done.length) return [500, { ok: false, error: 'db', message: '연결하지 못했습니다. 잠시 후 다시 시도해주세요.' }];
+        }
+        const moved = await syncIdentity(env, p.id, kid);
+        return [200, { ok: true, linked: true, kakao_id: kid, status: p.status, moved }];
+    }
+    // identity_sync: 이미 연결된 계정의 옛 기록(이메일 로그인 때 계정 id 로 남긴 예약·게시글)을 카카오 ID 로 옮긴다 — 이메일 로그인 때 브라우저가 한 번 부른다.
+    if (action === 'identity_sync') {
+        const sbActor = actors.find(x => x.sbUid);
+        if (!sbActor || !sbActor.p) return [401, { ok: false, error: 'unauthorized', message: NEED_LOGIN }];
+        const p = sbActor.p;
+        if (p.member_type === 'band' || !p.kakao_id) return [200, { ok: true, moved: 0 }];
+        return [200, { ok: true, moved: await syncIdentity(env, p.id, String(p.kakao_id)) }];
+    }
+
+    // kakao_link(옛 방식: 이름+전화번호) — 이메일 로그인 계정이 있는 프로필은 더 이상 이 방법으로 연결하지 않는다
+    // (이름·연락처만 알면 남의 계정에 자기 카카오를 붙일 수 있었다, 2026-11-23). 로그인 수단이 없는 프로필만 종전대로.
     if (action === 'kakao_link') {
         if (!actor.kid) return [401, { ok: false, error: 'unauthorized', message: NEED_LOGIN }];
         if (actor.p) return [409, { ok: false, error: 'exists', message: '이미 연결된 계정이 있습니다.' }];
         const name = String(body.name || '').trim(), phone = digits(body.phone);
         if (!name || phone.length < 9) return [400, { ok: false, error: 'bad_request', message: '이름과 전화번호를 확인해주세요.' }];
-        const r = await sbFetch(env, `profiles?select=id,phone&name=eq.${enc(name)}&kakao_id=is.null&limit=20`);
+        const r = await sbFetch(env, `profiles?select=id,phone,member_type&name=eq.${enc(name)}&kakao_id=is.null&limit=20`);
         const rows = r.ok ? ((await r.json().catch(() => [])) || []) : [];
-        const match = rows.find(p => digits(p.phone) === phone);
+        const match = rows.find(p => digits(p.phone) === phone && p.member_type !== 'band');
         if (!match) return [200, { ok: true, linked: false }];
+        if (await hasAuthUser(env, match.id)) return [200, { ok: false, error: 'need_login', message: '이메일로 가입한 계정은 이메일·비밀번호로 연결해주세요. 화면을 새로고침한 뒤 다시 시도해주세요.' }];
         const u = await sbFetch(env, `profiles?id=eq.${match.id}&kakao_id=is.null`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ kakao_id: actor.kid }) });
         if (!u.ok) return [500, { ok: false, error: 'db', message: '연동하지 못했습니다.' }];
         return [200, { ok: true, linked: true }];

@@ -15,13 +15,18 @@ const P = {
     pend:   { id: '55555555-5555-4555-8555-555555555555', kakao_id: 'k-pend', name: '대기', status: 'pending', role: '일반' },
     band:   { id: '66666666-6666-4666-8666-666666666666', name: '팀', status: 'approved', member_type: 'band', instruments: 'vandor', band_name_kr: '반도' },
     badmin: { id: '77777777-7777-4777-8777-777777777777', name: '게더링', status: 'approved', member_type: 'band', instruments: 'wearegatheo', band_name_kr: '게더링' },
+    email:  { id: '99999999-9999-4999-8999-999999999999', name: '이메일멤버', email: 'em@example.com', status: 'approved', role: '일반', kakao_id: null },
+    linked: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: '연결멤버', email: 'ln@example.com', status: 'approved', role: '일반', kakao_id: 'k-linked' },
 };
-const SB = { 'jwt-band': { id: P.band.id, email: 'vandor@band.gatheo.kr' }, 'jwt-badmin': { id: P.badmin.id, email: 'wearegatheo@band.gatheo.kr' }, 'jwt-new': { id: '88888888-8888-4888-8888-888888888888', email: 'newteam@band.gatheo.kr' } };
+const AUTH_USERS = new Set(['99999999-9999-4999-8999-999999999999', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']); // 이메일 로그인 계정이 있는 프로필 id
+const SB = { 'jwt-band': { id: P.band.id, email: 'vandor@band.gatheo.kr' }, 'jwt-badmin': { id: P.badmin.id, email: 'wearegatheo@band.gatheo.kr' }, 'jwt-new': { id: '88888888-8888-4888-8888-888888888888', email: 'newteam@band.gatheo.kr' },
+    'jwt-email': { id: P.email.id, email: 'em@example.com' }, 'jwt-linked': { id: P.linked.id, email: 'ln@example.com' } };
 let log = [], canned = {};
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
 globalThis.fetch = async (url, opts = {}) => {
     url = String(url);
     if (url.startsWith('https://kapi.kakao.com')) { const t = (opts.headers.Authorization || '').slice(7); return t.startsWith('kt-') ? json({ id: t.slice(3) }) : json({}, 401); }
+    if (url.includes('/auth/v1/admin/users/')) { const id = url.split('/auth/v1/admin/users/')[1]; return AUTH_USERS.has(id) ? json({ id }) : json({ msg: 'User not found' }, 404); }
     if (url.includes('/auth/v1/user')) { const u = SB[(opts.headers.Authorization || '').slice(7)]; return u ? json(u) : json({}, 401); }
     const path = decodeURIComponent(url.split('/rest/v1/')[1] || '');
     const method = opts.method || 'GET';
@@ -217,12 +222,60 @@ const future = (d) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStrin
     canned = { 'profiles?select=email,phone': [{ email: 'gildong@example.com', phone: '010-1111-2222' }] };
     [st, b] = await handle(env, { action: 'find_id', name: '홍길동', phone: '01011112222' }); ok('아이디 찾기는 가려서', b.masked === 'gi****@example.com', b);
     [st, b] = await handle(env, { action: 'find_id', name: '홍길동', phone: '01000000000' }); ok('불일치 null', b.masked === null);
-    canned = { 'profiles?select=id,phone&name=eq.': [{ id: P.pend.id, phone: '010-3333-4444' }] };
+    canned = { 'profiles?select=id,phone,member_type&name=eq.': [{ id: P.pend.id, phone: '010-3333-4444' }] };
     log = []; [st, b] = await handle(env, { action: 'kakao_link', name: '옛멤버', phone: '01033334444', session: await sess('k-nobody') });
     ok('카카오 연동', b.linked === true && log.some(l => l.method === 'PATCH' && l.body.kakao_id === 'k-nobody' && l.path.includes('kakao_id=is.null')));
     [st, b] = await handle(env, { action: 'kakao_link', name: '옛멤버', phone: '01033334444' }); ok('익명 연동 401', st === 401);
     [st, b] = await handle(env, { action: 'kakao_link', name: '옛멤버', phone: '01033334444', session: await sess('k-member') }); ok('이미 가입한 사람 연동 409', st === 409);
+    // 이름+전화번호만으로는 이메일 로그인 계정에 카카오를 붙일 수 없다(계정 탈취 방지, 2026-11-23)
+    canned = { 'profiles?select=id,phone,member_type&name=eq.': [{ id: P.email.id, phone: '010-3333-4444' }] };
+    log = []; [st, b] = await handle(env, { action: 'kakao_link', name: '이메일멤버', phone: '01033334444', session: await sess('k-nobody') });
+    ok('옛 연동: 이메일 계정은 거부(need_login)', b.ok === false && b.error === 'need_login' && !log.some(l => l.method === 'PATCH'), b);
+    canned = { 'profiles?select=id,phone,member_type&name=eq.': [{ id: P.band.id, phone: '010-3333-4444', member_type: 'band' }] };
+    log = []; [st, b] = await handle(env, { action: 'kakao_link', name: '팀', phone: '01033334444', session: await sess('k-nobody') });
+    ok('옛 연동: 합주팀 프로필은 대상 아님', b.linked === false && !log.some(l => l.method === 'PATCH'), b);
     canned = {};
+}
+// ── 4b. 이메일 계정 ↔ 카카오 연결(kakao_link_self · identity_sync · 연결된 계정의 기록 키) ──
+{
+    let st, b;
+    const patched = (t) => log.filter(l => l.method === 'PATCH' && l.path.startsWith(t));
+    canned = { 'profiles?id=eq.': [{ id: P.email.id }], 'reservations?kakao_id=eq.': [{ id: 'r1' }, { id: 'r2' }], 'comments?kakao_id=eq.': [{ id: 'c1' }], 'polls?created_by=eq.': [] };
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-nobody', sb_token: 'jwt-email' });
+    ok('본인 연결: 성공', st === 200 && b.linked === true && b.kakao_id === 'k-nobody' && b.moved === 3, b);
+    ok('본인 연결: 프로필에 카카오 ID(비어 있을 때만)', patched('profiles').some(l => l.path.includes(`id=eq.${P.email.id}`) && l.path.includes('kakao_id=is.null') && l.body.kakao_id === 'k-nobody'));
+    ok('본인 연결: 옛 예약·글을 카카오 ID 로', patched('reservations').some(l => l.path.includes(`kakao_id=eq.${P.email.id}`) && l.body.kakao_id === 'k-nobody') && patched('comments').some(l => l.body.kakao_id === 'k-nobody') && patched('polls').some(l => l.body.created_by === 'k-nobody'));
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', session: await sess('k-nobody'), sb_token: 'jwt-email' });
+    ok('본인 연결: 서버 세션으로도', st === 200 && b.linked === true);
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', sb_token: 'jwt-email' });
+    ok('본인 연결: 카카오 확인 없으면 401', st === 401 && !log.some(l => l.method === 'PATCH'));
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-nobody' });
+    ok('본인 연결: 이메일 세션 없으면 401', st === 401 && !log.some(l => l.method === 'PATCH'));
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-member', sb_token: 'jwt-email' });
+    ok('본인 연결: 이미 다른 계정에 쓰인 카카오 409', st === 409 && b.error === 'kakao_taken' && !log.some(l => l.method === 'PATCH'), b);
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-nobody', sb_token: 'jwt-linked' });
+    ok('본인 연결: 이미 다른 카카오와 연결된 계정 409', st === 409 && b.error === 'linked_other' && !log.some(l => l.method === 'PATCH'), b);
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-linked', sb_token: 'jwt-linked' });
+    ok('본인 연결: 같은 카카오면 그대로 성공(프로필은 안 고침, 기록만 맞춤)', st === 200 && b.linked === true && !patched('profiles').length && patched('reservations').length === 1, b);
+    log = []; [st, b] = await handle(env, { action: 'kakao_link_self', kakao_token: 'kt-k-nobody', sb_token: 'jwt-band' });
+    ok('본인 연결: 합주팀 계정은 불가', st === 400 && b.error === 'not_member' && !log.some(l => l.method === 'PATCH'), b);
+    log = []; [st, b] = await handle(env, { action: 'identity_sync', sb_token: 'jwt-linked' });
+    ok('기록 맞추기: 연결된 계정', st === 200 && b.moved === 3 && patched('reservations').some(l => l.path.includes(`kakao_id=eq.${P.linked.id}`) && l.body.kakao_id === 'k-linked'), b);
+    log = []; [st, b] = await handle(env, { action: 'identity_sync', sb_token: 'jwt-email' });
+    ok('기록 맞추기: 연결 안 된 계정은 아무것도 안 함', st === 200 && b.moved === 0 && !log.some(l => l.method === 'PATCH'));
+    log = []; [st, b] = await handle(env, { action: 'identity_sync', session: await sess('k-member') });
+    ok('기록 맞추기: 이메일 세션 필수', st === 401);
+    canned = {};
+    // 연결된 계정은 이메일로 로그인해도 기록 키가 카카오 ID
+    ok('연결된 이메일 세션의 uid = 카카오 ID', makeActor({ sb: { id: P.linked.id, email: 'ln@example.com' }, profile: P.linked }).uid === 'k-linked');
+    ok('연결 안 된 이메일 세션의 uid = 계정 id', makeActor({ sb: { id: P.email.id, email: 'em@example.com' }, profile: P.email }).uid === P.email.id);
+    ok('합주팀 계정은 kakao_id 가 있어도 계정 id', makeActor({ sb: { id: P.band.id, email: '' }, profile: { ...P.band, kakao_id: 'k-x' } }).uid === P.band.id);
+    let r = await db({ sb_token: 'jwt-linked' }, 'comments', [['insert', { content: '안녕', user_name: '연결멤버', kakao_id: 'spoof' }]]);
+    ok('연결된 이메일 세션의 글 작성자 = 카카오 ID', !r.error && last().body && (Array.isArray(last().body) ? last().body[0] : last().body).kakao_id === 'k-linked', last());
+    r = await db({ sb_token: 'jwt-linked' }, 'comments', [['delete'], ['eq', 'id', 'c9']]);
+    ok('연결된 이메일 세션의 글 삭제는 카카오 ID 로 본인 것만', last().path.includes('kakao_id=eq.k-linked'), last());
+    r = await db({ sb_token: 'jwt-linked' }, 'profiles', [['update', { phone: '010-0000-0000' }], ['eq', 'id', P.linked.id]]);
+    ok('연결된 이메일 세션의 본인 프로필 수정은 계정 id 로', !r.error && last().path.includes(`id=eq.${P.linked.id}`), last());
 }
 // ── 5. 운영 도구(운영 총괄만) ──
 {

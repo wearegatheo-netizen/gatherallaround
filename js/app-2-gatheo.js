@@ -12,6 +12,9 @@
             initInstallBanner();
             initPortalHero();
 
+            // 비밀번호 재설정 링크로 들어왔으면(index.html 머리 스크립트가 토큰을 window.__pwReset 에 떼어 둠) 세션 복원보다 먼저 표시해 둔다
+            if (window.__pwReset && !window.__pwReset.expired) recoveryMode = true;
+
             // Supabase 안전한 초기화
             try {
                 if (typeof window.supabase !== 'undefined') {
@@ -29,18 +32,8 @@
 
             if (supabaseClient) {
                 supabaseClient.auth.onAuthStateChange((event) => {
-                    if (event === 'PASSWORD_RECOVERY') {
-                        recoveryMode = true;
-                        document.getElementById('portal-page').classList.add('hidden');
-                        document.getElementById('landing-page').classList.remove('hidden');
-                        document.getElementById('landing-page-band').classList.add('hidden');
-                        document.getElementById('main-content').classList.add('hidden');
-                        document.getElementById('email-login-form').classList.add('hidden');
-                        document.getElementById('email-signup-form').classList.add('hidden');
-                        document.getElementById('find-id-form').classList.add('hidden');
-                        document.getElementById('find-pw-form').classList.add('hidden');
-                        document.getElementById('reset-pw-form').classList.remove('hidden');
-                    }
+                    // 머리 스크립트가 못 잡은 복구 진입(안전망) — 새 비밀번호 화면으로. 재설정 화면에서 토큰을 확인할 때도 이 이벤트가 오므로 한 번만.
+                    if (event === 'PASSWORD_RECOVERY' && !recoveryMode) { recoveryMode = true; showResetPwScreen(); }
                 });
             }
 
@@ -143,6 +136,14 @@
         }
 
         async function initSession() {
+            // 비밀번호 재설정 링크(2026-11-23) — 저장된 세션으로 자동 진입하지 않고 새 비밀번호 화면부터. 만료된 링크면 비밀번호 찾기 화면으로.
+            if (window.__pwReset) {
+                _pendingRoute = null; _authResolved = true;
+                if (window.__pwReset.expired) { window.__pwReset = null; showResetPwExpired(); }
+                else showResetPwScreen();
+                hideBootOverlay();
+                return;
+            }
             // 호스트 센터에서 카카오 로그인 중 리다이렉트로 돌아온 경우 — 게더링 자동 로그인 대신 호스트 센터로 복귀
             try {
                 if (sessionStorage.getItem('gaa_return_host')) {
@@ -186,7 +187,7 @@
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session && session.user) {
-                    if (recoveryMode) { hideBootOverlay(); return; } // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
+                    if (recoveryMode) { showResetPwScreen(); hideBootOverlay(); return; } // 비밀번호 재설정 플로우 — 자동 로그인 건너뜀
                     await checkEmailUserApproval(session.user, { target });
                     return;
                 }

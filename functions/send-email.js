@@ -128,6 +128,89 @@ function b64utf8(s) {
     return btoa(bin);
 }
 
+// ───────── 비밀번호 재설정 메일(2026-11-23) ─────────
+// Supabase 기본 메일은 시간당 2통·수신 제한이 있어 일반 멤버에게 닿지 않을 수 있다 → 서비스 롤로 복구 토큰만 만들고(메일 발송 없음)
+// 메일은 Resend 로 보낸다. 링크는 https://gatherallaround.com/?pwreset=<해시 토큰> — 쿼리라 인앱 브라우저가 떼지 않고,
+// 토큰은 화면에서 [비밀번호 변경]을 누를 때(verifyOtp) 쓰이므로 메일 검사기가 링크를 먼저 열어도 소모되지 않는다.
+// 응답은 가입 여부를 드러내지 않는다(없는 이메일도 ok). 꺼져 있거나(키·속도 제한 표 없음) 실패하면 ok:false → 화면이 Supabase 기본 메일로.
+const PW_RESET_PER_IP_HOUR = 6;      // 같은 IP 에서 1시간에
+const PW_RESET_PER_EMAIL_MIN = 5;    // 같은 이메일로 5분에 1통
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function fromOurSite(request) {
+    const hostOf = (u) => { try { return new URL(u).hostname; } catch { return ''; } };
+    const ok = (h) => h === 'gatherallaround.com' || h === 'www.gatherallaround.com' || /\.(pages\.dev|gatherallaround\.com)$/.test(h) || h === 'localhost' || h === '127.0.0.1';
+    const site = request.headers.get('Sec-Fetch-Site');
+    if (site === 'same-origin') return true;
+    const o = request.headers.get('Origin'), r = request.headers.get('Referer');
+    return (!!o && ok(hostOf(o))) || (!!r && ok(hostOf(r)));
+}
+async function sha256Hex(text) {
+    const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+export function buildPwResetEmail(link) {
+    const subject = '[Gather all around] 비밀번호 재설정 안내';
+    const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:520px;margin:0 auto;padding:24px 20px;color:#222;line-height:1.6">
+<h2 style="margin:0 0 12px;font-size:1.15rem">비밀번호 재설정</h2>
+<p style="margin:0 0 18px;font-size:0.95rem">게더 올 어라운드 비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 정해주세요.</p>
+<p style="margin:0 0 18px"><a href="${esc(link)}" style="display:inline-block;background:#2f6bff;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;font-size:0.95rem">새 비밀번호 정하기</a></p>
+<p style="margin:0 0 6px;font-size:0.85rem;color:#666">버튼이 눌리지 않으면 아래 주소를 브라우저에 붙여 넣어주세요.</p>
+<p style="margin:0 0 18px;font-size:0.82rem;word-break:break-all"><a href="${esc(link)}" style="color:#2f6bff">${esc(link)}</a></p>
+<p style="margin:0;font-size:0.82rem;color:#888">링크는 약 1시간 동안, 한 번만 쓸 수 있습니다. 요청한 적이 없다면 이 메일은 무시하셔도 됩니다(비밀번호는 바뀌지 않습니다).</p>
+</div>`;
+    const text = `게더 올 어라운드 비밀번호 재설정\n\n아래 주소를 열어 새 비밀번호를 정해주세요.\n${link}\n\n링크는 약 1시간 동안, 한 번만 쓸 수 있습니다. 요청한 적이 없다면 이 메일은 무시하셔도 됩니다.`;
+    return { subject, html, text };
+}
+export async function handlePwReset(env, body, request) {
+    if (!fromOurSite(request)) return [403, { ok: false, error: 'forbidden' }];
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(email) || email.length > 200) return [400, { ok: false, error: 'bad_email' }];
+    const SUPABASE_URL = env.SUPABASE_URL, SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_URL || !SERVICE_KEY || !env.RESEND_API_KEY) return [200, { ok: false, skipped: 'email-disabled' }];
+    if (/@band\.gatheo\.kr$/.test(email)) return [200, { ok: true }]; // 합주팀 계정은 가짜 주소 — 메일 없음(운영자가 처리)
+    const sbHeaders = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
+
+    // 속도 제한 — auth_attempts(scope, ip, created_at). 표가 없으면 이 경로를 끄고 화면이 Supabase 기본 메일(자체 제한 있음)을 쓰게 한다.
+    const ip = String(request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown').split(',')[0].trim().slice(0, 64);
+    const emailKey = 'e:' + (await sha256Hex(email)).slice(0, 32); // 이메일 원문은 남기지 않는다
+    const since = (min) => encodeURIComponent(new Date(Date.now() - min * 60 * 1000).toISOString());
+    const count = async (key, min) => {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/auth_attempts?select=id&scope=eq.pw-reset&ip=eq.${encodeURIComponent(key)}&created_at=gte.${since(min)}&limit=20`, { headers: sbHeaders });
+        if (!r.ok) return null;
+        return ((await r.json().catch(() => [])) || []).length;
+    };
+    const [byIp, byEmail] = await Promise.all([count(ip, 60), count(emailKey, PW_RESET_PER_EMAIL_MIN)]);
+    if (byIp === null || byEmail === null) return [200, { ok: false, skipped: 'no-ratelimit-table' }];
+    if (byIp >= PW_RESET_PER_IP_HOUR) return [429, { ok: false, error: 'rate_limited' }];
+    const mark = await fetch(`${SUPABASE_URL}/rest/v1/auth_attempts`, { method: 'POST', headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify([{ scope: 'pw-reset', ip }, { scope: 'pw-reset', ip: emailKey }]) });
+    if (!mark.ok) return [200, { ok: false, skipped: 'no-ratelimit-table' }];
+    if (byEmail >= 1) return [200, { ok: true }]; // 방금 보낸 주소 — 조용히 넘어간다(메일 폭탄 방지)
+
+    // 복구 토큰 발급(메일은 보내지 않는다) — 가입하지 않은 이메일이면 4xx → 같은 ok 응답
+    const g = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, { method: 'POST', headers: sbHeaders, body: JSON.stringify({ type: 'recovery', email }) });
+    if (!g.ok) {
+        const why = (await g.text().catch(() => '')).slice(0, 300);
+        if (g.status === 404 || /user_not_found|user not found/i.test(why)) return [200, { ok: true }];
+        return [200, { ok: false, error: 'link', status: g.status }]; // 그 밖의 실패 → 화면이 Supabase 기본 메일로
+    }
+    const j = await g.json().catch(() => null) || {};
+    let token = j.hashed_token || (j.properties && j.properties.hashed_token) || '';
+    if (!token) { try { token = new URL(j.action_link || (j.properties && j.properties.action_link) || '').searchParams.get('token') || ''; } catch (_) {} }
+    if (!/^[A-Za-z0-9_-]{16,200}$/.test(token)) return [200, { ok: false, error: 'link' }];
+
+    const origin = request.headers.get('Origin') || '';
+    const site = /^https:\/\/[a-z0-9.-]+\.pages\.dev$/.test(origin) ? origin : 'https://gatherallaround.com';
+    const { subject, html, text } = buildPwResetEmail(`${site}/?pwreset=${token}`);
+    const sendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: env.RESEND_FROM || 'noreply@gatherallaround.com', to: email, subject, html, text }),
+    });
+    if (!sendRes.ok) return [200, { ok: false, error: 'resend', status: sendRes.status }];
+    return [200, { ok: true }];
+}
+
 export async function onRequest(context) {
     const { request, env } = context;
     const corsHeaders = corsFor(request.headers.get('Origin'));
@@ -153,12 +236,26 @@ export async function onRequest(context) {
                 out['컬럼_20260901_SQL'] = String(e && e.message || e);
             }
         }
+        // 비밀번호 재설정 메일(pw_reset) — Resend 키 + 속도 제한 표(auth_attempts)가 있어야 우리 메일로 나간다(없으면 Supabase 기본 메일)
+        if (out.환경변수_SUPABASE) {
+            try {
+                const r = await fetch(`${env.SUPABASE_URL}/rest/v1/auth_attempts?select=id&limit=1`,
+                    { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+                out['재설정메일_속도제한_표'] = r.ok;
+            } catch (e) { out['재설정메일_속도제한_표'] = false; }
+            out['재설정메일_발송방식'] = (out.환경변수_RESEND && out['재설정메일_속도제한_표']) ? '우리 메일(Resend)' : 'Supabase 기본 메일(시간당 2통 제한)';
+        }
         return json(out);
     }
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
     try {
-        const { meeting_id, application_id } = await request.json().catch(() => ({}));
+        const reqBody = await request.json().catch(() => ({})) || {};
+        if (reqBody.action === 'pw_reset') {
+            const [status, out] = await handlePwReset(env, reqBody, request);
+            return json(out, status);
+        }
+        const { meeting_id, application_id } = reqBody;
         if (!UUID_RE.test(String(meeting_id || '')) || !UUID_RE.test(String(application_id || ''))) {
             return json({ error: 'invalid ids' }, 400);
         }
