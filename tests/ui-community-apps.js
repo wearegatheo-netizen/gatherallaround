@@ -160,7 +160,7 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T=window.__T={community
     o.perfText = b ? b.querySelector('.t').textContent + '|' + b.querySelector('.s').textContent : '';
     o.perfImg = b && b.querySelector('img') ? b.querySelector('img').getAttribute('src') : '';
     o.commImg = c.querySelector('img') ? c.querySelector('img').getAttribute('src') : '';
-    o.aboveSteps = !!b && !!b.nextElementSibling && b.nextElementSibling.classList.contains('sx-steps');
+    o.aboveSteps = !!b && !!b.previousElementSibling && b.previousElementSibling.classList.contains('perf-layout') && document.querySelector('.perf-layout').firstElementChild.classList.contains('perf-col-intro') && /^\/img\/portal\/.+\.webp$/.test(document.querySelector('.perf-photo-gallery img').getAttribute('src')); // 2026-11-24: 띠는 예약 흐름 아래, 맨 위는 사진·요금 카드(경량 사진)
     _perfState.selectedDate = '2099-01-05'; _perfState.startSlot = 2; _perfState.endSlot = 4; renderPerfStep2(); await wait(100);
     o.step2None = !document.getElementById('secPromo-perf');
     renderPerfStep1(); await wait(300);
@@ -170,7 +170,7 @@ const FAKE_SB = `(function(){ window.__sbCalls=[]; const T=window.__T={community
     o.ev = ev.map(a => a[1] + ':' + a[2].promo_from + '>' + a[2].promo_to + ':' + Object.keys(a[2]).length).join(',');
     return o; }, CM);
   chk('홍보 배너: 커뮤니티 목록에 공간 대관 띠, 상세엔 없음', pr.list && pr.detailNone, JSON.stringify(pr));
-  chk('홍보 배너: 누르면 공간 대관으로, 대관 1단계 띠는 단계 표시 위·고정 문구 + 상시 모집 모임', pr.toPerf && pr.aboveSteps && pr.perfText === '신촌에서 같이 합주할 팀 찾습니다!|상시 모집 중인 커뮤니티 모임', pr.perfText);
+  chk('홍보 배너: 누르면 공간 대관으로, 대관 1단계는 사진·요금 카드가 먼저·띠는 맨 아래·고정 문구 + 상시 모집 모임', pr.toPerf && pr.aboveSteps && pr.perfText === '신촌에서 같이 합주할 팀 찾습니다!|상시 모집 중인 커뮤니티 모임', pr.perfText);
   chk('홍보 배너 사진: 대관 홍보는 대관 대표 사진(첫 공간 사진), 모임 홍보는 그 모임 대표 이미지(없으면 공간 사진)', pr.commImg === '/img/portal/studio1.webp' && (/^https:\/\//.test(pr.perfImg) || pr.perfImg === '/img/portal/studio9.webp'), pr.commImg + ' | ' + pr.perfImg);
   chk('홍보 배너: 대관 2단계(신청서)엔 없고, 1단계 띠를 누르면 상시 모집 모임 상세로', pr.step2None && /^#community\/meeting\/[0-9a-f-]{36}$/.test(pr.toMeeting), pr.toMeeting);
   chk('홍보 배너: 애널리틱스 promo_view·promo_click(값은 출발·도착 화면 둘뿐)', ['promo_view:community>perf:2', 'promo_click:community>perf:2', 'promo_view:perf>community:2', 'promo_click:perf>community:2'].every(x => pr.ev.includes(x)), pr.ev);

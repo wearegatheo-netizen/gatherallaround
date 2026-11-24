@@ -385,6 +385,10 @@
   `bandPageTab('guide')` 가 계정마다 카드를 다시 그리고(`dataset.for`) 열 때마다 `bandGuideLoadSettings()` → `bandGuideApplySettings()`(`#bandGuideDoor` 「[1층 현관] … · [지하 1층] …」, 값 없으면 「운영팀이 따로 안내드립니다」 / `#bandGuideOps` 기본 `PORTAL_PHONE` / `#bandGuideSoundRow` 값 없으면 숨김, 번호는 `_bandContactHTML` 로 tel 링크).
   운영 계정(`isBandAdmin()`)에게만 기본 정보 절 안 입력 칸 `#bandGuideAdmin`(`bs-<key>` 4칸 + [저장]=`bandGuideSaveSettings` upsert onConflict key, 결과 `#bandGuideAdminResult`, 표가 없으면 SQL 파일 안내). 로그아웃(`handleBandLogout`·`logoutUI`)은 `bandGuideReset()` 으로 카드와 `state.bandSettings` 를 비운다.
   로컬 PG16 검증(운영 계정 쓰기·승인 팀 읽기만·승인 전 팀/게더링 멤버 0행·anon 거부). 테스트 `tests/ui-band.js`(75, 7c절 — 소스에 번호가 없는지도 검사).
+- **이탈률 개선(2026-11-24, GA 10/27~11/23: 대관 이탈 53%·1인당 48초)**: ① **공간 대관 1단계 순서** = 단계 표시 → **사진·요금 카드 `.perf-col-intro`**(사진 → `.perf-intro-lead` 한 줄 소개 → 요금 띠) → 달력(`.perf-cal-title` 「날짜·시간 선택」) → 공간 소개 글·유의사항·환불 → **홍보 띠는 맨 아래**(예약 흐름 위에서 커뮤니티로 내보내지 않게).
+  `.perf-layout` 은 DOM 순서 intro·cal·info, 넓은 화면(>900px)은 grid 로 달력이 왼쪽 두 줄·소개/상세가 오른쪽. 갤러리 사진은 **경량 WebP(`portalHeroUrls()`, `data-full` 원본은 라이트박스만)** + 3번째부터 `loading=lazy`(종전엔 원본 0.7~3.6MB × 11장을 전부 받음).
+  ② **첫 화면 시간**: 섹션으로 바로 들어온 부팅(해시 있음)은 최소 노출 `BOOT_MIN_DEEP_MS`(0.3s, 포털은 종전 0.9s)·글꼴 대기 0.2s, index.html 머리의 marked·DOMPurify 는 본문 끝(앱 스크립트 앞)으로, Pretendard CSS 는 `media=print → all` 비차단, jsdelivr·supabase·kakaocdn `preconnect`. 포털 → 섹션 전환 로딩(0.95s)은 그대로.
+  ③ GA 「주요 이벤트」(`*_submit` 4개) 지정은 코드 밖 — 운영자가 GA 관리 화면에서. 테스트 `tests/ui-community-apps.js`(30). `tests/ui-wappen.js` 는 이 컨테이너에서 모달 클릭 타임아웃으로 실패(이 변경 전에도 동일).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

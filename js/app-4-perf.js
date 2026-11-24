@@ -204,15 +204,32 @@
             // 공간 소개글은 코드에 하드코딩(PERF_SPACE_DESC_DEFAULT). 수정 필요 시 그 상수를 변경.
             const savedDesc = PERF_SPACE_DESC_DEFAULT;
             // 사진을 누르면 전체 화면 라이트박스(perfPhotoOpen) — 좌우 넘김·스와이프·키보드
-            const photos = PERF_SPACE_PHOTOS.map((u, i) => `<img src="${u}" alt="공간 사진 ${i + 1}" role="button" tabindex="0" onclick="perfPhotoOpen(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();perfPhotoOpen(${i})}" onerror="this.style.display='none'">`).join('');
+            // 2026-11-24: 목록에는 경량 WebP(img/portal/<이름>.webp, 장당 20~100KB)만 — 원본(0.7~3.6MB × 11장)은 라이트박스에서만 받는다.
+            //    앞 두 장만 바로, 나머지는 보일 때(loading=lazy). 경량본이 없으면 원본으로 한 번 되돌리고 그것도 실패하면 숨김.
+            const thumbs = portalHeroUrls();
+            const photos = PERF_SPACE_PHOTOS.map((u, i) => `<img src="${thumbs[i] || u}" data-full="${u}" alt="공간 사진 ${i + 1}" ${i < 2 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" role="button" tabindex="0" onclick="perfPhotoOpen(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();perfPhotoOpen(${i})}" onerror="if(this.dataset.full&&this.src!==this.dataset.full){this.src=this.dataset.full}else{this.style.display='none'}">`).join('');
             // 2026-10-16: 달력은 카드(.gt-card) + 알약 [월간|주간](게더링 예약 탭과 동일, id 는 _perfCalCtx 그대로) + ‹ › 원형 버튼, 인원은 카드,
             //    공간 소개 카드 → 요금 띠(.cm-stats) → 유의사항·환불 규정 접이식, 범위를 고르면 아래 고정 바(선택 요약 + [예약 신청하기]) 가 뜬다(_perfCalOnChange)
             const picked = _cs().startSlot !== null && _cs().endSlot !== null;
+            // 2026-11-24(이탈률 53%): 처음 온 사람이 날짜부터 고르지 않게 **사진·요금 카드(.perf-col-intro)를 달력 앞에** —
+            //    폰은 소개 → 달력 → 상세 순, 넓은 화면은 달력(왼쪽) | 소개·상세(오른쪽). 홍보 띠는 예약 흐름 밖(맨 아래)으로.
             container.innerHTML = `
-                ${sectionPromoHTML('perf')}
                 ${_perfStepsHTML(1)}
                 <div class="perf-layout">
+                    <div class="perf-col-intro">
+                        <div class="gt-card">
+                            <div class="perf-photo-gallery">${photos}</div>
+                            <div class="perf-intro-lead"><b>신촌역 5분 · 밴드 스튜디오 대관</b><span>리허설 · 소규모 공연 · 쇼케이스 · 파티 · 촬영</span></div>
+                            <div class="cm-stats sx-rate">
+                                <div><small>평일 (월~금)</small><b>25,000원</b><small>시간당</small></div>
+                                <div><small>주말 (토·일)</small><b>40,000원</b><small>시간당</small></div>
+                                <div><small>최소 예약</small><b>3시간</b><small>부터</small></div>
+                            </div>
+                            <div class="sx-note">👥 5인 기준 · 5인 초과 시 1인당 +5,000원 (예약당 1회)</div>
+                        </div>
+                    </div>
                     <div class="perf-col-cal">
+                        <div class="perf-section-title perf-cal-title">날짜·시간 선택 <small>빈 시간을 눌러 시작과 끝을 고르세요</small></div>
                         <div class="gt-card">
                             <div class="perf-cal-head">
                                 <div class="gt-seg"><button type="button" id="perfCalMonthBtn" class="tab ${_cs().calView==='month'?'active':''}" onclick="setPerfCalView('month')">월간</button><button type="button" id="perfCalWeekBtn" class="tab ${_cs().calView==='week'?'active':''}" onclick="setPerfCalView('week')">주간</button></div>
@@ -235,17 +252,7 @@
                     <div class="perf-col-info">
                         <div class="gt-card">
                             <div class="perf-section-title">공간 소개</div>
-                            <div class="perf-photo-gallery">${photos}</div>
-                            <div class="perf-desc-text" id="perfDescText" style="margin-top:12px">${escapeHtml(savedDesc)}</div>
-                        </div>
-                        <div class="gt-card">
-                            <div class="perf-section-title">요금 안내</div>
-                            <div class="cm-stats sx-rate">
-                                <div><small>평일 (월~금)</small><b>25,000원</b><small>시간당</small></div>
-                                <div><small>주말 (토·일)</small><b>40,000원</b><small>시간당</small></div>
-                                <div><small>최소 예약</small><b>3시간</b><small>부터</small></div>
-                            </div>
-                            <div class="sx-note">👥 5인 기준 · 5인 초과 시 1인당 +5,000원 (예약당 1회)</div>
+                            <div class="perf-desc-text" id="perfDescText">${escapeHtml(savedDesc)}</div>
                         </div>
                         <details class="sx-acc"><summary>유의사항<small>엔지니어 비상주 · 장비 안내</small></summary>
                             <div class="perf-price-table">
@@ -264,6 +271,7 @@
                         </details>
                     </div>
                 </div>
+                ${sectionPromoHTML('perf')}
                 <div class="cm-sticky-pad" id="perfStep1Pad" style="display:${picked?'block':'none'}"></div>
                 <div class="cm-sticky" id="perfStep1Next" style="display:${picked?'flex':'none'}"><div class="pr" id="perfStickyFee"><small>날짜·시간을 선택하세요</small><b>-</b></div><button type="button" class="gaa-btn gaa-btn-primary" onclick="goPerfStep2()">예약 신청하기 →</button></div>`;
             renderPerfCal();

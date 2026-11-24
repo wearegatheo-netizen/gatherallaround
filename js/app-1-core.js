@@ -2344,19 +2344,22 @@
         }
 
         // ── 부팅 로딩 스크린 걷기 ──────────────────────────────────────────
-        const BOOT_MIN_MS = 900;   // 첫 페인트(__bootT0) 후 최소 노출
+        const BOOT_MIN_MS = 900;   // 첫 페인트(__bootT0) 후 최소 노출(포털)
+        const BOOT_MIN_DEEP_MS = 300; // 섹션으로 바로 들어온 경우(광고·공유 링크 /perf, /show/<id> …) — 로고 연출보다 내용을 먼저(2026-11-24)
         const BOOT_MAX_MS = 1800;  // 인증 판단이 늦어도 이 시점엔 걷는다
         let _bootHiding = false;
         function hideBootOverlay() {
             const el = document.getElementById('portalLoadingScreen');
             if (!el || el.dataset.boot !== '1' || _bootHiding) return; // 섹션 진입용 showPortalLoading() 오버레이는 건드리지 않는다
             _bootHiding = true;
-            const wait = Math.max(0, BOOT_MIN_MS - (Date.now() - (window.__bootT0 || 0)));
+            const portal = document.getElementById('portal-page');
+            const deep = !!(portal && portal.classList.contains('hidden')) || /^#[a-z]/i.test(location.hash || '');
+            const wait = Math.max(0, (deep ? BOOT_MIN_DEEP_MS : BOOT_MIN_MS) - (Date.now() - (window.__bootT0 || 0)));
             // 로딩 글꼴(라틴)과 포털 버튼 한글 글꼴이 준비된 뒤 걷는다 — 걷힌 직후 글꼴이 바뀌는 것 방지, 상한 500ms
             const fontReady = (document.fonts && document.fonts.load)
                 ? Promise.race([
                       Promise.all([document.fonts.load('1em KkuBulLim', 'Gather all around'), document.fonts.load('1em KkuBulLim', '게더링 커뮤니티 고정 합주팀 공간 대관')]).catch(() => {}),
-                      new Promise(r => setTimeout(r, 500)),
+                      new Promise(r => setTimeout(r, deep ? 200 : 500)),
                   ])
                 : Promise.resolve();
             Promise.all([fontReady, new Promise(r => setTimeout(r, wait))]).then(() => {

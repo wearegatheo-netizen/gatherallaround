@@ -78,10 +78,14 @@
     <link rel="preload" href="/fonts/BMKkubulim-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/BMKkubulim-critical.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Pretendard Font -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    <script src="/vendor/marked/marked.v18.2.0.umd.js"></script>
-    <script src="/vendor/dompurify/purify.v3.4.17.min.js"></script>
-    <link rel="stylesheet" href="/css/app.css?v=88506233">
+    <!-- 2026-11-24 첫 화면 시간: 외부 출처는 미리 연결해 두고, 본문 글꼴 CSS 는 첫 페인트를 막지 않게(print → all) 받는다.
+         marked·DOMPurify 는 머리에서 화면을 막던 것을 본문 끝(앱 스크립트 바로 앞)으로 옮김. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://xdcygyvsybsirmaknmpq.supabase.co" crossorigin>
+    <link rel="preconnect" href="https://t1.kakaocdn.net">
+    <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" /></noscript>
+    <link rel="stylesheet" href="/css/app.css?v=f81b76aa">
 </head>
 <body class="portal-view">
     <!-- 부팅 로딩 스크린 — JS 가 돌기 전 첫 페인트부터 화면을 덮는다(포털이 먼저 보였다가 가려지는 깜빡임 방지).
@@ -881,16 +885,18 @@
 
     <!-- Scripts -->
     <!-- Supabase SDK -->
+    <script src="/vendor/marked/marked.v18.2.0.umd.js"></script>
+    <script src="/vendor/dompurify/purify.v3.4.17.min.js"></script>
     <script src="/vendor/supabase/supabase.v2.119.0.js"></script>
     <script src="/shared/rules.js?v=771fc508"></script>
     <!-- Kakao SDK v1 (Popup 지원을 위해 복구) -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/1.43.0/kakao.min.js"></script>
     <!-- QR 생성 (티켓 → 체크인 딥링크). 자체 호스팅 — 버전은 파일명에 고정(_headers 불변 캐시) -->
     <script src="/vendor/qrcode-generator/qrcode.v1.4.4.js"></script>
-    <script src="/js/app-1-core.js?v=8253197b"></script>
+    <script src="/js/app-1-core.js?v=350b3065"></script>
     <script src="/js/app-2-gatheo.js?v=b6a5cf17"></script>
     <script src="/js/app-3-admin.js?v=61f1cd9f"></script>
-    <script src="/js/app-4-perf.js?v=2d8784ce"></script>
+    <script src="/js/app-4-perf.js?v=c8ca8172"></script>
     <script src="/js/app-5-community.js?v=2af251e3"></script>
     <script src="/js/app-6-band.js?v=388ff88b"></script>
     <script src="/js/app-7-members.js?v=c11e7827"></script>

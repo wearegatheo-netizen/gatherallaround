@@ -319,10 +319,20 @@
             align-items: stretch;
         }
         .perf-inner { width: 100%; max-width: 1100px; margin: 0 auto; padding: 22px 24px 60px; box-sizing: border-box; }
-        .perf-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+        /* 2026-11-24: DOM 순서 = 소개(사진·요금) → 달력 → 상세. 넓은 화면은 달력이 왼쪽 두 줄을 차지하고 소개·상세가 오른쪽에 쌓인다 */
+        .perf-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 20px 32px; align-items: start; }
+        .perf-col-cal { grid-column: 1; grid-row: 1 / span 2; }
+        .perf-col-intro { grid-column: 2; grid-row: 1; }
+        .perf-col-info { grid-column: 2; grid-row: 2; }
+        .perf-col-intro .gt-card { margin-bottom: 0; }
+        .perf-intro-lead { margin: 8px 0 12px; line-height: 1.45; }
+        .perf-intro-lead b { display: block; font-size: 1rem; color: var(--wds-black); }
+        .perf-intro-lead span { font-size: 0.82rem; color: var(--wds-gray-600); }
+        .perf-cal-title small { font-weight: 400; color: var(--wds-gray-500); margin-left: 6px; }
+        #perf-step-container > .sec-promo { margin-top: 24px; }
         @media (max-width: 900px) {
-            .perf-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-            .perf-col-cal, .perf-col-info { min-width: 0; }
+            .perf-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; gap: 20px; }
+            .perf-col-cal, .perf-col-info, .perf-col-intro { min-width: 0; grid-column: auto; grid-row: auto; }
         }
         @media (max-width: 600px) {
             .perf-inner { padding: 14px 12px 40px; }
