@@ -1925,7 +1925,8 @@
                     ${profile ? `<button type="button" onclick="${pushOn ? 'unsubscribePush()' : 'subscribePush()'}"><span class="ic">🔔</span>푸시 알림<span class="r">${pushOn ? '켜짐' : '꺼짐'}</span></button>` : ''}
                     <button type="button" onclick="toggleTheme();renderMypagePanel()"><span class="ic">${document.body.classList.contains('dark') ? '☀️' : '🌙'}</span>다크 모드<span class="r">${document.body.classList.contains('dark') ? '켜짐' : '꺼짐'}</span></button>
                     <button type="button" class="muted" onclick="handleLogout()"><span class="ic">↩︎</span>로그아웃<span class="r"></span></button>
-                </div>`;
+                </div>
+                ${profile ? `<div class="gt-withdraw"><button type="button" class="find-link-btn" id="gtWithdrawLink" onclick="gtWithdrawSheet()">회원 탈퇴</button></div>` : ''}`;
             _gtViewCache.mypage = content.innerHTML;
             if (profile) setTimeout(() => renderMtEditUI('mtEdit_mypage', profile.music_taste), 0);
         }
@@ -1966,6 +1967,66 @@
             c.getContext('2d').drawImage(bmp, sx, sy, s, s, 0, 0, size, size);
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
             return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+        }
+
+        // ── 회원 탈퇴(2026-11-24) — 마이 맨 아래 [회원 탈퇴] → 안내 시트 → 「탈퇴」 입력 → 서버 /gatheo-api profile_withdraw(DB 함수 gaa_delete_profile) ──
+        // 지워지는 것·남는 것은 서버(DB 함수)와 같은 내용으로 안내한다. 운영 총괄은 역할을 넘긴 뒤에만.
+        function gtWithdrawSheet() {
+            if (!state.user) return;
+            if (isSuper()) {
+                gtSheetOpen('회원 탈퇴', `<p id="gtWithdrawBody" style="font-size:0.9rem;line-height:1.7;color:var(--wds-gray-800);margin:4px 0 12px">운영 총괄은 바로 탈퇴할 수 없습니다. 관리자 › 멤버 목록에서 다른 멤버에게 <b>운영 총괄</b> 역할을 넘긴 뒤 다시 시도해주세요.</p>`);
+                return;
+            }
+            gtSheetOpen('회원 탈퇴', `<div id="gtWithdrawBody" style="font-size:0.9rem;line-height:1.7;color:var(--wds-gray-800)">
+                <p style="margin:4px 0 8px">탈퇴하면 게더링 멤버 계정이 삭제되고 <b>되돌릴 수 없습니다.</b></p>
+                <ul style="margin:0 0 10px;padding-left:18px">
+                    <li><b>지워지는 것</b>: 프로필(이름·연락처·세션·음악 취향·사진), 로그인 정보, 앞으로의 예약, 일정표 신청·외부인 신청, 투표 응답, 팀 구성의 내 자리</li>
+                    <li><b>남는 것</b>: 지난 예약 기록과 내가 쓴 게시글·댓글은 작성자가 「탈퇴한 멤버」로 바뀌어 남습니다. 지우고 싶은 글은 탈퇴 전에 직접 삭제해주세요.</li>
+                    <li>공연 호스트 센터·포스터 꾸미기 계정은 별개라 그대로입니다.</li>
+                    <li>다시 이용하려면 새로 가입 신청하고 승인을 받아야 합니다.</li>
+                </ul>
+                <label class="gt-field-label" for="gtWithdrawConfirm">확인을 위해 아래 칸에 <b>탈퇴</b> 라고 입력해주세요</label>
+                <input type="text" id="gtWithdrawConfirm" placeholder="탈퇴" autocomplete="off" style="width:100%;height:44px;padding:0 12px;border:1px solid var(--wds-gray-300);border-radius:var(--wds-radius-s);font-size:0.95rem;font-family:inherit;box-sizing:border-box;margin-top:6px">
+                <div id="gtWithdrawResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:6px 0 2px"></div>
+                <div style="display:flex;gap:8px">
+                    <button type="button" class="gaa-btn gaa-btn-secondary" style="flex:1" onclick="gtSheetClose()">취소</button>
+                    <button type="button" class="gaa-btn gaa-btn-danger" id="gtWithdrawRunBtn" style="flex:1" onclick="gtWithdrawRun()">탈퇴하기</button>
+                </div>
+            </div>`);
+        }
+        let _gtWithdrawBusy = false;
+        async function gtWithdrawRun() {
+            if (_gtWithdrawBusy || !state.user) return;
+            const res = document.getElementById('gtWithdrawResult');
+            const showErr = (msg) => { if (res) { res.textContent = msg; res.style.color = '#e74c3c'; } else showToast(msg, 6000); };
+            const typed = ((document.getElementById('gtWithdrawConfirm') || {}).value || '').trim();
+            if (typed !== '탈퇴') { showErr('확인 칸에 「탈퇴」 라고 입력해주세요.'); return; }
+            const me = _gtMe();
+            const profileId = (me && me.id) || state.user.profileId;
+            if (!profileId) { showErr('내 계정 정보를 확인하지 못했습니다. 새로고침한 뒤 다시 시도해주세요.'); return; }
+            _gtWithdrawBusy = true;
+            const btn = document.getElementById('gtWithdrawRunBtn'); if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+            try {
+                const out = await _gwAction('profile_withdraw', { profile_id: profileId }, { interactive: true });
+                if (out.down) { showErr('서버에 연결할 수 없어 탈퇴할 수 없습니다. 잠시 후 다시 시도해주세요.'); return; }
+                if (!out.ok) { showErr(out.message || '탈퇴하지 못했습니다.'); return; }
+                // 이 브라우저의 로그인 흔적을 모두 지운다(계정은 이미 서버에서 삭제됨)
+                const wasEmail = state.user.authType === 'email';
+                gtSheetClose();
+                try { localStorage.removeItem('gaa_kakao_uid'); localStorage.removeItem('gaa_idsync_' + profileId); } catch (_) {}
+                _gwSessionClear();
+                logoutUI();
+                showToast('탈퇴가 완료되었습니다. 그동안 함께해 주셔서 감사합니다.', 5000);
+                if (wasEmail) { try { await supabaseClient.auth.signOut({ scope: 'local' }); } catch (_) {} }
+                else if (typeof Kakao !== 'undefined' && Kakao.Auth) {
+                    try { if (Kakao.Auth.getAccessToken()) Kakao.Auth.logout(() => {}); } catch (_) {}
+                    try { Kakao.Auth.setAccessToken(null); } catch (_) {}
+                }
+                try { if (typeof _hostState !== 'undefined') _hostState.token = null; } catch (_) {}
+            } finally {
+                _gtWithdrawBusy = false;
+                if (btn) { btn.disabled = false; btn.textContent = '탈퇴하기'; }
+            }
         }
 
         // 로그인은 돼 있는데 현재 비밀번호를 모를 때 — 내 이메일로 재설정 메일(비밀번호 찾기와 같은 경로)

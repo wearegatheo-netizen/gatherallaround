@@ -970,6 +970,9 @@
         #notice_container { margin-bottom: 20px; }
         .find-link-btn { background: none; border: none; color: var(--wds-gray-500); font-size: 0.82rem; cursor: pointer; padding: 0; font-family: inherit; }
         .find-link-btn:hover { color: var(--wds-primary); text-decoration: underline; }
+        /* 마이 맨 아래 「회원 탈퇴」 링크(2026-11-24) — 눈에 덜 띄게, 누르는 영역은 32px */
+        .gt-withdraw { text-align: center; margin: 14px 0 4px; }
+        .gt-withdraw .find-link-btn { min-height: 32px; padding: 0 12px; color: var(--wds-gray-400); text-decoration: underline; }
         /* 관리자 › 계정 통합 시트(2026-11-23) */
         .merge-body { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 8px; }
         .merge-card { border: 1px solid var(--wds-gray-200); border-radius: 12px; padding: 10px 12px; }

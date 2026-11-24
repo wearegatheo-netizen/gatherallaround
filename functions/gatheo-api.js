@@ -612,6 +612,68 @@ export async function handle(env, body) {
         return [200, { ok: true, linked: true }];
     }
 
+    // ── 회원 탈퇴 · 거절된 멤버 삭제(2026-11-24) — DB 함수 gaa_delete_profile 로 한 번에 ──
+    // profile_withdraw {profile_id}: 로그인한 본인 프로필만(게더링 계정, 운영 총괄은 역할을 넘긴 뒤).
+    // profile_delete {ids[]}: 운영 총괄만, **거절(차단) 상태인 게더링 계정만** — 승인·대기 계정은 여기서 못 지운다.
+    if (action === 'profile_withdraw' || action === 'profile_delete') {
+        const NO_FN = '이 기능을 쓰려면 Supabase SQL Editor 에서 20261124_profile_delete.sql 을 한 번 실행해야 합니다.';
+        // 프로필 하나 삭제 → {ok} | {ok:false, error, message}
+        const removeOne = async (p) => {
+            const r = await sbFetch(env, 'rpc/gaa_delete_profile', { method: 'POST', body: JSON.stringify({ p_id: p.id }) });
+            if (!r.ok) {
+                const why = (await r.text().catch(() => '')).slice(0, 400);
+                if (r.status === 404 || /PGRST202|could not find the function/i.test(why)) return { ok: false, error: 'no_function', message: NO_FN };
+                if (/PROFILE_DELETE_NOT_FOUND/.test(why)) return { ok: true, gone: true }; // 이미 없음
+                console.error(action + ' 실패:', r.status, why);
+                return { ok: false, error: 'db', message: '처리하지 못했습니다. 아무것도 바뀌지 않았습니다. 잠시 후 다시 시도해주세요.' };
+            }
+            const out = await r.json().catch(() => null) || {};
+            // DB 함수가 이메일 로그인 계정을 못 지웠으면(권한) 관리 API 로 지운다 — 남으면 같은 이메일로 다시 가입할 수 없다
+            let authLeft = false;
+            if (out.auth === 'failed' && isUuid(p.id)) {
+                try {
+                    const d = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${p.id}`, { method: 'DELETE', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY } });
+                    authLeft = !(d.ok || d.status === 404);
+                } catch (_) { authLeft = true; }
+                if (authLeft) console.error(action + ': 로그인 계정 삭제 실패', p.id);
+            }
+            // 프로필 사진 파일(community-images/avatars/<id>-<ts>.jpg) — 있으면 지운다(실패해도 탈퇴는 끝난 것)
+            try {
+                const m = String(p.avatar_url || '').match(/\/community-images\/(avatars\/[A-Za-z0-9._-]+)$/);
+                if (m && m[1].startsWith(`avatars/${p.id}-`)) {
+                    await fetch(`${env.SUPABASE_URL}/storage/v1/object/community-images/${m[1]}`, { method: 'DELETE', headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY } });
+                }
+            } catch (_) {}
+            return { ok: true, auth_left: authLeft };
+        };
+
+        if (action === 'profile_withdraw') {
+            const me = actors.find(x => x.p && x.p.id === String(body.profile_id || ''));
+            if (!me) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: '본인 계정만 탈퇴할 수 있습니다. 다시 로그인한 뒤 시도해주세요.' }];
+            if (me.p.member_type === 'band') return [400, { ok: false, error: 'band', message: '합주팀 계정은 여기서 탈퇴할 수 없습니다. 운영진에게 문의해주세요.' }];
+            if (me.sup) return [400, { ok: false, error: 'sup', message: '운영 총괄은 다른 멤버에게 운영 총괄 역할을 넘긴 뒤 탈퇴할 수 있습니다.' }];
+            const out = await removeOne(me.p);
+            if (!out.ok) return [out.error === 'no_function' ? 200 : 500, out];
+            return [200, { ok: true, withdrawn: true, auth_left: !!out.auth_left }];
+        }
+
+        if (!actors.some(x => x.sup)) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: NEED_ROLE }];
+        const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))];
+        if (!ids.length || ids.length > 100 || !ids.every(isUuid)) return [400, { ok: false, error: 'bad_request', message: '삭제할 계정을 확인해주세요.' }];
+        const r = await sbFetch(env, `profiles?select=*&id=in.(${ids.join(',')})`);
+        const rows = r.ok ? ((await r.json().catch(() => [])) || []) : [];
+        const myIds = new Set(actors.filter(x => x.p).map(x => x.p.id));
+        const targets = rows.filter(p => p.status === 'rejected' && p.member_type !== 'band' && !myIds.has(p.id));
+        if (!targets.length) return [409, { ok: false, error: 'not_rejected', message: '거절(차단) 상태인 계정만 삭제할 수 있습니다. 목록을 새로고침해주세요.' }];
+        let deleted = 0;
+        for (const p of targets) {
+            const out = await removeOne(p);
+            if (!out.ok) return [out.error === 'no_function' ? 200 : 500, { ...out, deleted }];
+            deleted++;
+        }
+        return [200, { ok: true, deleted, skipped: ids.length - deleted }];
+    }
+
     // ── 계정 통합(운영 총괄만, 2026-11-23) — 같은 사람의 두 게더링 프로필을 하나로 ──
     // {a_id, b_id, dry:true[, keep_id]} → 계획(어느 쪽이 남는지·왜)만.  {keep_id, drop_id} → DB 함수 gaa_merge_profiles 로 한 번에 실행.
     // 남길 쪽 규칙: 이메일 로그인 계정이 있는 쪽(없앨 쪽에 로그인이 있으면 그 로그인이 갈 곳을 잃는다) → 둘 다 없으면 역할 높은 쪽 → 먼저 가입한 쪽.

@@ -28,6 +28,7 @@ const FAKE_SB = `
   const p = await ctx.newPage();
   const api = []; let mode = 'ok'; // ok | 401once | 501 | nofn
   let merged = false, window_members = null; // 계정 통합 절(11)에서만 쓴다
+  const gone = new Set();                     // 삭제·탈퇴 절(12)에서 지워진 프로필 id
   await p.route('**://**', async r => {
     const u = new URL(r.request().url());
     if (u.hostname !== '127.0.0.1') return r.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
@@ -46,7 +47,19 @@ const FAKE_SB = `
       merged = true;
       return send(200, { ok: true, merged: true, keep_id: body.keep_id, kakao_linked: true, moved: {} });
     }
-    if (body.table === 'profiles' && window_members) return send(200, { data: merged ? window_members.filter(m => m.id !== 'k1') : window_members, error: null });
+    if (body.action === 'profile_delete') {
+      if (mode === 'nofn') return send(200, { ok: false, error: 'no_function', message: '이 기능을 쓰려면 Supabase SQL Editor 에서 20261124_profile_delete.sql 을 한 번 실행해야 합니다.', deleted: 0 });
+      body.ids.forEach(id => gone.add(id)); return send(200, { ok: true, deleted: body.ids.length, skipped: 0 });
+    }
+    if (body.action === 'profile_withdraw') {
+      if (mode === 'nofn') return send(200, { ok: false, error: 'no_function', message: '이 기능을 쓰려면 Supabase SQL Editor 에서 20261124_profile_delete.sql 을 한 번 실행해야 합니다.' });
+      gone.add(body.profile_id); return send(200, { ok: true, withdrawn: true, auth_left: false });
+    }
+    if (body.table === 'profiles' && window_members) {
+      const rows = window_members.filter(m => !(merged && m.id === 'k1') && !gone.has(m.id));
+      const one = (body.calls || []).some(c => c[0] === 'single' || c[0] === 'maybeSingle');
+      return send(200, { data: one ? (rows.find(m => (body.calls || []).some(c => c[0] === 'eq' && String(c[2]) === String(m[c[1]]))) || null) : rows, error: null });
+    }
     if (body.action === 'client_errors') return send(200, { ok: true, rows: [
       { id: 2, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", stack: 'at renderX (/index.html:100:5)', page: 'gatheo/reservation', role: 'member', ua: 'iPhone KAKAOTALK' },
       { id: 1, created_at: new Date().toISOString(), message: "TypeError: Cannot read properties of null (reading 'id')", page: 'gatheo/home', role: 'admin', ua: 'Android' }] });
@@ -215,6 +228,54 @@ const FAKE_SB = `
   const after = await p.evaluate(() => ({ ids: state.allMembers.map(m => m.id).sort().join(), rows: document.querySelectorAll('#memberList .admin-member-row').length, btns: document.querySelectorAll('#memberList button[onclick^="gtMergeSheet"]').length, toast: (document.getElementById('auto-toast') || {}).textContent || '' }));
   chk('통합 실행: 남길 id·없앨 id 전송 → 목록에서 사라지고 통합 버튼도 없어짐', !!run && run.keep_id === 'e1' && run.drop_id === 'k1' && after.ids === 'e1,o1' && after.rows === 2 && after.btns === 0 && /통합했습니다/.test(after.toast), JSON.stringify(after));
   await p.evaluate(() => { document.getElementById('memberList')?.remove(); state.user.role = '일반'; });
+  window_members = null;
+
+  // 12. 거절된 멤버 삭제(운영 총괄) + 회원 탈퇴(마이)
+  await setup(); api.length = 0; merged = false; gone.clear();
+  window_members = [
+    { id: 'a1', name: '홍길동', phone: '010-0000-0001', email: '', kakao_id: 'k-me', role: '일반', status: 'approved', instruments: '기타', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'r1', name: '거절일', phone: '010-0000-0002', email: 'r1@example.com', kakao_id: null, role: '일반', status: 'rejected', created_at: '2026-02-01T00:00:00Z' },
+    { id: 'r2', name: '거절이', phone: '010-0000-0003', email: '', kakao_id: 'k-r2', role: '일반', status: 'rejected', created_at: '2026-03-01T00:00:00Z' },
+    { id: 'r3', name: '거절삼', phone: '010-0000-0004', email: '', kakao_id: 'k-r3', role: '일반', status: 'rejected', created_at: '2026-04-01T00:00:00Z' },
+  ];
+  const rejView = () => p.evaluate(() => ({ rows: [...document.querySelectorAll('#memberList .admin-member-row')].map(r => r.id.replace('admin-member-row-', '') + ':' + (r.querySelector('button[onclick^="deleteRejectedMembers"]') ? 'Y' : 'N')).sort().join(' '), all: !!document.getElementById('rejectedDeleteAllBtn') }));
+  await drawMembers('총괄');
+  let rv = await rejView();
+  chk('거절 삭제 버튼: 운영 총괄이 아니면 없음', !/Y/.test(rv.rows) && !rv.all, JSON.stringify(rv));
+  await drawMembers('운영 총괄'); rv = await rejView();
+  chk('거절 삭제 버튼: 거절된 줄에만 [삭제] + 묶음 머리 [전체 삭제]', rv.rows === 'a1:N r1:Y r2:Y r3:Y' && rv.all, JSON.stringify(rv));
+  const dialogs = []; p.on('dialog', d => dialogs.push(d.message()));
+  mode = 'nofn'; await p.click('#admin-member-row-r1 button[onclick^="deleteRejectedMembers"]'); await p.waitForTimeout(700);
+  chk('거절 삭제: DB 함수가 없으면 SQL 안내, 목록 그대로', /20261124_profile_delete\.sql/.test(await p.evaluate(() => (document.getElementById('auto-toast') || {}).textContent || '')) && (await rejView()).rows === 'a1:N r1:Y r2:Y r3:Y');
+  mode = 'ok'; api.length = 0; await p.click('#admin-member-row-r1 button[onclick^="deleteRejectedMembers"]'); await p.waitForTimeout(800);
+  let del = api.find(a => a.action === 'profile_delete');
+  chk('거절 삭제: 한 줄 삭제 → 그 id 만 전송, 목록에서 사라짐', !!del && del.ids.join() === 'r1' && (await rejView()).rows === 'a1:N r2:Y r3:Y', JSON.stringify(del && del.ids));
+  chk('거절 삭제: 확인창에 「다시 가입 신청 가능」 안내', dialogs.some(d => /거절일/.test(d) && /다시 가입 신청/.test(d) && /되돌릴 수 없습니다/.test(d)), dialogs.slice(-1)[0]);
+  api.length = 0; await p.click('#rejectedDeleteAllBtn'); await p.waitForTimeout(800);
+  del = api.find(a => a.action === 'profile_delete');
+  chk('거절 삭제: [전체 삭제] → 남은 거절 계정 전부', !!del && del.ids.slice().sort().join() === 'r2,r3' && (await rejView()).rows === 'a1:N' && !(await rejView()).all, JSON.stringify(del && del.ids));
+  await p.evaluate(() => { document.getElementById('memberList')?.remove(); });
+
+  // 회원 탈퇴 — 운영 총괄은 안내만
+  await p.evaluate(() => { state.user.role = '운영 총괄'; gtWithdrawSheet(); });
+  chk('탈퇴: 운영 총괄은 역할을 넘긴 뒤(입력 칸 없음)', await p.evaluate(() => /역할을 넘긴 뒤/.test((document.getElementById('gtWithdrawBody') || {}).textContent || '') && !document.getElementById('gtWithdrawConfirm')));
+  await p.evaluate(() => { gtSheetClose(); state.user.role = '일반'; state.cachedMembers = [{ id: 'a1', name: '홍길동', kakao_id: 'k-me', status: 'approved', role: '일반' }]; loginUI('홍길동'); });
+  await p.waitForTimeout(600);
+  await p.evaluate(() => setGatheOTab('mypage')); await p.waitForSelector('#gtWithdrawLink', { timeout: 6000 });
+  const linkBox = await p.evaluate(() => { const b = document.getElementById('gtWithdrawLink'); const r = b.getBoundingClientRect(); return { h: Math.round(r.height), text: b.textContent }; });
+  chk('탈퇴: 마이 맨 아래 「회원 탈퇴」 링크(누르는 영역 32px 이상)', linkBox.text === '회원 탈퇴' && linkBox.h >= 32, JSON.stringify(linkBox));
+  await p.click('#gtWithdrawLink'); await p.waitForSelector('#gtWithdrawConfirm');
+  const wtxt = await p.textContent('#gtWithdrawBody');
+  chk('탈퇴 안내: 지워지는 것·남는 것·되돌릴 수 없음', /지워지는 것/.test(wtxt) && /남는 것/.test(wtxt) && /탈퇴한 멤버/.test(wtxt) && /되돌릴 수 없습니다/.test(wtxt));
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + '/withdraw-sheet.png' });
+  api.length = 0; await p.click('#gtWithdrawRunBtn'); await p.waitForTimeout(300);
+  chk('탈퇴: 확인 글자를 안 넣으면 요청 없음', /「탈퇴」/.test(await p.textContent('#gtWithdrawResult')) && !api.some(a => a.action === 'profile_withdraw'));
+  await p.fill('#gtWithdrawConfirm', '탈퇴'); await p.click('#gtWithdrawRunBtn'); await p.waitForTimeout(900);
+  const wd = api.find(a => a.action === 'profile_withdraw');
+  const afterW = await p.evaluate(() => ({ user: !!state.user, portal: !document.getElementById('portal-page').classList.contains('hidden'), main: !document.getElementById('main-content').classList.contains('hidden'),
+    sess: localStorage.getItem('gaa_session'), uid: localStorage.getItem('gaa_kakao_uid'), sheet: !!document.getElementById('gtSheet'), toast: (document.getElementById('auto-toast') || {}).textContent || '' }));
+  chk('탈퇴: 내 프로필 id 로 요청', !!wd && wd.profile_id === 'a1' && wd.session === 'old-session', JSON.stringify(wd));
+  chk('탈퇴 뒤: 로그아웃 상태·포털·로그인 흔적 삭제', !afterW.user && afterW.portal && !afterW.main && !afterW.sess && !afterW.uid && !afterW.sheet && /탈퇴가 완료/.test(afterW.toast), JSON.stringify(afterW));
   window_members = null;
 
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));

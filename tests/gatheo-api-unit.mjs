@@ -318,6 +318,53 @@ const future = (d) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStrin
     ok('통합 실행: DB 가 거부한 이유를 안내', st === 409 && b.error === 'drop_has_login');
     canned = {}; delete P.kOnly; delete P.kOnly2;
 }
+// ── 4d. 회원 탈퇴 · 거절된 멤버 삭제 ──
+{
+    let st, b;
+    const sup = { session: await sess('k-sup') }, mem = { session: await sess('k-member') };
+    const rej = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', kakao_id: 'k-rej', name: '거절됨', status: 'rejected', role: '일반', avatar_url: 'https://sb.test/storage/v1/object/public/community-images/avatars/dddddddd-dddd-4ddd-8ddd-dddddddddddd-1700000000000.jpg' };
+    const rej2 = { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', kakao_id: null, name: '거절됨2', status: 'rejected', role: '일반' };
+    P.rej = rej; P.rej2 = rej2;
+    const rpc = () => log.filter(l => l.path.startsWith('rpc/gaa_delete_profile'));
+    let outer = [];   // rest/v1 밖 요청(관리 API·스토리지)
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, opts = {}) => { url = String(url); if ((opts.method || 'GET') === 'DELETE' && !url.includes('/rest/v1/')) { outer.push(url); return new Response('', { status: 200 }); } return realFetch(url, opts); };
+
+    canned = { 'rpc/gaa_delete_profile': { ok: true, auth: 'deleted', done: {} } };
+    log = []; outer = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.member.id, ...mem });
+    ok('탈퇴: 본인 프로필 → DB 함수 호출', st === 200 && b.withdrawn === true && rpc().length === 1 && rpc()[0].body.p_id === P.member.id, b);
+    log = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.mgr.id, ...mem });
+    ok('탈퇴: 남의 프로필 id 로는 403, DB 함수 안 부름', st === 403 && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.member.id });
+    ok('탈퇴: 익명 401', st === 401 && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.sup.id, ...sup });
+    ok('탈퇴: 운영 총괄은 역할을 넘긴 뒤', st === 400 && b.error === 'sup' && !rpc().length, b);
+    log = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.band.id, sb_token: 'jwt-band' });
+    ok('탈퇴: 합주팀 계정 불가', st === 400 && b.error === 'band' && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.linked.id, sb_token: 'jwt-linked' });
+    ok('탈퇴: 이메일 세션 본인', st === 200 && b.withdrawn && rpc()[0].body.p_id === P.linked.id);
+    canned = { 'rpc/gaa_delete_profile': { ok: true, auth: 'failed', done: {} } };
+    log = []; outer = []; [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.linked.id, sb_token: 'jwt-linked' });
+    ok('탈퇴: DB 가 로그인 계정을 못 지우면 관리 API 로 삭제', b.withdrawn && outer.some(u => u.endsWith('/auth/v1/admin/users/' + P.linked.id)) && b.auth_left === false, outer);
+    canned = { 'rpc/gaa_delete_profile': () => json({ code: 'PGRST202', message: 'Could not find the function public.gaa_delete_profile' }, 404) };
+    [st, b] = await handle(env, { action: 'profile_withdraw', profile_id: P.member.id, ...mem });
+    ok('탈퇴: DB 함수가 없으면 SQL 안내', b.ok === false && b.error === 'no_function' && /20261124_profile_delete\.sql/.test(b.message), b);
+
+    canned = { 'rpc/gaa_delete_profile': { ok: true, auth: 'none', done: {} }, 'profiles?select=*&id=in.': [rej, rej2, P.member] };
+    log = []; outer = []; [st, b] = await handle(env, { action: 'profile_delete', ids: [rej.id, rej2.id, P.member.id], ...sup });
+    ok('거절 삭제: 거절 상태만 삭제(승인 계정은 건너뜀)', st === 200 && b.deleted === 2 && b.skipped === 1 && rpc().map(l => l.body.p_id).sort().join() === [rej.id, rej2.id].sort().join(), b);
+    ok('거절 삭제: 프로필 사진 파일도 정리', outer.some(u => u.includes('/storage/v1/object/community-images/avatars/' + rej.id + '-')), outer);
+    canned = { 'rpc/gaa_delete_profile': { ok: true }, 'profiles?select=*&id=in.': [P.member] };
+    log = []; [st, b] = await handle(env, { action: 'profile_delete', ids: [P.member.id], ...sup });
+    ok('거절 삭제: 승인 계정만 고르면 409', st === 409 && b.error === 'not_rejected' && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_delete', ids: [rej.id], ...mem });
+    ok('거절 삭제: 일반 멤버 403', st === 403 && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_delete', ids: [rej.id] });
+    ok('거절 삭제: 익명 401', st === 401 && !rpc().length);
+    log = []; [st, b] = await handle(env, { action: 'profile_delete', ids: ['x'], ...sup });
+    ok('거절 삭제: 잘못된 id 400', st === 400 && !rpc().length);
+    globalThis.fetch = realFetch; canned = {}; delete P.rej; delete P.rej2;
+}
 // ── 5. 운영 도구(운영 총괄만) ──
 {
     const sup = await sess('k-sup'), mem = await sess('k-member');

@@ -900,6 +900,33 @@
             }
         }
 
+        // ── 거절된 멤버 삭제(2026-11-24, 운영 총괄) — 서버 /gatheo-api profile_delete(거절 상태만) → DB 함수 gaa_delete_profile ──
+        // ids 를 안 주면 거절 목록 전체. 삭제하면 그 사람은 다시 가입 신청할 수 있다(차단을 유지하려면 삭제하지 말 것).
+        let _rejDelBusy = false;
+        async function deleteRejectedMembers(ids) {
+            if (_rejDelBusy || !isSuper()) return;
+            const rejected = (state.allMembers || []).filter(m => m.status === 'rejected' && m.member_type !== 'band');
+            const list = ids ? rejected.filter(m => ids.includes(m.id)) : rejected;
+            if (!list.length) { showToast('삭제할 거절 계정이 없습니다.'); return; }
+            const who = list.length === 1 ? `「${list[0].name || '이름 없음'}」 계정` : `거절된 계정 ${list.length}개`;
+            if (!confirm(`${who}을(를) 완전히 삭제할까요?\n\n· 프로필·로그인 정보가 지워지고 되돌릴 수 없습니다.\n· 삭제하면 그 사람은 다시 가입 신청을 할 수 있습니다(계속 막으려면 삭제하지 말고 거절 상태로 두세요).`)) return;
+            _rejDelBusy = true;
+            try {
+                let deleted = 0;
+                for (let i = 0; i < list.length; i += 50) { // 서버 한 번에 100개까지
+                    const out = await _gwAction('profile_delete', { ids: list.slice(i, i + 50).map(m => m.id) }, { interactive: true });
+                    if (out.down) { showToast('서버에 연결할 수 없어 삭제할 수 없습니다.', 5000); break; }
+                    if (!out.ok) { showToast(out.message || '삭제하지 못했습니다.', 7000); deleted += out.deleted || 0; break; }
+                    deleted += out.deleted || 0;
+                }
+                if (deleted) showToast(`거절된 계정 ${deleted}개를 삭제했습니다.`, 4000);
+                state.paging.adminMemberRejected = 0;
+                const fresh = await fetchMembers(); state.allMembers = fresh;
+                const el = document.getElementById('memberList');
+                if (el) renderAdminMemberListEl(el); else render();
+            } finally { _rejDelBusy = false; }
+        }
+
         function renderAdminMemberListEl(memberList) {
             const members = state.allMembers;
             if (!members || members.length === 0) return;
@@ -922,6 +949,7 @@
                     if (canBanMember())     actions += `<button class="gaa-btn gaa-btn-sm gaa-btn-danger" type="button"  onclick="rejectMember('${m.id}')">차단</button>`;
                 } else {
                     if (canApproveMember()) actions += `<button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="approveMember('${m.id}')">재승인</button>`;
+                    if (isS) actions += `<button class="gaa-btn gaa-btn-sm gaa-btn-danger" type="button" onclick="deleteRejectedMembers(['${m.id}'])" title="거절된 계정을 목록에서 완전히 삭제합니다">삭제</button>`;
                 }
                 const roleSelect = isS ? `
                     <select onchange="updateMemberRole('${m.id}', this.value)" style="font-size:0.7rem;padding:2px 4px;border:1px solid var(--wds-gray-300);border-radius:4px;color:${roleColor};background:white">
@@ -951,11 +979,11 @@
                 </div>`;
             };
 
-            const buildGroup = (label, color, pageKey, allItems) => {
+            const buildGroup = (label, color, pageKey, allItems, extra = '') => {
                 if (allItems.length === 0) return '';
                 const { items, page, totalPages, total } = getPaged(allItems, pageKey);
                 return `<div class="admin-member-group">
-                    <div class="admin-member-group-header" style="border-left-color:${color}">${label} <span class="member-group-count">${allItems.length}</span></div>
+                    <div class="admin-member-group-header" style="border-left-color:${color}">${label} <span class="member-group-count">${allItems.length}</span>${extra}</div>
                     <div class="admin-member-list">${items.map(renderAdminItem).join('')}</div>
                     ${pagerHTML(pageKey, page, totalPages, total)}
                 </div>`;
@@ -973,7 +1001,8 @@
                 ? (filtered.length ? filtered.map(renderAdminItem).join('') : '<p style="color:var(--wds-gray-500);font-size:0.88rem;padding:12px 0">검색 결과가 없습니다.</p>')
                 : buildGroup('⏳ 승인 대기', '#f0a050', 'adminMemberPending',  members.filter(m => m.status === 'pending')) +
                   buildGroup('✅ 승인됨',   '#00b894', 'adminMemberApproved', members.filter(m => m.status === 'approved')) +
-                  buildGroup('🚫 거절됨',   '#e74c3c', 'adminMemberRejected', members.filter(m => m.status === 'rejected'));
+                  buildGroup('🚫 거절됨',   '#e74c3c', 'adminMemberRejected', members.filter(m => m.status === 'rejected'),
+                      isS ? `<button class="gaa-btn gaa-btn-xs gaa-btn-ghost-danger" id="rejectedDeleteAllBtn" type="button" style="margin-left:auto" onclick="deleteRejectedMembers()">전체 삭제</button>` : '');
         }
 
         function filterAdminMemberList() {
