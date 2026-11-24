@@ -387,7 +387,8 @@
   로컬 PG16 검증(운영 계정 쓰기·승인 팀 읽기만·승인 전 팀/게더링 멤버 0행·anon 거부). 테스트 `tests/ui-band.js`(75, 7c절 — 소스에 번호가 없는지도 검사).
 - **이탈률 개선(2026-11-24, GA 10/27~11/23: 대관 이탈 53%·1인당 48초)**: ① **공간 대관 1단계 순서** = 단계 표시 → **사진·요금 카드 `.perf-col-intro`**(사진 → `.perf-intro-lead` 한 줄 소개 → 요금 띠) → 달력(`.perf-cal-title` 「날짜·시간 선택」) → 공간 소개 글·유의사항·환불 → **홍보 띠는 맨 아래**(예약 흐름 위에서 커뮤니티로 내보내지 않게).
   `.perf-layout` 은 DOM 순서 intro·cal·info, 넓은 화면(>900px)은 grid 로 달력이 왼쪽 두 줄·소개/상세가 오른쪽. 갤러리 사진은 **경량 WebP(`portalHeroUrls()`, `data-full` 원본은 라이트박스만)** + 3번째부터 `loading=lazy`(종전엔 원본 0.7~3.6MB × 11장을 전부 받음).
-  ② **첫 화면 시간**: 섹션으로 바로 들어온 부팅(해시 있음)은 최소 노출 `BOOT_MIN_DEEP_MS`(0.3s, 포털은 종전 0.9s)·글꼴 대기 0.2s, index.html 머리의 marked·DOMPurify 는 본문 끝(앱 스크립트 앞)으로, Pretendard CSS 는 `media=print → all` 비차단, jsdelivr·supabase·kakaocdn `preconnect`. 포털 → 섹션 전환 로딩(0.95s)은 그대로.
+  ② **첫 화면 시간**: 섹션으로 바로 들어온 부팅(해시 있음)은 최소 노출 `BOOT_MIN_DEEP_MS`(0.3s, 포털은 종전 0.9s)·글꼴 대기 0.2s, index.html 머리의 marked·DOMPurify 는 본문 끝(앱 스크립트 앞)으로, Pretendard CSS 는 `media=print → all` 비차단, jsdelivr·supabase·kakaocdn `preconnect`. **포털 → 섹션 전환 로딩도 약 1.3초 → 약 0.6초**(같은 날 승인): `showPortalLoading()` 최소 노출 `PORTAL_LOADING_MS`(0.25s) + 걷힘 0.38s, 글자 흔들림은 `.pll-fast`(간격 0.015s·주기 0.6s — 짧은 노출 안에 17글자가 모두 움직이게).
+  **커뮤니티는 `showPortalLoading({until: 자료 Promise})`** — 방문 수·모임 목록·예약/차단을 다 받을 때까지 덮고(상한 `PORTAL_LOADING_CAP_MS` 5s), 걷히기 시작하는 순간 목록이 이미 그려져 있다(종전엔 1.3초를 꼭 채운 뒤 그림; `/meet/<id>` 딥링크도 같은 경로라 빨라짐). 와펜 이동 `{hold:true}` 는 종전 그대로(걷지 않음·간격 0.055s·주기 1s). 부팅 오버레이(정적 HTML)의 연출 속도도 그대로.
   ③ GA 「주요 이벤트」(`*_submit` 4개) 지정은 코드 밖 — 운영자가 GA 관리 화면에서. 테스트 `tests/ui-community-apps.js`(30). `tests/ui-wappen.js` 는 이 컨테이너에서 모달 클릭 타임아웃으로 실패(이 변경 전에도 동일).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와

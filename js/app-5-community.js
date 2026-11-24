@@ -133,25 +133,41 @@
         }
 
         // 섹션 진입용 글자 로딩 오버레이(부팅용 #portalLoadingScreen[data-boot] 와 같은 모양, data-boot 없음).
-        // opts.hold: 자동으로 걷지 않음 — 다른 페이지(와펜)로 떠날 때 새 문서가 뜰 때까지 덮어 둔다(bfcache 로 돌아오면 pageshow 가 치운다).
+        // opts.hold: 자동으로 걷지 않음 — 다른 페이지(와펜)로 떠날 때 새 문서가 뜰 때까지 덮어 둔다(bfcache 로 돌아오면 pageshow 가 치운다). 연출 속도도 종전 그대로.
+        // opts.until(Promise): 그 작업이 끝날 때까지 덮는다(커뮤니티 목록 — 걷힌 뒤 빈 화면이 보이지 않게). 최소 노출은 지키고, 끝나지 않아도 PORTAL_LOADING_CAP_MS 에는 걷는다.
+        // 2026-11-24: 노출 0.95s → 0.25s(+걷힘 0.38s = 약 0.6초, 종전 약 1.3초). 글자 흔들림도 그 안에 다 보이게 간격·주기를 당김(.pll-fast).
+        const PORTAL_LOADING_MS = 250;      // 최소 노출(걷히기 시작 전)
+        const PORTAL_LOADING_FADE_MS = 380; // CSS transition 0.35s 와 짝
+        const PORTAL_LOADING_CAP_MS = 5000; // until 이 안 끝나도 여기서는 걷는다(요청이 멈춘 경우)
         function showPortalLoading(opts = {}) {
             return new Promise(resolve => {
                 document.getElementById('portalLoadingScreen')?.remove();
                 const text = 'Gather all around';
+                const step = opts.hold ? 0.055 : 0.015; // 17글자: 종전 0.9초에 걸쳐 차례로 → 0.25초 안에 모두 시작
                 const letters = text.split('').map((c, i) =>
                     c === ' '
                         ? `<span class="pll-space"> </span>`
-                        : `<span class="pll" style="animation-delay:${(i * 0.055).toFixed(2)}s">${c}</span>`
+                        : `<span class="pll" style="animation-delay:${(i * step).toFixed(3)}s">${c}</span>`
                 ).join('');
                 const el = document.createElement('div');
                 el.id = 'portalLoadingScreen';
+                if (!opts.hold) el.className = 'pll-fast';
                 el.innerHTML = `<div class="portal-loading-text">${letters}</div>`;
                 document.body.appendChild(el);
                 if (opts.hold) return;
-                setTimeout(() => {
+                let done = false;
+                const close = () => {
+                    if (done) return; done = true;
                     el.classList.add('fade-out');
-                    setTimeout(() => { el.remove(); resolve(); }, 380);
-                }, 950);
+                    setTimeout(() => { el.remove(); resolve(); }, PORTAL_LOADING_FADE_MS);
+                };
+                const min = new Promise(r => setTimeout(r, PORTAL_LOADING_MS));
+                if (opts.until && typeof opts.until.then === 'function') {
+                    Promise.all([min, Promise.resolve(opts.until).catch(() => {})]).then(close);
+                    setTimeout(close, PORTAL_LOADING_CAP_MS);
+                } else {
+                    min.then(close);
+                }
             });
         }
         // 포털 → 섹션 전환 로딩(2026-10-09): 포털이 보이는 상태에서 섹션으로 들어갈 때만 띄운다 — 뒤로가기(popstate)·섹션 안 이동·
@@ -275,12 +291,15 @@
             state.communityTestResult = null;
             state.communityTestDetail = null;
             window.scrollTo({ top: 0, behavior: 'instant' });
-            await Promise.all([
-                showPortalLoading(),
+            // 2026-11-24: 로딩 화면은 목록 자료가 올 때까지 덮는다(최소 0.25초) — 종전엔 1.3초를 꼭 채운 뒤에야 목록을 그렸다.
+            //   자료가 오면 걷히기 시작하는 것과 같은 순간에 목록을 그리므로(아래 await 뒤 동기 렌더) 빈 화면이 보이지 않는다.
+            const loaded = Promise.all([
                 incrementCommunityVisit(),
                 fetchCommunityMeetings(),
                 fetchCommunityReservationsAndBlocks(),
             ]);
+            showPortalLoading({ until: loaded });
+            await loaded;
             // 모임 딥링크 복원 — _routeToPage가 맡겨둔 모임 id를 수령해 상세로 진입
             if (window.__routeCommunityMeeting) {
                 const mid = window.__routeCommunityMeeting;

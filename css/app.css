@@ -1071,6 +1071,8 @@
         body.dark .portal-loading-text { color:#fff; }
         .pll { display:inline-block; animation:portalLetterWobble 1s ease-in-out infinite; }
         .pll-space { display:inline-block; width:0.35em; }
+        /* 섹션 전환 로딩(약 0.6초)용 — 짧은 노출 안에 흔들림이 보이게 주기를 당김. 부팅·와펜 이동(hold)은 종전 1s */
+        #portalLoadingScreen.pll-fast .pll { animation-duration:0.6s; }
         @keyframes portalLetterWobble {
             0%,100% { transform:rotate(0deg) translateY(0); }
             20% { transform:rotate(-9deg) translateY(-2px); }
