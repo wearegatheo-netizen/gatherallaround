@@ -773,6 +773,7 @@
             try { Object.keys(_gtViewCache).forEach(k => delete _gtViewCache[k]); } catch (_) {} // 멤버 페이지 화면 캐시(다음 로그인 사용자에게 안 보이게)
             state._attLoaded = null; state.myProfile = null;
             state.bandProfile = null;
+            if (typeof bandGuideReset === 'function') bandGuideReset(); // 운영 안내 카드(출입 번호)가 다음 사람에게 남지 않게
             state.bandNotices = [];
             state.bandMembers = [];
             state.bandComments = [];

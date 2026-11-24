@@ -380,6 +380,11 @@
   DB 함수(security definer, service_role 만 execute, 한 트랜잭션): 일정표 신청·외부인 줄·투표 응답 삭제 → 다른 사람 예약의 participant_ids 에서 빼기(배열 `array_remove`/JSON `-`) → teams.members·schedules.members 의 그 칸을 빈 자리로(`memberId:null`, memberName·leader 제거) →
   작성자 키(계정 id·카카오 ID)로 남긴 것: **앞으로의 예약은 삭제, 지난 예약·게시글·만든 투표는 남기되 `user_name`/`creator_name` = 「탈퇴한 멤버」·키는 ''** → 프로필 삭제 → `auth.users` 삭제(권한이 없어 실패하면 `auth:'failed'` → 서버가 관리 API `DELETE /auth/v1/admin/users/<id>` 로 지움 — 남으면 같은 이메일로 재가입 불가). 서버는 프로필 사진 파일(`community-images/avatars/<id>-…`)도 지운다(best-effort).
   함수가 없으면 `no_function` + SQL 파일 안내. 공연 호스트·포스터 꾸미기 계정(카카오 ID 기준 별도 표)은 건드리지 않는다. 로컬 PG16 검증(uuid[]/jsonb 참여 멤버, json/jsonb 팀, anon 실행 거부). 테스트 `tests/gatheo-api-unit.mjs`(181, 4d절)·`tests/ui-gatheo-gw.js`(49, 12절).
+- **합주팀 운영 안내에 공간 이용 정보 추가(2026-11-24, 마이그레이션 `20261124_band_settings.sql`)**: `bandGuideHTML()` 맨 앞에 4절 — 「기본 정보」(주소·출입 방법·Wi-Fi, 이것만 펼침) · 「이용 시 주의사항」 · 「시설 이용법 및 세팅」(매뉴얼 구글 문서 `BAND_MANUAL_URL` 새 창·냉난방기·빔프로젝터) · 「문의처」 → 뒤에 종전 7절(모두 접힘), 총 11절.
+  **출입 번호·담당자 연락처는 소스에 적지 않는다**(저장소·JS 가 공개 — 민감정보 규칙): 표 `band_settings(key, value)` 의 `door_1f`·`door_b1`·`ops_contact`·`sound_contact`(`BAND_SETTING_KEYS`). RLS: 읽기 = 승인된 합주팀(`band_is_approved()` 신규 헬퍼) + 운영 계정, 쓰기 = 운영 계정(`band_is_admin()`), anon 권한 없음. gw 를 안 타는 합주팀 전용 표(직접 조회).
+  `bandPageTab('guide')` 가 계정마다 카드를 다시 그리고(`dataset.for`) 열 때마다 `bandGuideLoadSettings()` → `bandGuideApplySettings()`(`#bandGuideDoor` 「[1층 현관] … · [지하 1층] …」, 값 없으면 「운영팀이 따로 안내드립니다」 / `#bandGuideOps` 기본 `PORTAL_PHONE` / `#bandGuideSoundRow` 값 없으면 숨김, 번호는 `_bandContactHTML` 로 tel 링크).
+  운영 계정(`isBandAdmin()`)에게만 기본 정보 절 안 입력 칸 `#bandGuideAdmin`(`bs-<key>` 4칸 + [저장]=`bandGuideSaveSettings` upsert onConflict key, 결과 `#bandGuideAdminResult`, 표가 없으면 SQL 파일 안내). 로그아웃(`handleBandLogout`·`logoutUI`)은 `bandGuideReset()` 으로 카드와 `state.bandSettings` 를 비운다.
+  로컬 PG16 검증(운영 계정 쓰기·승인 팀 읽기만·승인 전 팀/게더링 멤버 0행·anon 거부). 테스트 `tests/ui-band.js`(75, 7c절 — 소스에 번호가 없는지도 검사).
 - 공용 시간표 달력: 대관 달력 렌더러(renderPerfCal/renderPerfMonth/renderPerfWeek/perfWeekSlotClick 등)는
   `_calCtx`{state, ids, minSlots, onChange} 컨텍스트로 구동 — 대관 페이지(`_perfCalCtx`, 최소 3슬롯)와
   커뮤니티 모임 등록 폼(`initCommunityCal`, 최소 1슬롯, 선택 시 cc_date/cc_start_time/cc_end_time 자동 입력)이 공유.

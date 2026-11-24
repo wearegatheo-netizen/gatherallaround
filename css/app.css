@@ -1702,6 +1702,11 @@
         .band-guide-head h2 { font-size: 1.3rem; margin: 2px 0 6px; font-family: 'KkuBulLim', sans-serif; color: var(--wds-black); }
         .band-guide-head p { margin: 0; color: var(--wds-gray-600); font-size: 0.9rem; line-height: 1.55; }
         .band-guide-sec { border-top: 1px solid var(--wds-gray-200); text-align: left; }
+        .band-guide-sub { margin: 10px 0 2px; font-weight: 700; color: var(--wds-black); }
+        .band-guide-sub:first-child { margin-top: 0; }
+        .band-guide-body a { color: var(--wds-primary); text-decoration: underline; }
+        .band-door { font-size: 1.02rem; letter-spacing: 0.04em; color: var(--wds-black); }
+        .band-guide-admin { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--wds-gray-300); }
         .band-guide-sec:last-of-type { border-bottom: 1px solid var(--wds-gray-200); }
         .band-guide-sec summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 13px 2px; cursor: pointer; font-weight: 700; font-size: 0.97rem; color: var(--wds-black); }
         .band-guide-sec summary::-webkit-details-marker { display: none; }
