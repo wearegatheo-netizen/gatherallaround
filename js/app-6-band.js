@@ -67,6 +67,53 @@
             } catch (e) { console.error('band landing preview:', e); if (seq === _bandLandingPreviewSeq) box.hidden = true; }
         }
         // ── 운영 안내(2026-11-07): 가입한 팀 대상 — 팀 화면 [운영 안내] 탭 + 딥링크 #band/guide(/band/guide, 비로그인은 로그인 폼 → 로그인 뒤 안내 탭). 숫자·계좌·연락처는 코드 상수(문자·화면과 동일)
+        // ── 공간 이용 안내 4절(기본 정보·주의사항·시설 이용법·문의처) — 합주팀 「운영 안내」와 게더링 「운영안내 › 공간 이용 안내」가 같이 쓴다(2026-11-24).
+        //   idp = 값이 들어갈 요소 id 접두(bandGuide | gtSpace): <idp>Door · <idp>Ops · <idp>SoundRow · <idp>Sound. extra = 기본 정보 절 끝에 붙일 HTML(운영자 입력 칸).
+        //   출입 번호·담당자 연락처는 여기 적지 않는다 — DB(band_settings)에서 받아 spaceGuideApply 가 채운다.
+        function spaceGuideParts(idp, extra) {
+            const ul = (...items) => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+            const ol = (...items) => `<ol>${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
+            const note = (t) => `<div class="band-guide-note">${t}</div>`;
+            const sub = (t) => `<p class="band-guide-sub">${t}</p>`;
+            return [
+                { icon: '📍', title: '기본 정보', open: true, body: ul(
+                    '주소: <strong>서울시 서대문구 연세로5나길 33 지하 1층</strong>',
+                    `출입 방법: <span id="${idp}Door">불러오는 중…</span>`,
+                    'Wi-Fi: 거울 쪽 선반 2번째 칸의 공유기에서 확인해주세요.') + (extra || '') },
+                { icon: '💬', title: '이용 시 주의사항', body: ul(
+                    '<strong>장비 보호</strong>: 악기·장비·물품 파손 시 100% 본인 과실로 처리됩니다. 소중히 다뤄주세요.',
+                    '<strong>화기 금지</strong>: 내부에서 화구·전기그릴은 절대 사용할 수 없습니다.',
+                    '<strong>취식 및 정리</strong>: 음식물 취식은 가능하지만 러그·패브릭이 오염되지 않게 주의해주시고, 퇴실할 때 일반쓰레기·음식물 쓰레기 분리수거를 마쳐주세요. 음식물 쓰레기는 싱크대 아래 검은 비닐봉투에 묶어 현관문 밖 분리수거통 쪽에 놓아주세요.',
+                    '<strong>원상 복구</strong>: 퇴실할 때 처음 상태 그대로 정리해주세요.',
+                    '<strong>금연 및 매너</strong>: 건물 전체가 실내 금연이고, 건물 입구에서는 이웃을 위해 조용히 해주세요. <strong>밤 11시 이후에는 음향장비를 사용할 수 없습니다.</strong>',
+                    '<strong>퇴실 체크</strong>: 모든 장비·냉난방기·전등이 꺼졌는지 확인한 뒤 <strong>출입문을 꼭 잠가주세요.</strong>') },
+                { icon: '🎛️', title: '시설 이용법 및 세팅', body:
+                    sub('음향 및 장비 상세 매뉴얼') + ul(
+                        `<a href="${BAND_MANUAL_URL}" target="_blank" rel="noopener">매뉴얼 문서 열기</a> — 마이크·키보드·드럼·믹서·앰프 등 상세 사양을 볼 수 있어요.`) +
+                    sub('냉난방기 사용') + ol(
+                        '에어컨 전원 ON',
+                        '난방은 본체의 [난방/히터] 버튼을 눌러주세요.',
+                        '퇴실할 때 반드시 OFF') +
+                    sub('빔프로젝터 (110인치)') + ul(
+                        '<strong>무선</strong>: 「EPSON iProjection」 앱 설치 → 와이파이 연결 → 프로젝터(EB334581) 등록 → 미러링',
+                        '<strong>유선</strong>: 선반 위 파란색 HDMI(또는 C타입) 연결 → 리모컨으로 외부입력 전환') },
+                { icon: '☎️', title: '문의처', body: ul(
+                    `운영담당자: <span id="${idp}Ops">` + _bandContactHTML(PORTAL_PHONE) + '</span>',
+                    `<span id="${idp}SoundRow" hidden>음향담당자: <span id="${idp}Sound"></span></span>`) + (idp === 'bandGuide' ? note('장비·시설·일정 요청은 요청사항에 남겨주셔도 됩니다.') : '') },
+            ];
+        }
+        // 받은 값(s = {door_1f, door_b1, ops_contact, sound_contact})을 안내 화면에 채운다 — 값이 없으면 「운영팀이 따로 안내」·음향담당자 줄 숨김
+        function spaceGuideApply(idp, s) {
+            s = s || {}; const $ = (id) => document.getElementById(id);
+            const door = $(idp + 'Door');
+            if (door) {
+                const parts = [s.door_1f ? `[1층 현관] <strong class="band-door">${escHtml(s.door_1f)}</strong>` : '', s.door_b1 ? `[지하 1층] <strong class="band-door">${escHtml(s.door_b1)}</strong>` : ''].filter(Boolean);
+                door.innerHTML = parts.length ? parts.join(' · ') : '운영팀이 따로 안내드립니다.';
+            }
+            const ops = $(idp + 'Ops'); if (ops) ops.innerHTML = _bandContactHTML(s.ops_contact || PORTAL_PHONE);
+            const sr = $(idp + 'SoundRow'), so = $(idp + 'Sound');
+            if (sr && so) { so.innerHTML = _bandContactHTML(s.sound_contact || ''); sr.hidden = !s.sound_contact; if (sr.parentElement) sr.parentElement.hidden = !s.sound_contact; }
+        }
         function bandGuideHTML() {
             const sec = (icon, title, body, open) => `<details class="band-guide-sec"${open ? ' open' : ''}><summary><span class="ic">${icon}</span><span>${title}</span><span class="ar">›</span></summary><div class="band-guide-body">${body}</div></details>`;
             const ul = (...items) => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
@@ -74,7 +121,6 @@
             const note = (t) => `<div class="band-guide-note">${t}</div>`;
             const first = BAND_OPEN_TIME, last = TIMES[TIMES.length - 1];
             const closeH = parseInt(last, 10) + 1;
-            const sub = (t) => `<p class="band-guide-sub">${t}</p>`;
             // 출입 번호·담당자 연락처는 소스에 적지 않는다 — DB(band_settings, 승인된 팀만 읽기)에서 받아 bandGuideApplySettings 가 채운다.
             const adminForm = isBandAdmin() ? `
                 <div class="band-guide-admin" id="bandGuideAdmin">
@@ -90,30 +136,7 @@
                 </div>` : '';
             return `
                 <div class="band-guide-head"><div class="band-guide-eyebrow">고정 합주팀</div><h2>운영 안내</h2><p>출입·시설 이용법부터 회차·이용료, 캐비넷, 건너뛰기권까지 고정팀이 알아야 할 내용을 모았어요. 문자와 화면 안내도 모두 이 규칙을 따릅니다.</p></div>
-                ${sec('📍', '기본 정보', ul(
-                    '주소: <strong>서울시 서대문구 연세로5나길 33 지하 1층</strong>',
-                    '출입 방법: <span id="bandGuideDoor">불러오는 중…</span>',
-                    'Wi-Fi: 거울 쪽 선반 2번째 칸의 공유기에서 확인해주세요.') + adminForm, true)}
-                ${sec('💬', '이용 시 주의사항', ul(
-                    '<strong>장비 보호</strong>: 악기·장비·물품 파손 시 100% 본인 과실로 처리됩니다. 소중히 다뤄주세요.',
-                    '<strong>화기 금지</strong>: 내부에서 화구·전기그릴은 절대 사용할 수 없습니다.',
-                    '<strong>취식 및 정리</strong>: 음식물 취식은 가능하지만 러그·패브릭이 오염되지 않게 주의해주시고, 퇴실할 때 일반쓰레기·음식물 쓰레기 분리수거를 마쳐주세요. 음식물 쓰레기는 싱크대 아래 검은 비닐봉투에 묶어 현관문 밖 분리수거통 쪽에 놓아주세요.',
-                    '<strong>원상 복구</strong>: 퇴실할 때 처음 상태 그대로 정리해주세요.',
-                    '<strong>금연 및 매너</strong>: 건물 전체가 실내 금연이고, 건물 입구에서는 이웃을 위해 조용히 해주세요. <strong>밤 11시 이후에는 음향장비를 사용할 수 없습니다.</strong>',
-                    '<strong>퇴실 체크</strong>: 모든 장비·냉난방기·전등이 꺼졌는지 확인한 뒤 <strong>출입문을 꼭 잠가주세요.</strong>'))}
-                ${sec('🎛️', '시설 이용법 및 세팅',
-                    sub('음향 및 장비 상세 매뉴얼') + ul(
-                        `<a href="${BAND_MANUAL_URL}" target="_blank" rel="noopener">매뉴얼 문서 열기</a> — 마이크·키보드·드럼·믹서·앰프 등 상세 사양을 볼 수 있어요.`) +
-                    sub('냉난방기 사용') + ol(
-                        '에어컨 전원 ON',
-                        '난방은 본체의 [난방/히터] 버튼을 눌러주세요.',
-                        '퇴실할 때 반드시 OFF') +
-                    sub('빔프로젝터 (110인치)') + ul(
-                        '<strong>무선</strong>: 「EPSON iProjection」 앱 설치 → 와이파이 연결 → 프로젝터(EB334581) 등록 → 미러링',
-                        '<strong>유선</strong>: 선반 위 파란색 HDMI(또는 C타입) 연결 → 리모컨으로 외부입력 전환'))}
-                ${sec('☎️', '문의처', ul(
-                    '운영담당자: <span id="bandGuideOps">' + _bandContactHTML(PORTAL_PHONE) + '</span>',
-                    '<span id="bandGuideSoundRow" hidden>음향담당자: <span id="bandGuideSound"></span></span>') + note('장비·시설·일정 요청은 요청사항에 남겨주셔도 됩니다.'))}
+                ${spaceGuideParts('bandGuide', adminForm).map(x => sec(x.icon, x.title, x.body, x.open)).join('\n')}
                 ${sec('⏰', '이용 시간과 고정 타임', ul(
                     `합주실은 <strong>매일 ${first} ~ ${String(closeH).padStart(2, '0')}:00</strong> 운영하고, 고정팀은 <strong>매주 같은 요일·같은 시간</strong>을 4주 단위로 씁니다.`,
                     '요일마다 <strong>오전 · 주간 · 야간</strong> 띠가 있어요. 지금 신청할 수 있는 띠는 [고정 가능 시간 보기]에서 실시간으로 확인합니다(고정팀 사용 중 · 대관만 · 개방 예정 · 겹치는 주 표시).',
@@ -170,14 +193,7 @@
         }
         function bandGuideApplySettings() {
             const s = state.bandSettings || {}, $ = (id) => document.getElementById(id);
-            const door = $('bandGuideDoor');
-            if (door) {
-                const parts = [s.door_1f ? `[1층 현관] <strong class="band-door">${escHtml(s.door_1f)}</strong>` : '', s.door_b1 ? `[지하 1층] <strong class="band-door">${escHtml(s.door_b1)}</strong>` : ''].filter(Boolean);
-                door.innerHTML = parts.length ? parts.join(' · ') : '운영팀이 따로 안내드립니다.';
-            }
-            const ops = $('bandGuideOps'); if (ops) ops.innerHTML = _bandContactHTML(s.ops_contact || PORTAL_PHONE);
-            const sr = $('bandGuideSoundRow'), so = $('bandGuideSound');
-            if (sr && so) { so.innerHTML = _bandContactHTML(s.sound_contact || ''); sr.hidden = !s.sound_contact; if (sr.parentElement) sr.parentElement.hidden = !s.sound_contact; }
+            spaceGuideApply('bandGuide', s);
             BAND_SETTING_KEYS.forEach(k => { const el = $('bs-' + k); if (el && document.activeElement !== el) el.value = s[k] || ''; });
             const res = $('bandGuideAdminResult');
             if (res && state.bandSettingsMissing) { res.textContent = '저장 표가 없습니다 — Supabase SQL Editor 에서 20261124_band_settings.sql 을 실행해주세요.'; res.style.color = '#e74c3c'; }

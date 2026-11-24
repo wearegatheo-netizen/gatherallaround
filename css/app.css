@@ -1719,6 +1719,13 @@
         .band-guide-body a { color: var(--wds-primary); text-decoration: underline; }
         .band-door { font-size: 1.02rem; letter-spacing: 0.04em; color: var(--wds-black); }
         .band-guide-admin { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--wds-gray-300); }
+        /* 게더링 운영안내 › 공간 이용 안내(합주팀 운영 안내와 같은 본문) — 운영 총괄 입력 칸 */
+        .gt-space-body .band-guide-sub { margin: 12px 0 2px; }
+        .gt-space-body .band-guide-sub:first-child { margin-top: 0; }
+        .gt-space-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+        .gt-space-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.8rem; font-weight: 600; color: var(--wds-gray-600); }
+        .gt-space-grid input[type="text"] { width: 100%; height: 44px; padding: 0 12px; box-sizing: border-box; font-size: 0.92rem; }
+        @media (max-width: 480px) { .gt-space-grid { grid-template-columns: minmax(0, 1fr); } }
         .band-guide-sec:last-of-type { border-bottom: 1px solid var(--wds-gray-200); }
         .band-guide-sec summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 13px 2px; cursor: pointer; font-weight: 700; font-size: 0.97rem; color: var(--wds-black); }
         .band-guide-sec summary::-webkit-details-marker { display: none; }

@@ -774,6 +774,7 @@
             state._attLoaded = null; state.myProfile = null;
             state.bandProfile = null;
             if (typeof bandGuideReset === 'function') bandGuideReset(); // 운영 안내 카드(출입 번호)가 다음 사람에게 남지 않게
+            state.spaceInfo = null; state.spaceInfoMissing = false; // 게더링 운영안내 › 공간 이용 안내의 출입 번호도
             state.bandNotices = [];
             state.bandMembers = [];
             state.bandComments = [];

@@ -365,6 +365,31 @@ const future = (d) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStrin
     ok('거절 삭제: 잘못된 id 400', st === 400 && !rpc().length);
     globalThis.fetch = realFetch; canned = {}; delete P.rej; delete P.rej2;
 }
+// ── 4e. 공간 이용 안내 값(출입 번호·담당자 연락처) — 승인된 게더링 멤버 읽기 · 운영 총괄 쓰기 ──
+{
+    let st, b;
+    const sup = { session: await sess('k-sup') }, mem = { session: await sess('k-member') };
+    canned = { 'band_settings?select': [{ key: 'door_1f', value: '1111*' }, { key: 'door_b1', value: '22223333*' }, { key: 'ops_contact', value: '010-1111-2222 (운영)' }, { key: 'etc', value: 'x' }] };
+    log = []; [st, b] = await handle(env, { action: 'space_info' }); ok('공간 안내 값: 익명 401', st === 401 && !log.length);
+    log = []; [st, b] = await handle(env, { action: 'space_info', session: await sess('k-pend') }); ok('공간 안내 값: 승인 전 멤버 403', st === 403 && !log.length);
+    log = []; [st, b] = await handle(env, { action: 'space_info', sb_token: 'jwt-band' }); ok('공간 안내 값: 합주팀 계정은 이 경로 아님(403)', st === 403 && !log.length);
+    log = []; [st, b] = await handle(env, { action: 'space_info', ...mem });
+    ok('공간 안내 값: 멤버 읽기(정해진 키만)', st === 200 && b.settings.door_1f === '1111*' && b.settings.door_b1 === '22223333*' && b.settings.ops_contact === '010-1111-2222 (운영)' && !('etc' in b.settings) && !b.missing);
+    [st, b] = await handle(env, { action: 'space_info', sb_token: 'jwt-email' }); ok('공간 안내 값: 이메일 로그인 멤버도 읽기', st === 200 && b.settings.door_1f === '1111*');
+    canned = { 'band_settings?select': () => json({ message: 'no table' }, 404) };
+    [st, b] = await handle(env, { action: 'space_info', ...mem }); ok('공간 안내 값: 표 없음 → 빈 값 + missing', st === 200 && b.missing === true && Object.keys(b.settings).length === 0);
+    canned = {};
+    log = []; [st, b] = await handle(env, { action: 'space_info_save', settings: { door_1f: '9999*' }, ...mem }); ok('공간 안내 저장: 멤버 403', st === 403 && !log.length);
+    log = []; [st, b] = await handle(env, { action: 'space_info_save', settings: { door_1f: '9999*' }, session: await sess('k-lead') }); ok('공간 안내 저장: 총괄 403', st === 403 && !log.length);
+    log = []; [st, b] = await handle(env, { action: 'space_info_save', settings: { door_1f: ' 9999* ', door_b1: '12345678*', sound_contact: 'x'.repeat(80), hack: 'no' }, ...sup });
+    const w = last();
+    ok('공간 안내 저장: 운영 총괄 upsert(4개 키만·다듬어서)', st === 200 && w.method === 'POST' && w.path === 'band_settings?on_conflict=key' && /merge-duplicates/.test(w.prefer)
+        && w.body.length === 4 && w.body.map(r => r.key).join() === 'door_1f,door_b1,ops_contact,sound_contact' && w.body[0].value === '9999*' && w.body[2].value === '' && w.body[3].value.length === 60
+        && b.settings.door_1f === '9999*');
+    canned = { 'band_settings?on_conflict': () => json({ code: 'PGRST205', message: "Could not find the table 'public.band_settings' in the schema cache" }, 404) };
+    [st, b] = await handle(env, { action: 'space_info_save', settings: {}, ...sup }); ok('공간 안내 저장: 표 없음 → no_table + SQL 파일 안내', st === 409 && b.error === 'no_table' && /20261124_band_settings\.sql/.test(b.message));
+    canned = {};
+}
 // ── 5. 운영 도구(운영 총괄만) ──
 {
     const sup = await sess('k-sup'), mem = await sess('k-member');

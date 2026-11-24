@@ -1031,16 +1031,71 @@
             return doc.body.innerHTML;
         }
 
+        // ── 운영안내의 고정 탭 「공간 이용 안내」(2026-11-24) — 합주팀 운영 안내와 같은 4절(spaceGuideParts). 문서(documents)가 아니라 코드에 있는 내용이라 관리자 문서관리에는 안 나온다.
+        //   출입 번호·담당자 연락처는 서버(/gatheo-api space_info, 승인된 멤버만)에서 받아 채운다 — 값은 합주팀 쪽과 같은 표(band_settings).
+        const GT_SPACE_CAT = '공간 이용 안내';
+        function gtSpaceGuideHTML() {
+            const adminForm = isSuper() ? `
+                <div class="band-guide-admin" id="gtSpaceAdmin">
+                    <div class="band-guide-note">운영 총괄에게만 보이는 입력 칸이에요. 저장하면 게더링 멤버와 고정 합주팀의 안내에 함께 반영됩니다.</div>
+                    <div class="gt-space-grid">
+                        <label>1층 현관 번호<input type="text" id="gs-door_1f" maxlength="40" autocomplete="off" placeholder="예: 1234*"></label>
+                        <label>지하 1층 번호<input type="text" id="gs-door_b1" maxlength="40" autocomplete="off" placeholder="예: 12345678*"></label>
+                        <label>운영담당자 연락처<input type="text" id="gs-ops_contact" maxlength="60" autocomplete="off" placeholder="010-0000-0000 (이름)"></label>
+                        <label>음향담당자 연락처<input type="text" id="gs-sound_contact" maxlength="60" autocomplete="off" placeholder="010-0000-0000 (이름)"></label>
+                    </div>
+                    <div id="gtSpaceAdminResult" style="font-size:0.88rem;text-align:center;min-height:22px;padding:2px 0"></div>
+                    <div style="text-align:right"><button type="button" class="gaa-btn gaa-btn-sm gaa-btn-primary" onclick="gtSpaceSave(this)">저장</button></div>
+                </div>` : '';
+            return spaceGuideParts('gtSpace', adminForm).map((x, i) => `
+                <div class="docs-card${x.open ? '' : ' collapsed'}" id="docs-card-space-${i}">
+                    <div class="docs-card-title" onclick="toggleDocsCard('space-${i}')"><span class="docs-toggle-icon">▼</span><span style="flex:1">${x.icon} ${x.title}</span></div>
+                    <div class="docs-card-body"><div class="docs-card-content gt-space-body">${x.body}</div></div>
+                </div>`).join('');
+        }
+        function gtSpaceApply() {
+            if (!document.getElementById('gtSpaceDoor') || !state.spaceInfo) return; // 아직 못 받았으면 「불러오는 중…」 그대로
+            const s = state.spaceInfo;
+            spaceGuideApply('gtSpace', s);
+            ['door_1f', 'door_b1', 'ops_contact', 'sound_contact'].forEach(k => { const el = document.getElementById('gs-' + k); if (el && document.activeElement !== el) el.value = s[k] || ''; });
+            const res = document.getElementById('gtSpaceAdminResult');
+            if (res && state.spaceInfoMissing) { res.textContent = '저장 표가 없습니다 — Supabase SQL Editor 에서 20261124_band_settings.sql 을 실행해주세요.'; res.style.color = '#e74c3c'; }
+        }
+        async function gtSpaceLoad() {
+            const who = state.user && state.user.kakaoId;
+            if (!who) return;
+            let out = null;
+            try { out = await _gwAction('space_info'); } catch (e) { console.warn('space_info 실패:', e); }
+            if (!state.user || state.user.kakaoId !== who) return; // 그사이 로그아웃·계정 전환
+            state.spaceInfo = out && out.ok && out.settings ? out.settings : {};
+            state.spaceInfoMissing = !!(out && out.missing);
+            gtSpaceApply();
+        }
+        async function gtSpaceSave(btn) {
+            if (!isSuper()) return;
+            const res = document.getElementById('gtSpaceAdminResult');
+            const show = (msg, ok) => { if (res) { res.textContent = msg; res.style.color = ok ? '#00b894' : '#e74c3c'; } };
+            if (btn && btn.disabled) return;
+            const settings = {};
+            ['door_1f', 'door_b1', 'ops_contact', 'sound_contact'].forEach(k => { settings[k] = ((document.getElementById('gs-' + k) || {}).value || '').trim().slice(0, 60); });
+            if (btn) btn.disabled = true;
+            show('', true);
+            try {
+                const out = await _gwAction('space_info_save', { settings }, { interactive: true });
+                if (!out || out.down) { show('이 환경에서는 저장할 수 없습니다.'); return; }
+                if (!out.ok) { show(out.message || '저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+                state.spaceInfo = out.settings || settings; state.spaceInfoMissing = false;
+                gtSpaceApply();
+                show('저장했습니다. 멤버·합주팀 안내에 바로 반영됩니다.', true);
+            } finally { if (btn) btn.disabled = false; }
+        }
+
         function renderDocsPage(container) {
             const docs = state.docs || [];
             const isAdmin = canApproveRes();
-            if (!docs.length) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--wds-gray-500);font-size:0.9rem">등록된 운영 안내가 없습니다.</div>'
-                    + (isAdmin ? `<div style="text-align:center"><button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="quickAddDoc()">+ 새 문서 추가</button></div>` : '');
-                return;
-            }
             const categories = [];
             docs.forEach(d => { if (d.category && !categories.includes(d.category)) categories.push(d.category); });
+            categories.push(GT_SPACE_CAT); // 고정 탭은 문서 분류 뒤에
             const selectedCat = state.docsCategory && categories.includes(state.docsCategory) ? state.docsCategory : categories[0];
 
             const catTabs = categories.map(c => {
@@ -1048,6 +1103,17 @@
                 return `<button type="button" class="docs-cat-tab${c === selectedCat ? ' active' : ''}" onclick="state.docsCategory='${safeCat}';render()">${escapeHtml(c)}</button>`;
             }).join('');
 
+            const addBtn = isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="quickAddDoc()">+ 새 문서 추가</button></div>` : '';
+            if (selectedCat === GT_SPACE_CAT) {
+                container.innerHTML = `
+                    <div class="docs-categories">${catTabs}</div>
+                    <div class="docs-list">${gtSpaceGuideHTML()}</div>
+                    ${addBtn}
+                `;
+                gtSpaceApply();  // 받아 둔 값이 있으면 바로
+                gtSpaceLoad();   // 열 때마다 최신 값
+                return;
+            }
             const filtered = docs.filter(d => d.category === selectedCat);
             const cards = filtered.map(d => {
                 const safeC = (d.category||'').replace(/"/g,'&quot;');
@@ -1081,7 +1147,6 @@
                 </div>`;
             }).join('');
 
-            const addBtn = isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="gaa-btn gaa-btn-sm gaa-btn-primary" type="button" onclick="quickAddDoc()">+ 새 문서 추가</button></div>` : '';
             container.innerHTML = `
                 <div class="docs-categories">${catTabs}</div>
                 <div class="docs-list">${cards}</div>

@@ -509,6 +509,7 @@ async function dbAction(env, actors, body) {
     return first;
 }
 
+const SPACE_KEYS = ['door_1f', 'door_b1', 'ops_contact', 'sound_contact']; // js/app-6-band.js BAND_SETTING_KEYS 와 같은 목록
 const maskEmail = (email) => {
     const [local, domain] = String(email).split('@');
     const masked = local.length <= 2 ? local[0] + '**' : local.slice(0, 2) + '*'.repeat(Math.min(local.length - 2, 4));
@@ -714,6 +715,32 @@ export async function handle(env, body) {
         }
         const out = await r.json().catch(() => null) || {};
         return [200, { ok: true, merged: true, keep_id: pa.id, kakao_linked: !!out.kakao_linked, moved: out.moved || {} }];
+    }
+
+    // ── 공간 이용 안내의 「로그인한 사람에게만 보일 값」(출입 번호·담당자 연락처, 표 band_settings — 합주팀 운영 안내와 같은 값) ──
+    //   읽기: 승인된 게더링 멤버 · 쓰기: 운영 총괄. 표가 없으면(마이그레이션 전) 빈 값 + missing.
+    if (action === 'space_info' || action === 'space_info_save') {
+        const okRead = actors.some(x => x.member || x.sup);
+        if (!okRead) return [actors.some(x => x.uid) ? 403 : 401, { ok: false, error: 'forbidden', message: '승인된 멤버만 볼 수 있습니다.' }];
+        if (action === 'space_info_save') {
+            if (!actors.some(x => x.sup)) return [403, { ok: false, error: 'forbidden', message: NEED_ROLE }];
+            const src = body.settings && typeof body.settings === 'object' ? body.settings : {};
+            const now = new Date().toISOString();
+            const rows = SPACE_KEYS.map(k => ({ key: k, value: String(src[k] == null ? '' : src[k]).trim().slice(0, 60), updated_at: now }));
+            const w = await sbFetch(env, 'band_settings?on_conflict=key', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) });
+            if (!w.ok) {
+                const t = await w.text().catch(() => '');
+                if (w.status === 404 || /band_settings|PGRST205|42P01/.test(t)) return [409, { ok: false, error: 'no_table', message: '저장 표가 없습니다 — Supabase SQL Editor 에서 20261124_band_settings.sql 을 실행해주세요.' }];
+                console.error('space_info_save 실패:', w.status, t.slice(0, 200));
+                return [500, { ok: false, error: 'save_failed', message: '저장하지 못했습니다. 잠시 후 다시 시도해주세요.' }];
+            }
+            return [200, { ok: true, settings: Object.fromEntries(rows.map(r => [r.key, r.value])) }];
+        }
+        const r = await sbFetch(env, 'band_settings?select=key,value');
+        if (!r.ok) return [200, { ok: true, missing: true, settings: {} }];
+        const settings = {};
+        ((await r.json().catch(() => [])) || []).forEach(x => { if (SPACE_KEYS.includes(x.key)) settings[x.key] = String(x.value || ''); });
+        return [200, { ok: true, settings }];
     }
 
     // ── 운영 도구(운영 총괄만): 브라우저 오류 기록 · 백업 내려받기 ──

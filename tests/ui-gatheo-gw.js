@@ -28,6 +28,7 @@ const FAKE_SB = `
   const p = await ctx.newPage();
   const api = []; let mode = 'ok'; // ok | 401once | 501 | nofn
   let merged = false, window_members = null; // 계정 통합 절(11)에서만 쓴다
+  let space = { door_1f: '1111*', door_b1: '22223333*', ops_contact: '010-1111-2222 (운영)', sound_contact: '010-3333-4444 (음향)' }, spaceMode = 'ok'; // 공간 이용 안내 절(13)
   const gone = new Set();                     // 삭제·탈퇴 절(12)에서 지워진 프로필 id
   await p.route('**://**', async r => {
     const u = new URL(r.request().url());
@@ -46,6 +47,14 @@ const FAKE_SB = `
       if (mode === 'nofn') return send(200, { ok: false, error: 'no_function', message: '통합 기능을 쓰려면 Supabase SQL Editor 에서 20261123_profile_merge.sql 을 한 번 실행해야 합니다.' });
       merged = true;
       return send(200, { ok: true, merged: true, keep_id: body.keep_id, kakao_linked: true, moved: {} });
+    }
+    if (body.action === 'space_info') {
+      if (spaceMode === 'forbidden') return send(403, { ok: false, error: 'forbidden', message: '승인된 멤버만 볼 수 있습니다.' });
+      return send(200, spaceMode === 'missing' ? { ok: true, missing: true, settings: {} } : { ok: true, settings: space });
+    }
+    if (body.action === 'space_info_save') {
+      if (spaceMode === 'missing') return send(409, { ok: false, error: 'no_table', message: '저장 표가 없습니다 — Supabase SQL Editor 에서 20261124_band_settings.sql 을 실행해주세요.' });
+      space = Object.assign({}, body.settings); return send(200, { ok: true, settings: space });
     }
     if (body.action === 'profile_delete') {
       if (mode === 'nofn') return send(200, { ok: false, error: 'no_function', message: '이 기능을 쓰려면 Supabase SQL Editor 에서 20261124_profile_delete.sql 을 한 번 실행해야 합니다.', deleted: 0 });
@@ -277,6 +286,59 @@ const FAKE_SB = `
   chk('탈퇴: 내 프로필 id 로 요청', !!wd && wd.profile_id === 'a1' && wd.session === 'old-session', JSON.stringify(wd));
   chk('탈퇴 뒤: 로그아웃 상태·포털·로그인 흔적 삭제', !afterW.user && afterW.portal && !afterW.main && !afterW.sess && !afterW.uid && !afterW.sheet && /탈퇴가 완료/.test(afterW.toast), JSON.stringify(afterW));
   window_members = null;
+
+  // 13. 운영안내 › 고정 탭 「공간 이용 안내」(합주팀 운영 안내와 같은 4절 + 출입 번호는 서버에서)
+  await setup(); api.length = 0;
+  const drawDocs = (o) => p.evaluate((o) => {
+    state.user.role = o.role; state.docs = o.docs; if (o.cat !== undefined) state.docsCategory = o.cat; if (o.reset) { state.spaceInfo = null; state.spaceInfoMissing = false; }
+    let el = document.getElementById('docsTest'); if (!el) { el = document.createElement('div'); el.id = 'docsTest'; document.body.appendChild(el); }
+    el.style.cssText = 'position:fixed;left:0;top:0;width:420px;max-height:900px;overflow:auto;z-index:9000;background:#fff;padding:12px;box-sizing:border-box';
+    renderDocsPage(el);
+    return { tabs: [...el.querySelectorAll('.docs-cat-tab')].map(b => b.textContent + (b.classList.contains('active') ? '*' : '')).join('|'),
+      cards: [...el.querySelectorAll('.docs-card')].map(c => c.querySelector('.docs-card-title').textContent.replace('▼', '').trim() + (c.classList.contains('collapsed') ? '' : '(열림)')).join('|') };
+  }, o);
+  const DOCS = [{ id: 'd1', category: '운영규칙', title: '예약 규칙', content: '규칙 본문' }];
+  let dv = await drawDocs({ role: '일반', docs: DOCS, cat: null, reset: true });
+  chk('운영안내: 문서 분류 뒤에 「공간 이용 안내」 탭(기본은 종전 첫 분류)', dv.tabs === '운영규칙*|공간 이용 안내' && dv.cards === '예약 규칙', JSON.stringify(dv));
+  chk('공간 이용 안내를 열기 전에는 값을 받지 않음', !api.some(a => a.action === 'space_info'));
+  await p.click('#docsTest .docs-cat-tab:nth-child(2)').catch(() => {});
+  dv = await drawDocs({ role: '일반', docs: DOCS, cat: '공간 이용 안내' });
+  await p.waitForFunction(() => /1111\*/.test((document.getElementById('gtSpaceDoor') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
+  const sp = await p.evaluate(() => { const el = document.getElementById('docsTest'); return { text: el.textContent.replace(/\s+/g, ' '), door: document.getElementById('gtSpaceDoor').textContent, ops: document.getElementById('gtSpaceOps').innerHTML,
+    sound: document.getElementById('gtSpaceSound').innerHTML, soundHidden: document.getElementById('gtSpaceSoundRow').hidden, admin: !!document.getElementById('gtSpaceAdmin'),
+    manual: (el.querySelector('a[href*="docs.google.com/document"]') || {}).target || '', wide: el.scrollWidth > el.clientWidth + 1 }; });
+  chk('공간 이용 안내: 4절(기본 정보만 펼침)', dv.tabs === '운영규칙|공간 이용 안내*' && dv.cards === '📍 기본 정보(열림)|💬 이용 시 주의사항|🎛️ 시설 이용법 및 세팅|☎️ 문의처', JSON.stringify(dv));
+  chk('공간 이용 안내: 주소·Wi-Fi·주의사항·냉난방기·빔프로젝터 본문', /연세로5나길 33 지하 1층/.test(sp.text) && /거울 쪽 선반 2번째 칸/.test(sp.text) && /화기 금지/.test(sp.text) && /밤 11시 이후에는 음향장비/.test(sp.text) && /난방\/히터/.test(sp.text) && /EB334581/.test(sp.text) && sp.manual === '_blank');
+  chk('공간 이용 안내: 출입 번호·담당자 연락처는 서버 값(전화 링크)', sp.door === '[1층 현관] 1111* · [지하 1층] 22223333*' && /href="tel:01011112222"/.test(sp.ops) && /운영\)/.test(sp.ops) && /href="tel:01033334444"/.test(sp.sound) && !sp.soundHidden, JSON.stringify(sp.door));
+  chk('공간 이용 안내: 일반 멤버에겐 입력 칸 없음 · 가로 넘침 없음', !sp.admin && !sp.wide);
+  const si = api.find(a => a.action === 'space_info');
+  chk('공간 이용 안내: /gatheo-api space_info (내 세션으로)', !!si && si.session === 'old-session', JSON.stringify(si));
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + '/gatheo-space-guide.png' });
+  // 값이 없으면
+  spaceMode = 'missing';
+  await drawDocs({ role: '일반', docs: [], cat: null, reset: true });
+  await p.waitForFunction(() => /따로 안내/.test((document.getElementById('gtSpaceDoor') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
+  const sp2 = await p.evaluate(() => ({ tabs: [...document.querySelectorAll('#docsTest .docs-cat-tab')].map(b => b.textContent).join('|'), door: document.getElementById('gtSpaceDoor').textContent, ops: document.getElementById('gtSpaceOps').textContent, soundHidden: document.getElementById('gtSpaceSoundRow').parentElement.hidden }));
+  chk('공간 이용 안내: 문서가 하나도 없어도 탭이 있고, 값이 없으면 「운영팀이 따로 안내」·대표 번호·음향담당자 줄 숨김', sp2.tabs === '공간 이용 안내' && /운영팀이 따로 안내/.test(sp2.door) && sp2.ops === await p.evaluate(() => PORTAL_PHONE) && sp2.soundHidden, JSON.stringify(sp2));
+  // 운영 총괄: 입력 칸 → 저장
+  await drawDocs({ role: '운영 총괄', docs: DOCS, cat: '공간 이용 안내', reset: true });
+  await p.waitForSelector('#gtSpaceAdmin'); await p.waitForTimeout(300);
+  chk('공간 이용 안내(운영 총괄): 표가 없으면 SQL 파일 안내', /20261124_band_settings\.sql/.test(await p.textContent('#gtSpaceAdminResult')));
+  spaceMode = 'ok'; space = {};
+  await drawDocs({ role: '운영 총괄', docs: DOCS, cat: '공간 이용 안내', reset: true }); await p.waitForTimeout(300);
+  await p.fill('#gs-door_1f', '7777*'); await p.fill('#gs-door_b1', '88889999*'); await p.fill('#gs-ops_contact', '010-5555-6666 (담당)');
+  api.length = 0; await p.click('#gtSpaceAdmin button'); await p.waitForTimeout(500);
+  const sv = api.find(a => a.action === 'space_info_save');
+  const sp3 = await p.evaluate(() => ({ door: document.getElementById('gtSpaceDoor').textContent, ops: document.getElementById('gtSpaceOps').textContent, res: document.getElementById('gtSpaceAdminResult').textContent, soundHidden: document.getElementById('gtSpaceSoundRow').parentElement.hidden,
+    inputH: Math.round(document.getElementById('gs-door_1f').getBoundingClientRect().height) }));
+  chk('공간 이용 안내(운영 총괄): 저장 요청(4개 값)', !!sv && sv.settings.door_1f === '7777*' && sv.settings.door_b1 === '88889999*' && sv.settings.ops_contact === '010-5555-6666 (담당)' && sv.settings.sound_contact === '', JSON.stringify(sv && sv.settings));
+  chk('공간 이용 안내(운영 총괄): 저장 뒤 화면에 바로 반영', sp3.door === '[1층 현관] 7777* · [지하 1층] 88889999*' && /담당/.test(sp3.ops) && /저장했습니다/.test(sp3.res) && sp3.soundHidden && sp3.inputH === 44, JSON.stringify(sp3));
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + '/gatheo-space-guide-admin.png' });
+  // 소스에 번호가 없어야 한다(공개 JS) · 로그아웃하면 값이 남지 않는다
+  const srcHas = await p.evaluate(async () => { const t = await (await fetch('/js/app-7-members.js')).text() + await (await fetch('/js/app-6-band.js')).text(); return /2357-?2040|장한영/.test(t); });
+  chk('공간 이용 안내: 음향담당자 이름·번호는 소스에 없음', srcHas === false);
+  await p.evaluate(() => { document.getElementById('docsTest')?.remove(); logoutUI(); });
+  chk('로그아웃하면 받아 둔 출입 번호를 비움', await p.evaluate(() => state.spaceInfo === null));
 
   chk('pageerror 없음', errs.length === 0, errs.join(' | '));
   console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);
