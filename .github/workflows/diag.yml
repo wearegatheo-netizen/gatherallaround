@@ -18,6 +18,25 @@ jobs:
             curl -sS --max-time 60 "https://gatherallaround.com/$path" || true
             echo; echo
           done
+      - name: 직통 주소(/perf · /shows …) 응답과 로그인 확인 속도
+        # 2026-11-25 「/perf 로 들어가면 포털로 튕김」 점검용 — 서버가 그 주소에서 셸을 200 으로 내고 머리에 #경로 치환을 넣는지,
+        # 부팅 때 로그인 확인이 거치는 /gatheo-api 가 얼마나 걸리는지(1.5초를 넘으면 예전 코드에서 포털로 덮였다).
+        run: |
+          UA="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 300.0"
+          for u in /perf /perf/ "/perf?fbclid=abc" /shows /community /band/times /host /gatheo /nope; do
+            code=$(curl -sS -A "$UA" -D /tmp/h -o /tmp/b -w "%{http_code} %{time_total}s" --max-time 30 "https://gatherallaround.com$u" || true)
+            echo "== $u -> $code · location: $(grep -i '^location:' /tmp/h | tr -d '\r' | cut -c11-) · 치환 스크립트: $(grep -o "history.replaceState(null,'','/'+location.search+'#[^']*')" /tmp/b | head -1) · 404.html 아님: $(grep -c 'portalLoadingScreen' /tmp/b)"
+          done
+          echo
+          for i in 1 2 3 4 5; do
+            curl -sS -o /dev/null -w "gatheo-api ping $i: HTTP %{http_code} · %{time_total}s\n" --max-time 30 -X POST "https://gatherallaround.com/gatheo-api" \
+              -H "Content-Type: application/json" -H "Origin: https://gatherallaround.com" -d '{"action":"ping"}' || true
+          done
+          # 프로필 조회(세션 없음 → 401 이어야 정상) — Supabase 까지 다녀오는 시간은 아니지만 함수가 도는 시간은 보인다
+          for i in 1 2 3; do
+            curl -sS -o /dev/null -w "gatheo-api db(익명) $i: HTTP %{http_code} · %{time_total}s\n" --max-time 30 -X POST "https://gatherallaround.com/gatheo-api" \
+              -H "Content-Type: application/json" -H "Origin: https://gatherallaround.com" -d '{"action":"db","table":"profiles","calls":[["select","*"],["eq","kakao_id","0"],["maybeSingle"]]}' || true
+          done
       - name: Supabase Edge Function / RPC 존재 확인 (커뮤니티 인증·메일)
         # 더미 값으로 호출해 배포 여부만 본다 — 404/NOT_FOUND면 미배포. 키는 공개 페이지 소스에서 추출.
         run: |

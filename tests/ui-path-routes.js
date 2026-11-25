@@ -17,13 +17,26 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 
   const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const br = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 
-  async function open(mode, urlPath) {
+  // login = { delay, status } — 저장된 카카오 로그인(gaa_kakao_uid + 서버 세션)이 있고 프로필 확인(/gatheo-api)이 delay ms 걸리는 방문자.
+  //   로그인 확인이 부팅 폴백(1.5초)보다 늦게 끝나는 경우를 본다(2026-11-25 「/perf 로 들어왔는데 포털로 튕김」).
+  async function open(mode, urlPath, login, during) {
     const ctx = await br.newContext({ viewport: { width: 420, height: 900 }, locale: 'ko-KR' });
+    if (login) await ctx.addInitScript(() => { try { localStorage.setItem('gaa_kakao_uid', 'k-me'); localStorage.setItem('gaa_session', JSON.stringify({ t: 'sess', e: Date.now() + 86400e3, k: 'k-me' })); } catch (_) {} });
     const p = await ctx.newPage();
     const errs = []; p.on('pageerror', e => errs.push(e.message));
     await p.route('**/*', async r => {
       const u = new URL(r.request().url());
       if (u.origin !== ORIGIN) return r.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+      if (login && u.pathname === '/gatheo-api') {
+        const body = JSON.parse(r.request().postData() || '{}');
+        const send = (obj) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(obj) }).catch(() => {});
+        if (body.action === 'ping') return send({ ok: true });
+        if (body.table === 'profiles' && (body.calls || []).some(c => c[0] === 'maybeSingle')) { // 부팅의 내 프로필 확인만 늦게
+          await new Promise(x => setTimeout(x, login.delay || 0));
+          return send({ data: { id: 'a1', name: '홍길동', status: login.status || 'approved', kakao_id: 'k-me', role: '일반' }, error: null });
+        }
+        return send({ data: [], error: null });
+      }
       const file = path.join(ROOT, decodeURIComponent(u.pathname));
       if (u.pathname !== '/' && file.startsWith(ROOT) && fs.existsSync(file) && fs.statSync(file).isFile())
         return r.fulfill({ status: 200, contentType: TYPES[path.extname(file)] || 'application/octet-stream', body: fs.readFileSync(file) });
@@ -31,12 +44,14 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 
       return r.fulfill({ status: 200, contentType: 'text/html', body: route ? mw.appShellWithRoute(INDEX, route) : INDEX });
     });
     await p.goto(ORIGIN + urlPath, { waitUntil: 'domcontentloaded' });
-    await p.waitForTimeout(2600);
+    if (during) { await p.waitForTimeout(during.at); await p.evaluate(during.run); }
+    await p.waitForTimeout(2600 + ((login && login.delay) || 0) - (during ? during.at : 0));
     const st = await p.evaluate(() => {
       const vis = (id) => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden'); };
       return { path: location.pathname, search: location.search, hash: location.hash,
         portal: vis('portal-page'), perf: vis('performance-booking-page'), shows: vis('shows-page'), community: vis('landing-page-community'),
         band: vis('landing-page-band'), bandTimes: vis('band-schedule-view'), host: vis('host-page'), gatheoLogin: vis('landing-page'),
+        gatheoMain: vis('main-content'), pending: vis('pending-screen'), boot: !!document.querySelector('#portalLoadingScreen[data-boot]'),
         returnTo: (() => { try { return sessionStorage.getItem('gaa_return_to'); } catch (_) { return null; } })() };
     });
     return { p, ctx, st, errs };
@@ -81,8 +96,41 @@ const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 
     await o.ctx.close();
   }
 
+  // ── 로그인해 둔 방문자 + 느린 로그인 확인(2026-11-25) — 직통 주소가 포털로 덮이면 안 된다 ──
+  //   종전: 1.5초 폴백이 딥링크를 먼저 적용하고, 뒤늦게 끝난 로그인 확인이 「갈 곳 없음 → 포털」로 덮어썼다(주소의 #perf 도 지움).
+  const SLOW = { delay: 2300 };
+  let o;
+  for (const [urlPath, key, hash, name] of [['/perf', 'perf', '#perf', '공간 대관'], ['/shows', 'shows', '#shows', '공연 예매'], ['/community', 'community', '#community', '커뮤니티'], ['/host', 'host', '#host', '호스트 센터'], ['/band/times', 'bandTimes', '#band/times', '고정 가능 시간']]) {
+    o = await open('static', urlPath, SLOW);
+    chk(`[로그인 확인이 늦을 때] ${urlPath} → ${name} 그대로(포털로 안 튕김)`, o.st[key] && !o.st.portal && o.st.hash === hash && !o.st.boot && !o.errs.length, JSON.stringify(o.st) + o.errs.join('|'));
+    await o.ctx.close();
+  }
+  o = await open('middleware', '/perf?fbclid=abc', SLOW);
+  chk('[로그인 확인이 늦을 때] 미들웨어 셸 /perf?fbclid= 도 그대로', o.st.perf && !o.st.portal && o.st.hash === '#perf' && o.st.search === '?fbclid=abc', JSON.stringify(o.st));
+  await o.ctx.close();
+  o = await open('static', '/perf', { delay: 0 });
+  chk('[로그인 확인이 빠를 때] /perf → 공간 대관', o.st.perf && !o.st.portal && o.st.hash === '#perf', JSON.stringify(o.st));
+  await o.ctx.close();
+  o = await open('static', '/gatheo/mypage', SLOW);
+  chk('[로그인 확인이 늦을 때] /gatheo/mypage → 게더링 화면(로그인 폼에서 멈추지 않음)', o.st.gatheoMain && !o.st.portal && !o.st.gatheoLogin && /^#gatheo/.test(o.st.hash), JSON.stringify(o.st));
+  await o.ctx.close();
+  o = await open('static', '/', SLOW);
+  chk('[로그인 확인이 늦을 때] 루트 → 포털(자동 진입 없음)', o.st.portal && !o.st.gatheoMain && !o.st.hash && !o.st.boot, JSON.stringify(o.st));
+  await o.ctx.close();
+  // 포털에서 기다리는 사이(부팅 화면이 걷힌 뒤) 타일을 눌러 섹션에 들어갔으면, 뒤늦은 로그인 확인이 포털로 되돌리지 않는다
+  o = await open('static', '/', { delay: 3200 }, { at: 2500, run: () => showPerformanceBookingSection() });
+  chk('[로그인 확인이 늦을 때] 포털에서 먼저 대관으로 들어간 뒤에도 그대로', o.st.perf && !o.st.portal && o.st.hash === '#perf', JSON.stringify(o.st));
+  await o.ctx.close();
+  // 승인 대기 중인 멤버가 공개 섹션 주소로 들어오면 「승인 대기」 화면이 아니라 그 섹션
+  o = await open('static', '/perf', { delay: 0, status: 'pending' });
+  chk('승인 대기 멤버: /perf → 공간 대관(대기 화면으로 가로막지 않음)', o.st.perf && !o.st.pending && !o.st.portal, JSON.stringify(o.st));
+  await o.ctx.close();
+  o = await open('static', '/', { delay: 0, status: 'pending' });
+  chk('승인 대기 멤버: 루트는 종전처럼 승인 대기 화면', o.st.pending && !o.st.perf, JSON.stringify(o.st));
+  await o.ctx.close();
+
   // 섹션이 아닌 경로·예전 해시 주소는 종전 그대로
-  let o = await open('static', '/nope');
+  o = await open('static', '/nope');
   chk('모르는 경로 /nope → 포털(해시 없음)', o.st.portal && !o.st.hash, JSON.stringify(o.st));
   await o.ctx.close();
   o = await open('static', '/#perf');

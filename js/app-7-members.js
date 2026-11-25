@@ -236,6 +236,8 @@
                 } else if (data.status === 'rejected') {
                     showToast('가입이 거절되었습니다. 관리자에게 문의해주세요.');
                     await supabaseClient.auth.signOut();
+                } else if (_bootPublicTarget(target)) {
+                    _finishBoot(); // 공개 섹션으로 들어온 부팅 — 승인 대기 화면으로 가로막지 않는다
                 } else {
                     showPendingScreen(data.name || data.leader_name || '신청자');
                 }
@@ -258,6 +260,8 @@
             } else if (data.status === 'rejected') {
                 showToast('회원가입이 거절되었습니다. 관리자에게 문의해주세요.');
                 await supabaseClient.auth.signOut();
+            } else if (_bootPublicTarget(target)) {
+                _finishBoot();
             } else {
                 showPendingScreen(data.name);
             }

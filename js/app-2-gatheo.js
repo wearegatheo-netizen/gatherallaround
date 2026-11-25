@@ -206,7 +206,7 @@
                         if (target === 'gatheo') loginUI(state.user.nickname); else _finishBoot();
                         return;
                     }
-                    if (data && data.status === 'pending') { showPendingScreen(data.name || ''); return; }
+                    if (data && data.status === 'pending') { if (_bootPublicTarget(target)) _finishBoot(); else showPendingScreen(data.name || ''); return; }
                 } catch (e) { console.warn('카카오 캐시 세션 복구 실패:', e); }
                 try { localStorage.removeItem('gaa_kakao_uid'); } catch(e) {}
             }
@@ -219,12 +219,18 @@
 
         // 부팅 시 인증 판단이 끝났을 때 — 로딩 오버레이를 걷고, 딥링크가 있으면 그 섹션으로, 없으면 포털로.
         // (loginUI/loginBandUI 로 바로 들어가는 경우엔 그쪽이 같은 일을 한다)
+        // ⚠ 2026-11-25 「/perf 로 들어왔는데 포털로 튕김」: 로그인 확인(저장된 세션 → 프로필 조회)이 1.5초보다 늦으면
+        //   위 폴백 타이머가 먼저 딥링크를 적용하며 _pendingRoute 를 비우고, 뒤늦게 도착한 이 함수가 「갈 곳 없음 → 포털」로 덮어썼다
+        //   (showPortal 이 주소의 #perf 까지 지움). 로그인해 둔 사람·느린 통신에서만 나서 테스트(비로그인)에 안 잡혔다.
+        //   → 포털은 **주소가 포털일 때만** 띄운다. 주소가 이미 섹션이면(폴백이 적용했거나, 기다리는 사이 사용자가 타일을 눌렀거나) 화면을 건드리지 않는다.
         function _finishBoot() {
             hideBootOverlay();
             _authResolved = true;
             if (_pendingRoute) applyPendingRoute();
-            else if (!window.__shareEntryMode) showPortal();
+            else if (!window.__shareEntryMode && _pageFromHash() === 'portal') showPortal();
         }
+        // 부팅 때 들어온 곳이 공개 섹션(대관·공연·커뮤니티·호스트 …)인가 — 그렇다면 「승인 대기」 화면으로 가로막지 않는다
+        function _bootPublicTarget(target) { return !!target && !['portal', 'gatheo', 'band'].includes(target); }
 
         function navigate(dir) {
             const d = state.viewDate;

@@ -63,6 +63,10 @@
   복구된 세션이 있으면 로그인 폼 대신 `loginUI`/`loginBandUI` 로 바로 진입. 섹션 딥링크·새로고침(`#gatheo/…`, `#band`)은 종전처럼 바로 그 화면
   (`checkEmailUserApproval(user, {target})`, 다른 구역·공개 섹션이면 `_finishBoot()`). `_gatheoEntered` 로 "세션만 복구" 와 "loginUI 실행(데이터 로딩)" 을 구분 —
   라우터가 미진입 세션이면 `loginUI` 를 부른다. 명시적 로그아웃은 `gaa_portal_required` 로 다음 부팅에서 세션 해제.
+  **⚠ 직통 주소가 포털로 튕기던 버그(2026-11-25)**: 딥링크 부팅은 `_pendingRoute` 에 경로를 두고, 인증이 끝나지 않을 때를 대비한 **1.5초 폴백 타이머**가 `applyPendingRoute()`(경로를 적용하며 `_pendingRoute=null`)를 부른다.
+  로그인해 둔 사람(카카오 캐시 `gaa_kakao_uid`·이메일 세션)은 프로필 확인이 `/gatheo-api` 왕복이라 1.5초를 넘기곤 했고, 뒤늦게 도착한 `_finishBoot()` 가 「`_pendingRoute` 없음 → `showPortal()`」 로 섹션을 덮고 주소의 `#perf` 까지 지웠다(비로그인 방문자는 인증이 즉시 끝나 안 걸림 → 테스트에 안 잡혔다).
+  지금 `_finishBoot()` 는 **주소가 포털일 때만**(`_pageFromHash()==='portal'`) 포털을 띄운다 — 폴백이 이미 적용했거나 기다리는 사이 사용자가 타일을 눌러 섹션에 들어갔으면 화면을 건드리지 않는다. **부팅 끝에서 `showPortal()` 을 조건 없이 부르는 코드를 새로 넣지 말 것.**
+  같이: 승인 대기 멤버가 공개 섹션 주소(`_bootPublicTarget(target)`: portal·gatheo·band 가 아닌 곳)로 들어오면 「승인 대기」 화면 대신 그 섹션(`_finishBoot`). 테스트 `tests/ui-path-routes.js`(35 — `open(mode, path, {delay, status})` 로 저장된 로그인 + 느린 프로필 확인을 흉내), 운영 서버 응답·`/gatheo-api` 속도는 `functions-diagnostics` 워크플로 「직통 주소」 단계.
 - **포털(2026-10-08 개편, 10-09 포토 마스트헤드)**: 카드 맨 위를 공간 사진이 꽉 채우고(4:3, `#portal-page` 패딩만큼 음수 마진 — 모바일 16/14px 과 짝) 그 위에
   흰 워드마크(`.portal-brand` 1.3rem)·유리 모드 버튼(`.portal-hero-toggle`, SVG 달/해를 `body.dark` 로 전환 — `applyTheme` 가 이 버튼 textContent 를 건드리면 안 됨),
   아래쪽에 헤드라인 "밴드를 위한 아늑한 공간"(`.portal-hero-cap b` 1.45rem/모바일 1.35rem)+한 줄 설명, 점은 사진 바닥 가운데. 별도 상단 줄·태그라인 줄·분리선 없음
